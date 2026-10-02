@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import { BureauApp } from '../bureau/BureauApp';
+---
+<Base title="Bureau · Lancement automne 2026 · OutilsEnLigne" app>
+  <!-- Canvas, File and Worker APIs: render on the client only. -->
+  <BureauApp client:only="react" />
+  <noscript><p class="page">Le bureau a besoin de JavaScript.</p></noscript>
+</Base>

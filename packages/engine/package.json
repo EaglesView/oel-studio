@@ -1,0 +1,10 @@
+{
+  "name": "@oel/engine",
+  "version": "0.1.0",
+  "description": "Document-processing contract for the editor: file detection, engine interface, Web Worker host. WASM engines (oeldocx-rs, oelimg-rs) plug in here.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker/engine.worker.ts"
+  }
+}

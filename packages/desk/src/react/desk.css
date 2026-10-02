@@ -1,0 +1,183 @@
+/*
+ * @oel/desk base styles. Uses the emboss tokens when present and falls back to
+ * neutral values so the package also works on its own.
+ */
+
+.desk {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+  background-color: var(--emboss-well, #eae9e4);
+  background-image: var(--emboss-noise, none);
+  box-shadow: inset 0 2px 5px var(--emboss-shade, #0002), inset 0 -2px 3px var(--emboss-highlight, #fff8);
+  cursor: default;
+}
+.desk[data-panning] { cursor: grab; }
+.desk[data-panning]:active { cursor: grabbing; }
+
+.desk__world {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.desk__list { position: absolute; inset: 0; }
+
+.desk__node,
+.desk__pile {
+  position: absolute;
+  outline: none;
+  transform-origin: center;
+  transition: opacity var(--dur-open, 320ms) var(--ease-paper, ease), filter var(--dur-open, 320ms) var(--ease-paper, ease);
+}
+.desk__node { cursor: default; }
+.desk__node:focus-visible::after,
+.desk__pile:focus-visible::after {
+  content: '';
+  position: absolute;
+  inset: calc(-6px / var(--desk-zoom, 1));
+  border: calc(2px / var(--desk-zoom, 1)) solid var(--emboss-focus, #7759c5);
+  border-radius: calc(8px / var(--desk-zoom, 1));
+  pointer-events: none;
+}
+/* Open in place (B4): the rest of the desk blurs and dims but stays visible. */
+.desk__node[data-dimmed] {
+  opacity: 0.45;
+  filter: blur(3px);
+}
+
+.desk__node[data-opened] { visibility: hidden; }
+.desk__pile { cursor: zoom-in; }
+.desk__pile-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+}
+
+.desk__links {
+  position: absolute;
+  overflow: visible;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.desk__link line {
+  stroke: var(--emboss-ink, #7759c5);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+  opacity: 0.7;
+}
+.desk__link circle { fill: var(--emboss-ink, #7759c5); }
+.desk__link--stale line { stroke: var(--emboss-warning, #f0ad05); }
+.desk__link--stale circle { fill: var(--emboss-warning, #f0ad05); }
+.desk__link--frozen line { stroke: var(--emboss-ink-muted, #6b6375); stroke-dasharray: 2 6; }
+.desk__link--frozen circle { fill: var(--emboss-ink-muted, #6b6375); }
+
+.desk__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.desk__selection {
+  position: absolute;
+  border: 2px solid var(--emboss-focus, #7759c5);
+  border-radius: 8px;
+}
+.desk__group {
+  position: absolute;
+  border: 1.5px dashed var(--emboss-ink, #7759c5);
+  border-radius: 14px;
+}
+.desk__group-label {
+  position: absolute;
+  top: -12px;
+  left: 16px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--emboss-fill-primary, #7759c5);
+  color: var(--emboss-on-fill, #fff);
+  font: 600 12px/20px var(--font-sans, system-ui);
+  white-space: nowrap;
+}
+.desk__lasso {
+  position: absolute;
+  border: 1px solid var(--emboss-focus, #7759c5);
+  border-radius: 4px;
+  background: var(--emboss-accent-soft, #7759c51a);
+}
+
+.desk__empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  max-width: 360px;
+  margin: 0;
+  text-align: center;
+  font: 400 15px/22px var(--font-sans, system-ui);
+  color: var(--emboss-ink-muted, #6b6375);
+  pointer-events: none;
+}
+
+.desk__dropzone {
+  position: absolute;
+  inset: 24px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--emboss-ink, #7759c5);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--emboss-accent-soft, #7759c51a) 70%, transparent);
+  pointer-events: none;
+  animation: desk-fade 200ms var(--ease-paper, ease);
+}
+
+.desk__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Minimap */
+.desk-minimap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--emboss-edge, #0001);
+  border-radius: 12px;
+  background-color: var(--emboss-sheet, #fbfaf6);
+  background-image: var(--emboss-noise, none);
+  box-shadow: var(--shadow-sheet, 0 8px 24px #0002);
+  cursor: pointer;
+  touch-action: none;
+}
+.desk-minimap__node {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--emboss-well, #eae9e4);
+  box-shadow: inset 0 0 0 1px var(--emboss-edge, #0001);
+}
+.desk-minimap__node[data-selected] { background: var(--emboss-accent-soft, #7759c533); box-shadow: inset 0 0 0 1px var(--emboss-ink, #7759c5); }
+.desk-minimap__view {
+  position: absolute;
+  border: 1.5px solid var(--emboss-focus, #7759c5);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+@keyframes desk-fade { from { opacity: 0; } }
+
+@media (forced-colors: active) {
+  .desk__selection, .desk__group, .desk-minimap__view { border-color: Highlight; }
+  .desk__node:focus-visible::after { border-color: Highlight; }
+}

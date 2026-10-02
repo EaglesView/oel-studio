@@ -1,0 +1,17 @@
+{
+  "name": "oel-studio",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "npm run dev -w @oel/web",
+    "build": "npm run build -w @oel/web",
+    "preview": "npm run preview -w @oel/web",
+    "typecheck": "tsc -p packages/emboss --noEmit && tsc -p packages/desk --noEmit && tsc -p packages/engine --noEmit && npm run check -w @oel/web",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

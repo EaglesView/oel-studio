@@ -1,0 +1,111 @@
+/* Button · five variants × four sizes × five states (kit 53:8). */
+
+.emb-button {
+  --_bg: var(--emboss-surface);
+  --_fg: var(--emboss-ink);
+  --_shadow: var(--shadow-raised);
+  --_text-shadow: var(--text-deboss);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-lg);
+  background-color: var(--_bg);
+  background-image: var(--emboss-noise);
+  color: var(--_fg);
+  box-shadow: var(--_shadow);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-shadow: var(--_text-shadow);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    box-shadow var(--dur-hover) var(--ease-paper),
+    background-color var(--dur-hover) var(--ease-paper),
+    color var(--dur-hover) var(--ease-paper),
+    transform var(--dur-press) var(--ease-paper);
+  outline: none;
+}
+
+.emb-button[data-focus-visible] {
+  outline: 2px solid var(--emboss-focus);
+  outline-offset: 3px;
+}
+
+/* Sizes (Sans/Button Small · Medium · Large) */
+.emb-button--sm { padding: var(--spacing-2) var(--spacing-3); font-size: 13px; line-height: 16px; }
+.emb-button--md { padding: var(--spacing-3) var(--spacing-4); font-size: 15px; line-height: 20px; border-radius: var(--radius-xl); }
+.emb-button--lg { padding: var(--spacing-4) var(--spacing-5); font-size: 17px; line-height: 24px; border-radius: var(--radius-xl); }
+.emb-button--icon { padding: var(--spacing-3); border-radius: var(--radius-xl); }
+.emb-button--icon-sm { padding: var(--spacing-2); border-radius: var(--radius-lg); }
+
+/* Secondary — blind emboss: same paper, raised, accent ink (default). */
+.emb-button--secondary[data-hovered] {
+  --_fg: var(--emboss-ink-hover);
+  --_shadow: var(--shadow-raised-hover);
+}
+.emb-button--secondary[data-pressed] {
+  --_bg: var(--emboss-well);
+  --_shadow: var(--shadow-pressed);
+}
+
+/* Ghost — flat until touched; rises from the page on hover. */
+.emb-button--ghost {
+  --_bg: transparent;
+  --_fg: var(--emboss-ink-muted);
+  --_shadow: none;
+  border-color: transparent;
+  background-image: none;
+}
+.emb-button--ghost[data-hovered] {
+  --_bg: var(--emboss-surface);
+  --_fg: var(--emboss-text);
+  --_shadow: var(--shadow-raised-soft);
+  border-color: var(--emboss-edge);
+}
+.emb-button--ghost[data-pressed] {
+  --_bg: var(--emboss-well);
+  --_shadow: var(--shadow-pressed);
+}
+
+/* Inked variants — one Primary per view. */
+.emb-button--primary,
+.emb-button--destructive,
+.emb-button--success {
+  --_fg: var(--emboss-on-fill);
+  --_shadow: var(--shadow-ink-raised);
+  --_text-shadow: var(--text-ink);
+  border-color: transparent;
+}
+.emb-button--primary { --_bg: var(--emboss-fill-primary); }
+.emb-button--primary[data-hovered] { --_bg: var(--emboss-fill-primary-hover); --_shadow: var(--shadow-ink-raised-hover); }
+.emb-button--primary[data-pressed] { --_bg: var(--emboss-fill-primary-pressed); --_shadow: var(--shadow-ink-pressed); }
+.emb-button--destructive { --_bg: var(--emboss-fill-destructive); }
+.emb-button--destructive[data-hovered] { --_bg: var(--emboss-fill-destructive-hover); --_shadow: var(--shadow-ink-raised-hover); }
+.emb-button--destructive[data-pressed] { --_bg: var(--emboss-fill-destructive-pressed); --_shadow: var(--shadow-ink-pressed); }
+.emb-button--success { --_bg: var(--emboss-fill-success); }
+.emb-button--success[data-hovered] { --_bg: var(--emboss-fill-success-hover); --_shadow: var(--shadow-ink-raised-hover); }
+.emb-button--success[data-pressed] { --_bg: var(--emboss-fill-success-pressed); --_shadow: var(--shadow-ink-pressed); }
+
+/* Disabled flattens the emboss and greys the ink. */
+.emb-button[data-disabled] {
+  --_bg: var(--emboss-fill-disabled);
+  --_fg: var(--emboss-ink-disabled);
+  --_shadow: var(--shadow-flat);
+  --_text-shadow: none;
+  cursor: not-allowed;
+}
+.emb-button--ghost[data-disabled] {
+  --_bg: transparent;
+  --_shadow: none;
+}
+
+@media (forced-colors: active) {
+  .emb-button { border-color: ButtonText; }
+  .emb-button[data-disabled] { color: GrayText; border-color: GrayText; }
+}

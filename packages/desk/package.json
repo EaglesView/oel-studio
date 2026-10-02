@@ -1,0 +1,21 @@
+{
+  "name": "@oel/desk",
+  "version": "0.1.0",
+  "description": "Accessible infinite-desk canvas: framework-free scene/viewport/selection core plus a React DOM renderer.",
+  "type": "module",
+  "sideEffects": ["**/*.css"],
+  "exports": {
+    ".": "./src/core/index.ts",
+    "./react": "./src/react/index.ts",
+    "./desk.css": "./src/react/desk.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
+  }
+}

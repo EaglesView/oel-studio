@@ -1,0 +1,15 @@
+---
+import Base from '../layouts/Base.astro';
+import { KitShowcase } from '../kit/KitShowcase';
+---
+<Base title="Composants en relief · OutilsEnLigne">
+  <main id="contenu" class="page">
+    <p class="emb-t-overline">OutilsEnLigne.ca · Embossed UI · v1</p>
+    <h1>Composants en relief</h1>
+    <p class="lead">
+      Composants « blind emboss » relevés du même papier, liés aux variables Couleur (Clair/Sombre),
+      Espacement et Rayon du fichier Figma. Clavier, focus et ARIA viennent de React Aria Components.
+    </p>
+    <KitShowcase client:load />
+  </main>
+</Base>

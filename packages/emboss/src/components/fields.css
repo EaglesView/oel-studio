@@ -1,0 +1,191 @@
+/* Text Field · Number Field · Select (kit 59:186, 61:189, 61:371). */
+
+.emb-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+.emb-field__label {
+  font: 600 13px/16px var(--font-sans);
+  letter-spacing: 0.01em;
+  color: var(--emboss-ink-muted);
+}
+.emb-field__helper {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--emboss-ink-muted);
+}
+.emb-field__error {
+  font: 500 12px/16px var(--font-sans);
+  color: var(--emboss-danger);
+}
+
+/* The debossed well */
+.emb-well-input {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-xl);
+  background-color: var(--emboss-well);
+  box-shadow: var(--shadow-well);
+  color: var(--emboss-ink-muted);
+  transition:
+    box-shadow var(--dur-hover) var(--ease-paper),
+    background-color var(--dur-hover) var(--ease-paper),
+    outline-color var(--dur-toggle) var(--ease-paper);
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+}
+.emb-well-input:hover,
+.emb-well-input[data-hovered] {
+  background-color: var(--emboss-well-hover);
+  box-shadow: var(--shadow-well-hover);
+}
+.emb-well-input:focus-within {
+  outline-color: var(--emboss-focus);
+}
+.emb-field[data-invalid] .emb-well-input {
+  outline-color: var(--emboss-danger);
+}
+.emb-field[data-disabled] .emb-well-input {
+  opacity: 0.6;
+  box-shadow: none;
+}
+.emb-well-input__control {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--emboss-text);
+  font: 500 15px/20px var(--font-sans);
+  resize: vertical;
+}
+.emb-well-input__control::placeholder {
+  color: var(--emboss-placeholder);
+}
+.emb-well-input--multiline {
+  align-items: flex-start;
+}
+.emb-well-input--number {
+  padding: var(--spacing-2) 4px var(--spacing-2) var(--spacing-4);
+  gap: var(--spacing-1);
+}
+
+/* Stepper key — small embossed key that presses in independently. */
+.emb-stepper-key {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-md);
+  background: var(--emboss-surface);
+  color: var(--emboss-ink-muted);
+  box-shadow: var(--shadow-raised-soft);
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow var(--dur-hover) var(--ease-paper), color var(--dur-hover) var(--ease-paper);
+}
+.emb-stepper-key[data-hovered] { color: var(--emboss-ink); }
+.emb-stepper-key[data-pressed] { background: var(--emboss-well); box-shadow: var(--shadow-pressed); }
+.emb-stepper-key[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+.emb-stepper-key[data-disabled] { color: var(--emboss-ink-disabled); box-shadow: none; cursor: not-allowed; }
+
+/* Select trigger — raised like a button; sinks when open. */
+.emb-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-xl);
+  background-color: var(--emboss-surface);
+  background-image: var(--emboss-noise);
+  box-shadow: var(--shadow-raised);
+  color: var(--emboss-text);
+  font: 500 15px/20px var(--font-sans);
+  text-align: start;
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow var(--dur-press) var(--ease-paper), background-color var(--dur-press) var(--ease-paper);
+}
+.emb-select-trigger[data-hovered] { box-shadow: var(--shadow-raised-hover); }
+.emb-select-trigger[data-pressed],
+.emb-field[data-open] .emb-select-trigger {
+  background-color: var(--emboss-well);
+  box-shadow: var(--shadow-pressed);
+}
+.emb-select-trigger[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 3px; }
+.emb-select-trigger__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emb-select-trigger__value[data-placeholder] { color: var(--emboss-placeholder); }
+.emb-select-trigger__chevron {
+  color: var(--emboss-ink);
+  transition: transform var(--dur-press) var(--ease-paper);
+}
+.emb-field[data-open] .emb-select-trigger__chevron { transform: rotate(180deg); }
+
+/* Floating paper menu (Select Menu 61:448) — shared by Select and Menu. */
+.emb-menu-popover {
+  min-width: var(--trigger-width);
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-xl);
+  background-color: var(--emboss-sheet);
+  background-image: var(--emboss-noise);
+  box-shadow: var(--shadow-sheet);
+  transition: opacity var(--dur-press) var(--ease-paper), transform var(--dur-press) var(--ease-paper);
+}
+.emb-menu-popover[data-entering],
+.emb-menu-popover[data-exiting] {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.emb-menu {
+  display: grid;
+  gap: 2px;
+  max-height: inherit;
+  overflow: auto;
+  padding: var(--spacing-1);
+  outline: none;
+}
+.emb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-lg);
+  color: var(--emboss-text);
+  font: 500 14px/20px var(--font-sans);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--dur-hover) var(--ease-paper);
+}
+.emb-menu-item[data-focused],
+.emb-menu-item[data-hovered] {
+  background: var(--emboss-accent-soft);
+}
+.emb-menu-item[data-selected] { color: var(--emboss-ink); font-weight: 600; }
+.emb-menu-item[data-disabled] { color: var(--emboss-ink-disabled); cursor: not-allowed; }
+.emb-menu-item[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: -2px; }
+.emb-menu-item__label { flex: 1; }
+.emb-menu-item__check { color: var(--emboss-ink); }
+.emb-menu-item kbd {
+  font: 500 12px/16px var(--font-sans);
+  color: var(--emboss-ink-muted);
+}
+.emb-menu-section-header {
+  padding: var(--spacing-2) var(--spacing-3) var(--spacing-1);
+  font: 600 11px/16px var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--emboss-ink-muted);
+}
+.emb-menu-separator {
+  height: 1px;
+  margin: var(--spacing-1) var(--spacing-2);
+  background: var(--emboss-edge);
+}

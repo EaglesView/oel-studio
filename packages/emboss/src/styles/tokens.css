@@ -1,0 +1,215 @@
+/*
+ * OutilsEnLigne · Embossed UI tokens.
+ * Mirrors the Figma file Y3vDuuW4jfyTOjreIwDp6P: Color collection (Light/Dark),
+ * Spacing, Radius, and the Emboss/* effect styles. Names match the Figma
+ * variables (emboss/surface → --emboss-surface) so design and code stay greppable.
+ *
+ * Theme: follows the OS by default; force with <html data-theme="light|dark">.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ── emboss/* · Light ─────────────────────────────────────────── */
+  --emboss-surface: #f4f3ec;
+  --emboss-sheet: #fbfaf6;
+  --emboss-well: #eae9e4;
+  --emboss-well-hover: #e5e4de;
+  --emboss-highlight: #ffffffd9;
+  --emboss-shade: #817b6561;
+  --emboss-edge: #7759c514;
+  --emboss-ink: #7759c5;
+  --emboss-ink-hover: #5d3dae;
+  --emboss-ink-muted: #6b6375;
+  --emboss-ink-disabled: #a6a3ae;
+  --emboss-text: #1b1822;
+  --emboss-placeholder: #97949e;
+  --emboss-focus: #7759c5;
+
+  --emboss-fill-primary: #7759c5;
+  --emboss-fill-primary-hover: #876ccb;
+  --emboss-fill-primary-pressed: #6542bd;
+  --emboss-fill-destructive: #e94957;
+  --emboss-fill-destructive-hover: #eb606c;
+  --emboss-fill-destructive-pressed: #d93a47;
+  --emboss-fill-success: #14ad5c;
+  --emboss-fill-success-hover: #20b666;
+  --emboss-fill-success-pressed: #11924d;
+  --emboss-fill-disabled: #e6e5e0;
+  --emboss-fill-highlight: #ffffff4d;
+  --emboss-fill-shade: #25194359;
+  --emboss-on-fill: #ffffff;
+
+  --emboss-danger: #e94957;
+  --emboss-danger-soft: #e9495717;
+  --emboss-success: #14ad5c;
+  --emboss-success-soft: #14ad5c1a;
+  --emboss-warning: #f0ad05;
+  --emboss-warning-ink: #8a570f;
+  --emboss-warning-soft: #fbbd2329;
+  --emboss-accent-soft: #7759c51a;
+  --emboss-scrim: #1b182259;
+  --emboss-tooltip: #2a2733;
+  --emboss-tooltip-text: #f4f3ec;
+
+  --title: #000000;
+
+  /* Brand accents used by the logo and presence colours */
+  --brand-red: #e84855;
+  --brand-green: #14ae5c;
+  --brand-violet: #7859c5;
+  --brand-gold: #e8b931;
+  --brand-blue: #51bbfe;
+}
+
+/* ── emboss/* · Dark ──────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --emboss-surface: #34333d;
+    --emboss-sheet: #34333d;
+    --emboss-well: #26252c;
+    --emboss-well-hover: #222228;
+    --emboss-highlight: #ffffff12;
+    --emboss-shade: #08070e99;
+    --emboss-edge: #ffffff0d;
+    --emboss-ink: #af9ddd;
+    --emboss-ink-hover: #c8bbe7;
+    --emboss-ink-muted: #a8b1bd;
+    --emboss-ink-disabled: #706e7c;
+    --emboss-text: #f1f5f9;
+    --emboss-placeholder: #858490;
+    --emboss-focus: #a692d9;
+    --emboss-fill-primary-hover: #8d73ce;
+    --emboss-fill-primary-pressed: #6b4abf;
+    --emboss-fill-destructive-hover: #ec6570;
+    --emboss-fill-destructive-pressed: #da3e4b;
+    --emboss-fill-success-hover: #21ba69;
+    --emboss-fill-success-pressed: #129750;
+    --emboss-fill-disabled: #403f4a;
+    --emboss-fill-highlight: #ffffff2e;
+    --emboss-fill-shade: #00000066;
+    --emboss-danger-soft: #e9495729;
+    --emboss-success-soft: #18cd6d29;
+    --emboss-warning: #fbbd23;
+    --emboss-warning-ink: #fccc55;
+    --emboss-accent-soft: #a692d929;
+    --emboss-scrim: #0000008c;
+    --emboss-tooltip: #f4f3ec;
+    --emboss-tooltip-text: #1b1822;
+    --title: #ffffff;
+    --logo-core: #f1f5f9;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --emboss-surface: #34333d;
+  --emboss-sheet: #34333d;
+  --emboss-well: #26252c;
+  --emboss-well-hover: #222228;
+  --emboss-highlight: #ffffff12;
+  --emboss-shade: #08070e99;
+  --emboss-edge: #ffffff0d;
+  --emboss-ink: #af9ddd;
+  --emboss-ink-hover: #c8bbe7;
+  --emboss-ink-muted: #a8b1bd;
+  --emboss-ink-disabled: #706e7c;
+  --emboss-text: #f1f5f9;
+  --emboss-placeholder: #858490;
+  --emboss-focus: #a692d9;
+  --emboss-fill-primary-hover: #8d73ce;
+  --emboss-fill-primary-pressed: #6b4abf;
+  --emboss-fill-destructive-hover: #ec6570;
+  --emboss-fill-destructive-pressed: #da3e4b;
+  --emboss-fill-success-hover: #21ba69;
+  --emboss-fill-success-pressed: #129750;
+  --emboss-fill-disabled: #403f4a;
+  --emboss-fill-highlight: #ffffff2e;
+  --emboss-fill-shade: #00000066;
+  --emboss-danger-soft: #e9495729;
+  --emboss-success-soft: #18cd6d29;
+  --emboss-warning: #fbbd23;
+  --emboss-warning-ink: #fccc55;
+  --emboss-accent-soft: #a692d929;
+  --emboss-scrim: #0000008c;
+  --emboss-tooltip: #f4f3ec;
+  --emboss-tooltip-text: #1b1822;
+  --title: #ffffff;
+  --logo-core: #f1f5f9;
+}
+
+:root {
+  /* ── Spacing ─────────────────────────────────────────────────── */
+  --spacing-0: 0px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  /* ── Radius ──────────────────────────────────────────────────── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ── Emboss/* effect styles (Figma drop/inner shadows) ───────── */
+  --shadow-raised: 0 -4px 10px var(--emboss-highlight), 0 4px 10px var(--emboss-shade);
+  --shadow-raised-hover: 0 -6px 14px var(--emboss-highlight), 0 6px 14px var(--emboss-shade);
+  --shadow-raised-soft: 0 -2px 5px var(--emboss-highlight), 0 2px 5px var(--emboss-shade);
+  --shadow-pressed: inset 0 4px 10px var(--emboss-shade), inset 0 -3px 8px var(--emboss-highlight);
+  --shadow-flat: 0 -1px 2px var(--emboss-highlight), 0 1px 2px var(--emboss-shade);
+  --shadow-ink-raised:
+    0 -3px 8px var(--emboss-highlight), 0 4px 10px var(--emboss-shade),
+    inset 0 1px 0 var(--emboss-fill-highlight), inset 0 -2px 0 var(--emboss-fill-shade);
+  --shadow-ink-raised-hover:
+    0 -5px 12px var(--emboss-highlight), 0 6px 14px var(--emboss-shade),
+    inset 0 1px 0 var(--emboss-fill-highlight), inset 0 -2px 0 var(--emboss-fill-shade);
+  --shadow-ink-pressed: inset 0 3px 7px var(--emboss-fill-shade), 0 1px 1px var(--emboss-highlight);
+  --shadow-well:
+    inset 0 2px 5px var(--emboss-shade), inset 0 -2px 3px var(--emboss-highlight),
+    0 1px 0 var(--emboss-highlight);
+  --shadow-well-hover:
+    inset 0 3px 7px var(--emboss-shade), inset 0 -2px 3px var(--emboss-highlight),
+    0 1px 0 var(--emboss-highlight);
+  --shadow-sheet:
+    0 -2px 6px var(--emboss-highlight), 0 2px 4px var(--emboss-shade),
+    0 14px 32px var(--emboss-shade);
+  --shadow-knob:
+    0 -1px 2px var(--emboss-highlight), 0 2px 4px var(--emboss-shade),
+    0 4px 10px var(--emboss-shade), inset 0 1px 0 var(--emboss-highlight);
+  --text-deboss: 0 1px 0 var(--emboss-highlight);
+  --text-ink: 0 -1px 0 var(--emboss-fill-shade);
+
+  /* Figma NOISE effect (radius 4) approximated with a tiled turbulence. */
+  --emboss-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .48 0 0 0 0 .4 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* ── Motion (Smart Animate in the kit) ───────────────────────── */
+  --ease-paper: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-hover: 200ms;
+  --dur-press: 260ms;
+  --dur-toggle: 220ms;
+  --dur-open: 320ms;
+
+  /* ── Type ────────────────────────────────────────────────────── */
+  --font-sans: 'Montserrat Variable', 'Montserrat', system-ui, sans-serif;
+  --font-serif: 'Noto Serif', Georgia, serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-hover: 0ms;
+    --dur-press: 0ms;
+    --dur-toggle: 0ms;
+    --dur-open: 0ms;
+  }
+}

@@ -1,0 +1,128 @@
+import type { DeskNode, DeskStore } from '@oel/desk';
+import { KIND_LABEL, type FileKind, type Preview } from '@oel/engine';
+import type { IconName, Person, Tone } from '@oel/emboss';
+
+/** Desk paper kinds = engine file kinds (minus "unsupported" which shows as a generic file). */
+export type PaperKind = Exclude<FileKind, 'unsupported'> | 'file';
+
+export type PaperStatus =
+  | { state: 'ready' }
+  | { state: 'importing'; progress: number | null; stage: string }
+  | { state: 'readonly'; reason: string }
+  | { state: 'error'; reason: string };
+
+export interface Stamp {
+  label: string;
+  tone: Tone;
+}
+
+export interface Comment {
+  id: string;
+  author: string;
+  text: string;
+}
+
+export interface PaperData {
+  /** Overline on documents and slides ("COMMUNIQUÉ"). */
+  eyebrow?: string;
+  preview: Preview;
+  status: PaperStatus;
+  stamp?: Stamp;
+  editor?: string;
+  comments: Comment[];
+  /** Object URL for imported images. */
+  imageUrl?: string;
+  fileName?: string;
+  /** Sticky note colour/assignee. */
+  assignee?: string;
+}
+
+export type Paper = DeskNode<PaperData> & { kind: PaperKind };
+export type Bureau = DeskStore<PaperData>;
+
+export const PEOPLE: Person[] = [
+  { id: 'jb', name: 'J. Bouchard (vous)', initials: 'JB', color: 'var(--emboss-fill-primary)' },
+  { id: 'mc', name: 'Marie-Claude', initials: 'MC', color: 'var(--emboss-success)' },
+  { id: 'al', name: 'Alex', initials: 'AL', color: 'var(--emboss-warning)' },
+];
+
+export const KIND_ICON: Record<PaperKind, IconName> = {
+  document: 'file',
+  slides: 'slide',
+  spreadsheet: 'table',
+  pdf: 'pdf',
+  image: 'image',
+  note: 'note',
+  file: 'file',
+};
+
+export function kindLabel(kind: string): string {
+  return kind === 'file' ? 'Fichier' : (KIND_LABEL[kind as FileKind] ?? 'Fichier');
+}
+
+/** Paper sizes per type (B1 · 3: each type has its shape). */
+export const PAPER_SIZE: Record<PaperKind, { w: number; h: number }> = {
+  document: { w: 420, h: 594 },
+  slides: { w: 520, h: 292 },
+  spreadsheet: { w: 460, h: 300 },
+  pdf: { w: 340, h: 440 },
+  image: { w: 300, h: 330 },
+  note: { w: 200, h: 140 },
+  file: { w: 260, h: 320 },
+};
+
+export function statusText(p: Paper): string {
+  const s = p.data.status;
+  if (s.state === 'importing') return `${s.stage}${s.progress != null ? ` ${Math.round(s.progress * 100)} %` : ''}`;
+  if (s.state === 'readonly') return `Lecture seule. ${s.reason}`;
+  if (s.state === 'error') return `Erreur. ${s.reason}`;
+  return '';
+}
+
+/** Accessible label for a paper on the desk. */
+export function describePaper(p: Paper): string {
+  const parts = [p.title, kindLabel(p.kind)];
+  if (p.data.stamp) parts.push(p.data.stamp.label);
+  const st = statusText(p);
+  if (st) parts.push(st);
+  const c = p.data.comments.length;
+  if (c) parts.push(`${c} commentaire${c > 1 ? 's' : ''}`);
+  return parts.join(', ');
+}
+
+let counter = 0;
+export const uid = (prefix = 'p') => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
+
+export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper {
+  const size = PAPER_SIZE[kind];
+  const titles: Record<PaperKind, string> = {
+    document: 'Document sans titre',
+    slides: 'Présentation sans titre',
+    spreadsheet: 'Tableur sans titre',
+    note: 'Note',
+    pdf: 'PDF',
+    image: 'Image',
+    file: 'Fichier',
+  };
+  const preview: Preview =
+    kind === 'document'
+      ? { kind: 'document', blocks: [{ type: 'heading', text: 'Titre' }, { type: 'paragraph', text: '' }] }
+      : kind === 'slides'
+        ? { kind: 'slides', slides: [{ title: 'Titre de la diapositive' }] }
+        : kind === 'spreadsheet'
+          ? { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [['', ''], ['', '']] }
+          : kind === 'note'
+            ? { kind: 'note', text: '' }
+            : { kind: 'unsupported' };
+  return {
+    id: uid(),
+    kind,
+    title: titles[kind],
+    x: at.x - size.w / 2,
+    y: at.y - size.h / 2,
+    w: size.w,
+    h: size.h,
+    rotation: kind === 'note' ? -3 : 0,
+    data: { preview, status: { state: 'ready' }, comments: [], editor: 'JB' },
+  };
+}
