@@ -15,7 +15,6 @@ export const SEED_PAPERS: Paper[] = [
     data: {
       eyebrow: 'Communiqué',
       editor: 'JB',
-      comments: [{ id: 'c1', author: 'Marie-Claude', text: 'On cite le chiffre de la diapo 4 ?' }],
       status: { state: 'ready' },
       preview: {
         kind: 'document',
@@ -48,7 +47,6 @@ export const SEED_PAPERS: Paper[] = [
     data: {
       eyebrow: 'Lancement',
       editor: 'MC',
-      comments: [],
       status: { state: 'ready' },
       preview: {
         kind: 'slides',
@@ -72,7 +70,6 @@ export const SEED_PAPERS: Paper[] = [
     rotation: -0.6,
     data: {
       editor: 'AL',
-      comments: [],
       status: { state: 'ready' },
       preview: {
         kind: 'spreadsheet',
@@ -99,7 +96,7 @@ export const SEED_PAPERS: Paper[] = [
     w: 300,
     h: 330,
     rotation: 2.5,
-    data: { editor: 'MC', comments: [], status: { state: 'ready' }, preview: { kind: 'image', width: 1080, height: 1350 }, fileName: 'affiche-v3.png' },
+    data: { editor: 'MC', status: { state: 'ready' }, preview: { kind: 'image', width: 1080, height: 1350 }, fileName: 'affiche-v3.png' },
   },
   {
     id: 'contrat',
@@ -112,7 +109,6 @@ export const SEED_PAPERS: Paper[] = [
     rotation: 1,
     data: {
       editor: 'JB',
-      comments: [],
       stamp: { label: 'À signer', tone: 'warning' },
       status: { state: 'readonly', reason: 'PDF : ouvert en lecture.' },
       preview: { kind: 'pdf', pageCount: 3, scanned: false, title: 'Contrat — Imprimerie' },
@@ -129,7 +125,6 @@ export const SEED_PAPERS: Paper[] = [
     rotation: -4,
     data: {
       assignee: 'Alex',
-      comments: [],
       status: { state: 'ready' },
       preview: { kind: 'note', text: 'Reprendre les chiffres du tableur dans la diapo 4.' },
     },

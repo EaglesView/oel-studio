@@ -57,13 +57,6 @@
   justify-items: end;
   gap: 12px;
 }
-.zoom-control__value {
-  min-width: 52px;
-  text-align: center;
-  font: 600 13px/16px var(--font-sans);
-  font-variant-numeric: tabular-nums;
-  color: var(--emboss-text);
-}
 
 /* Contextual toolbar (B2) */
 .context-bar {
@@ -80,10 +73,6 @@
 }
 .context-anchor { position: absolute; width: 1px; height: 1px; }
 
-.comment-pop { display: grid; gap: 10px; width: 300px; }
-.comment-pop__item { margin: 0; padding: 8px 10px; border-radius: var(--radius-lg); background: var(--emboss-well); font: 400 13px/18px var(--font-sans); }
-.comment-pop form { display: grid; gap: 10px; }
-.comment-pop__send { justify-self: end; }
 
 .rules { display: grid; gap: 14px; width: 320px; }
 .rules__title { font: 600 15px/20px var(--font-sans); color: var(--title); }
@@ -234,82 +223,6 @@
   box-shadow: var(--shadow-raised-soft);
 }
 .paper--pdf .paper__readonly { bottom: 72px; }
-.paper__comments {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--emboss-fill-primary);
-  color: var(--emboss-on-fill);
-  font: 600 12px/18px var(--font-sans);
-}
-
-/* Mid LOD thumbnails (B5): text never drawn below 12 px on screen. */
-.paper__thumb {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: calc(6px / var(--desk-zoom));
-  height: 100%;
-  padding: calc(16px / var(--desk-zoom));
-  text-align: center;
-}
-.paper__thumb-icon { color: var(--emboss-ink); scale: calc(1 / var(--desk-zoom)); margin-bottom: calc(12px / var(--desk-zoom)); }
-.paper__thumb-title {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font: 600 calc(14px / var(--desk-zoom)) / 1.25 var(--font-sans);
-  color: var(--title);
-}
-.paper__thumb-meta { font: 400 calc(12px / var(--desk-zoom)) / 1.3 var(--font-sans); color: var(--emboss-ink-muted); }
-.paper__thumb-stamp { scale: calc(1 / var(--desk-zoom)); margin-top: calc(8px / var(--desk-zoom)); }
-
-/* Far LOD piles */
-.pile { position: relative; width: 100%; height: 100%; }
-.pile__sheet {
-  position: absolute;
-  inset: 0;
-  border: 1px solid var(--emboss-edge);
-  border-radius: 10px;
-  background-color: var(--emboss-sheet);
-  background-image: var(--emboss-noise);
-  box-shadow: var(--shadow-raised-soft);
-}
-.pile__sheet--3 { rotate: -5deg; translate: -6px 6px; }
-.pile__sheet--2 { rotate: 3deg; translate: 6px 3px; }
-.pile__sheet--1 {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 6px;
-  padding: 16px;
-  color: var(--emboss-ink);
-  text-align: center;
-  box-shadow: var(--shadow-sheet);
-}
-.pile__sheet--1 strong { font: 600 16px/20px var(--font-sans); color: var(--title); }
-.pile__titles { font: 400 12px/16px var(--font-sans); color: var(--emboss-ink-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.pile__count {
-  position: absolute;
-  top: -12px;
-  right: -12px;
-  display: grid;
-  place-items: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 16px;
-  background: var(--emboss-fill-primary);
-  color: var(--emboss-on-fill);
-  font: 700 14px/1 var(--font-sans);
-  box-shadow: var(--shadow-ink-raised);
-}
 
 /* ── Open in place (B4) ────────────────────────────────────────────── */
 
@@ -596,3 +509,7 @@
   .list-row__type, .list-row__state, .list-row__meta { display: none; }
 }
 .open-sheet-dialog { height: 100%; outline: none; }
+
+/* Zoomed-out thumbnails: drop the expensive layered shadows, keep the paper shape. */
+.paper[data-lod='thumbnail'] { box-shadow: var(--shadow-raised-soft); }
+.paper[data-lod='thumbnail'] .paper__readonly { display: none; }

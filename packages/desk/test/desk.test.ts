@@ -4,8 +4,8 @@ import {
   fitRect,
   lodForZoom,
   nearestInDirection,
-  pilesBy,
   readingOrder,
+  wheelZoomFactor,
   screenToWorld,
   worldToScreen,
   zoomAt,
@@ -32,10 +32,17 @@ describe('geometry', () => {
     expect(after.y).toBeCloseTo(before.y);
   });
 
-  it('maps zoom to the B5 levels of detail', () => {
-    expect(lodForZoom(0.3)).toBe('far');
-    expect(lodForZoom(0.6)).toBe('mid');
-    expect(lodForZoom(1)).toBe('near');
+  it('draws thumbnails when zoomed out, live content up close', () => {
+    expect(lodForZoom(0.3)).toBe('thumbnail');
+    expect(lodForZoom(0.6)).toBe('live');
+  });
+
+  it('keeps a mouse-wheel notch a small zoom step', () => {
+    const notch = wheelZoomFactor(100);
+    expect(notch).toBeGreaterThan(0.85);
+    expect(notch).toBeLessThan(0.95);
+    expect(wheelZoomFactor(3, 1)).toBeCloseTo(notch); // 3 lines ≈ one notch
+    expect(wheelZoomFactor(-2)).toBeGreaterThan(1);
   });
 
   it('fits bounds inside the screen', () => {
@@ -51,10 +58,6 @@ describe('geometry', () => {
     expect(nearestInDirection(a, [a, b, c], 'left')).toBeNull();
   });
 
-  it('groups piles by key', () => {
-    const piles = pilesBy([node('a', 0, 0), node('b', 500, 0), node('c', 0, 0, 'img')], (n) => n.kind);
-    expect(piles.map((p) => [p.key, p.ids.length])).toEqual([['doc', 2], ['img', 1]]);
-  });
 });
 
 describe('DeskStore', () => {
@@ -92,6 +95,18 @@ describe('DeskStore', () => {
     desk.select(['a'], 'toggle');
     expect(desk.getState().selection).toEqual(['b']);
     expect(calls).toBe(3);
+  });
+
+  it('never zooms out past the limit, even when fitting', () => {
+    const desk = createDesk({ nodes: [node('a', 0, 0), node('b', 20000, 0)], zoom: { min: 0.25 } });
+    desk.setScreen(1000, 600);
+    desk.zoomToFit();
+    expect(desk.getState().viewport.zoom).toBe(0.25);
+    for (let i = 0; i < 50; i++) desk.zoomBy(0.5);
+    expect(desk.getState().viewport.zoom).toBe(0.25);
+    expect(desk.isMaxZoomOut).toBe(true);
+    desk.zoomReset();
+    expect(desk.getState().viewport.zoom).toBe(1);
   });
 
   it('does not move locked papers', () => {

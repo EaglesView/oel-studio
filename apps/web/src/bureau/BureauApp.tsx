@@ -18,13 +18,15 @@ import { Dock, PresenceCursors, ProjectPill, SharePill, ZoomControl, type Arriva
 import { ListView } from './ListView';
 import { blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet } from './OpenSheet';
-import { Paper, PaperPile } from './Paper';
+import { Paper } from './Paper';
 import { SEED_LINKS, SEED_PAPERS } from './seed';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { convertToEditable, importFiles } from './importFiles';
 import './bureau.css';
 
 const PROJECT = 'Lancement automne 2026';
+/** Furthest you can zoom out: papers are small thumbnails, never piles or a full overview. */
+const MAX_ZOOM_OUT = 0.25;
 
 /**
  * 05 · Bureau (projet multimodal). An infinite desk where every file of a
@@ -33,7 +35,12 @@ const PROJECT = 'Lancement automne 2026';
  */
 export function BureauApp() {
   const store = useMemo<Bureau>(() => {
-    const desk = createDesk<PaperData>({ nodes: SEED_PAPERS, links: SEED_LINKS, viewport: { x: 0, y: 40, zoom: 0.9 } });
+    const desk = createDesk<PaperData>({
+      nodes: SEED_PAPERS,
+      links: SEED_LINKS,
+      viewport: { x: 0, y: 40, zoom: 0.9 },
+      zoom: { min: MAX_ZOOM_OUT, max: 4 },
+    });
     return desk;
   }, []);
   const [view, setView] = useState<'desk' | 'list'>('desk');
@@ -115,8 +122,6 @@ export function BureauApp() {
             label={`Bureau du projet ${PROJECT}`}
             describeNode={(n) => describePaper(n as PaperNode)}
             renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} />}
-            pileLabel={(k) => kindLabel(k)}
-            renderPile={(pile, nodes) => <PaperPile pile={pile} nodes={nodes as PaperNode[]} />}
             renderGroupLabel={(nodes) => {
               const kinds = new Set(nodes.map((n) => n.kind)).size;
               return `${nodes.length} fichiers · ${kinds} type${kinds > 1 ? 's' : ''}`;
@@ -135,10 +140,6 @@ export function BureauApp() {
             onKeyDown={(e, s) => {
               if (e.key === '/' && toolbarRef.current) {
                 toolbarRef.current.querySelector<HTMLElement>('button')?.focus();
-                return true;
-              }
-              if (e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && s.getState().selection.length === 1) {
-                toolbarRef.current?.querySelector<HTMLElement>('[aria-label="Commenter"]')?.click();
                 return true;
               }
               if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey) {

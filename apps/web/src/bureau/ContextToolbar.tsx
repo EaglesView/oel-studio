@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDesk, useDeskState, useSelectionScreenRect } from '@oel/desk/react';
-import { lodForZoom } from '@oel/desk';
 import {
   Button,
   DialogTrigger,
@@ -28,7 +27,8 @@ interface Props {
 
 /**
  * B2 · One floating bar with two halves. Left: the tool group for the selected
- * type. Right, always the same: Comment and Open. B7 · several types selected:
+ * type. Right, always the same: Open. (Comments will be a canvas-wide feature.)
+ * B7 · several types selected:
  * only actions every type supports (arrange, produce, share).
  */
 export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) {
@@ -37,7 +37,6 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
   const selection = useDeskState(store, (s) => s.selection);
   const nodes = useDeskState(store, (s) => s.nodes);
   const screen = useDeskState(store, (s) => s.screen);
-  const zoom = useDeskState(store, (s) => s.viewport.zoom);
   const openId = useDeskState(store, (s) => s.openId);
   const [size, setSize] = useState({ w: 0, h: 48 });
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -51,7 +50,7 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
   });
 
   const selected = selection.map((id) => nodes[id] as Paper | undefined).filter((n): n is Paper => !!n);
-  if (!rect || selected.length === 0 || openId || lodForZoom(zoom) === 'far') return null;
+  if (!rect || selected.length === 0 || openId) return null;
 
   // Above the selection if there is room, else below, else pinned under the top chrome.
   const gap = 18;
@@ -85,7 +84,6 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
       >
         {single ? <TypeTools node={single} store={store} onConvert={onConvert} /> : <MultiTools store={store} ids={selection} kinds={kinds.size} />}
         <ToolbarSeparator />
-        {single && <CommentTool node={single} store={store} announce={announce} />}
         {single ? (
           <ToolButton
             icon="expand"
@@ -185,38 +183,5 @@ function MultiTools({ store, ids, kinds }: { store: Bureau; ids: string[]; kinds
       <ToolButton icon="pdf" label="Un seul PDF" description="Dans l’ordre du bureau." unavailableReason={ENGINE_LATER} />
       <ToolButton icon="slide" label="Une présentation" description="Une diapo par fichier." unavailableReason={ENGINE_LATER} />
     </>
-  );
-}
-
-function CommentTool({ node, store, announce }: { node: Paper; store: Bureau; announce: (m: string) => void }) {
-  const [text, setText] = useState('');
-  const count = node.data.comments.length;
-  return (
-    <DialogTrigger>
-      <ToolButton icon="comment" label="Commenter" value={count || undefined} shortcut={['C']} description="Ajoute un commentaire sur ce fichier." />
-      <Popover placement="bottom" aria-label="Commentaires">
-        <div className="comment-pop">
-          {node.data.comments.map((c) => (
-            <p key={c.id} className="comment-pop__item">
-              <strong>{c.author}</strong> {c.text}
-            </p>
-          ))}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!text.trim()) return;
-              store.update(node.id, { data: { ...node.data, comments: [...node.data.comments, { id: uid('c'), author: 'Vous', text }] } }, { label: 'Commentaire' });
-              setText('');
-              announce('Commentaire publié');
-            }}
-          >
-            <TextField label="Nouveau commentaire" multiline rows={2} value={text} onChange={setText} autoFocus />
-            <Button type="submit" variant="primary" size="sm" className="comment-pop__send">
-              Publier
-            </Button>
-          </form>
-        </div>
-      </Popover>
-    </DialogTrigger>
   );
 }

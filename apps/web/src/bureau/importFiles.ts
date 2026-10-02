@@ -52,7 +52,6 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
       data: {
         preview: { kind: 'unsupported' },
         status: { state: 'importing', progress: 0, stage: 'Lecture du fichier' },
-        comments: [],
         editor: 'JB',
         fileName: file.name,
         imageUrl: kind === 'image' ? URL.createObjectURL(file) : undefined,
@@ -137,7 +136,6 @@ export function convertToEditable(store: Bureau, id: string, announce: (m: strin
     data: {
       preview: { kind: 'document', blocks: [] },
       status: { state: 'importing', progress: 0, stage: 'Conversion en document modifiable' },
-      comments: [],
       editor: 'JB',
     },
   };

@@ -1,5 +1,6 @@
 import {
-  ZOOM_PRESETS,
+  DEFAULT_ZOOM_LIMITS,
+  clamp,
   fitRect,
   rectOf,
   union,
@@ -10,7 +11,7 @@ import {
   nearestInDirection,
   readingOrder,
 } from './geometry';
-import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, Vec, Viewport } from './types';
+import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, Vec, Viewport, ZoomLimits } from './types';
 
 type Listener = () => void;
 
@@ -19,6 +20,8 @@ export interface DeskStoreOptions<D> {
   links?: DeskLink[];
   viewport?: Viewport;
   historyLimit?: number;
+  /** Max zoom-out / zoom-in. Default 25 % – 400 %. */
+  zoom?: Partial<ZoomLimits>;
 }
 
 /**
@@ -33,6 +36,7 @@ export class DeskStore<D = unknown> {
   private future: HistoryEntry<D>[] = [];
   private pending: HistoryEntry<D> | null = null;
   private readonly historyLimit: number;
+  readonly zoomLimits: ZoomLimits;
 
   constructor(opts: DeskStoreOptions<D> = {}) {
     const nodes = opts.nodes ?? [];
@@ -48,6 +52,9 @@ export class DeskStore<D = unknown> {
       showLinks: true,
     };
     this.historyLimit = opts.historyLimit ?? 100;
+    this.zoomLimits = { ...DEFAULT_ZOOM_LIMITS, ...opts.zoom };
+    const v = this.state.viewport;
+    this.state.viewport = { ...v, zoom: clamp(v.zoom, this.zoomLimits.min, this.zoomLimits.max) };
   }
 
   /* ── subscription ─────────────────────────────────────────────── */
@@ -314,7 +321,7 @@ export class DeskStore<D = unknown> {
   }
 
   setViewport(v: Viewport) {
-    this.set({ viewport: v });
+    this.set({ viewport: { ...v, zoom: clamp(v.zoom, this.zoomLimits.min, this.zoomLimits.max) } });
   }
 
   panBy(dxScreen: number, dyScreen: number) {
@@ -324,19 +331,24 @@ export class DeskStore<D = unknown> {
 
   zoomBy(factor: number, anchor?: Vec) {
     const a = anchor ?? { x: this.state.screen.w / 2, y: this.state.screen.h / 2 };
-    this.set({ viewport: zoomAt(this.state.viewport, a, factor) });
+    this.set({ viewport: zoomAt(this.state.viewport, a, factor, this.zoomLimits) });
   }
 
-  /** Jump to a B5 level-of-detail preset (keys 1/2/3). */
-  zoomPreset(index: 0 | 1 | 2) {
-    const a = { x: this.state.screen.w / 2, y: this.state.screen.h / 2 };
-    this.set({ viewport: zoomTo(this.state.viewport, a, ZOOM_PRESETS[index]) });
+  /** Back to 100 %, keeping the centre of the screen in place. */
+  zoomReset(anchor?: Vec) {
+    const a = anchor ?? { x: this.state.screen.w / 2, y: this.state.screen.h / 2 };
+    this.set({ viewport: zoomTo(this.state.viewport, a, 1, this.zoomLimits) });
   }
 
+  get isMaxZoomOut() {
+    return this.state.viewport.zoom <= this.zoomLimits.min + 1e-6;
+  }
+
+  /** Frame some papers (never beyond the max zoom-out). */
   zoomToFit(ids?: string[], maxZoom = 1) {
     const b = this.bounds(ids);
     if (!b || this.state.screen.w === 0) return;
-    this.set({ viewport: fitRect(b, this.state.screen, 96, maxZoom) });
+    this.set({ viewport: fitRect(b, this.state.screen, 96, maxZoom, this.zoomLimits.min) });
   }
 
   /** Pan so the node is visible, keeping zoom (used when keyboard focus moves). */

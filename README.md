@@ -38,8 +38,9 @@ Add a build step (tsup/tsdown) only if they need publishing outside this repo.
   `data-pressed`, `data-selected`, `data-focus-visible` states, which map directly onto
   the kit's Default/Hover/Pressed/Focused/Disabled variants. Motion uses the kit's
   durations and `cubic-bezier(0.22, 1, 0.36, 1)`, and `prefers-reduced-motion` zeroes them.
-- Icons: the 28 kit icons are exported verbatim from Figma. `EXTRA` icons in
-  `icons/Icon.tsx` were drawn on the same grid for the editor and are **not in Figma yet**.
+- Icons: the 28 kit icons are exported verbatim from Figma. Every other icon comes from
+  [Iconoir](https://iconoir.com) (`iconoir-react`, MIT), drawn at the kit's 1.75 stroke;
+  the same Iconoir SVGs are components in the Figma Icons frame. New icons: use Iconoir.
 - Tool tooltips implement B3: name + shortcut + effect, and unavailable tools stay
   focusable and say *why* (`unavailableReason`) instead of going silent.
 
@@ -51,17 +52,19 @@ React and of file types means a WASM engine, a collaboration layer (CRDT) or a d
 renderer can drive the same `DeskStore`.
 
 - **Core** (`@oel/desk`): `DeskStore` (subscribe/getState for `useSyncExternalStore`),
-  gesture-level undo (`begin`/`end` = one step per drag), `lodForZoom` (B5: <40 % piles,
-  40–80 % thumbnails, above: live content), `nearestInDirection`, `readingOrder`, `fitRect`.
+  gesture-level undo (`begin`/`end` = one step per drag), zoom limits (`zoom: { min, max }`,
+  the min is a hard max zoom-out — there is no "fit everything"), `lodForZoom`
+  (`thumbnail` below 50 %, `live` above), `wheelZoomFactor`, `nearestInDirection`, `readingOrder`.
 - **React** (`@oel/desk/react`): `<DeskCanvas>` renders papers as **DOM**, not `<canvas>`,
   on purpose — that is what keeps it accessible:
   - the desk is a multi-select `listbox`; each paper is an `option` with a full label
     (title, type, stamp, status, comment count) and roving focus;
   - every pointer gesture has a key: arrows move between papers spatially, Space toggles
     selection, Enter opens, Alt+arrows move papers (WCAG 2.5.7), Shift+arrows pan,
-    `+ − 0 1 2 3` zoom, Ctrl+Z/Ctrl+Shift+Z, Delete, Shift+F10 context menu;
-  - a polite live region announces moves, selection counts, zoom level changes, undo;
-  - focus is handed over when papers turn into piles and back;
+    `+ −` zoom, `0` back to 100 %, Ctrl+Z/Ctrl+Shift+Z, Delete, Shift+F10 context menu;
+  - zoom: Ctrl/⌘ + wheel or pinch, at the pointer; a wheel notch is a ~11 % step
+    (`wheelZoomSpeed` prop); plain wheel pans;
+  - a polite live region announces moves, selection counts, zoom, max zoom-out, undo;
   - selection outlines are drawn in screen space (always 2 px); `forced-colors` handled.
 - `<Minimap>` is a pointer convenience and is `aria-hidden`; everything it does has a key.
 - For very large desks, add viewport culling in `DeskCanvas` (render only nodes whose rect
@@ -105,8 +108,10 @@ each command maps 1:1 onto `DocxController` (`set_bold`, `set_alignment_*`,
 
 | Area | State |
 |---|---|
-| Desk: select, lasso, drag, nudge, zoom/pan, LOD piles/thumbnails, minimap, threads, undo | Working |
-| Contextual toolbar per type (B2), multi-selection actions (B7), comments | Working |
+| Desk: select, lasso, drag, nudge, zoom/pan (25 %–400 %), minimap, threads, undo | Working |
+| Papers ("windows") of every type: select, drag, zoom out to small thumbnails (refreshed every 15 s while zoomed out) | Working |
+| Contextual toolbar per type (B2), multi-selection actions (B7) | Working |
+| Comments | Removed from papers; planned as a canvas-wide feature |
 | Open in place (B4): document (rich text), slides (filmstrip + notes), spreadsheet (editable grid, live sum), PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
 | Import (B8): drop / file picker → worker → paper with progress, read-only states, toast | Working with the JS preview engine |
 | PDF → editable document (06) | **Simulated progress**; the new document says so |

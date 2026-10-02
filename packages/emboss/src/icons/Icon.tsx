@@ -1,12 +1,39 @@
 import type { SVGProps } from 'react';
+import {
+  ChatBubble,
+  Crop,
+  DesignNib,
+  Drag,
+  EditPencil,
+  Expand,
+  HalfMoon,
+  KeyCommand,
+  Link,
+  List,
+  MoreHoriz,
+  MultiplePages,
+  Notes,
+  Presentation,
+  Redo,
+  ShareIos,
+  SigmaFunction,
+  Sparks,
+  StatsUpSquare,
+  SunLight,
+  Table2Columns,
+  Undo,
+  User,
+  ViewColumns2,
+  ViewGrid,
+} from 'iconoir-react';
 
 /**
  * Icon set · 24 grid, 1.75 stroke, round caps/joins.
  *
  * KIT icons are exported verbatim from Figma (page "Embossed Component List",
  * frame "Icons" 52:92); only the stroke colour is swapped to `currentColor`.
- * EXTRA icons were drawn in code on the same grid because the editor needs
- * them and the kit does not have them yet. Add them to Figma to close the gap.
+ * EXTRA icons are Iconoir icons; the same SVGs are components in that Figma
+ * frame too. New icons should come from Iconoir.
  */
 const KIT = {
   plus: 'M12 5V12M12 12V19M12 12H5M12 12H19',
@@ -49,37 +76,37 @@ const KIT = {
   mail: 'M20 7V6H4V7M20 7V18H4V7M20 7L12 13L4 7',
 } as const;
 
+/** Iconoir (https://iconoir.com, MIT), mapped to our names. Drawn at the kit's 1.75 stroke. */
 const EXTRA = {
-  slide: 'M4 5H20V16H4V5ZM12 16V20M8 20H16',
-  table: 'M4 5H20V19H4V5ZM4 10H20M4 14.5H20M9.5 5V19',
-  note: 'M5 4H19V14L14 19H5V4ZM14 19V14H19M8 8.5H16M8 12H13',
-  pdf: 'M18 7L14 3H6C5.4 3 5 3.4 5 4V20C5 20.6 5.4 21 6 21H17C17.6 21 18 20.6 18 20V7ZM14 3V7H18M8.5 13H15M8.5 16.5H13',
-  comment: 'M5 5H19V16H11L7 19.5V16H5V5Z',
-  share: 'M12 15V4M8 8L12 4L16 8M6 12V19C6 19.6 6.4 20 7 20H17C17.6 20 18 19.6 18 19V12',
-  undo: 'M9 14L4 9L9 4M4 9H14.5C17.5 9 20 11.5 20 14.5C20 17.5 17.5 20 14.5 20H11',
-  redo: 'M15 14L20 9L15 4M20 9H9.5C6.5 9 4 11.5 4 14.5C4 17.5 6.5 20 9.5 20H13',
-  list: 'M9 6H20M9 12H20M9 18H20M4.5 6H4.51M4.5 12H4.51M4.5 18H4.51',
-  grid: 'M4 4H10V10H4V4ZM14 4H20V10H14V4ZM4 14H10V20H4V14ZM14 14H20V20H14V14Z',
-  link: 'M10 14L14 10M8.5 11.5L6.5 13.5C5 15 5 17.5 6.5 19C8 20.5 10.5 20.5 12 19L14 17M15.5 12.5L17.5 10.5C19 9 19 6.5 17.5 5C16 3.5 13.5 3.5 12 5L10 7',
-  expand: 'M14 4H20V10M10 20H4V14M20 4L13.5 10.5M4 20L10.5 13.5',
-  pen: 'M15 5L19 9M4 20L5 15L16 4L20 8L9 19L4 20Z',
-  highlight: 'M9 15L4 20H9L11 18M9 15L18 6L21 9L12 18L11 18M9 15L11 18',
-  crop: 'M7 3V17H21M3 7H17V21',
-  sparkle: 'M12 4L13.8 10.2L20 12L13.8 13.8L12 20L10.2 13.8L4 12L10.2 10.2L12 4Z',
-  keyboard: 'M3 6H21V18H3V6ZM7 10H7.01M11 10H11.01M15 10H15.01M8 14H16',
-  layout: 'M4 5H20V19H4V5ZM4 10H20M10 10V19',
-  chart: 'M5 20V12M10 20V8M15 20V11M20 20V4',
-  sum: 'M18 5H6L12 12L6 19H18',
-  move: 'M12 3V21M3 12H21M12 3L9 6M12 3L15 6M12 21L9 18M12 21L15 18M3 12L6 9M3 12L6 15M21 12L18 9M21 12L18 15',
-  more: 'M6 12H6.01M12 12H12.01M18 12H18.01',
-  user: 'M12 12C14.2 12 16 10.2 16 8C16 5.8 14.2 4 12 4C9.8 4 8 5.8 8 8C8 10.2 9.8 12 12 12ZM5 20C5 16.7 8.1 14.5 12 14.5C15.9 14.5 19 16.7 19 20',
-  sun: 'M12 16C14.2 16 16 14.2 16 12C16 9.8 14.2 8 12 8C9.8 8 8 9.8 8 12C8 14.2 9.8 16 12 16ZM12 2.5V4.5M12 19.5V21.5M2.5 12H4.5M19.5 12H21.5M5.3 5.3L6.7 6.7M17.3 17.3L18.7 18.7M5.3 18.7L6.7 17.3M17.3 6.7L18.7 5.3',
-  moon: 'M20 14.5C18.9 15 17.7 15.3 16.5 15.3C12 15.3 8.7 12 8.7 7.5C8.7 6.3 9 5.1 9.5 4C6.3 5.2 4 8.3 4 12C4 16.4 7.6 20 12 20C15.7 20 18.8 17.7 20 14.5Z',
+  slide: Presentation,
+  table: Table2Columns,
+  note: Notes,
+  pdf: MultiplePages,
+  comment: ChatBubble,
+  share: ShareIos,
+  undo: Undo,
+  redo: Redo,
+  list: List,
+  grid: ViewGrid,
+  link: Link,
+  expand: Expand,
+  pen: DesignNib,
+  highlight: EditPencil,
+  crop: Crop,
+  sparkle: Sparks,
+  keyboard: KeyCommand,
+  layout: ViewColumns2,
+  chart: StatsUpSquare,
+  sum: SigmaFunction,
+  move: Drag,
+  more: MoreHoriz,
+  user: User,
+  sun: SunLight,
+  moon: HalfMoon,
 } as const;
 
-const PATHS = { ...KIT, ...EXTRA };
-export type IconName = keyof typeof PATHS;
-export const iconNames = Object.keys(PATHS) as IconName[];
+export type IconName = keyof typeof KIT | keyof typeof EXTRA;
+export const iconNames = [...Object.keys(KIT), ...Object.keys(EXTRA)] as IconName[];
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -90,6 +117,16 @@ export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
 }
 
 export function Icon({ name, size = 20, label, ...rest }: IconProps) {
+  const a11y = {
+    'aria-hidden': label ? undefined : true,
+    role: label ? 'img' : undefined,
+    'aria-label': label,
+    focusable: 'false' as const,
+  };
+  if (name in EXTRA) {
+    const Glyph = EXTRA[name as keyof typeof EXTRA];
+    return <Glyph width={size} height={size} strokeWidth={1.75} color="currentColor" {...a11y} {...rest} />;
+  }
   return (
     <svg
       width={size}
@@ -100,13 +137,10 @@ export function Icon({ name, size = 20, label, ...rest }: IconProps) {
       strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"
-      aria-hidden={label ? undefined : true}
-      role={label ? 'img' : undefined}
-      aria-label={label}
-      focusable="false"
+      {...a11y}
       {...rest}
     >
-      <path d={PATHS[name]} />
+      <path d={KIT[name as keyof typeof KIT]} />
     </svg>
   );
 }

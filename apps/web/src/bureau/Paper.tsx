@@ -1,7 +1,7 @@
+import { memo, useEffect, useRef, useState } from 'react';
 import type { NodeRenderContext } from '@oel/desk/react';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
-import type { Pile } from '@oel/desk';
-import { KIND_ICON, kindLabel, type Paper as PaperNode, type PaperKind } from './model';
+import type { Paper as PaperNode } from './model';
 
 const nf = new Intl.NumberFormat('fr-CA');
 
@@ -11,14 +11,41 @@ export function sheetTotal(rows: string[][]): number | null {
   return nums.length ? nums.reduce((a, b) => a + b, 0) : null;
 }
 
+/** How often a zoomed-out thumbnail catches up with live edits. */
+export const THUMBNAIL_REFRESH_MS = 15_000;
+
 /**
- * One paper on the desk. Purely presentational (it lives inside a listbox
- * option): every action is in the contextual toolbar or the open sheet.
+ * While `frozen`, returns a snapshot of `value` refreshed every `interval` ms
+ * (and once on freezing); otherwise returns `value` live.
  */
-export function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }) {
-  const { data } = node;
-  const status = data.status;
-  return (
+function useThrottledSnapshot<T>(value: T, frozen: boolean, interval: number): T {
+  const latest = useRef(value);
+  latest.current = value;
+  const [snapshot, setSnapshot] = useState(value);
+  useEffect(() => {
+    if (!frozen) return;
+    setSnapshot(latest.current);
+    const t = setInterval(() => setSnapshot(latest.current), interval);
+    return () => clearInterval(t);
+  }, [frozen, interval]);
+  return frozen ? snapshot : value;
+}
+
+/**
+ * One paper ("window") on the desk: a small version of the document at any
+ * zoom. Purely presentational (it lives inside a listbox option); actions are
+ * in the contextual toolbar or the open sheet.
+ *
+ * Zoomed out, the content is a thumbnail: it only catches up with edits every
+ * THUMBNAIL_REFRESH_MS, so live editing elsewhere does not re-render every paper.
+ * Status (import progress, read-only) always stays live.
+ */
+export const Paper = memo(
+  function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }) {
+    const thumbnail = ctx.lod === 'thumbnail';
+    const content = useThrottledSnapshot<PaperNode>(node, thumbnail, THUMBNAIL_REFRESH_MS);
+    const status = node.data.status;
+    return (
     <div
       className={`paper paper--${node.kind}`}
       data-lod={ctx.lod}
@@ -26,7 +53,7 @@ export function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }
       data-state={status.state}
       aria-hidden
     >
-      {ctx.lod === 'mid' ? <Thumbnail node={node} /> : <Content node={node} />}
+      <Content node={content} />
 
       {status.state === 'importing' && (
         <div className="paper__veil">
@@ -37,7 +64,7 @@ export function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }
           />
         </div>
       )}
-      {status.state === 'readonly' && ctx.lod === 'near' && (
+      {status.state === 'readonly' && !thumbnail && (
         <div className="paper__readonly">
           <Badge appearance="stamp" tone="neutral" dot={false}>
             Lecture seule
@@ -45,15 +72,11 @@ export function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }
           <span>{status.reason}</span>
         </div>
       )}
-      {data.comments.length > 0 && ctx.lod === 'near' && (
-        <span className="paper__comments">
-          <Icon name="comment" size={14} />
-          {data.comments.length}
-        </span>
-      )}
     </div>
-  );
-}
+    );
+  },
+  (a, b) => a.node === b.node && a.ctx.lod === b.ctx.lod && a.ctx.isSelected === b.ctx.isSelected,
+);
 
 function Content({ node }: { node: PaperNode }) {
   const { data } = node;
@@ -165,27 +188,6 @@ function Content({ node }: { node: PaperNode }) {
   }
 }
 
-/** Mid-distance (40–80 %): thumbnail card with title, status stamp and last editor (B5). */
-function Thumbnail({ node }: { node: PaperNode }) {
-  return (
-    <div className="paper__thumb">
-      <span className="paper__thumb-icon">
-        <Icon name={KIND_ICON[node.kind]} size={28} />
-      </span>
-      <span className="paper__thumb-title">{node.title}</span>
-      <span className="paper__thumb-meta">
-        {kindLabel(node.kind)}
-        {node.data.editor ? ` · ${node.data.editor}` : ''}
-      </span>
-      {node.data.stamp && (
-        <Badge appearance="stamp" tone={node.data.stamp.tone} className="paper__thumb-stamp">
-          {node.data.stamp.label}
-        </Badge>
-      )}
-    </div>
-  );
-}
-
 function Bars({ count }: { count: number }) {
   return (
     <div className="paper__bars">
@@ -196,19 +198,3 @@ function Bars({ count }: { count: number }) {
   );
 }
 
-/** Far zoom (< 40 %): labelled pile with a counter (B5). */
-export function PaperPile({ pile, nodes }: { pile: Pile; nodes: PaperNode[] }) {
-  const kind = pile.key as PaperKind;
-  return (
-    <div className="pile" aria-hidden>
-      <span className="pile__sheet pile__sheet--3" />
-      <span className="pile__sheet pile__sheet--2" />
-      <span className="pile__sheet pile__sheet--1">
-        <Icon name={KIND_ICON[kind] ?? 'file'} size={28} />
-        <strong>{kindLabel(kind)}</strong>
-        <span className="pile__titles">{nodes.slice(0, 2).map((n) => n.title).join(' · ')}</span>
-      </span>
-      <span className="pile__count">{nodes.length}</span>
-    </div>
-  );
-}

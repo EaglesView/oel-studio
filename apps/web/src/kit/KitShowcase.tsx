@@ -73,7 +73,7 @@ export function KitShowcase() {
           <ToolbarToggle icon="align-left" label="Aligner à gauche" />
           <ToolbarSeparator />
           <ToolButton icon="image" label="Insérer une image" unavailableReason="Sélectionnez un paragraphe pour insérer une image." />
-          <ToolButton icon="comment" label="Commenter" value={3} />
+          <ToolButton icon="align-left" label="Taille du texte" value="11 pt" />
           <span style={{ flex: 1 }} />
           <ToolButton icon="mail" label="Partager" showLabel />
           <Button variant="primary" size="sm" leadingIcon="download">Exporter</Button>

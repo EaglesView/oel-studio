@@ -16,13 +16,12 @@ import {
   intersects,
   lodForZoom,
   normalizeRect,
-  pilesBy,
   rectOf,
   rectToScreen,
   screenToWorld,
   union,
+  wheelZoomFactor,
   type Direction,
-  type Pile,
 } from '../core/geometry';
 import type { DeskStore } from '../core/store';
 import type { DeskNode, Lod, Rect, Vec } from '../core/types';
@@ -33,14 +32,13 @@ export interface DeskMessages {
   nodeRoleDescription: string;
   instructions: string;
   empty: string;
-  lodNames: Record<Lod, string>;
-  zoom: (percent: number, lod: string) => string;
+  zoom: (percent: number) => string;
+  maxZoomOut: string;
   selection: (count: number) => string;
   moved: (count: number) => string;
   undone: (label: string) => string;
   redone: (label: string) => string;
   nothingToUndo: string;
-  pile: (label: string, count: number) => string;
   multiSelection: (count: number) => string;
 }
 
@@ -50,16 +48,15 @@ export const defaultMessages: DeskMessages = {
   instructions:
     'Flèches : passer d’un fichier à l’autre. Espace : ajouter ou retirer de la sélection. Entrée : ouvrir. ' +
     'Alt + flèches : déplacer la sélection. Maj + flèches : faire défiler le bureau. ' +
-    '+ et − : zoom, 0 : tout voir, 1 2 3 : niveaux de détail. Échap : désélectionner.',
+    '+ et − : zoom, 0 : zoom 100 %. Échap : désélectionner.',
   empty: 'Le bureau est vide. Déposez des fichiers ou créez-en un depuis le dock.',
-  lodNames: { far: 'Vue d’ensemble', mid: 'Repérage', near: 'Travail' },
-  zoom: (p, lod) => `Zoom ${p} %, ${lod}`,
+  zoom: (p) => `Zoom ${p} %`,
+  maxZoomOut: 'Zoom arrière maximal',
   selection: (n) => (n === 0 ? 'Aucune sélection' : n === 1 ? '1 fichier sélectionné' : `${n} fichiers sélectionnés`),
   moved: (n) => (n === 1 ? 'Fichier déplacé' : `${n} fichiers déplacés`),
   undone: (l) => `Annulé : ${l}`,
   redone: (l) => `Rétabli : ${l}`,
   nothingToUndo: 'Rien à annuler',
-  pile: (label, n) => `Pile ${label}, ${n} ${n > 1 ? 'fichiers' : 'fichier'}. Entrée pour s’en approcher.`,
   multiSelection: (n) => `${n} fichiers`,
 };
 
@@ -78,17 +75,15 @@ export interface DeskCanvasProps<D> {
   renderNode: (node: DeskNode<D>, ctx: NodeRenderContext) => ReactNode;
   /** Accessible label for a node (title, type, state). Defaults to `title`. */
   describeNode?: (node: DeskNode<D>) => string;
-  /** Far-zoom grouping key; defaults to `kind`. */
-  pileKey?: (node: DeskNode<D>) => string;
-  pileLabel?: (key: string) => string;
-  renderPile?: (pile: Pile, nodes: DeskNode<D>[], zoom: number) => ReactNode;
-  /** Label next to a link thread. */
+  /** Label of the dashed multi-selection frame. */
   renderGroupLabel?: (nodes: DeskNode<D>[]) => ReactNode;
   onOpen?: (id: string) => void;
   onDelete?: (ids: string[]) => void;
   onContextMenu?: (ids: string[], at: Vec) => void;
   onDropFiles?: (files: File[], at: Vec) => void;
   renderDropZone?: (count: number) => ReactNode;
+  /** Wheel zoom speed (Ctrl/⌘ + wheel or pinch). Lower is gentler. Default 0.002. */
+  wheelZoomSpeed?: number;
   /** Extra keys (return true when handled). Runs before the built-in map. */
   onKeyDown?: (e: ReactKeyboardEvent, store: DeskStore<D>) => boolean | void;
   messages?: Partial<DeskMessages>;
@@ -105,7 +100,6 @@ type Gesture =
 const NUDGE = 10;
 const NUDGE_BIG = 50;
 const PAN_STEP = 80;
-const PILE_SIZE = { w: 240, h: 170 };
 
 /**
  * The infinite desk. DOM-rendered so every paper is a real focusable element:
@@ -118,15 +112,13 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     label,
     renderNode,
     describeNode = (n) => n.title,
-    pileKey = (n) => n.kind,
-    pileLabel = (k) => k,
-    renderPile,
     renderGroupLabel,
     onOpen,
     onDelete = (ids) => store.remove(ids),
     onContextMenu,
     onDropFiles,
     renderDropZone,
+    wheelZoomSpeed = 0.002,
     onKeyDown,
     children,
     className,
@@ -152,16 +144,10 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   const viewport = useDeskState(store, (s) => s.viewport);
   const openId = useDeskState(store, (s) => s.openId);
   const showLinks = useDeskState(store, (s) => s.showLinks);
-  const screen = useDeskState(store, (s) => s.screen);
 
   const lod = lodForZoom(viewport.zoom);
   const nodes = useMemo(() => order.map((id) => nodesMap[id]!).filter(Boolean), [order, nodesMap]);
   const selectedSet = useMemo(() => new Set(selection), [selection]);
-  const piles = useMemo(
-    () => (lod === 'far' ? pilesBy(nodes, pileKey) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lod, nodes],
-  );
 
   /* ── announcements ─────────────────────────────────────────────── */
   const announce = useCallback((msg: string) => {
@@ -171,27 +157,13 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   }, []);
   const ctx = useMemo(() => ({ store, announce }), [store, announce]);
 
-  const lastLod = useRef(lod);
+  // Tell screen-reader users when they hit the zoom-out limit.
+  const atMin = viewport.zoom <= store.zoomLimits.min + 1e-6;
+  const wasAtMin = useRef(atMin);
   useEffect(() => {
-    if (lastLod.current !== lod) {
-      lastLod.current = lod;
-      announce(m.zoom(Math.round(viewport.zoom * 100), m.lodNames[lod]));
-    }
-  }, [lod, viewport.zoom, announce, m]);
-
-  // Swapping papers for piles (and back) removes the focused element; hand focus
-  // over so keyboard users keep their place instead of landing on <body>.
-  useEffect(() => {
-    const active = document.activeElement;
-    const lostFocus = !active || active === document.body || active === rootRef.current;
-    if (!lostFocus || openId) return;
-    if (lod === 'far') {
-      rootRef.current?.querySelector<HTMLElement>('[data-pile-key]')?.focus({ preventScroll: true });
-    } else {
-      const id = store.getState().focusedId ?? store.ordered()[0]?.id;
-      if (id) rootRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
-    }
-  }, [lod, openId, store]);
+    if (atMin && !wasAtMin.current) announce(m.maxZoomOut);
+    wasAtMin.current = atMin;
+  }, [atMin, announce, m]);
 
   /* ── screen size ───────────────────────────────────────────────── */
   useLayoutEffect(() => {
@@ -223,14 +195,14 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       const r = el.getBoundingClientRect();
       const anchor = { x: e.clientX - r.left, y: e.clientY - r.top };
       if (e.ctrlKey || e.metaKey) {
-        store.zoomBy(Math.exp(-e.deltaY * 0.01), anchor);
+        store.zoomBy(wheelZoomFactor(e.deltaY, e.deltaMode, wheelZoomSpeed), anchor);
       } else {
         store.panBy(-e.deltaX, -e.deltaY);
       }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [store]);
+  }, [store, wheelZoomSpeed]);
 
   /* ── space-to-pan ──────────────────────────────────────────────── */
   useEffect(() => {
@@ -285,8 +257,6 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       store.begin('Déplacement');
       gesture.current = { kind: 'drag', pointerId: e.pointerId, last: p, start: p, ids, moved: false, wasSelected, hitId: id };
       return; // capture lazily once the drag starts, so click/dblclick keep their target
-    } else if (target.closest('[data-pile-key]')) {
-      return; // piles react on click
     } else {
       const base = additive ? selection : [];
       if (!additive) store.clearSelection();
@@ -384,21 +354,15 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     } else if (dir && e.shiftKey) {
       store.panBy(dir === 'left' ? PAN_STEP : dir === 'right' ? -PAN_STEP : 0, dir === 'up' ? PAN_STEP : dir === 'down' ? -PAN_STEP : 0);
     } else if (dir) {
-      if (lod === 'far') {
-        focusPile(dir);
-      } else {
-        moveFocus(store.focusDirection(dir), mod);
-      }
+      moveFocus(store.focusDirection(dir), mod);
     } else if (e.key === 'Home' || e.key === 'End') {
       const list = store.ordered();
       moveFocus((e.key === 'Home' ? list[0] : list[list.length - 1]) ?? null, mod);
-    } else if (e.key === ' ' && focusedId && lod !== 'far') {
+    } else if (e.key === ' ' && focusedId) {
       store.select([focusedId], 'toggle');
       announce(m.selection(store.getState().selection.length));
     } else if (e.key === 'Enter') {
-      const pileEl = t.closest<HTMLElement>('[data-pile-key]');
-      if (pileEl) enterPile(pileEl.dataset.pileKey!);
-      else if (focusedId && onOpen) onOpen(focusedId);
+      if (focusedId && onOpen) onOpen(focusedId);
     } else if (e.key === 'Escape') {
       if (selection.length) {
         store.clearSelection();
@@ -416,13 +380,14 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       const l = store.redo();
       if (l) announce(m.redone(l));
     } else if (!mod && (e.key === '+' || e.key === '=')) {
-      store.zoomBy(1.25);
+      store.zoomBy(1.2);
+      announce(m.zoom(Math.round(store.getState().viewport.zoom * 100)));
     } else if (!mod && (e.key === '-' || e.key === '_')) {
-      store.zoomBy(0.8);
+      store.zoomBy(1 / 1.2);
+      announce(m.zoom(Math.round(store.getState().viewport.zoom * 100)));
     } else if (!mod && e.key === '0') {
-      store.zoomToFit();
-    } else if (!mod && (e.key === '1' || e.key === '2' || e.key === '3')) {
-      store.zoomPreset((Number(e.key) - 1) as 0 | 1 | 2);
+      store.zoomReset();
+      announce(m.zoom(100));
     } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
       if (onContextMenu && focusedId) {
         const n = store.node(focusedId)!;
@@ -433,60 +398,6 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       handled = false;
     }
     if (handled) e.preventDefault();
-  };
-
-  /* ── piles (far LOD) ───────────────────────────────────────────── */
-  // Piles are laid out tidily around the centre of the desk (B5: the desk tidies itself),
-  // at a constant on-screen size, in the left-to-right order of their groups.
-  const pileRects = useMemo(() => {
-    const map = new Map<string, Rect>();
-    if (lod !== 'far' || piles.length === 0) return map;
-    const all = union(nodes.map(rectOf))!;
-    const c = center(all);
-    const gap = 40;
-    const sorted = [...piles].sort((a, b) => center(a.bounds).x - center(b.bounds).x);
-    const cols = Math.max(1, Math.min(sorted.length, Math.floor((screen.w - 160 + gap) / (PILE_SIZE.w + gap)) || 1));
-    const rows = Math.ceil(sorted.length / cols);
-    const totalW = cols * PILE_SIZE.w + (cols - 1) * gap;
-    const totalH = rows * PILE_SIZE.h + (rows - 1) * gap;
-    const z = viewport.zoom;
-    sorted.forEach((p, i) => {
-      const sx = -totalW / 2 + (i % cols) * (PILE_SIZE.w + gap);
-      const sy = -totalH / 2 + Math.floor(i / cols) * (PILE_SIZE.h + gap);
-      map.set(p.key, { x: c.x + sx / z, y: c.y + sy / z, w: PILE_SIZE.w / z, h: PILE_SIZE.h / z });
-    });
-    return map;
-  }, [lod, piles, nodes, screen.w, viewport.zoom]);
-  const pileRect = (p: Pile): Rect => pileRects.get(p.key) ?? p.bounds;
-
-  const enterPile = (key: string) => {
-    const p = piles.find((x) => x.key === key);
-    if (!p) return;
-    store.zoomToFit(p.ids, 1);
-    if (store.getState().viewport.zoom < 0.45) store.zoomPreset(1);
-    const first = store.node(p.ids[0]!);
-    if (first) moveFocus(first, false);
-  };
-  const focusPile = (dir: Direction) => {
-    const current = (document.activeElement as HTMLElement | null)?.dataset.pileKey;
-    const items = piles.map((p) => ({ id: p.key, ...pileRect(p) }));
-    const from = items.find((i) => i.id === current) ?? items[0];
-    if (!from) return;
-    const pool = items.map((i) => ({ ...i }));
-    const next = current
-      ? (pool
-          .filter((i) => i.id !== from.id)
-          .sort((a, b) => score(a) - score(b))
-          .find((i) => score(i) < Infinity) ?? null)
-      : from;
-    function score(i: Rect & { id: string }) {
-      const a = center(from!);
-      const b = center(i);
-      const along = dir === 'left' ? a.x - b.x : dir === 'right' ? b.x - a.x : dir === 'up' ? a.y - b.y : b.y - a.y;
-      const across = dir === 'left' || dir === 'right' ? Math.abs(a.y - b.y) : Math.abs(a.x - b.x);
-      return along <= 1 ? Infinity : along + across * 2;
-    }
-    if (next) rootRef.current?.querySelector<HTMLElement>(`[data-pile-key="${CSS.escape(next.id)}"]`)?.focus();
   };
 
   /* ── file drop (B8) ────────────────────────────────────────────── */
@@ -542,7 +453,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
             transform: `translate(${-viewport.x * viewport.zoom}px, ${-viewport.y * viewport.zoom}px) scale(${viewport.zoom})`,
           }}
         >
-          {showLinks && lod !== 'far' && (
+          {showLinks && (
             <svg className="desk__links" aria-hidden>
               {links.map((l) => {
                 const a = nodesMap[l.from];
@@ -571,30 +482,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
             tabIndex={nodes.length === 0 ? 0 : undefined}
             className="desk__list"
           >
-            {lod === 'far'
-              ? piles.map((p, i) => {
-                  const r = pileRect(p);
-                  const list = p.ids.map((id) => nodesMap[id]!).filter(Boolean);
-                  return (
-                    <div
-                      key={p.key}
-                      role="option"
-                      aria-selected={false}
-                      aria-roledescription="pile"
-                      aria-label={m.pile(pileLabel(p.key), p.ids.length)}
-                      data-pile-key={p.key}
-                      tabIndex={i === 0 ? 0 : -1}
-                      className="desk__pile"
-                      style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
-                      onClick={() => enterPile(p.key)}
-                    >
-                      <div className="desk__pile-inner" style={{ width: PILE_SIZE.w, height: PILE_SIZE.h, scale: `${1 / viewport.zoom}` }}>
-                        {renderPile ? renderPile(p, list, viewport.zoom) : `${pileLabel(p.key)} · ${p.ids.length}`}
-                      </div>
-                    </div>
-                  );
-                })
-              : nodes.map((n) => {
+            {nodes.map((n) => {
                   const isSelected = selectedSet.has(n.id);
                   const isFocused = focusedId === n.id;
                   return (
@@ -630,8 +518,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
 
         {/* Selection outlines stay 2 px on screen whatever the zoom. */}
         <div className="desk__overlay" aria-hidden>
-          {lod !== 'far' &&
-            selection.map((id) => {
+          {selection.map((id) => {
               const n = nodesMap[id];
               if (!n) return null;
               const r = rectToScreen(rectOf(n), viewport);
@@ -643,7 +530,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                 />
               );
             })}
-          {groupRect && lod !== 'far' && (
+          {groupRect && (
             <GroupFrame rect={rectToScreen(groupRect, viewport)}>
               {renderGroupLabel
                 ? renderGroupLabel(selection.map((id) => nodesMap[id]!).filter(Boolean))

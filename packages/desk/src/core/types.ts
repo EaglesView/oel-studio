@@ -46,8 +46,17 @@ export interface Viewport {
   zoom: number;
 }
 
-/** Level of detail, tied to zoom (Figma B5). */
-export type Lod = 'far' | 'mid' | 'near';
+/**
+ * Level of detail. Zoomed out, papers become small thumbnails of themselves
+ * (the host may refresh them on a timer instead of live); up close they are live.
+ */
+export type Lod = 'thumbnail' | 'live';
+
+export interface ZoomLimits {
+  /** Maximum zoom-out. There is no "fit everything" beyond this. */
+  min: number;
+  max: number;
+}
 
 export interface DeskState<D = unknown> {
   nodes: Record<string, DeskNode<D>>;

@@ -49,7 +49,6 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
             </span>
             <span className="list-row__meta">
               {p.data.editor ?? '—'}
-              {p.data.comments.length > 0 && ` · ${p.data.comments.length} comm.`}
             </span>
             <RACButton className="emb-button emb-button--secondary emb-button--sm" onPress={() => onOpen(p.id)}>
               Ouvrir

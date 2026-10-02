@@ -1,22 +1,16 @@
-import type { DeskNode, Lod, Rect, Vec, Viewport } from './types';
+import type { DeskNode, Lod, Rect, Vec, Viewport, ZoomLimits } from './types';
 
-export const ZOOM_MIN = 0.1;
-export const ZOOM_MAX = 4;
+export const DEFAULT_ZOOM_LIMITS: ZoomLimits = { min: 0.25, max: 4 };
 
-/** B5 rule: under 40 % piles, 40–80 % thumbnails, above that live content. */
-export const LOD_THRESHOLDS = { far: 0.4, mid: 0.8 } as const;
-
-/** Presets bound to keys 1 / 2 / 3 (Ensemble · Repérage · Travail). */
-export const ZOOM_PRESETS = [0.3, 0.6, 1] as const;
+/** Below this zoom papers are drawn as thumbnails. */
+export const THUMBNAIL_BELOW = 0.5;
 
 export function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
 export function lodForZoom(zoom: number): Lod {
-  if (zoom < LOD_THRESHOLDS.far) return 'far';
-  if (zoom < LOD_THRESHOLDS.mid) return 'mid';
-  return 'near';
+  return zoom < THUMBNAIL_BELOW ? 'thumbnail' : 'live';
 }
 
 export function rectOf(n: Pick<DeskNode, 'x' | 'y' | 'w' | 'h'>): Rect {
@@ -65,21 +59,30 @@ export function rectToScreen(r: Rect, v: Viewport): Rect {
 }
 
 /** Zoom by `factor` keeping the world point under `anchor` (screen px) fixed. */
-export function zoomAt(v: Viewport, anchor: Vec, factor: number): Viewport {
-  const zoom = clamp(v.zoom * factor, ZOOM_MIN, ZOOM_MAX);
+export function zoomAt(v: Viewport, anchor: Vec, factor: number, limits: ZoomLimits = DEFAULT_ZOOM_LIMITS): Viewport {
+  const zoom = clamp(v.zoom * factor, limits.min, limits.max);
   const world = screenToWorld(anchor, v);
   return { zoom, x: world.x - anchor.x / zoom, y: world.y - anchor.y / zoom };
 }
 
-export function zoomTo(v: Viewport, anchor: Vec, zoom: number): Viewport {
-  return zoomAt(v, anchor, zoom / v.zoom);
+export function zoomTo(v: Viewport, anchor: Vec, zoom: number, limits: ZoomLimits = DEFAULT_ZOOM_LIMITS): Viewport {
+  return zoomAt(v, anchor, zoom / v.zoom, limits);
+}
+
+/**
+ * Wheel delta → zoom factor. Normalises line/page deltas and caps each event so
+ * a mouse-wheel notch is a small step (~11 %) while trackpad pinches stay smooth.
+ */
+export function wheelZoomFactor(deltaY: number, deltaMode = 0, speed = 0.002): number {
+  const px = deltaMode === 1 ? deltaY * 20 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  return Math.exp(-clamp(px, -60, 60) * speed);
 }
 
 /** Viewport that fits `bounds` into a screen of `size`, with `padding` px. */
-export function fitRect(bounds: Rect, size: { w: number; h: number }, padding = 64, maxZoom = 1): Viewport {
+export function fitRect(bounds: Rect, size: { w: number; h: number }, padding = 64, maxZoom = 1, minZoom = DEFAULT_ZOOM_LIMITS.min): Viewport {
   const zoom = clamp(
     Math.min((size.w - padding * 2) / Math.max(bounds.w, 1), (size.h - padding * 2) / Math.max(bounds.h, 1)),
-    ZOOM_MIN,
+    minZoom,
     maxZoom,
   );
   const c = center(bounds);
@@ -120,26 +123,4 @@ export function nearestInDirection<N extends Pick<DeskNode, 'id' | 'x' | 'y' | '
     }
   }
   return best;
-}
-
-export interface Pile {
-  key: string;
-  ids: string[];
-  bounds: Rect;
-}
-
-/** Far-zoom grouping (B5: the desk tidies itself into labelled piles with counters). */
-export function pilesBy<N extends DeskNode>(nodes: N[], keyOf: (n: N) => string): Pile[] {
-  const groups = new Map<string, N[]>();
-  for (const n of nodes) {
-    const k = keyOf(n);
-    const list = groups.get(k);
-    if (list) list.push(n);
-    else groups.set(k, [n]);
-  }
-  return [...groups.entries()].map(([key, list]) => ({
-    key,
-    ids: list.map((n) => n.id),
-    bounds: union(list.map(rectOf))!,
-  }));
 }

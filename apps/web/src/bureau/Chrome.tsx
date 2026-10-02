@@ -1,6 +1,6 @@
 import { FileTrigger } from 'react-aria-components';
 import { useDeskState } from '@oel/desk/react';
-import { ZOOM_PRESETS, lodForZoom, worldToScreen } from '@oel/desk';
+import { worldToScreen } from '@oel/desk';
 import { ACCEPTED_EXTENSIONS } from '@oel/engine';
 import {
   AvatarStack,
@@ -17,7 +17,6 @@ import {
   Switch,
   Toolbar,
   ToolbarSeparator,
-  ToolbarToggle,
   ToolButton,
   toast,
 } from '@oel/emboss';
@@ -80,8 +79,6 @@ export function SharePill({ onHelp }: { onHelp: () => void }) {
 /** Named cursors of the people on the desk (static demo positions, world units). */
 export function PresenceCursors({ store }: { store: Bureau }) {
   const viewport = useDeskState(store, (s) => s.viewport);
-  const zoom = viewport.zoom;
-  if (lodForZoom(zoom) === 'far') return null;
   const cursors = [
     { name: 'Marie-Claude', color: 'var(--emboss-success)', at: { x: 1010, y: 330 } },
     { name: 'Alex', color: 'var(--emboss-warning)', at: { x: 1520, y: 470 } },
@@ -190,35 +187,31 @@ export function Dock({
   );
 }
 
-/* ── B5 · Zoom du bureau ────────────────────────────────────────────── */
+/* ── Zoom ───────────────────────────────────────────────────────────── */
 
-const PRESET_LABELS = ['Ensemble', 'Repérage', 'Travail'] as const;
-
+/** Zoom out / level / zoom in. The level resets to 100 %; zooming out stops at the store's limit. */
 export function ZoomControl({ store }: { store: Bureau }) {
   const zoom = useDeskState(store, (s) => s.viewport.zoom);
-  const lod = lodForZoom(zoom);
-  const active = lod === 'far' ? 0 : lod === 'mid' ? 1 : 2;
+  const atMin = zoom <= store.zoomLimits.min + 1e-6;
+  const atMax = zoom >= store.zoomLimits.max - 1e-6;
   return (
     <div className="zoom-control" data-desk-ui>
       <Toolbar appearance="pill" aria-label="Zoom du bureau">
-        <ToolButton icon="minus" label="Zoom arrière" shortcut={['−']} onPress={() => store.zoomBy(0.8)} />
-        <output className="zoom-control__value" aria-live="off">
-          {Math.round(zoom * 100)} %
-        </output>
-        <ToolButton icon="plus" label="Zoom avant" shortcut={['+']} onPress={() => store.zoomBy(1.25)} />
-        <ToolbarSeparator />
-        {PRESET_LABELS.map((l, i) => (
-          <ToolbarToggle
-            key={l}
-            icon={i === 0 ? 'grid' : i === 1 ? 'search' : 'file'}
-            label={l}
-            shortcut={[String(i + 1)]}
-            description={`Niveau de détail · zoom ${Math.round(ZOOM_PRESETS[i]! * 100)} %`}
-            isSelected={active === i}
-            onChange={() => store.zoomPreset(i as 0 | 1 | 2)}
-          />
-        ))}
-        <ToolButton icon="expand" label="Tout voir" shortcut={['0']} onPress={() => store.zoomToFit()} />
+        <ToolButton
+          icon="minus"
+          label="Zoom arrière"
+          shortcut={['−']}
+          unavailableReason={atMin ? 'Zoom arrière maximal atteint.' : undefined}
+          onPress={() => store.zoomBy(1 / 1.2)}
+        />
+        <ToolButton icon="search" label="Revenir à 100 %" shortcut={['0']} value={`${Math.round(zoom * 100)} %`} onPress={() => store.zoomReset()} />
+        <ToolButton
+          icon="plus"
+          label="Zoom avant"
+          shortcut={['+']}
+          unavailableReason={atMax ? 'Zoom avant maximal atteint.' : undefined}
+          onPress={() => store.zoomBy(1.2)}
+        />
       </Toolbar>
     </div>
   );

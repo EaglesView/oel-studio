@@ -16,12 +16,6 @@ export interface Stamp {
   tone: Tone;
 }
 
-export interface Comment {
-  id: string;
-  author: string;
-  text: string;
-}
-
 export interface PaperData {
   /** Overline on documents and slides ("COMMUNIQUÉ"). */
   eyebrow?: string;
@@ -29,7 +23,6 @@ export interface PaperData {
   status: PaperStatus;
   stamp?: Stamp;
   editor?: string;
-  comments: Comment[];
   /** Object URL for imported images. */
   imageUrl?: string;
   fileName?: string;
@@ -85,8 +78,6 @@ export function describePaper(p: Paper): string {
   if (p.data.stamp) parts.push(p.data.stamp.label);
   const st = statusText(p);
   if (st) parts.push(st);
-  const c = p.data.comments.length;
-  if (c) parts.push(`${c} commentaire${c > 1 ? 's' : ''}`);
   return parts.join(', ');
 }
 
@@ -123,6 +114,6 @@ export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper
     w: size.w,
     h: size.h,
     rotation: kind === 'note' ? -3 : 0,
-    data: { preview, status: { state: 'ready' }, comments: [], editor: 'JB' },
+    data: { preview, status: { state: 'ready' }, editor: 'JB' },
   };
 }

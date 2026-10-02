@@ -18,9 +18,8 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
   {
     title: 'Vue',
     rows: [
-      [['+', '−'], 'Zoom avant · arrière'],
-      [['0'], 'Tout voir'],
-      [['1', '2', '3'], 'Ensemble · Repérage · Travail'],
+      [['+', '−'], 'Zoom avant · arrière (arrière : jusqu’à 25 %)'],
+      [['0'], 'Revenir à 100 %'],
       [['Ctrl', 'molette'], 'Zoom au pointeur · molette seule : défiler'],
       [['Espace', 'glisser'], 'Déplacer la vue à la souris'],
     ],
@@ -29,7 +28,6 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
     title: 'Outils',
     rows: [
       [['/'], 'Aller aux outils de la sélection'],
-      [['C'], 'Commenter le fichier sélectionné'],
       [['N'], 'Nouvelle note'],
       [['Ctrl', 'O'], 'Importer des fichiers'],
       [['Maj', 'F10'], 'Menu contextuel'],
