@@ -19,7 +19,8 @@ export interface WorkspaceProps {
 /**
  * B4 · Ouvrir sur place. Double-click (or Enter) brings the paper toward you;
  * the desk blurs and dims but stays visible, so you never leave the project.
- * Échap puts the sheet back; Ctrl+Entrée switches to full screen.
+ * Échap puts the sheet back; Ctrl+Maj+Entrée switches to full screen (Ctrl+Entrée
+ * stays the page break, as in Word).
  *
  * Built on react-aria's Modal: focus moves into the sheet, is trapped while
  * it is open and returns to the paper on the desk when it closes.
@@ -76,7 +77,7 @@ export function OpenSheet({ store, paper, onClose, onConvert }: { store: Bureau;
           <div
             className="open-sheet"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
                 e.preventDefault();
                 setFull((f) => !f);
               }
@@ -106,7 +107,7 @@ export function OpenSheet({ store, paper, onClose, onConvert }: { store: Bureau;
               size="icon-sm"
               leadingIcon="expand"
               aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}
-              aria-keyshortcuts="Control+Enter"
+              aria-keyshortcuts="Control+Shift+Enter"
               onPress={() => setFull((f) => !f)}
             />
           </nav>
@@ -127,7 +128,7 @@ export function OpenSheet({ store, paper, onClose, onConvert }: { store: Bureau;
           </div>
 
           <p className="open-sheet__hint chrome-pill" aria-hidden>
-            <Kbd>Échap</Kbd> reposer sur le bureau · <Kbd>Ctrl</Kbd>+<Kbd>Entrée</Kbd> plein écran
+            <Kbd>Échap</Kbd> reposer sur le bureau · <Kbd>Ctrl</Kbd>+<Kbd>Maj</Kbd>+<Kbd>Entrée</Kbd> plein écran
           </p>
           </div>
         </Dialog>

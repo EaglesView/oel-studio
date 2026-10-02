@@ -31,7 +31,7 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
       [['N'], 'Nouvelle note'],
       [['Ctrl', 'O'], 'Importer des fichiers'],
       [['Maj', 'F10'], 'Menu contextuel'],
-      [['Ctrl', 'Entrée'], 'Plein écran (fichier ouvert)'],
+      [['Ctrl', 'Maj', 'Entrée'], 'Plein écran (fichier ouvert)'],
       [['?'], 'Afficher cette aide'],
     ],
   },
