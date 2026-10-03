@@ -1,4 +1,4 @@
-# Page-layout fidelity for .docx (plan approved 2026-10-03, in progress)
+# Page-layout fidelity for .docx (plan approved 2026-10-03; phases 0–5 built, 3c pending its own go-ahead)
 
 Written 2026-10-03 after importing `fixtures/docx/complex_template.docx` (a Word "report"
 template) into the Bureau. Text, styles and the round trip are right (and since
@@ -282,12 +282,18 @@ breaks close to the reference, and a document with embedded fonts uses them.
 
 ## Phase 5: Desk thumbnails and printing (~½ day)
 
-- [ ] Desk preview (`model/preview.ts`): first page geometry + behind-text background colour
+- [x] Desk preview (`model/preview.ts`): first page geometry + behind-text background colour
       from the first section, so the cover thumbnail is dark like the document.
-- [ ] Print (`Ctrl+P`): the print stylesheet uses the per-page sizes (`@page` per section via
+- [x] Print (`Ctrl+P`): the print stylesheet uses the per-page sizes (`@page` per section via
       named pages) and draws the anchor layers.
 
 ---
+
+Notes (as built): the preview colour is the page background or a solid behind-text shape of
+the first section covering half of page 1 or more (the template's cover → `#262626`). Print
+clones each sheet with its layers and the body blocks measured on it, at the sheet's size;
+footnote calls keep their numbers. Pageless mode keeps the flow print. Print and thumbnail
+browser checks pending.
 
 ## Order and estimates
 
