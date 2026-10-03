@@ -702,7 +702,7 @@ impl Writer<'_> {
         for b in &list {
             self.block(b, &mut out)?;
         }
-        if list.last().map(|b| b["type"] != "paragraph" && b["type"] != "ooxmlBlock").unwrap_or(true) {
+        if !list.last().is_some_and(ends_cell) {
             out.push_str("<w:p/>");
         }
         Ok(out)
@@ -908,6 +908,16 @@ impl Writer<'_> {
         let at = doc.root.children.iter().position(|c| matches!(c, XNode::Element(e) if !matches!(e.local(), "writeProtection" | "view" | "zoom" | "removePersonalInformation" | "removeDateAndTime" | "doNotDisplayPageBoundaries"))).unwrap_or(0);
         doc.root.children.insert(at, XNode::Element(XElement::new("w:displayBackgroundShape")));
         self.pkg.set_xml(&part, &doc);
+    }
+}
+
+/// Word wants a cell to end with a paragraph; one inside a trailing content
+/// control counts (Word writes cells like that), and raw blocks are trusted.
+fn ends_cell(b: &Value) -> bool {
+    match b["type"].as_str() {
+        Some("paragraph" | "ooxmlBlock") => true,
+        Some("sdtBlock") => b["content"].as_array().and_then(|c| c.last()).is_some_and(ends_cell),
+        _ => false,
     }
 }
 

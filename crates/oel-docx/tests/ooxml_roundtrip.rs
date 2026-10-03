@@ -156,6 +156,11 @@ fn round_trip_basic_fixture() {
 }
 
 #[test]
+fn round_trip_complex_template() {
+    round_trip("complex_template.docx");
+}
+
+#[test]
 fn edits_are_written() {
     let original = fixture("tesxte.docx");
     let imp = import_docx(&original).unwrap();
