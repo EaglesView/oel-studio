@@ -188,7 +188,7 @@ tables created in the editor still show borders and export with them.
 
 ### 3a Model (codec + contract)
 
-- [ ] New inline atom node **`anchor`** (replaces `ooxmlInline` for `wp:anchor`; inline
+- [x] New inline atom node **`anchor`** (replaces `ooxmlInline` for `wp:anchor`; inline
       `wp:inline` pictures stay `image`). Attrs: `kind` (picture | shape | textbox | group),
       `position: { relH: page|margin|column|character|leftMargin|rightMargin…, h: offset EMU | align,
       relV: page|margin|paragraph|line|topMargin…, v: offset | align }`, `cx`, `cy`,
@@ -201,20 +201,20 @@ tables created in the editor still show borders and export with them.
       registered like other images so the editor resolves them, `text: PMDoc | null` for text boxes (read with the same
       block reader, so text boxes render with real styles), `xml` (raw, written back while
       unchanged), `alt`/`title`.
-- [ ] `mc:AlternateContent`: use `mc:Choice` (wps/wpg) when understood, else keep the VML
+- [x] `mc:AlternateContent`: use `mc:Choice` (wps/wpg) when understood, else keep the VML
       fallback as a labelled placeholder (`ooxmlInline`, as today).
-- [ ] Anchors in headers/footers are read the same way (the template's sidebar band on chapter
+- [x] Anchors in headers/footers are read the same way (the template's sidebar band on chapter
       first pages lives in `footer22.xml`, positioned relative to the page).
-- [ ] Frames: `w:framePr` → paragraph attr `frame: { wrap, hAnchor, vAnchor, x, y, w, h, xAlign, yAlign }`
+- [x] Frames: `w:framePr` → paragraph attr `frame: { wrap, hAnchor, vAnchor, x, y, w, h, xAlign, yAlign }`
       (display-only; rendered as a float or an absolutely positioned block).
-- [ ] Writer: an unchanged anchor writes `xml` as is; changed position/size/alt patch
+- [x] Writer: an unchanged anchor writes `xml` as is; changed position/size/alt patch
       `wp:positionH/V`, `wp:extent` + `a:ext`, `wp:docPr` in that XML; text box text edits
       rewrite only `w:txbxContent` (also in the VML fallback when present, or drop the
       fallback with a recorded reason).
 
 ### 3b Rendering
 
-- [ ] `pagination.ts` already knows which page each block lands on; it also records, per
+- [x] `pagination.ts` already knows which page each block lands on; it also records, per
       `anchor`, its page and the top of its anchor paragraph/line. An **anchor layer** per sheet
       (in `PageView`, below the text for `behindDoc`, above it otherwise, ordered by `z`) draws
       each object at its resolved box: page/margin/column offsets from the page's section
@@ -224,14 +224,14 @@ tables created in the editor still show borders and export with them.
       text boxes render their PM JSON with the document CSS; pictures as `<img>`; picture fills
       as `background-image` (`cover`/tile, crop via `background-position/size`) clipped to the
       shape geometry (the template's cover photo in its oval).
-- [ ] The inline `anchor` node itself renders as a zero-width marker (an anchor icon when
+- [x] The inline `anchor` node itself renders as a zero-width marker (an anchor icon when
       selected or when « Afficher les ancres » is on).
-- [ ] Text wrap: `none`/behind/in front: no effect on flow (covers the template).
+- [x] Text wrap: `none`/behind/in front: no effect on flow (covers the template).
       `square`/`tight`/`through` around a column- or paragraph-relative object: approximated
       with a `float` spacer inserted at the anchor paragraph (`shape-outside` for `tight`
       ellipses); page-relative wraps that don't align with the anchor paragraph fall back
       to no wrap, with a tooltip saying so. `topAndBottom`: block spacer.
-- [ ] Anchors in headers/footers drawn on every page that uses that story.
+- [x] Anchors in headers/footers drawn on every page that uses that story.
 
 ### 3c Interaction: separate pass (decision 1: rendering first, editing after)
 
@@ -247,6 +247,12 @@ go-ahead.
       `text` attr (single-user editing of that attr; real Yjs sub-fragments are a later step).
 - [ ] Insertion menu: « Forme » (rect/ellipse/line) and « Zone de texte », inserted behind or
       in front of text with no wrap.
+
+Notes (as built): VML-only shapes (no `wps`/`wpg` choice) stay labelled placeholders; the
+template's VML `v:fill` image is only the fallback copy of the cover photo, so nothing needs it.
+A patched anchor drops its VML fallback (DrawingML choice kept). Header/footer anchors that
+are paragraph-relative hang from the zone (approximation); text boxes render statically.
+Browser comparison pending.
 
 **Done when** (3a+3b) the template's cover shows the dark full-page background with the
 oval, its photo and its text, every chapter page shows the dark sidebar band with its number, colours match the
