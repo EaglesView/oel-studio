@@ -9,7 +9,7 @@ import type { FromCalc, ToCalc } from '../src/calc/protocol';
 
 const require = createRequire(import.meta.url);
 const codec = require('oelxlsx-node') as { xlsx_to_model(b: Uint8Array): string; WasmCalc: new (json: string) => never };
-const FIXTURE = new URL('../../../../oelxlsx_rs/tests/fixtures/rich-lo.xlsx', import.meta.url);
+const FIXTURE = new URL('../../../fixtures/xlsx/rich-lo.xlsx', import.meta.url);
 
 /** An in-process "worker" running the real engine (Node WASM build). */
 function localPort(): CalcPort {

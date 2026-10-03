@@ -23,7 +23,7 @@ const codec = require('oeldocx-node') as {
   pm_to_docx(json: string, original: Uint8Array | null | undefined, media: unknown[]): Uint8Array;
 };
 const here = dirname(fileURLToPath(import.meta.url));
-const fixture = (name: string) => readFileSync(join(here, '../../../../oeldocx_rs/tests/fixtures', name));
+const fixture = (name: string) => readFileSync(join(here, '../../../fixtures/docx', name));
 const load = (b: Uint8Array) => JSON.parse(codec.docx_to_pm(b).json) as DocxJson;
 
 let editor: Editor | null = null;

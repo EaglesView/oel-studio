@@ -11,7 +11,7 @@ import { createCollabServer } from '../src/server';
 
 const require = createRequire(import.meta.url);
 const codec = require('oelxlsx-node') as { xlsx_to_model(b: Uint8Array): string };
-const xlsx = readFileSync(fileURLToPath(new URL('../../../../oelxlsx_rs/tests/fixtures/rich-lo.xlsx', import.meta.url)));
+const xlsx = readFileSync(fileURLToPath(new URL('../../../fixtures/xlsx/rich-lo.xlsx', import.meta.url)));
 
 const secret = 'test-secret';
 const port = 20_000 + Math.floor(Math.random() * 2000);

@@ -19,7 +19,7 @@
   "dependencies": {
     "@oel/collab-client": "*",
     "@oel/emboss": "*",
-    "oelxlsx-rs": "file:../../../oelxlsx_rs/pkg",
+    "oelxlsx-rs": "file:../wasm/oel-xlsx/web",
     "react-aria-components": "^1.21.1",
     "yjs": "^13.6.33"
   },
@@ -27,6 +27,6 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "happy-dom": "^20.14.5",
-    "oelxlsx-node": "file:../../../oelxlsx_rs/pkg-node"
+    "oelxlsx-node": "file:../wasm/oel-xlsx/node"
   }
 }

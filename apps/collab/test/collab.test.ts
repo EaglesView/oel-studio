@@ -13,7 +13,7 @@ import { createCollabServer } from '../src/server';
 
 const require = createRequire(import.meta.url);
 const codec = require('oeldocx-node') as { docx_to_pm(b: Uint8Array): { json: string } };
-const docx = readFileSync(fileURLToPath(new URL('../../../tests/tesxte.docx', import.meta.url)));
+const docx = readFileSync(fileURLToPath(new URL('../../../fixtures/docx/tesxte.docx', import.meta.url)));
 
 const secret = 'test-secret';
 const port = 18_000 + Math.floor(Math.random() * 2000);

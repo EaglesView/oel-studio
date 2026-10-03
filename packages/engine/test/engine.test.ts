@@ -91,7 +91,7 @@ describe('oeldocx engine', () => {
     const { createOeldocxEngine, EngineRegistry, previewEngine } = await import('../src');
     const mod = createRequire(import.meta.url)('oeldocx-node');
     const registry = new EngineRegistry().register(previewEngine).register(createOeldocxEngine(async () => mod));
-    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../tests/tesxte.docx', import.meta.url))));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../fixtures/docx/tesxte.docx', import.meta.url))));
     const res = await registry.import({ name: 'tesxte.docx', type: '', bytes });
     expect(res.engine).toBe('oeldocx-rs');
     expect(res.preview.kind === 'document' && res.preview.blocks[0]?.text.startsWith('La première chose')).toBe(true);

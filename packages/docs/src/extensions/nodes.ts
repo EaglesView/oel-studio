@@ -1,6 +1,6 @@
 /**
  * Nodes mirroring the oeldocx-rs codec schema. Attribute names and defaults
- * must match `oeldocx_rs/src/ooxml/read.rs` exactly: the raw XML attributes
+ * must match `crates/oel-docx/src/read.rs` exactly: the raw XML attributes
  * (`pPr`, `rPr`, `tcPr`, `xml`…) are what make the round trip lossless.
  */
 import { Node, mergeAttributes, type Attributes } from '@tiptap/core';

@@ -11,7 +11,7 @@ const codec = require('oelxlsx-node') as {
   xlsx_to_model(b: Uint8Array): string;
   WasmCalc: new (json: string) => { values(s: number, r0: number, c0: number, r1: number, c1: number): string; structural(op: string): void; evaluate(): string; free(): void };
 };
-const FIXTURE = new URL('../../../../oelxlsx_rs/tests/fixtures/rich-lo.xlsx', import.meta.url);
+const FIXTURE = new URL('../../../fixtures/xlsx/rich-lo.xlsx', import.meta.url);
 
 const load = (): Workbook => JSON.parse(codec.xlsx_to_model(new Uint8Array(readFileSync(FIXTURE))));
 const seeded = () => {

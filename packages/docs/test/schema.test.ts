@@ -14,8 +14,8 @@ const codec = require('oeldocx-node') as {
   new_document_pm(): { json: string };
   pm_to_docx(json: string, original: Uint8Array | null, media: unknown[]): Uint8Array;
 };
-const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../../../../oeldocx_rs/tests/fixtures/${name}`, import.meta.url)));
-const studioFixture = readFileSync(fileURLToPath(new URL('../../../tests/tesxte.docx', import.meta.url)));
+const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../../../fixtures/docx/${name}`, import.meta.url)));
+const studioFixture = readFileSync(fileURLToPath(new URL('../../../fixtures/docx/tesxte.docx', import.meta.url)));
 
 const schema = docsSchema();
 const load = (bytes: Uint8Array) => JSON.parse(codec.docx_to_pm(bytes).json) as DocxJson;

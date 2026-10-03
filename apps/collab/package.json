@@ -13,9 +13,9 @@
     "@tiptap/y-tiptap": "^3.0.9",
     "hono": "^4.13.12",
     "yjs": "^13.6.33",
-    "oeldocx-node": "file:../../../oeldocx_rs/pkg-node",
+    "oeldocx-node": "file:../../packages/wasm/oel-docx/node",
     "@oel/docs": "*",
-    "oelxlsx-node": "file:../../../oelxlsx_rs/pkg-node",
+    "oelxlsx-node": "file:../../packages/wasm/oel-xlsx/node",
     "@oel/sheets": "*"
   },
   "devDependencies": {
