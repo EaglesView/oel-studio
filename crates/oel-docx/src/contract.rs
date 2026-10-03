@@ -85,6 +85,8 @@ pub struct DocxJson {
     pub settings: DocSettings,
     /// Page colour (`w:background`), `#RRGGBB`.
     pub background: Option<String>,
+    /// Fonts the document names, with the open substitute the editor loads and embedded faces.
+    pub fonts: Vec<DocFont>,
     pub styles: Vec<DocStyle>,
     pub styles_css: String,
     pub defaults: Defaults,
@@ -208,6 +210,26 @@ pub struct HeaderFooterRefs {
     pub first: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub even: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocFont {
+    pub name: String,
+    /// Open font standing in when `name` is not installed (self-hosted by the editor).
+    pub substitute: Option<String>,
+    /// Faces embedded in the file, de-obfuscated, among the media.
+    pub embedded: Vec<EmbeddedFace>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EmbeddedFace {
+    pub path: String,
+    pub weight: u16,
+    pub italic: bool,
 }
 
 /// Document settings the layout needs (from the related settings part; read only).

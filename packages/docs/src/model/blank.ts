@@ -27,6 +27,7 @@ export function blankDocxJson(doc?: PMDoc): DocxJson {
     sections: [defaultSection()],
     settings: { ...DEFAULT_SETTINGS },
     background: null,
+    fonts: [],
     styles: [
       style('Normal', 'Normal', 'normal', null, true),
       style('Title', 'Title', 'title'),

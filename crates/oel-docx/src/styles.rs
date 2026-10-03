@@ -433,18 +433,8 @@ fn rule(css: &mut String, sel: &str, decls: &[(String, String)]) {
     css.push_str("}\n");
 }
 
-/// Font stack with metric-compatible open fallbacks for the common Office fonts.
-pub fn css_font(name: &str) -> String {
-    let fallback = match name.to_ascii_lowercase().as_str() {
-        "calibri" | "aptos" => "Carlito, ",
-        "cambria" => "Caladea, ",
-        "arial" | "helvetica" => "\"Liberation Sans\", Arimo, ",
-        "times new roman" | "times" => "\"Liberation Serif\", Tinos, ",
-        "courier new" | "courier" => "\"Liberation Mono\", Cousine, ",
-        _ => "",
-    };
-    format!("\"{}\", {fallback}sans-serif", name.replace('"', ""))
-}
+/// Font stack with open substitutes (see `fonts.rs`).
+pub use super::fonts::css_font;
 
 fn css_escape(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")

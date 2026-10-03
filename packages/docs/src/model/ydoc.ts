@@ -89,6 +89,7 @@ export function seedYDoc(ydoc: Y.Doc, json: DocxJson, schema: Schema): boolean {
     const mm = meta(ydoc);
     mm.set('settings', json.settings ?? DEFAULT_SETTINGS);
     mm.set('background', json.background ?? null);
+    mm.set('fonts', json.fonts ?? []);
     mm.set('styles', json.styles ?? []);
     mm.set('stylesCss', json.stylesCss ?? '');
     mm.set('defaults', json.defaults ?? { fontFamily: 'Arial', fontSize: '11pt' });
@@ -166,7 +167,7 @@ export function replaceYDocContent(target: Y.Doc, source: Y.Doc, schema: Schema)
     const dst = sectionsMap(target);
     for (const key of [...dst.keys()]) if (!src.has(key)) dst.delete(key);
     src.forEach((v, key) => dst.set(key, v));
-    for (const key of ['settings', 'background'] as const) meta(target).set(key, meta(source).get(key) ?? null);
+    for (const key of ['settings', 'background', 'fonts'] as const) meta(target).set(key, meta(source).get(key) ?? null);
   }, 'restore');
 }
 

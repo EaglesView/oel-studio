@@ -502,6 +502,9 @@ export const Pagination = Extension.create<object, PaginationStorage>({
           };
           view.dom.addEventListener('load', onLoad, true);
           document.fonts?.ready.then(() => schedule(0));
+          // Web fonts loaded later (substitutes, embedded faces) change line breaks.
+          const onFonts = () => schedule(0);
+          document.fonts?.addEventListener?.('loadingdone', onFonts);
           schedule(0);
           return {
             update(v, prev) {
@@ -510,6 +513,7 @@ export const Pagination = Extension.create<object, PaginationStorage>({
             destroy() {
               destroyed = true;
               ro.disconnect();
+              document.fonts?.removeEventListener?.('loadingdone', onFonts);
               view.dom.removeEventListener('load', onLoad, true);
               if (timer) clearTimeout(timer);
               if (frame) cancelAnimationFrame(frame);

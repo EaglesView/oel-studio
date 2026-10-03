@@ -7,6 +7,7 @@
 
 pub mod contract;
 pub mod drawing;
+pub mod fonts;
 pub mod numbering;
 pub mod package;
 pub mod read;
@@ -116,10 +117,13 @@ fn import_package(pkg: &Package) -> Result<Imported, String> {
         .and_then(|d| d.root.child("dc:title").map(|t| t.text_content()))
         .filter(|t| !t.trim().is_empty());
 
-    let media: Vec<Media> = media
+    let mut media: Vec<Media> = media
         .into_iter()
         .filter_map(|path| pkg.get(&path).map(|b| Media { mime: pkg.mime_of(&path), bytes: b.to_vec(), path }))
         .collect();
+    // Embedded fonts, de-obfuscated, travel with the images (never written back: the package keeps the originals).
+    let (fonts, embedded) = fonts::document_fonts(pkg, &styles);
+    media.extend(embedded.into_iter().map(|f| Media { path: f.path, mime: f.mime.to_string(), bytes: f.bytes }));
 
     let mut style_list = styles.to_json();
     // List definitions inherited from styles (e.g. "List Bullet").
@@ -139,6 +143,7 @@ fn import_package(pkg: &Package) -> Result<Imported, String> {
         "sections": sections,
         "settings": { "evenAndOddHeaders": flag("w:evenAndOddHeaders"), "defaultTabStop": default_tab, "mirrorMargins": flag("w:mirrorMargins") },
         "background": background,
+        "fonts": fonts,
         "styles": style_list,
         "stylesCss": styles.css(),
         "defaults": styles.defaults_json(),

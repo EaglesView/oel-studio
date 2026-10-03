@@ -11,6 +11,8 @@ export type {
   AnchorPosition,
   Columns,
   Crop,
+  DocFont,
+  EmbeddedFace,
   Edges,
   Frame,
   GroupChild,

@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { Dialog, DialogTrigger, MenuTrigger } from 'react-aria-components';
 import { Menu, MenuItem, MenuPopover, Popover, Select, SelectItem, Toolbar, ToolbarSeparator, ToolbarToggle, ToolButton } from '@oel/emboss';
 import { FONT_FAMILIES, FONT_SIZES, HIGHLIGHT_COLORS, LINE_SPACINGS, TEXT_COLORS } from '../model/format';
 import { listKindOf } from '../model/numbering';
-import type { DocStyle } from '../model/types';
+import type { DocFont, DocStyle } from '../model/types';
+import { fontLabel } from './fonts';
 
 export const ROLE_LABELS: Array<[string, string]> = [
   ['normal', 'Texte normal'],
@@ -117,6 +118,8 @@ export interface DocsToolbarProps {
   editor: Editor;
   state: ToolbarState;
   styles: DocStyle[];
+  /** The document's fonts, for the font menu (substitutions are named). */
+  fonts?: DocFont[];
   editable: boolean;
   zoom: number;
   setZoom: (z: number) => void;
@@ -128,11 +131,14 @@ export interface DocsToolbarProps {
   more?: ReactNode;
 }
 
-export function DocsToolbar({ editor, state, styles, editable, zoom, setZoom, onPrint, onLink, onImage, painterActive, more }: DocsToolbarProps) {
+export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom, setZoom, onPrint, onLink, onImage, painterActive, more }: DocsToolbarProps) {
   const chain = () => editor.chain().focus();
   const ro = editable ? undefined : 'Document en lecture seule.';
   const otherStyles = styles.filter((s) => s.kind === 'paragraph' && !s.hidden && s.quick && !ROLE_LABELS.some(([r]) => r === s.role));
-  const families = Array.from(new Set([...(state.fontFamily ? [state.fontFamily] : []), ...FONT_FAMILIES]));
+  // The document's own fonts first (symbol fonts aside), then the usual ones.
+  const docFamilies = fonts.map((f) => f.name).filter((n) => !/^(symbol|wingdings|webdings)/i.test(n) && !/\(.*\)$/.test(n));
+  const families = Array.from(new Set([...(state.fontFamily ? [state.fontFamily] : []), ...docFamilies, ...FONT_FAMILIES]));
+  const labels = useMemo(() => new Map(families.map((f) => [f, fontLabel(f, fonts)])), [families.join('|'), fonts]);
   const setSize = (pt: number) => chain().setFontSize(`${Math.max(1, Math.min(400, pt))}pt`).run();
   const nextSize = (dir: 1 | -1) => {
     const cur = state.fontSize ?? 11;
@@ -201,7 +207,7 @@ export function DocsToolbar({ editor, state, styles, editable, zoom, setZoom, on
             </SelectItem>,
             ...families.map((f) => (
               <SelectItem key={f} id={f}>
-                <span style={{ fontFamily: `"${f}"` }}>{f}</span>
+                <span style={{ fontFamily: `"${f}"` }}>{labels.get(f) ?? f}</span>
               </SelectItem>
             )),
           ]}

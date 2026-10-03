@@ -5,7 +5,8 @@ import { docsExtensions, fallbackRegistry, SHARED_EDIT_ORIGIN, type StyleRegistr
 import type { DocSession } from '../collab/session';
 import { lists, meta, sectionsById, sectionsMap, settingsOf } from '../model/ydoc';
 import { defaultSection, BODY_SECTION } from '../model/sections';
-import type { DocSettings, DocStyle, NumberingDefs, PageSetup, Section } from '../model/types';
+import type { DocFont, DocSettings, DocStyle, NumberingDefs, PageSetup, Section } from '../model/types';
+import { loadDocumentFonts } from './fonts';
 import { sanitizeStylesheet } from '../model/format';
 
 export const PAGE_GAP = 24;
@@ -16,6 +17,8 @@ export interface DocMeta {
   settings: DocSettings;
   /** Page colour, `#RRGGBB`. */
   background: string | null;
+  /** Fonts the document names (substitutes, embedded faces). */
+  fonts: DocFont[];
   styles: DocStyle[];
   stylesCss: string;
   defaults: { fontFamily: string; fontSize: string };
@@ -29,6 +32,7 @@ function readMeta(ydoc: Y.Doc): DocMeta {
     sections: sectionsById(ydoc),
     settings: settingsOf(ydoc),
     background: (m.get('background') as string | null | undefined) ?? null,
+    fonts: (m.get('fonts') as DocFont[] | undefined) ?? [],
     styles: (m.get('styles') as DocStyle[] | undefined) ?? [],
     stylesCss: sanitizeStylesheet((m.get('stylesCss') as string | undefined) ?? ''),
     defaults: (m.get('defaults') as DocMeta['defaults'] | undefined) ?? { fontFamily: 'Arial', fontSize: '11pt' },
@@ -137,6 +141,16 @@ export function useDocEditor(session: DocSession, docMeta: DocMeta, opts: { edit
   useEffect(() => {
     editor?.setEditable(opts.editable);
   }, [editor, opts.editable]);
+
+  // The document's fonts: embedded faces and self-hosted substitutes, loaded on demand; lay out again once in.
+  useEffect(() => {
+    if (!editor || !docMeta.fonts.length) return;
+    let alive = true;
+    void loadDocumentFonts(docMeta.fonts, session.mediaUrl).then(() => alive && !editor.isDestroyed && editor.storage.pagination.relayout());
+    return () => {
+      alive = false;
+    };
+  }, [editor, docMeta.fonts, session]);
 
   return editor;
 }

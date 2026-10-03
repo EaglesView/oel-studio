@@ -755,6 +755,7 @@ export function DocsEditor(props: DocsEditorProps) {
           editor={target!}
           state={toolbar}
           styles={docMeta.styles}
+          fonts={docMeta.fonts}
           editable={editable}
           zoom={zoom}
           setZoom={setZoom}

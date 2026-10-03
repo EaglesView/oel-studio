@@ -70,3 +70,30 @@ fn theme_colours_come_from_the_related_theme_and_settings_parts() {
     let fill = oeldocx::xml::XDocument::parse(r#"<a:schemeClr xmlns:a="a" val="tx1"><a:lumMod val="75000"/><a:lumOff val="25000"/></a:schemeClr>"#).unwrap();
     assert_eq!(theme.resolve(&fill.root).as_deref(), Some("#404040"));
 }
+
+#[test]
+fn fonts_are_listed_with_their_substitutes() {
+    let j = import_docx(&fixture("complex_template.docx")).unwrap().json;
+    let fonts = j["fonts"].as_array().unwrap();
+    let find = |n: &str| fonts.iter().find(|f| f["name"] == n).unwrap_or_else(|| panic!("{n} not listed"));
+    assert_eq!(find("Felix Titling")["substitute"], "Cinzel");
+    assert_eq!(find("Century Gothic")["substitute"], "Questrial");
+    assert_eq!(find("Wingdings")["substitute"], serde_json::Value::Null);
+    assert!(j["stylesCss"].as_str().unwrap().contains(r#""Felix Titling", "Cinzel", serif"#));
+}
+
+#[test]
+fn embedded_fonts_are_deobfuscated() {
+    let bytes = fixture("embedded-font.docx");
+    let imp = import_docx(&bytes).unwrap();
+    let face = &imp.json["fonts"].as_array().unwrap().iter().find(|f| f["name"] == "Comfortaa").unwrap()["embedded"][0];
+    assert_eq!(face["weight"], 400);
+    let path = face["path"].as_str().unwrap();
+    let media = imp.media.iter().find(|m| m.path == path).expect("font among the media");
+    assert_eq!(media.mime, "font/otf");
+    assert!(media.bytes.starts_with(b"OTTO"), "de-obfuscated OpenType header");
+    // The obfuscated part is kept as it was on export.
+    let out = export_docx(&imp.json, Some(&bytes), HashMap::new()).unwrap();
+    assert_eq!(Package::read(&out).unwrap().get("word/fonts/font1.odttf"), Package::read(&bytes).unwrap().get("word/fonts/font1.odttf"));
+    assert!(!Package::read(&out).unwrap().has(path));
+}

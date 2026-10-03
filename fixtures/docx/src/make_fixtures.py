@@ -102,7 +102,7 @@ def field(instr, shown):
     )
 
 
-def build(name, body, rels=(), parts=(), settings_extra=""):
+def build(name, body, rels=(), parts=(), settings_extra="", defaults=""):
     """rels: (id, type, target); parts: (path, content type or None, bytes|str)."""
     overrides = [
         ("/word/document.xml", CT + "document.main+xml"),
@@ -113,7 +113,7 @@ def build(name, body, rels=(), parts=(), settings_extra=""):
     ct_xml = DECL + (
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-        '<Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/>'
+        '<Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/>' + defaults
         + "".join(f'<Override PartName="{n}" ContentType="{t}"/>' for n, t in overrides)
         + "</Types>"
     )
@@ -334,8 +334,42 @@ def tables():
     build("table-borders.docx", body)
 
 
+def embedded_font():
+    """Comfortaa (SIL OFL 1.1, from the system's aajohan-comfortaa-fonts) embedded and obfuscated as Word does."""
+    font = Path("/usr/share/fonts/aajohan-comfortaa-fonts/Comfortaa-Regular.otf").read_bytes()
+    guid = "{6C3B2F1A-9D4E-4B7A-8E21-0F5A3C9D7B64}"
+    key = bytes.fromhex(guid.strip("{}").replace("-", ""))[::-1]
+    obf = bytes(b ^ key[i % 16] for i, b in enumerate(font[:32])) + font[32:]
+    font_table = DECL + (
+        f'<w:fonts {NS}><w:font w:name="Comfortaa"><w:charset w:val="00"/><w:family w:val="auto"/><w:pitch w:val="variable"/>'
+        f'<w:embedRegular r:id="rIdF1" w:fontKey="{guid}"/></w:font></w:fonts>'
+    )
+    font_rels = DECL + (
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        f'<Relationship Id="rIdF1" Type="{REL}font" Target="fonts/font1.odttf"/></Relationships>'
+    )
+    body = (
+        p("Police incorporée", '<w:pStyle w:val="Heading1"/>')
+        + p(runs='<w:r><w:rPr><w:rFonts w:ascii="Comfortaa" w:hAnsi="Comfortaa"/><w:sz w:val="32"/></w:rPr><w:t>Texte en Comfortaa, police incorporée au document.</w:t></w:r>')
+        + sect_pr()
+    )
+    build(
+        "embedded-font.docx",
+        body,
+        [("rIdFonts", "fontTable", "fontTable.xml")],
+        [
+            ("word/fontTable.xml", CT + "fontTable+xml", font_table),
+            ("word/_rels/fontTable.xml.rels", None, font_rels),
+            ("word/fonts/font1.odttf", None, obf),
+        ],
+        settings_extra="<w:embedTrueTypeFonts/>",
+        defaults='<Default Extension="odttf" ContentType="application/vnd.openxmlformats-officedocument.obfuscatedFont"/>',
+    )
+
+
 if __name__ == "__main__":
     sections_margins()
     sections_headers()
     anchors()
     tables()
+    embedded_font()
