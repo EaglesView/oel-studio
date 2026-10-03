@@ -1,0 +1,45 @@
+---
+name: oel-editor-feature
+description: Add or modify a feature inside an OutilsEnLigne editor — the Docs editor (@oel/docs, Tiptap/ProseMirror + Yjs, DOCX), the Sheets editor (@oel/sheets, canvas grid + IronCalc worker, XLSX/CSV), or Forms (@oel/forms builder/filler). Covers model → Yjs → UI → file export → tests, and the kit/icon/copy conventions.
+---
+
+# Editor features
+
+First locate the spec: Figma `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behaviors"
+(E = Formulaires, F = Documents Word; sheets follow the same level/back-gesture rules).
+If the user gave a Figma link, read it with the Figma tools before coding.
+
+## Package anatomy (same for each editor)
+
+| Folder | Contains | Rules |
+|---|---|---|
+| `model/` | Pure data + Yjs mapping (`ydoc.ts`), preview for the desk, blank doc | No React, no DOM: imported by `apps/collab` on the server |
+| `ui/` | React components, toolbar, menus, dialogs, CSS | `@oel/emboss` components, `--emboss-*` tokens, Iconoir icons, fr-CA copy |
+| `collab/` | Session on `@oel/collab-client` | Sharing/versions/sync UI comes from `@oel/collab-client`, don't fork it |
+
+### Docs (`packages/docs`)
+- Schema: `src/extensions/{nodes,marks,lists,pagination,editing,find}.ts` — mirrors the codec in `oeldocx_rs/src/ooxml`. A new node/mark/attr that must survive save needs codec support (`oel-rust-engine`) and a schema test.
+- UI: `DocsEditor.tsx` (variants: sheet = level 2, full = level 3), `DocsToolbar.tsx`, `MenuBar` spec in `actions.ts`, `PageView.tsx`, `StoryEditor.tsx` (headers/footers).
+- Tests: `test/schema.test.ts`, `test/editor.test.ts` (headless edit → .docx → LibreOffice when `soffice` is installed).
+
+### Sheets (`packages/sheets`)
+- Cells live in a Y.Doc keyed by stable row/col ids; formulas are stored with id refs (`model/formula.ts`) and shown as A1 (`model/a1.ts`). Never store A1 refs in Yjs.
+- Calc runs in a worker (`calc/calc.worker.ts` → `WasmCalc` from oelxlsx). New functions = IronCalc support + `model/functions.ts` list for autocomplete.
+- Grid is canvas (`grid/render.ts`, `geometry.ts`, `selection.ts`); interaction in `ui/controller.ts`. Keep the a11y mirror in `Grid.tsx` in sync.
+- Tests: `test/{model,calc,fill}.test.ts`.
+
+### Forms (`packages/forms`)
+- Model in `src/model` (types, creation, validation, linked-sheet mapping `applyResponses`/`syncLink`).
+- All server calls go through `FormsBackend` (`src/api/backend.ts`); never call `fetch` from UI. Server-side work → `oel-collab-backend`.
+- Bureau glue (sheet sync, threads) is in `apps/web/src/bureau/forms.ts`.
+- Tests: `test/forms.test.ts`, `test/render.test.ts` (happy-dom).
+
+## Steps
+
+1. Model change + unit test.
+2. Yjs mapping (undo granularity, collaborative safety: two clients editing at once must converge).
+3. UI using kit components; tooltip = name + shortcut + effect; disabled tools explain why.
+4. Export path: does the feature survive `.docx`/`.xlsx`/`.csv` export and re-import? If not, the codec needs it, or the UI must say it won't be saved.
+5. Offline: works with the collab server stopped (IndexedDB), syncs when it returns.
+6. File pickers, downloads, storage: use the existing helpers (and `@oel/platform` once plan Phase 4 lands) — don't call `indexedDB` or create download links inline.
+7. `oel-verify`. If behaviour now differs from Figma, tell the user (and offer to annotate the Figma section).
