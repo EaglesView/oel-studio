@@ -151,6 +151,16 @@ pub struct Sheet {
     #[serde(default)]
     #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub notes: Vec<Note>,
+    /// Structured tables (`Table1[Col]` in formulas). The part is kept as it
+    /// came; only its range is written back when rows were added or removed.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub tables: Vec<Table>,
+    /// Pictures, shapes and charts drawn over the grid. Read-only: the drawing
+    /// part is written back untouched.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub drawings: Vec<Drawing>,
 }
 
 pub fn default_col_width() -> f64 {
@@ -498,4 +508,101 @@ pub struct Preserved {
     pub count: u32,
     /// French label for the « Conservé » panel.
     pub label: String,
+}
+
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Table {
+    /// The table part (`xl/tables/table1.xml`), empty for tables made in the editor.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub part: String,
+    /// The name formulas use (`displayName`).
+    pub name: String,
+    /// A1 range, header and totals rows included.
+    #[serde(rename = "ref")]
+    pub range: String,
+    #[serde(default = "one")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub header_rows: u32,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub totals_rows: u32,
+    /// Column names, left to right.
+    pub columns: Vec<String>,
+    /// `TableStyleMedium2`…
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<String>,
+}
+
+fn one() -> u32 {
+    1
+}
+
+/// Where a corner of a drawing sits: a cell and an offset inside it (EMU, 914400 per inch).
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DrawingMarker {
+    pub r: u32,
+    pub c: u32,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub dx: i64,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub dy: i64,
+}
+
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Drawing {
+    /// `picture`, `shape`, `chart` or `other` (groups, connectors, controls).
+    pub kind: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub descr: Option<String>,
+    /// Top-left corner.
+    pub from: DrawingMarker,
+    /// Bottom-right corner (two-cell anchors); otherwise `cx`/`cy` give the size.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to: Option<DrawingMarker>,
+    /// Size in EMU for one-cell and absolute anchors.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub cx: i64,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub cy: i64,
+    /// Package path of the image (`xl/media/image1.png`); the SVG version when there is one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mime: Option<String>,
+    /// Shape fill and outline, CSS.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fill: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<String>,
+    /// Shape geometry (`rect`, `ellipse`, `roundRect`…).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub geom: Option<String>,
+    /// Text of a shape (paragraphs joined by new lines).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Clockwise rotation, degrees.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub rot: f64,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub flip_h: bool,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub flip_v: bool,
+    /// Excel's « move and size with cells » setting (`twoCell`, `oneCell`, `absolute`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edit_as: Option<String>,
 }

@@ -508,7 +508,27 @@ fn write_worksheet(pkg: &mut Package, part: &str, sheet: &Sheet, selected: bool,
     let ws = &mut doc.root;
     put(ws, WS_ORDER, "hyperlinks", hl.into_iter().collect());
     pkg.set_xml(part, &doc);
+    update_tables(pkg, sheet);
     Ok(())
+}
+
+/// A table whose rows were added or removed gets its new range; untouched
+/// table parts stay byte for byte.
+fn update_tables(pkg: &mut Package, sheet: &Sheet) {
+    for t in sheet.tables.iter().filter(|t| !t.part.is_empty() && parse_range(&t.range).is_some()) {
+        let Some(mut doc) = pkg.get_xml(&t.part) else { continue };
+        if doc.root.attr("ref") == Some(t.range.as_str()) {
+            continue;
+        }
+        doc.root.set_attr("ref", t.range.clone());
+        if let Some(af) = doc.root.child_local_mut("autoFilter") {
+            // The filter covers the table without its totals row.
+            let r = parse_range(&t.range).unwrap();
+            let last = r.r1.saturating_sub(t.totals_rows).max(r.r0);
+            af.set_attr("ref", format!("{}:{}", a1(r.r0, r.c0), a1(last, r.c1)));
+        }
+        pkg.set_xml(&t.part, &doc);
+    }
 }
 
 fn remove_part(pkg: &mut Package, part: &str) {

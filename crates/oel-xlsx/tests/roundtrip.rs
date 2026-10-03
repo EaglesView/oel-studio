@@ -154,3 +154,20 @@ fn libreoffice_agrees() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn table_range_follows_rows_and_drawings_stay() {
+    let bytes = fixture("complex_sheet_graph.xlsx");
+    let mut wb = import_xlsx(&bytes).unwrap();
+    let out = export_xlsx(&wb, Some(&bytes)).unwrap();
+    let (p0, p1) = (Package::read(&bytes).unwrap(), Package::read(&out).unwrap());
+    for part in ["xl/tables/table1.xml", "xl/drawings/drawing1.xml", "xl/charts/chartEx1.xml", "xl/media/image2.svg"] {
+        assert_eq!(p0.get(part), p1.get(part), "{part} untouched");
+    }
+    wb.sheets[0].tables[0].range = "C6:F18".into();
+    let out = export_xlsx(&wb, Some(&bytes)).unwrap();
+    let b = import_xlsx(&out).unwrap();
+    assert_eq!(b.sheets[0].tables[0].range, "C6:F18");
+    let t = Package::read(&out).unwrap().get_xml("xl/tables/table1.xml").unwrap();
+    assert_eq!(t.root.child_local("autoFilter").unwrap().attr("ref"), Some("C6:F18"));
+}

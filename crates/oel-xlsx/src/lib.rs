@@ -8,6 +8,7 @@
 //! - [`wasm`]: the wasm-bindgen surface used by the web worker and Node.
 
 pub mod csv;
+pub mod drawing;
 pub mod engine;
 pub mod model;
 pub mod read;

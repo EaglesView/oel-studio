@@ -76,3 +76,32 @@ fn edits_recompute() {
     // B7 moved to B8 and still sums the same four amounts.
     assert_eq!(text(&calc, 0, "B8"), "2,835.00 $");
 }
+
+#[test]
+fn structured_references_compute() {
+    // An Excel template: a table « Data » whose calculated columns use
+    // `Data[[#This Row],[…]]` and a running total `SUM(INDEX(Data[…],1):Data[[#This Row],[…]])`.
+    let wb = load("complex_sheet_graph.xlsx");
+    let t = &wb.sheets[0].tables;
+    assert_eq!(t.len(), 1);
+    assert_eq!((t[0].name.as_str(), t[0].range.as_str(), t[0].columns.len()), ("Data", "C6:F17", 4));
+    let calc = Calc::new(&wb).unwrap();
+    assert_eq!(text(&calc, 0, "E7"), "23.18%");
+    assert_eq!(text(&calc, 0, "F8"), "39.74%");
+    assert_eq!(text(&calc, 0, "F17"), "100.00%");
+}
+
+#[test]
+fn reads_drawings() {
+    let wb = load("complex_sheet_graph.xlsx");
+    let d = &wb.sheets[0].drawings;
+    let kinds: Vec<_> = d.iter().map(|d| d.kind.as_str()).collect();
+    assert_eq!(kinds, ["chart", "picture", "shape", "picture"]);
+    // The SVG is preferred to its PNG fallback; rotation and anchor are kept.
+    assert_eq!(d[1].media.as_deref(), Some("xl/media/image2.svg"));
+    assert_eq!(d[1].mime.as_deref(), Some("image/svg+xml"));
+    assert_eq!(d[1].rot, 180.0);
+    assert_eq!((d[1].to.unwrap().r, d[1].to.unwrap().c), (2, 1));
+    // Scheme colour accent2 of the file's theme.
+    assert_eq!(d[2].fill.as_deref(), Some("#3C9FE0"));
+}

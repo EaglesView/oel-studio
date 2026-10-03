@@ -60,6 +60,26 @@ pub fn format_number(value: f64, code: &str) -> String {
     Calc::format_number(value, code)
 }
 
+/// An opened `.xlsx`, to read parts the editor shows but does not model
+/// (images of drawings) without unzipping the file for each one.
+#[wasm_bindgen]
+pub struct XlsxParts {
+    pkg: oel_opc::package::Package,
+}
+
+#[wasm_bindgen]
+impl XlsxParts {
+    #[wasm_bindgen(constructor)]
+    pub fn new(bytes: &[u8]) -> Result<XlsxParts, JsError> {
+        Ok(XlsxParts { pkg: oel_opc::package::Package::read(bytes).map_err(js_err)? })
+    }
+
+    /// The bytes of a part (`xl/media/image1.png`), if the package has it.
+    pub fn part(&self, path: &str) -> Option<Vec<u8>> {
+        self.pkg.get(path).map(<[u8]>::to_vec)
+    }
+}
+
 #[wasm_bindgen]
 pub struct WasmCalc {
     calc: Calc,

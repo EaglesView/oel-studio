@@ -4,10 +4,12 @@ import type { Cell } from "./Cell";
 import type { ColInfo } from "./ColInfo";
 import type { Color } from "./Color";
 import type { CondFormat } from "./CondFormat";
+import type { Drawing } from "./Drawing";
 import type { Hyperlink } from "./Hyperlink";
 import type { Note } from "./Note";
 import type { RowInfo } from "./RowInfo";
 import type { SheetState } from "./SheetState";
+import type { Table } from "./Table";
 import type { Validation } from "./Validation";
 
 export type Sheet = { 
@@ -31,4 +33,14 @@ merges?: Array<string>, frozenRows?: number, frozenCols?: number, zoom?: number,
  * Cell notes (legacy comments). Read-only in this version: the parts are
  * preserved, the text is shown.
  */
-notes?: Array<Note>, };
+notes?: Array<Note>, 
+/**
+ * Structured tables (`Table1[Col]` in formulas). The part is kept as it
+ * came; only its range is written back when rows were added or removed.
+ */
+tables?: Array<Table>, 
+/**
+ * Pictures, shapes and charts drawn over the grid. Read-only: the drawing
+ * part is written back untouched.
+ */
+drawings?: Array<Drawing>, };

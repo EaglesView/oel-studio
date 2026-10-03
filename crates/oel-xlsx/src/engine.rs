@@ -9,7 +9,7 @@ use crate::model::{Cell, Workbook};
 use crate::refs::{a1, parse_range};
 use ironcalc_base::cell::CellValue;
 use ironcalc_base::expressions::types::Area;
-use ironcalc_base::types::{CellType, Style};
+use ironcalc_base::types::{CellType, Style, Table, TableColumn, TableStyleInfo};
 use ironcalc_base::Model;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -100,6 +100,14 @@ impl Calc {
         if wb.sheets.is_empty() {
             return Err("aucune feuille".into());
         }
+        // Structured references (`Data[[#This Row],[Qty]]`) resolve against the
+        // workbook's tables, which IronCalc's parser reads when the model is built.
+        let tables = engine_tables(wb);
+        if !tables.is_empty() {
+            let mut book = model.workbook;
+            book.tables = tables;
+            model = Model::from_workbook(book, "en")?;
+        }
         let mut calc = Calc { model, formatted: HashSet::new(), last: HashMap::new() };
         for n in &wb.names {
             let scope = n.scope.as_ref().and_then(|id| wb.sheets.iter().position(|s| &s.id == id)).map(|i| i as u32);
@@ -141,6 +149,7 @@ impl Calc {
                 let (w, h) = ((rng.c1 - rng.c0 + 1) as i32, (rng.r1 - rng.r0 + 1) as i32);
                 return self.model.set_user_array_formula(sheet, row, col, w, h, &format!("={f}"));
             }
+            let f = index_ranges(f);
             return self.model.update_cell_with_formula(sheet, row, col, format!("={f}")).or_else(|_| {
                 // Not parseable: keep what the person typed, as text (Excel would refuse it).
                 self.model.update_cell_with_text(sheet, row, col, &format!("={f}"))
@@ -277,6 +286,137 @@ impl Calc {
     }
 }
 
+/// IronCalc's INDEX gives a single cell's *value*, so `INDEX(r,1):B9` (a range
+/// built from a reference, common in running totals) is `#VALUE!` there. For the
+/// engine only, INDEX next to a `:` becomes the equivalent OFFSET, which IronCalc
+/// returns as a reference. The stored formula is not changed.
+pub(crate) fn index_ranges(f: &str) -> std::borrow::Cow<'_, str> {
+    if !f.contains(':') || !f.to_ascii_uppercase().contains("INDEX(") {
+        return std::borrow::Cow::Borrowed(f);
+    }
+    let b = f.as_bytes();
+    let mut out = String::with_capacity(f.len() + 32);
+    let mut i = 0;
+    let mut last = 0;
+    while i < b.len() {
+        match b[i] {
+            b'"' => {
+                i += 1;
+                while i < b.len() && !(b[i] == b'"' && b.get(i + 1) != Some(&b'"')) {
+                    i += if b[i] == b'"' { 2 } else { 1 };
+                }
+                i += 1;
+                continue;
+            }
+            b'\'' => {
+                i += 1;
+                while i < b.len() && b[i] != b'\'' {
+                    i += 1;
+                }
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+        let starts = b.len() >= i + 6 && b[i..i + 6].eq_ignore_ascii_case(b"INDEX(") && (i == 0 || !(b[i - 1].is_ascii_alphanumeric() || matches!(b[i - 1], b'_' | b'.')));
+        if !starts {
+            i += 1;
+            continue;
+        }
+        let open = i + 5;
+        let Some((close, args)) = split_args(f, open) else { break };
+        let before = f[..i].trim_end().ends_with(':');
+        let after = f[close + 1..].trim_start().starts_with(':');
+        let rewritten = match args.as_slice() {
+            _ if !(before || after) => None,
+            [r, n] if n.trim() != "0" => Some(format!("OFFSET({r},IF(ROWS({r})=1,0,({n})-1),IF(ROWS({r})=1,({n})-1,0),1,1)")),
+            [r, n, m] if n.trim() != "0" && m.trim() != "0" => Some(format!("OFFSET({r},({n})-1,({m})-1,1,1)")),
+            _ => None,
+        };
+        match rewritten {
+            Some(x) => {
+                out.push_str(&f[last..i]);
+                out.push_str(&x);
+                last = close + 1;
+                i = close + 1;
+            }
+            None => i = open + 1,
+        }
+    }
+    if last == 0 {
+        return std::borrow::Cow::Borrowed(f);
+    }
+    out.push_str(&f[last..]);
+    std::borrow::Cow::Owned(out)
+}
+
+/// The top-level arguments of the call whose `(` is at `open`, and the index of its `)`.
+fn split_args(f: &str, open: usize) -> Option<(usize, Vec<&str>)> {
+    let b = f.as_bytes();
+    let (mut depth, mut i, mut start) = (0i32, open + 1, open + 1);
+    let mut args = Vec::new();
+    while i < b.len() {
+        match b[i] {
+            b'"' => {
+                i += 1;
+                while i < b.len() && !(b[i] == b'"' && b.get(i + 1) != Some(&b'"')) {
+                    i += if b[i] == b'"' { 2 } else { 1 };
+                }
+            }
+            b'\'' => {
+                i += 1;
+                while i < b.len() && b[i] != b'\'' {
+                    i += 1;
+                }
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b']' | b'}' => depth -= 1,
+            b')' if depth == 0 => {
+                args.push(&f[start..i]);
+                return Some((i, args));
+            }
+            b')' => depth -= 1,
+            b',' if depth == 0 => {
+                args.push(&f[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+fn engine_tables(wb: &Workbook) -> HashMap<String, Table> {
+    let mut out = HashMap::new();
+    for (i, sheet) in wb.sheets.iter().enumerate() {
+        for t in &sheet.tables {
+            if t.columns.is_empty() || parse_range(&t.range).is_none() {
+                continue;
+            }
+            let columns = t.columns.iter().enumerate().map(|(i, name)| TableColumn { id: i as u32 + 1, name: name.clone(), ..Default::default() }).collect();
+            out.insert(
+                t.name.clone(),
+                Table {
+                    name: t.name.clone(),
+                    display_name: t.name.clone(),
+                    sheet_name: engine_sheet_name(&sheet.name, i),
+                    reference: t.range.clone(),
+                    totals_row_count: t.totals_rows,
+                    header_row_count: t.header_rows,
+                    header_row_dxf_id: None,
+                    data_dxf_id: None,
+                    totals_row_dxf_id: None,
+                    columns,
+                    style_info: TableStyleInfo { name: t.style.clone(), ..Default::default() },
+                    has_filters: false,
+                },
+            );
+        }
+    }
+    out
+}
+
 fn input_of(sheet: usize, cell: &Cell, fmt: String) -> CellInput {
     CellInput { sheet, r: cell.r, c: cell.c, f: cell.f.clone(), t: cell.t.clone(), v: cell.v.clone(), a: cell.a.clone(), fmt: Some(fmt) }
 }
@@ -286,4 +426,22 @@ pub fn recalc(wb: &mut Workbook) -> Result<(), String> {
     let mut calc = Calc::new(wb)?;
     calc.fill_cached(wb);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::index_ranges;
+
+    #[test]
+    fn index_next_to_a_colon_becomes_offset() {
+        assert_eq!(index_ranges("SUM(A1:A3)"), "SUM(A1:A3)");
+        assert_eq!(index_ranges("INDEX(A1:A5,2)"), "INDEX(A1:A5,2)");
+        assert_eq!(index_ranges("SUM(INDEX(A1:A5,1,1):A3)"), "SUM(OFFSET(A1:A5,(1)-1,(1)-1,1,1):A3)");
+        assert_eq!(
+            index_ranges("SUM(INDEX(T[Qty],1):T[[#This Row],[Qty]])"),
+            "SUM(OFFSET(T[Qty],IF(ROWS(T[Qty])=1,0,(1)-1),IF(ROWS(T[Qty])=1,(1)-1,0),1,1):T[[#This Row],[Qty]])"
+        );
+        assert_eq!(index_ranges("\"INDEX(A1,1):\"&A1"), "\"INDEX(A1,1):\"&A1");
+        assert_eq!(index_ranges("SUM(A1:index(B1:B9,0))"), "SUM(A1:index(B1:B9,0))");
+    }
 }

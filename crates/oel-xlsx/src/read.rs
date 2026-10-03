@@ -13,6 +13,7 @@ pub const REL_STYLES: &str = "http://schemas.openxmlformats.org/officeDocument/2
 pub const REL_THEME: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme";
 pub const REL_CALC_CHAIN: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/calcChain";
 pub const REL_COMMENTS: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments";
+pub const REL_TABLE: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/table";
 
 /// A shared string: plain text, and the raw `<si>` content when it has runs.
 pub struct SharedString {
@@ -259,6 +260,29 @@ fn read_notes(ctx: &SheetCtx) -> Vec<Note> {
         .unwrap_or_default()
 }
 
+fn read_tables(ctx: &SheetCtx) -> Vec<Table> {
+    ctx.pkg
+        .rels(&ctx.part)
+        .into_iter()
+        .filter(|r| r.rel_type == REL_TABLE)
+        .filter_map(|rel| {
+            let part = resolve_target(&ctx.part, &rel.target);
+            let doc = ctx.pkg.get_xml(&part)?;
+            let t = &doc.root;
+            let range = t.attr("ref").filter(|r| parse_range(r).is_some())?.to_string();
+            Some(Table {
+                name: t.attr("displayName").or(t.attr("name"))?.to_string(),
+                part,
+                range,
+                header_rows: t.attr("headerRowCount").and_then(|v| v.parse().ok()).unwrap_or(1),
+                totals_rows: t.attr("totalsRowCount").and_then(|v| v.parse().ok()).unwrap_or(0),
+                columns: t.child_local("tableColumns").map(|c| c.children_local("tableColumn").map(|c| c.attr("name").unwrap_or_default().to_string()).collect()).unwrap_or_default(),
+                style: t.child_local("tableStyleInfo").and_then(|s| s.attr("name")).map(String::from),
+            })
+        })
+        .collect()
+}
+
 fn read_sheet(ctx: &SheetCtx, name: &str, state: SheetState) -> Result<Sheet, String> {
     let doc = ctx.pkg.get_xml(&ctx.part).ok_or_else(|| format!("feuille introuvable : {}", ctx.part))?;
     let ws = &doc.root;
@@ -315,6 +339,8 @@ fn read_sheet(ctx: &SheetCtx, name: &str, state: SheetState) -> Result<Sheet, St
     sheet.cond_formats = read_cond_formats(ws, ctx.theme);
     sheet.hyperlinks = read_hyperlinks(ctx, ws);
     sheet.notes = read_notes(ctx);
+    sheet.tables = read_tables(ctx);
+    sheet.drawings = crate::drawing::read_drawings(ctx.pkg, &ctx.part, ctx.theme);
     Ok(sheet)
 }
 
