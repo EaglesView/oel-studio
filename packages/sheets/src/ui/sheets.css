@@ -135,25 +135,6 @@
 .oel-grid__scroll { position: absolute; inset: 0; overflow: auto; z-index: 1; }
 .oel-grid__canvas { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; }
 .oel-grid__scroll { background: transparent; }
-/* Drawings: over the cells, under the scroll layer (pointer events go to the grid). */
-.oel-drawings { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.oel-drawing { position: absolute; box-sizing: border-box; transform-origin: center; }
-.oel-drawing--picture { object-fit: fill; user-select: none; }
-.oel-drawing--shape { display: grid; place-items: center; padding: 4px; overflow: hidden; color: #fff; font-family: Calibri, Carlito, sans-serif; white-space: pre-wrap; text-align: center; }
-.oel-drawing--chart {
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 6px;
-  padding: 12px;
-  overflow: hidden;
-  border: 1px dashed #b9b9b9;
-  background: #fafafa;
-  color: #555;
-  font: 500 13px/18px var(--font-sans);
-  text-align: center;
-}
-.oel-drawing--chart small { max-width: 32ch; color: #777; font: 400 12px/16px var(--font-sans); }
 .oel-grid__tip {
   position: absolute;
   z-index: 6;

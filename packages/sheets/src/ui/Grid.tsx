@@ -5,7 +5,6 @@ import { HEADER_H, Layout, conditionalFormats, formulaRefs, paint, readTheme, ro
 import { pxToColWidth } from '../grid/geometry';
 import { current, extendTo, single, type Pos } from '../grid/selection';
 import type { SheetController } from './controller';
-import { Drawings } from './Drawings';
 
 export interface GridProps {
   ctl: SheetController;
@@ -71,6 +70,20 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
   );
 
   const drawings = useMemo(() => ctl.doc.drawings(ctl.sheetId), [ctl, ctl.sheetId, ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Decoded images for the canvas; each one repaints the grid when it is ready.
+  const images = useMemo(() => {
+    const out = new Map<string, HTMLImageElement>();
+    for (const [path, url] of media) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        out.set(path, img);
+        ctl.bump();
+      };
+      img.src = url;
+    }
+    return out;
+  }, [media, ctl]);
 
   // ----- painting --------------------------------------------------------------
 
@@ -106,7 +119,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
       }
       theme.current ??= readTheme(rootRef.current!);
       const ctx = canvas.getContext('2d')!;
-      paint({ ctx, ctl, layout, theme: theme.current, dpr, zoom, editing: edit && edit.where === 'cell' && ctl.editSheet === ctl.sheetId ? ctl.sel.active : null, cf, refHighlights, focused: true });
+      paint({ ctx, ctl, layout, theme: theme.current, dpr, zoom, drawings, images, editing: edit && edit.where === 'cell' && ctl.editSheet === ctl.sheetId ? ctl.sel.active : null, cf, refHighlights, focused: true });
       if (dragRef.current?.kind === 'fill' && dragRef.current.target) {
         const r = layout.rect(dragRef.current.target);
         ctx.strokeStyle = theme.current.accent;
@@ -637,7 +650,6 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
         <div style={{ width: contentW * kx, height: contentH * ky }} aria-hidden />
       </div>
       <canvas ref={canvasRef} className="oel-grid__canvas" style={{ width: size.w, height: size.h }} aria-hidden />
-      <Drawings drawings={drawings} layout={layout} zoom={zoom} media={media} />
       {/* The one cell assistive technology sees: the active one. */}
       <div role="row" aria-rowindex={ctl.sel.active.r + 1} className="emb-visually-hidden">
         <div id="oel-grid-active" role="gridcell" aria-colindex={ctl.sel.active.c + 1} aria-selected aria-label={announce}>

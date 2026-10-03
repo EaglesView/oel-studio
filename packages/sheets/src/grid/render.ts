@@ -6,10 +6,11 @@
  */
 import { MAX_COLS, MAX_ROWS, inRange, parseRange, parseSqref, type Range } from '../model/a1';
 import { tokenize } from '../model/formula';
-import type { CellStyle, CondFormat } from '../model/types';
+import type { CellStyle, CondFormat, Drawing } from '../model/types';
 import type { CellView, SheetController } from '../ui/controller';
 import { current, isWholeCols, isWholeRows } from './selection';
 import type { Axis } from './geometry';
+import { paintDrawings } from './drawings';
 
 export const HEADER_H = 22;
 export const rowHeaderWidth = (lastRow: number) => Math.max(36, 14 + 7.5 * String(lastRow + 1).length);
@@ -271,6 +272,9 @@ export interface PaintArgs {
   /** Ranges referenced by the formula being typed, with their colours. */
   refHighlights: Array<{ range: Range; color: string }>;
   focused: boolean;
+  /** Pictures and shapes over the cells, and the decoded images by package path. */
+  drawings?: Drawing[];
+  images?: ReadonlyMap<string, CanvasImageSource>;
 }
 
 export function paint(a: PaintArgs) {
@@ -289,13 +293,13 @@ export function paint(a: PaintArgs) {
   const [cs0, cs1] = L.colsShown;
   const rowsF: [number, number] | null = L.fr > 0 ? [0, L.fr - 1] : null;
   const colsF: [number, number] | null = L.fc > 0 ? [0, L.fc - 1] : null;
-  const panes: Array<{ rows: [number, number]; cols: [number, number]; clip: [number, number, number, number] }> = [];
+  const panes: Array<{ rows: [number, number]; cols: [number, number]; clip: [number, number, number, number]; frozenRows?: boolean; frozenCols?: boolean }> = [];
   const mainX = L.headerW + L.frozenW;
   const mainY = L.headerH + L.frozenH;
   panes.push({ rows: [rs0, rs1], cols: [cs0, cs1], clip: [mainX, mainY, L.w - mainX, L.h - mainY] });
-  if (rowsF) panes.push({ rows: rowsF, cols: [cs0, cs1], clip: [mainX, L.headerH, L.w - mainX, L.frozenH] });
-  if (colsF) panes.push({ rows: [rs0, rs1], cols: colsF, clip: [L.headerW, mainY, L.frozenW, L.h - mainY] });
-  if (rowsF && colsF) panes.push({ rows: rowsF, cols: colsF, clip: [L.headerW, L.headerH, L.frozenW, L.frozenH] });
+  if (rowsF) panes.push({ rows: rowsF, cols: [cs0, cs1], clip: [mainX, L.headerH, L.w - mainX, L.frozenH], frozenRows: true });
+  if (colsF) panes.push({ rows: [rs0, rs1], cols: colsF, clip: [L.headerW, mainY, L.frozenW, L.h - mainY], frozenCols: true });
+  if (rowsF && colsF) panes.push({ rows: rowsF, cols: colsF, clip: [L.headerW, L.headerH, L.frozenW, L.frozenH], frozenRows: true, frozenCols: true });
 
   for (const pane of panes) {
     ctx.save();
@@ -303,6 +307,7 @@ export function paint(a: PaintArgs) {
     ctx.rect(...pane.clip);
     ctx.clip();
     paintCells(a, pane.rows, pane.cols, merges, notes, filterRange, filter?.columns.map((c) => c.col) ?? [], props.showGrid);
+    if (a.drawings?.length) paintDrawings(ctx, L, a.drawings, a.images ?? new Map(), { frozenRows: !!pane.frozenRows, frozenCols: !!pane.frozenCols }, theme.font);
     paintSelection(a, merges);
     ctx.restore();
   }
