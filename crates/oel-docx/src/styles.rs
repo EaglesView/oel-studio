@@ -2,6 +2,7 @@
 //! imported paragraphs look like they do in Word.
 
 use super::package::{DocxPackage, Package, REL_STYLES, REL_THEME};
+use super::theme::Theme;
 use super::xml::{XDocument, XElement};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -32,6 +33,8 @@ pub struct Styles {
     pub default_ppr: Option<XElement>,
     pub minor_font: Option<String>,
     pub major_font: Option<String>,
+    /// Theme colours, for DrawingML fills and lines.
+    pub theme: Theme,
 }
 
 /// Docs-style role of a built-in style, from its canonical (English) name.
@@ -56,7 +59,7 @@ pub fn role_of(name: &str) -> Option<String> {
 
 impl Styles {
     pub fn load(pkg: &Package) -> Styles {
-        let mut s = Styles::default();
+        let mut s = Styles { theme: Theme::load(pkg), ..Styles::default() };
         if let Some(theme) = pkg.get_xml(&pkg.main_related(REL_THEME, "theme/theme1.xml")) {
             let font = |name: &str| theme.root.find(name).and_then(|f| f.child("a:latin")).and_then(|l| l.attr("typeface")).filter(|t| !t.is_empty()).map(String::from);
             s.minor_font = font("a:minorFont");

@@ -231,7 +231,7 @@ export interface SectionBox {
  * column (where the body column is laid out), and each section's box. A block
  * of section *i* is narrowed by `insetLeft[i]` / `insetRight[i]` inside the union.
  */
-export interface Frame {
+export interface SectionFrame {
   width: number;
   textLeft: number;
   textWidth: number;
@@ -244,7 +244,7 @@ export function pageMarginsPx(p: PageSetup): PageMarginsPx {
   return { top: px(p.top), right: px(p.right), bottom: px(p.bottom), left: px(p.left + p.gutter), header: px(p.header), footer: px(p.footer) };
 }
 
-export function frameOf(sections: Section[]): Frame {
+export function frameOf(sections: Section[]): SectionFrame {
   const list = sections.length ? sections : [defaultSection()];
   const width = Math.max(...list.map((s) => px(s.page.width)));
   const boxes = list.map((s): SectionBox => {
@@ -286,7 +286,7 @@ export interface PageInfo {
 }
 
 /** A sheet for page `k` of `sections[section]`, placed after `prev`. */
-export function makePage(sections: Section[], frame: Frame, section: number, prev: PageInfo | null, gap: number): PageInfo {
+export function makePage(sections: Section[], frame: SectionFrame, section: number, prev: PageInfo | null, gap: number): PageInfo {
   const s = sections[section] ?? sections[sections.length - 1]!;
   const box = frame.boxes[section] ?? frame.boxes[frame.boxes.length - 1]!;
   const indexInSection = prev && prev.section === section ? prev.indexInSection + 1 : 0;

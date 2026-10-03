@@ -27,6 +27,15 @@ export function paragraphCss(a: Partial<ParagraphAttrs>): string {
     if (typeof i.hanging === 'number' && i.hanging) out.push(`text-indent:${pt(-i.hanging)}`);
     else if (typeof i.firstLine === 'number') out.push(`text-indent:${pt(i.firstLine)}`);
   }
+  const f = a.frame;
+  if (f && typeof f.w === 'number' && f.w > 0) {
+    // A sized frame (w:framePr): text flows around it like Word's "around" wrap;
+    // absolute frame positions (x/y from a page or margin) are not reproduced.
+    out.push(`width:${pt(f.w)}`, 'box-sizing:border-box');
+    if (typeof f.h === 'number' && f.h > 0) out.push(`min-height:${pt(f.h)}`);
+    if (f.wrap !== 'none' && f.wrap !== 'notBeside') out.push(`float:${f.xAlign === 'right' || f.xAlign === 'outside' ? 'right' : 'left'}`, 'margin-right:9pt');
+    else if (f.xAlign === 'center') out.push('margin-left:auto', 'margin-right:auto');
+  }
   if (a.css) out.push(sanitizeDeclarations(a.css));
   return out.join(';');
 }

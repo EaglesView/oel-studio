@@ -23,8 +23,8 @@ import { Extension } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
-import type { DocSettings, Section } from '../model/types';
-import { DEFAULT_SETTINGS, defaultSection, frameOf, makePage, sectionOrder, startsNewPage, type Frame, type PageInfo } from '../model/sections';
+import type { AnchorAttrs, DocSettings, Section } from '../model/types';
+import { DEFAULT_SETTINGS, defaultSection, frameOf, makePage, sectionOrder, startsNewPage, type SectionFrame, type PageInfo } from '../model/sections';
 
 interface Break {
   pos: number;
@@ -37,9 +37,21 @@ interface Break {
 /** Sections in layout order, the frame they make, and each top-level block's section. */
 export interface SectionLayout {
   sections: Section[];
-  frame: Frame;
+  frame: SectionFrame;
   /** Section index of each top-level child of the doc, by child index. */
   blockSection: number[];
+}
+
+/** Where a floating object's anchor landed, for the page view's anchor layers. */
+export interface AnchorPlacement {
+  pos: number;
+  /** Sheet index. */
+  page: number;
+  /** Tops of the anchor paragraph and of the anchor's line, and the anchor's x (sheet px). */
+  paraTop: number;
+  lineTop: number;
+  charLeft: number;
+  attrs: AnchorAttrs;
 }
 
 export interface PaginationStorage {
@@ -51,6 +63,8 @@ export interface PaginationStorage {
   /** Current layout (derived from the doc and `sections`). */
   layout: SectionLayout;
   pages: PageInfo[];
+  /** Floating objects of the body, placed on their sheets (updated with `pages`). */
+  anchors: AnchorPlacement[];
   listeners: Set<(pages: PageInfo[]) => void>;
   /** Force a new layout (page setup changed, fonts loaded…). */
   relayout: () => void;
@@ -329,6 +343,44 @@ function spacer(b: Break): HTMLElement {
   return el;
 }
 
+/** Measure where every `anchor` node of the body sits on the laid-out sheets. */
+function measureAnchors(view: EditorView, pages: PageInfo[], frame: SectionFrame): AnchorPlacement[] {
+  const out: AnchorPlacement[] = [];
+  const root = view.dom as HTMLElement;
+  const rect = root.getBoundingClientRect();
+  const scale = rect.width / (root.offsetWidth || rect.width || 1) || 1;
+  const origin = pages[0]?.margins.top ?? 0;
+  const sheetAt = (y: number) => {
+    let k = 0;
+    while (k + 1 < pages.length && pages[k + 1]!.top <= y) k++;
+    return k;
+  };
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== 'anchor') return true;
+    const el = view.nodeDOM(pos) as HTMLElement | null;
+    if (!el?.getBoundingClientRect) return false;
+    const r = el.getBoundingClientRect();
+    const $pos = view.state.doc.resolve(pos);
+    let paraEl: HTMLElement | null = null;
+    for (let d = $pos.depth; d > 0; d--) {
+      if ($pos.node(d).type.name === 'paragraph') {
+        paraEl = view.nodeDOM($pos.before(d)) as HTMLElement | null;
+        break;
+      }
+    }
+    const pr = paraEl?.getBoundingClientRect?.() ?? r;
+    const yPara = (pr.top - rect.top) / scale + origin;
+    const yLine = (r.top - rect.top) / scale + origin;
+    const attrs = node.attrs as AnchorAttrs;
+    const page = sheetAt(attrs.position?.relV === 'paragraph' ? yPara : yLine);
+    const sheet = pages[page]!;
+    const round = (v: number) => Math.round(v * 10) / 10;
+    out.push({ pos, page, paraTop: round(yPara - sheet.top), lineTop: round(yLine - sheet.top), charLeft: round((r.left - rect.left) / scale + frame.textLeft - sheet.sheetLeft), attrs });
+    return false;
+  });
+  return out;
+}
+
 function emptyLayout(): SectionLayout {
   const sections = [defaultSection()];
   return { sections, frame: frameOf(sections), blockSection: [] };
@@ -351,6 +403,7 @@ export const Pagination = Extension.create<object, PaginationStorage>({
       settings: { ...DEFAULT_SETTINGS },
       layout,
       pages: singlePage(layout, 24),
+      anchors: [],
       listeners: new Set(),
       relayout: () => {},
     };
@@ -400,8 +453,12 @@ export const Pagination = Extension.create<object, PaginationStorage>({
           let destroyed = false;
           const same = (a: PageInfo[], b: PageInfo[]) =>
             a.length === b.length && a.every((p, i) => p.top === b[i]!.top && p.label === b[i]!.label && p.sectionId === b[i]!.sectionId && p.width === b[i]!.width && p.height === b[i]!.height && p.sheetLeft === b[i]!.sheetLeft && !!p.blank === !!b[i]!.blank && p.margins === b[i]!.margins);
+          const anchorKey = (list: AnchorPlacement[]) => list.map((a) => `${a.pos}:${a.page}:${a.paraTop}:${a.lineTop}:${a.charLeft}`).join('|');
           const publish = (pages: PageInfo[]) => {
-            if (same(pages, storage.pages)) return;
+            const anchors = measureAnchors(view, pages, storage.layout.frame);
+            const attrsChanged = anchors.some((a, i) => a.attrs !== storage.anchors[i]?.attrs);
+            if (same(pages, storage.pages) && !attrsChanged && anchorKey(anchors) === anchorKey(storage.anchors)) return;
+            storage.anchors = anchors;
             storage.pages = pages;
             for (const l of storage.listeners) l(pages);
           };

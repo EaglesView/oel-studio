@@ -521,3 +521,81 @@ fn template_tables_have_no_default_grid() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Floating objects
+// ---------------------------------------------------------------------------
+
+#[test]
+fn anchors_are_read() {
+    let j = import_docx(&fixture("anchors.docx")).unwrap().json;
+    let a = nodes(&j["doc"], "anchor");
+    assert_eq!(a.iter().map(|n| n["attrs"]["kind"].as_str().unwrap()).collect::<Vec<_>>(), ["shape", "picture", "textbox", "group", "shape"]);
+    let rect = &a[0]["attrs"];
+    assert_eq!(rect["behindDoc"], true);
+    assert_eq!(rect["position"], json!({ "relH": "page", "h": 0, "alignH": null, "relV": "page", "v": 0, "alignV": null }));
+    assert_eq!(rect["shape"]["fill"], "#404040", "tx1 + lumMod 75 % + lumOff 25 %");
+    let pic = &a[1]["attrs"];
+    assert_eq!(pic["wrap"], "square");
+    assert_eq!(pic["position"]["alignH"], "right");
+    assert_eq!(pic["shape"]["picture"]["path"], "word/media/image1.png");
+    assert_eq!(pic["alt"], "Dégradé de test");
+    let tb = &a[2]["attrs"];
+    assert_eq!(tb["shape"]["line"], "1pt solid #ED7D31");
+    assert!(all_text(&tb["shape"]["text"]["doc"]).contains("Zone de texte"));
+    let group = &a[3]["attrs"];
+    assert_eq!(group["children"].as_array().unwrap().len(), 2);
+    assert_eq!(group["children"][1]["x"], 1371600);
+    assert_eq!(group["children"][0]["shape"]["geometry"], "ellipse");
+    let oval = &a[4]["attrs"];
+    assert_eq!(oval["shape"]["picture"]["crop"], json!({ "l": 0.1, "t": 0.0, "r": 0.1, "b": 0.0 }));
+    // No placeholder left for these.
+    assert!(nodes(&j["doc"], "ooxmlInline").iter().all(|n| n["attrs"]["label"] != "Dessin"));
+}
+
+#[test]
+fn template_shapes_are_read_with_theme_colours() {
+    let j = import_docx(&fixture("complex_template.docx")).unwrap().json;
+    let a = nodes(&j["doc"], "anchor");
+    assert_eq!(a.len(), 6);
+    assert!(a.iter().any(|n| n["attrs"]["shape"]["fill"] == "#262626"), "dark cover background");
+    assert!(a.iter().any(|n| n["attrs"]["shape"]["geometry"] == "ellipse" && n["attrs"]["shape"]["picture"]["path"] == "word/media/image1.png"), "cover photo in the oval");
+    assert_eq!(nodes(&j["stories"]["footer22"]["doc"], "anchor").len(), 1, "sidebar band in the first-page footer");
+}
+
+#[test]
+fn unchanged_anchors_are_written_back_and_changes_are_patched() {
+    let original = fixture("complex_template.docx");
+    let j = import_docx(&original).unwrap().json;
+    // Unchanged: the AlternateContent (with its VML fallback) is written back as read.
+    let out = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let doc = Package::read(&out).unwrap().get_str("word/document.xml").unwrap().to_string();
+    assert_eq!(doc.matches("<mc:AlternateContent>").count(), 6);
+    assert!(doc.contains("o:gfxdata"));
+
+    // Moved and resized: patched in the DrawingML choice, the stale fallback dropped.
+    let original = fixture("anchors.docx");
+    let mut j = import_docx(&original).unwrap().json;
+    let mut seen = 0;
+    fn edit(v: &mut Value, seen: &mut usize) {
+        if v["type"] == "anchor" && v["attrs"]["kind"] == "textbox" {
+            v["attrs"]["position"]["h"] = json!(914400);
+            v["attrs"]["cx"] = json!(2743200);
+            v["attrs"]["alt"] = json!("Encadré");
+            *seen += 1;
+        }
+        if let Some(c) = v.get_mut("content").and_then(|c| c.as_array_mut()) {
+            c.iter_mut().for_each(|n| edit(n, seen));
+        }
+    }
+    edit(&mut j["doc"], &mut seen);
+    assert_eq!(seen, 1);
+    let out = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let back = import_docx(&out).unwrap().json;
+    let tb = nodes(&back["doc"], "anchor").into_iter().find(|n| n["attrs"]["kind"] == "textbox").unwrap();
+    assert_eq!(tb["attrs"]["position"]["h"], 914400);
+    assert_eq!(tb["attrs"]["cx"], 2743200);
+    assert_eq!(tb["attrs"]["alt"], "Encadré");
+    assert!(!tb["attrs"]["xml"].as_str().unwrap().contains("mc:Fallback"));
+    assert_opens_in_libreoffice(&out, "moved-anchor");
+}

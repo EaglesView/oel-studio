@@ -24,6 +24,22 @@ export const CODEC_VOCABULARY: { nodes: Record<string, string[]>; marks: Record<
     "underline": []
   },
   "nodes": {
+    "anchor": [
+      "alt",
+      "behindDoc",
+      "children",
+      "cx",
+      "cy",
+      "dist",
+      "kind",
+      "position",
+      "shape",
+      "title",
+      "wrap",
+      "wrapSide",
+      "xml",
+      "z"
+    ],
     "doc": [],
     "hardBreak": [],
     "image": [
@@ -57,6 +73,7 @@ export const CODEC_VOCABULARY: { nodes: Record<string, string[]>; marks: Record<
       "align",
       "checked",
       "css",
+      "frame",
       "ilvl",
       "ind",
       "numId",

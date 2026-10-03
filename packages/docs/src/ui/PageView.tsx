@@ -1,31 +1,36 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { EditorContent, type Editor } from '@tiptap/react';
 import { Button, Checkbox } from '@oel/emboss';
 import type { DocSession } from '../collab/session';
 import { fragmentJSON, noteKey, notesIndex, storiesIndex, storyKey } from '../model/ydoc';
-import type { HeaderFooterKind, Section, StorySide } from '../model/types';
+import type { AnchorAttrs, HeaderFooterKind, Section, StorySide } from '../model/types';
 import { effectiveStory, pageKind, sectionsPhrase, sectionsUsingStory, storyOwner, type PageInfo } from '../model/sections';
 import { updateSections, type DocMeta } from './useDocEditor';
 import { StoryEditor } from './StoryEditor';
+import { Fields } from './Fields';
+import { AnchorLayer, anchorsOf, type PlacedAnchor } from './Anchors';
 import { createStory, linkToPrevious, noteOrder, pagesPerSection, removeStory, setSectionStory, toHTML } from './actions';
 
-/** Live HTML of every header/footer story, for drawing them on each sheet. */
+/** Live HTML (and floating objects) of every header/footer story, for drawing them on each sheet. */
 function useStories(session: DocSession) {
-  const [stories, setStories] = useState<Record<string, string>>({});
+  const [stories, setStories] = useState<{ html: Record<string, string>; anchors: Record<string, AnchorAttrs[]> }>({ html: {}, anchors: {} });
   useEffect(() => {
     const idx = storiesIndex(session.ydoc);
     let frame = 0;
     const render = () => {
       frame = 0;
-      const out: Record<string, string> = {};
+      const html: Record<string, string> = {};
+      const anchors: Record<string, AnchorAttrs[]> = {};
       idx.forEach((_, id) => {
         try {
-          out[id] = toHTML(fragmentJSON(session.ydoc.getXmlFragment(storyKey(id))));
+          const doc = fragmentJSON(session.ydoc.getXmlFragment(storyKey(id)));
+          html[id] = toHTML(doc);
+          anchors[id] = anchorsOf(doc);
         } catch {
-          out[id] = '';
+          html[id] = '';
         }
       });
-      setStories(out);
+      setStories({ html, anchors });
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(render);
@@ -64,52 +69,6 @@ export function useOrderedSections(editor: Editor, docMeta: DocMeta, pages: Page
   );
 }
 
-interface FieldValues {
-  page: string;
-  pages: number;
-  sectionPages: number;
-}
-
-/** Fill PAGE / NUMPAGES / SECTIONPAGES fields inside a static header or footer. */
-function Fields({ html, values, className }: { html: string; values: FieldValues; className: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const value = (field: string | undefined) =>
-      field === 'PAGE' ? values.page : field === 'NUMPAGES' ? String(values.pages) : field === 'SECTIONPAGES' ? String(values.sectionPages) : null;
-    // Simple fields (w:fldSimple) render as one element.
-    root.querySelectorAll<HTMLElement>('[data-field]:not([data-hidden])').forEach((el) => {
-      const v = value(el.dataset.field);
-      if (v != null) el.textContent = v;
-    });
-    // Complex fields: begin … instrText … separate [cached result] end. Replace the cached result.
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
-    let field: string | null = null;
-    let inResult = false;
-    let first = true;
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      if (n instanceof HTMLElement && n.dataset.ooxml) {
-        const xml = n.dataset.ooxml;
-        if (n.dataset.field) field = n.dataset.field;
-        if (xml.includes('fldCharType="separate"')) {
-          inResult = value(field ?? undefined) != null;
-          first = true;
-        } else if (xml.includes('fldCharType="end"')) {
-          inResult = false;
-          field = null;
-        }
-        continue;
-      }
-      if (inResult && n.nodeType === Node.TEXT_NODE && !n.parentElement?.closest('[data-ooxml]')) {
-        n.textContent = first ? value(field ?? undefined)! : '';
-        first = false;
-      }
-    }
-  }, [html, values.page, values.pages, values.sectionPages]);
-  return <div ref={ref} className={className} dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
 export interface EditingStory {
   side: StorySide;
   kind: HeaderFooterKind;
@@ -139,7 +98,7 @@ const KIND_LABEL: Record<HeaderFooterKind, string> = { default: '', first: ' · 
 export function PageView({ editor, session, docMeta, editable, paginated, zoom, onStoryFocus, editingStory, setEditingStory, children }: PageViewProps) {
   const pages = usePages(editor);
   const sections = useOrderedSections(editor, docMeta, pages);
-  const stories = useStories(session);
+  const { html: stories, anchors: storyAnchors } = useStories(session);
   const { frame } = editor.storage.pagination.layout;
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
@@ -159,6 +118,20 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
   const last = sheets[sheets.length - 1]!;
   const total = single ? sheetHeight(first) : last.top + last.height;
   const perSection = useMemo(() => pagesPerSection(sheets), [sheets]);
+  const fieldsOf = (p: PageInfo) => ({ page: p.label, pages: sheets.length, sectionPages: perSection.get(p.section) ?? 1 });
+
+  // Floating objects per sheet: the body's (placed by pagination) and those of the sheet's header and footer.
+  const bodyAnchors = useMemo(() => {
+    const m = new Map<number, PlacedAnchor[]>();
+    for (const a of editor.storage.pagination.anchors) {
+      const list = m.get(single ? 0 : a.page) ?? [];
+      list.push({ key: `b${a.pos}`, attrs: a.attrs, paraTop: a.paraTop, lineTop: a.lineTop, charLeft: a.charLeft });
+      m.set(single ? 0 : a.page, list);
+    }
+    return m;
+    // `pages` changes whenever the placements do.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, pages, single]);
 
   const slotOf = (side: StorySide, p: PageInfo) => {
     const section = sections[p.section];
@@ -223,6 +196,18 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
     );
   };
 
+  const anchorsFor = (p: PageInfo, index: number): PlacedAnchor[] => {
+    const out = [...(bodyAnchors.get(index) ?? [])];
+    for (const side of ['header', 'footer'] as const) {
+      const { id } = slotOf(side, p);
+      if (!id) continue;
+      // Approximation: paragraph- and line-relative objects of a header/footer hang from its zone.
+      const top = side === 'header' ? p.margins.header : p.height - p.margins.footer;
+      (storyAnchors[id] ?? []).forEach((attrs, k) => out.push({ key: `${id}:${k}`, attrs, paraTop: top, lineTop: top, charLeft: p.margins.left }));
+    }
+    return out;
+  };
+
   const zone = (side: StorySide, index: number) => {
     const p = sheets[index]!;
     const editingHere = editingStory?.side === side && editingStory.page === index;
@@ -252,7 +237,7 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
             {bar(editingStory)}
           </div>
         ) : id ? (
-          <Fields html={stories[id] ?? ''} values={{ page: p.label, pages: sheets.length, sectionPages: perSection.get(p.section) ?? 1 }} className="oel-doc oel-hf__content" />
+          <Fields html={stories[id] ?? ''} values={fieldsOf(p)} className="oel-doc oel-hf__content" />
         ) : null}
       </div>
     );
@@ -269,6 +254,7 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
               data-section={p.sectionId}
               style={{ top: single ? 0 : p.top, left: p.sheetLeft, height: sheetHeight(p), width: p.width, background: docMeta.background ?? undefined }}
             >
+              <AnchorLayer sheet={p} anchors={anchorsFor(p, i)} behind url={session.mediaUrl} fields={fieldsOf(p)} />
               {zone('header', i)}
               {zone('footer', i)}
               {!single && sheets.length > 1 && <span className="oel-sheet__num" aria-hidden>{p.label}</span>}
@@ -277,6 +263,13 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
         </div>
         <div className="oel-doc oel-body-wrap" ref={bodyRef} style={{ marginTop: first.margins.top, marginLeft: frame.textLeft, width: frame.textWidth }}>
           <EditorContent editor={editor} />
+        </div>
+        <div className="oel-anchors-front" style={{ height: total }} aria-hidden>
+          {(single ? [first] : sheets).map((p, i) => (
+            <div key={i} className="oel-anchors-front__sheet" style={{ top: single ? 0 : p.top, left: p.sheetLeft, width: p.width, height: sheetHeight(p) }}>
+              <AnchorLayer sheet={p} anchors={anchorsFor(p, i)} behind={false} url={session.mediaUrl} fields={fieldsOf(p)} />
+            </div>
+          ))}
         </div>
         {children}
       </div>

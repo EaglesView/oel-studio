@@ -435,6 +435,7 @@ impl Writer<'_> {
                 let _ = write!(out, "<w:r><w:rPr>{rpr}</w:rPr><{tag} w:id=\"{id}\"/></w:r>");
             }
             "image" => self.image(n, &marks, in_link, out),
+            "anchor" => self.anchor(n, out),
             "ooxmlInline" => out.push_str(s(&n["attrs"]["xml"]).unwrap_or("")),
             _ => {}
         }
@@ -585,6 +586,75 @@ impl Writer<'_> {
 <pic:blipFill><a:blip r:embed=\"{rid}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm>\
 <a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
         );
+    }
+
+    /// A floating object: its original run, with position, size and description
+    /// patched when the editor changed them.
+    fn anchor(&mut self, n: &Value, out: &mut String) {
+        let a = &n["attrs"];
+        let Some(xml) = s(&a["xml"]) else { return };
+        let Ok(mut run) = XDocument::parse(xml).map(|d| d.root) else {
+            out.push_str(xml);
+            return;
+        };
+        let changed = {
+            let Some(anchor) = run.find("wp:anchor") else {
+                out.push_str(xml);
+                return;
+            };
+            if let Some(id) = anchor.child("wp:docPr").and_then(|p| p.attr("id")).and_then(|v| v.parse::<i64>().ok()) {
+                self.doc_pr_ids.insert(id);
+            }
+            let ext = anchor.child("wp:extent");
+            let off = |tag: &str| anchor.child(tag).and_then(|p| p.child("wp:posOffset")).and_then(|o| o.text_content().trim().parse::<i64>().ok());
+            let doc_pr = anchor.child("wp:docPr");
+            let num = |e: Option<&XElement>, k: &str| e.and_then(|e| e.attr(k)).and_then(|v| v.parse::<i64>().ok());
+            let size = (a["cx"].as_i64(), a["cy"].as_i64()) != (num(ext, "cx"), num(ext, "cy"));
+            let pos = (a["position"]["h"].as_i64(), a["position"]["v"].as_i64());
+            let moved = (pos.0.is_some() && pos.0 != off("wp:positionH")) || (pos.1.is_some() && pos.1 != off("wp:positionV"));
+            let described = s(&a["alt"]).unwrap_or("") != doc_pr.and_then(|p| p.attr("descr")).unwrap_or("") || s(&a["title"]).unwrap_or("") != doc_pr.and_then(|p| p.attr("title")).unwrap_or("");
+            size || moved || described
+        };
+        if !changed {
+            out.push_str(xml);
+            return;
+        }
+        // The VML fallback would contradict the patched shape: keep only the DrawingML choice
+        // (Word 2010 and later, and LibreOffice, read it).
+        if let Some(ac) = run.find("mc:AlternateContent").cloned() {
+            if let Some(drawing) = ac.elements().find(|c| c.name == "mc:Choice").and_then(|c| c.find("w:drawing")).cloned() {
+                run.children.retain(|c| !matches!(c, XNode::Element(e) if e.name == "mc:AlternateContent"));
+                run.children.push(XNode::Element(drawing));
+            }
+        }
+        if let Some(anchor) = run.find_mut("wp:anchor") {
+            let (cx, cy) = (a["cx"].as_i64(), a["cy"].as_i64());
+            if let (Some(cx), Some(cy)) = (cx, cy) {
+                if let Some(ext) = anchor.child_mut("wp:extent") {
+                    ext.set_attr("cx", cx.to_string());
+                    ext.set_attr("cy", cy.to_string());
+                }
+                // A single shape or picture also carries its size in a:xfrm.
+                if let Some(x) = anchor.find_mut("a:ext") {
+                    x.set_attr("cx", cx.to_string());
+                    x.set_attr("cy", cy.to_string());
+                }
+            }
+            for (tag, key) in [("wp:positionH", "h"), ("wp:positionV", "v")] {
+                if let Some(v) = a["position"][key].as_i64() {
+                    if let Some(p) = anchor.child_mut(tag) {
+                        p.children.retain(|c| !matches!(c, XNode::Element(e) if e.name == "wp:align" || e.name == "wp:posOffset"));
+                        p.children.push(XNode::Element(XElement { name: "wp:posOffset".into(), attrs: Vec::new(), children: vec![XNode::Text(v.to_string())] }));
+                    }
+                }
+            }
+            if let Some(pr) = anchor.child_mut("wp:docPr") {
+                let (alt, title) = (s(&a["alt"]).unwrap_or(""), s(&a["title"]).unwrap_or(""));
+                if alt.is_empty() { pr.remove_attr("descr") } else { pr.set_attr("descr", alt) }
+                if title.is_empty() { pr.remove_attr("title") } else { pr.set_attr("title", title) }
+            }
+        }
+        out.push_str(&run.to_xml());
     }
 
     fn fresh_doc_pr(&mut self) -> i64 {

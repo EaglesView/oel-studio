@@ -8,7 +8,7 @@ import { Table, TableCell, TableHeader, TableRow, TableView } from '@tiptap/exte
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { paragraphCss } from '../model/format';
-import type { ParagraphAttrs } from '../model/types';
+import type { AnchorAttrs, ParagraphAttrs } from '../model/types';
 import { EMU_PER_PX } from '../model/types';
 
 const raw = (def: unknown = null) => ({ default: def, rendered: false });
@@ -87,6 +87,7 @@ export const DocParagraph = Node.create({
       outline: raw(),
       css: raw(),
       section: { default: null, rendered: false, keepOnSplit: false },
+      frame: raw(),
       checked: raw(),
     };
   },
@@ -413,6 +414,78 @@ export const DocImage = Node.create<{ resolver: ImageResolver }>({
         ignoreMutation: () => true,
       };
     };
+  },
+});
+
+/** EMU → CSS px. */
+const emuPx = (emu: number) => Math.round((emu / EMU_PER_PX) * 100) / 100;
+
+/** How Word's text wrap is approximated in the flow (null: no effect on the text). */
+export function anchorWrapStyle(a: AnchorAttrs): { style: string; note: string | null } | null {
+  if (a.wrap === 'none') return null;
+  const flowRelative = ['column', 'margin', 'character'].includes(a.position.relH) && ['paragraph', 'line'].includes(a.position.relV);
+  if (!flowRelative) return { style: '', note: 'Habillage du texte non appliqué : l’objet est positionné par rapport à la page.' };
+  const d = a.dist;
+  const h = emuPx(a.cy + d.t + d.b);
+  const top = a.position.v != null ? Math.max(0, emuPx(a.position.v)) : 0;
+  if (a.wrap === 'topAndBottom') return { style: `float:left;clear:both;width:100%;height:${h}px;margin-top:${top}px`, note: null };
+  const right = a.position.alignH === 'right' || a.position.alignH === 'outside';
+  const w = emuPx(a.cx + d.l + d.r);
+  const offset = !right && a.position.h != null && a.position.h > 0 ? emuPx(a.position.h) : 0;
+  const shape = a.wrap !== 'square' && a.shape.geometry === 'ellipse' ? ';shape-outside:ellipse(50% 50%)' : '';
+  return { style: `float:${right ? 'right' : 'left'};width:${w}px;height:${h}px;margin-top:${top}px;margin-left:${offset}px${shape}`, note: null };
+}
+
+/**
+ * A floating object (Word's `wp:anchor`). In the text it is only a marker
+ * (or a float that makes room for wrapped text); the object itself is drawn on
+ * the page's anchor layer by the page view, from the attrs below.
+ */
+export const DocAnchor = Node.create({
+  name: 'anchor',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  draggable: false,
+
+  addAttributes(): Attributes {
+    return {
+      kind: raw('shape'),
+      position: raw(),
+      cx: raw(0),
+      cy: raw(0),
+      behindDoc: raw(false),
+      wrap: raw('none'),
+      wrapSide: raw(),
+      dist: raw(),
+      z: raw(0),
+      shape: raw(),
+      children: raw([]),
+      xml: raw(''),
+      alt: raw(''),
+      title: raw(''),
+    };
+  },
+
+  parseHTML() {
+    return [];
+  },
+
+  renderHTML({ node }) {
+    const a = node.attrs as AnchorAttrs;
+    const wrap = a.position && a.dist && a.shape ? anchorWrapStyle(a) : null;
+    const label = a.alt || { picture: 'Image flottante', shape: 'Forme', textbox: 'Zone de texte', group: 'Groupe d’objets' }[a.kind];
+    return [
+      'span',
+      {
+        class: `oel-anchor${wrap?.style ? ' oel-anchor--wrap' : ''}`,
+        'data-kind': a.kind,
+        contenteditable: 'false',
+        title: wrap?.note ? `${label} · ${wrap.note}` : label,
+        style: wrap?.style || undefined,
+      },
+    ];
   },
 });
 

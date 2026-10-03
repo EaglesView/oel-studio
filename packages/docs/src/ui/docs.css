@@ -363,3 +363,32 @@ tr.oel-pgap td { padding: 0 !important; border: none !important; background: tra
 @media (max-width: 1280px) {
   .oel-docs--sheet .oel-docs__sheet-actions .oel-sync span:not(.emb-visually-hidden) { display: none; }
 }
+
+/* Floating objects (Word anchors): drawn on per-sheet layers, behind or in front of the text */
+.oel-anchors { position: absolute; inset: 0; pointer-events: none; }
+.oel-anchors--behind { z-index: 0; }
+.oel-anchors-front { position: absolute; inset: 0 auto auto 0; width: 100%; z-index: 3; pointer-events: none; }
+.oel-anchors-front__sheet { position: absolute; }
+.oel-shape { position: absolute; }
+.oel-shape__box { position: relative; box-sizing: border-box; overflow: hidden; }
+.oel-shape__text { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.oel-shape__group { position: absolute; inset: 0; }
+.oel-shape__child { position: absolute; }
+.oel-shape__svg { position: absolute; left: 0; top: 0; }
+/* The anchor in the text: no width, a pin when selected or when anchors are shown (Iconoir “Pin”). */
+.oel-doc .oel-anchor { display: inline-block; width: 0; height: 1em; vertical-align: text-top; position: relative; }
+.oel-doc .oel-anchor--wrap { display: block; }
+.oel-doc .oel-anchor::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  display: none;
+  background: #1a73e8;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 14.5L3 21'/%3E%3Cpath d='M5 9.485l9.193 9.193 1.697-1.697-.392-3.786 5.509-4.674-5.85-5.85-4.673 5.51-3.787-.393L5 9.485z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 14.5L3 21'/%3E%3Cpath d='M5 9.485l9.193 9.193 1.697-1.697-.392-3.786 5.509-4.674-5.85-5.85-4.673 5.51-3.787-.393L5 9.485z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.oel-docs--anchors .oel-doc .oel-anchor::before, .oel-doc .oel-anchor.ProseMirror-selectednode::before { display: block; }
+.oel-doc .oel-anchor--wrap::before { left: 0; }

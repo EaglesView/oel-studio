@@ -364,6 +364,8 @@ pub struct ParagraphAttrs {
     pub css: Option<String>,
     /// Id of the section that ends at this paragraph (it carries that `w:sectPr`).
     pub section: Option<String>,
+    /// `w:framePr`, display-only (kept in `pPr`).
+    pub frame: Option<Frame>,
     pub checked: Option<bool>,
 }
 
@@ -468,6 +470,167 @@ pub struct ImageAttrs {
     pub xml: Option<String>,
 }
 
+/// A floating object (`wp:anchor`): picture, shape, text box or group, drawn on
+/// a layer over or under the page. The run is written back as `xml` while the
+/// position, size and description are unchanged.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AnchorAttrs {
+    pub kind: AnchorKind,
+    pub position: AnchorPosition,
+    /// Size, EMU.
+    pub cx: i64,
+    pub cy: i64,
+    pub behind_doc: bool,
+    /// `none`, `square`, `tight`, `through`, `topAndBottom`.
+    pub wrap: String,
+    /// `bothSides`, `left`, `right`, `largest`.
+    pub wrap_side: Option<String>,
+    /// Distance from wrapped text, EMU.
+    pub dist: Edges,
+    /// Stacking order (`relativeHeight`).
+    pub z: i64,
+    pub shape: ShapeLook,
+    /// Members of a group, positioned in the group's box.
+    pub children: Vec<GroupChild>,
+    pub xml: String,
+    pub alt: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum AnchorKind {
+    Picture,
+    #[default]
+    Shape,
+    Textbox,
+    Group,
+}
+
+/// `wp:positionH` / `wp:positionV`: an offset (EMU) or an alignment, from a reference.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AnchorPosition {
+    /// `page`, `margin`, `column`, `character`, `leftMargin`, `rightMargin`, `insideMargin`, `outsideMargin`.
+    pub rel_h: String,
+    pub h: Option<i64>,
+    /// `left`, `center`, `right`, `inside`, `outside`.
+    pub align_h: Option<String>,
+    /// `page`, `margin`, `paragraph`, `line`, `topMargin`, `bottomMargin`, `insideMargin`, `outsideMargin`.
+    pub rel_v: String,
+    pub v: Option<i64>,
+    /// `top`, `center`, `bottom`, `inside`, `outside`.
+    pub align_v: Option<String>,
+}
+
+/// Four lengths (EMU).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct Edges {
+    pub t: i64,
+    pub b: i64,
+    pub l: i64,
+    pub r: i64,
+}
+
+/// How a shape or picture looks, resolved to CSS by the codec (theme colours included).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ShapeLook {
+    /// Preset geometry (`rect`, `ellipse`, `roundRect`, `triangle`, `line`…); custom geometry → `null` (bounding box).
+    pub geometry: Option<String>,
+    /// Degrees, clockwise.
+    pub rotation: f64,
+    pub flip_h: bool,
+    pub flip_v: bool,
+    /// CSS background (`#RRGGBB`, `rgba(…)`, `linear-gradient(…)`); `null` = no fill.
+    pub fill: Option<String>,
+    /// CSS border (`1pt solid #RRGGBB`); `null` = no line.
+    pub line: Option<String>,
+    pub picture: Option<PictureFill>,
+    pub text: Option<TextBox>,
+}
+
+/// A picture, or a shape filled with one.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PictureFill {
+    pub path: String,
+    /// `media:<path>`, resolved to a URL by the editor.
+    pub src: String,
+    /// Tiled instead of stretched.
+    pub tile: bool,
+    /// `a:srcRect` crop, fractions of the picture cut from each edge.
+    pub crop: Option<Crop>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct Crop {
+    pub l: f64,
+    pub t: f64,
+    pub r: f64,
+    pub b: f64,
+}
+
+/// Text inside a shape (`w:txbxContent`), read like the body.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextBox {
+    pub doc: PmDoc,
+    /// Insets, EMU.
+    pub insets: Edges,
+    /// Vertical anchoring: `t`, `ctr`, `b`.
+    pub anchor: String,
+}
+
+/// One shape of a group, in the group's box (EMU from its top left).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GroupChild {
+    pub x: i64,
+    pub y: i64,
+    pub cx: i64,
+    pub cy: i64,
+    pub shape: ShapeLook,
+}
+
+/// `w:framePr` (twips), display-only.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", optional_fields))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Frame {
+    /// `auto`, `around`, `none`, `notBeside`, `through`, `tight`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wrap: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h_anchor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v_anchor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub w: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub h: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_align: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_align: Option<String>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -556,7 +719,7 @@ pub struct TextStyleAttrs {
 
 /// Every node and mark the codec reads or writes, with its attrs type (if any).
 pub const NODES: &[&str] = &[
-    "doc", "paragraph", "text", "hardBreak", "tab", "pageBreak", "image", "noteRef", "ooxmlInline", "ooxmlBlock", "sdtBlock", "table", "tableRow", "tableCell",
+    "doc", "paragraph", "text", "hardBreak", "tab", "pageBreak", "image", "anchor", "noteRef", "ooxmlInline", "ooxmlBlock", "sdtBlock", "table", "tableRow", "tableCell",
 ];
 pub const MARKS: &[&str] = &["bold", "italic", "underline", "strike", "subscript", "superscript", "highlight", "textStyle", "link"];
 
@@ -572,6 +735,7 @@ pub fn attr_keys(name: &str) -> Vec<String> {
     match name {
         "paragraph" => keys_of::<ParagraphAttrs>(),
         "image" => keys_of::<ImageAttrs>(),
+        "anchor" => keys_of::<AnchorAttrs>(),
         "noteRef" => keys_of::<NoteRefAttrs>(),
         "ooxmlInline" => keys_of::<OoxmlInlineAttrs>(),
         "ooxmlBlock" => keys_of::<OoxmlBlockAttrs>(),
@@ -614,6 +778,15 @@ fn check_typed(name: &str, attrs: Option<&Map<String, Value>>) -> Result<(), Str
     match name {
         "paragraph" => check_attrs::<ParagraphAttrs>(&v),
         "image" => check_attrs::<ImageAttrs>(&v),
+        "anchor" => {
+            // Text boxes hold stories of their own: check them too.
+            let a: AnchorAttrs = serde_json::from_value(v.clone()).map_err(|e| e.to_string())?;
+            let texts = std::iter::once(&a.shape).chain(a.children.iter().map(|c| &c.shape)).filter_map(|s| s.text.as_ref());
+            for t in texts {
+                t.doc.content.iter().try_for_each(check_node)?;
+            }
+            Ok(())
+        }
         "noteRef" => check_attrs::<NoteRefAttrs>(&v),
         "ooxmlInline" => check_attrs::<OoxmlInlineAttrs>(&v),
         "ooxmlBlock" => check_attrs::<OoxmlBlockAttrs>(&v),

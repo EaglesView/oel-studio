@@ -10,6 +10,7 @@ import Collaboration from '@tiptap/extension-collaboration';
 import * as Y from 'yjs';
 import { defaultDeleteFilter, defaultProtectedNodes, ySyncPluginKey } from '@tiptap/y-tiptap';
 import {
+  DocAnchor,
   DocImage,
   DocParagraph,
   DocTable,
@@ -72,6 +73,7 @@ export function docsExtensions(o: DocsExtensionOptions = {}): AnyExtension[] {
     PageBreak,
     Tab,
     DocImage.configure({ resolver: o.resolver ?? { url: () => null } }),
+    DocAnchor,
     NoteRef,
     OoxmlInline,
     OoxmlBlock,

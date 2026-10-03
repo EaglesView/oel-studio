@@ -55,6 +55,11 @@ impl<'a> ReadCtx<'a> {
         Some(id)
     }
 
+    /// Target of a relationship of the current part: (package path or URL, external).
+    pub fn rel_target_pub(&self, id: &str) -> Option<(String, bool)> {
+        self.rel_target(id)
+    }
+
     fn rel_target(&self, id: &str) -> Option<(String, bool)> {
         self.rels.get(id).map(|r| if r.external { (r.target.clone(), true) } else { (resolve_target(&self.part, &r.target), false) })
     }
@@ -205,6 +210,7 @@ pub fn paragraph_attrs(styles: &Styles, ppr: Option<&XElement>) -> Map<String, V
     a.insert("outline".into(), outline.map(Value::from).unwrap_or(Value::Null));
     a.insert("css".into(), if css.is_empty() { Value::Null } else { Value::from(css.join(";")) });
     a.insert("section".into(), Value::Null);
+    a.insert("frame".into(), ppr.and_then(|p| p.child("w:framePr")).map(super::drawing::frame_json).unwrap_or(Value::Null));
     a.insert("checked".into(), Value::Null);
     a
 }
@@ -578,7 +584,20 @@ fn read_run(ctx: &mut ReadCtx, r: &XElement, inherited: &[Value], out: &mut Vec<
             }
             "w:drawing" => {
                 flush(&mut buf, out);
-                out.push(read_drawing(ctx, rpr, c, &marks));
+                let anchor = if super::drawing::is_anchor(c) { super::drawing::read_anchor(ctx, c, wrap_run(rpr, c)) } else { None };
+                match anchor {
+                    Some(attrs) => out.push(atom("anchor", Value::Object(attrs), &[])),
+                    None => out.push(read_drawing(ctx, rpr, c, &marks)),
+                }
+            }
+            "mc:AlternateContent" => {
+                flush(&mut buf, out);
+                // Word 2010 shapes: read the choice, write the whole thing (with its fallback) back.
+                let anchor = super::drawing::understood_choice(c).and_then(|d| super::drawing::read_anchor(ctx, d, wrap_run(rpr, c)));
+                match anchor {
+                    Some(attrs) => out.push(atom("anchor", Value::Object(attrs), &[])),
+                    None => out.push(ooxml_inline(wrap_run(rpr, c), &label_for(c), false, None, &marks)),
+                }
             }
             "w:sym" => {
                 flush(&mut buf, out);

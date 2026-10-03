@@ -6,7 +6,17 @@
 import type { PageSetup } from '@oel/engine/generated/oeldocx';
 
 export type {
+  AnchorAttrs,
+  AnchorKind,
+  AnchorPosition,
   Columns,
+  Crop,
+  Edges,
+  Frame,
+  GroupChild,
+  PictureFill,
+  ShapeLook,
+  TextBox,
   DocSettings,
   DocStyle,
   DocxJson,
