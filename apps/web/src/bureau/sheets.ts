@@ -1,7 +1,7 @@
 /** Bureau ↔ @oel/sheets: one collaborative workbook session per spreadsheet paper. */
 import CalcWorker from '@oel/sheets/calc-worker?worker';
 import { DEFAULT_STYLE, SheetSession, parseInput, type Cell, type ExportRequest, type Workbook } from '@oel/sheets';
-import type { WorkbookPayload } from '@oel/engine';
+import { asWorkbookPayload } from '@oel/engine';
 import { collabApi, identity } from './docs';
 import { engineHost } from './importFiles';
 import type { Bureau, Paper } from './model';
@@ -26,7 +26,7 @@ export function workbookFromRows(rows: string[][], tab = 'Feuille 1'): Workbook 
 
 /** Create the shared workbook for an imported .xlsx/.csv; returns its id. */
 export async function createSheetFromPayload(payload: unknown, title: string): Promise<string> {
-  const p = payload as WorkbookPayload;
+  const p = asWorkbookPayload(payload);
   const s = await SheetSession.create({ api: collabApi, identity: identity(), seed: { workbook: JSON.parse(p.json) as Workbook, original: p.original, title } });
   sessions.set(s.status.docId, Promise.resolve(s));
   return s.status.docId;

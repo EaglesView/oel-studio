@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Logo, ToastRegion, toast } from '@oel/emboss';
 import { DocSession, DocsEditor, IdentityDialog, decodeToken, defaultIdentity, docsSchema, loadIdentity, tokenStore, type DocxJson, type Identity } from '@oel/docs';
 import '@oel/docs/styles.css';
-import type { DocxPayload } from '@oel/engine';
+import { asDocxPayload, type DocxPayload } from '@oel/engine';
 import { collabApi, exportDocx } from '../bureau/docs';
 import { engineHost } from '../bureau/importFiles';
 import './document.css';
@@ -68,7 +68,7 @@ export function DocumentPage() {
           const pkg = await s.originalPackage();
           if (!pkg) return null;
           const r = await engineHost().import(new File([pkg as Uint8Array<ArrayBuffer>], 'document.docx'));
-          const p = r.payload as DocxPayload | undefined;
+          const p = r.payload ? asDocxPayload(r.payload) : undefined;
           return p ? { json: JSON.parse(p.json) as DocxJson, original: pkg, media: p.media } : null;
         }, docsSchema());
         if (alive) setSession(s);
@@ -107,7 +107,7 @@ export function DocumentPage() {
     setBusy(true);
     try {
       const r = await engineHost().create('document', 'Document sans titre');
-      await start(r.payload as DocxPayload, r.title);
+      await start(asDocxPayload(r.payload), r.title);
     } catch (e) {
       toast({ title: 'Création impossible', description: (e as Error).message, tone: 'danger' });
     } finally {
@@ -121,7 +121,7 @@ export function DocumentPage() {
       try {
         const r = await engineHost().import(f);
         if (r.kind !== 'document' || !r.payload) throw new Error('Seuls les fichiers .docx peuvent être modifiés ici.');
-        await start(r.payload as DocxPayload, r.title);
+        await start(asDocxPayload(r.payload), r.title);
       } catch (e) {
         toast({ title: 'Ouverture impossible', description: (e as Error).message, tone: 'danger' });
       } finally {

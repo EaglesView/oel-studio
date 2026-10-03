@@ -1,5 +1,6 @@
 import type { DocumentEngine, DocxPayload, ExportRequest, FileKind, ImportResult, Preview, WorkbookPayload } from '../types';
 import type { Workbook } from '../generated/oelxlsx';
+import { PAYLOAD_FORMATS } from '../payload';
 
 /**
  * Adapter for WASM engines built with wasm-bindgen (oeldocx-rs, oelimg-rs).
@@ -91,7 +92,7 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
       }
       const out = mod.docx_to_pm(bytes);
       const json = JSON.parse(out.json) as { doc: PMish; title?: string | null };
-      const payload: DocxPayload = { format: 'oeldocx-pm@1', json: out.json, media: out.media, original: bytes };
+      const payload: DocxPayload = { format: PAYLOAD_FORMATS.docx, json: out.json, media: out.media, original: bytes };
       return { kind: 'document', title: json.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: previewOf(json.doc), payload };
     },
     export(mod, req) {
@@ -101,7 +102,7 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
     },
     create(mod, _kind, title) {
       const out = mod.new_document_pm();
-      const payload: DocxPayload = { format: 'oeldocx-pm@1', json: out.json, media: out.media, original: null };
+      const payload: DocxPayload = { format: PAYLOAD_FORMATS.docx, json: out.json, media: out.media, original: null };
       return { kind: 'document', title: title || 'Document sans titre', readOnly: false, preview: { kind: 'document', blocks: [], wordCount: 0, pageCount: 1 }, payload };
     },
   });
@@ -142,12 +143,12 @@ export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngin
       const title = name.replace(/\.[^.]+$/, '');
       if (ext === 'csv' || ext === 'tsv' || ext === 'txt') {
         const json = mod.csv_to_model(bytes, JSON.stringify({ ...(ext === 'tsv' ? { delimiter: '\t' } : {}), sheetName: title.slice(0, 31) }));
-        const payload: WorkbookPayload = { format: 'oelxlsx-workbook@1', json, original: null };
+        const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: null };
         return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
       }
       if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error('Format non pris en charge par le moteur de tableurs (.xlsx, .xlsm, .csv)');
       const json = mod.xlsx_to_model(bytes);
-      const payload: WorkbookPayload = { format: 'oelxlsx-workbook@1', json, original: bytes };
+      const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: bytes };
       return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
     },
     export(mod, req) {
@@ -160,7 +161,7 @@ export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngin
     },
     create(mod, _kind, title) {
       const json = mod.new_workbook_model();
-      const payload: WorkbookPayload = { format: 'oelxlsx-workbook@1', json, original: null };
+      const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: null };
       return { kind: 'spreadsheet', title: title || 'Tableur sans titre', readOnly: false, preview: { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [] }, payload };
     },
   });

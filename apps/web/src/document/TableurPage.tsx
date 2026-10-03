@@ -3,7 +3,7 @@ import { Button, Logo, ToastRegion, toast } from '@oel/emboss';
 import { IdentityDialog, decodeToken, defaultIdentity, loadIdentity, tokenStore, type Identity } from '@oel/collab-client';
 import { SheetSession, SheetsEditor, type Workbook } from '@oel/sheets';
 import '@oel/sheets/styles.css';
-import type { WorkbookPayload } from '@oel/engine';
+import { asWorkbookPayload, type WorkbookPayload } from '@oel/engine';
 import { collabApi } from '../bureau/docs';
 import { engineHost } from '../bureau/importFiles';
 import { createCalcWorker, exportSheet } from '../bureau/sheets';
@@ -66,7 +66,7 @@ export function TableurPage() {
           const pkg = await s.originalPackage();
           if (!pkg) return null;
           const r = await engineHost().import(new File([pkg as Uint8Array<ArrayBuffer>], 'classeur.xlsx'));
-          const p = r.payload as WorkbookPayload | undefined;
+          const p = r.payload ? asWorkbookPayload(r.payload) : undefined;
           return p ? { workbook: JSON.parse(p.json) as Workbook, original: pkg } : null;
         });
         if (s.status.token) collabApi.info(s.status.docId, s.status.token).then((i) => alive && setTitle(i.title)).catch(() => {});
@@ -100,7 +100,7 @@ export function TableurPage() {
     setBusy(true);
     try {
       const r = await engineHost().create('spreadsheet', 'Tableur sans titre');
-      await start(r.payload as WorkbookPayload, r.title);
+      await start(asWorkbookPayload(r.payload), r.title);
     } catch (e) {
       toast({ title: 'Création impossible', description: (e as Error).message, tone: 'danger' });
     } finally {
@@ -114,7 +114,7 @@ export function TableurPage() {
       try {
         const r = await engineHost().import(f);
         if (r.kind !== 'spreadsheet' || !r.payload) throw new Error('Seuls les fichiers .xlsx, .xlsm, .csv et .tsv peuvent être modifiés ici.');
-        await start(r.payload as WorkbookPayload, r.title);
+        await start(asWorkbookPayload(r.payload), r.title);
       } catch (e) {
         toast({ title: 'Ouverture impossible', description: (e as Error).message, tone: 'danger' });
       } finally {

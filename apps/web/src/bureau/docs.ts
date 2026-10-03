@@ -1,6 +1,6 @@
 /** Bureau ↔ @oel/docs: one collaborative session per document paper. */
 import { CollabApi, DocSession, blankDocxJson, defaultIdentity, docFromPreview, docsSchema, loadIdentity, saveIdentity, type DocxJson, type Identity } from '@oel/docs';
-import type { DocxPayload } from '@oel/engine';
+import { asDocxPayload } from '@oel/engine';
 import { engineHost } from './importFiles';
 import type { Paper } from './model';
 
@@ -18,7 +18,7 @@ const getSchema = () => (schema ??= docsSchema());
 
 /** Create the shared document for an imported .docx; returns its id. */
 export async function createDocFromPayload(payload: unknown, title: string): Promise<string> {
-  const p = payload as DocxPayload;
+  const p = asDocxPayload(payload);
   const s = await DocSession.create({ api: collabApi, identity: identity(), schema: getSchema(), title, seed: { json: JSON.parse(p.json) as DocxJson, original: p.original, media: p.media } });
   sessions.set(s.status.docId, Promise.resolve(s));
   return s.status.docId;
