@@ -144,6 +144,8 @@
 .paper__doc-title { margin: 0 0 22px; font: 700 20px/26px var(--font-sans); color: var(--title); }
 .paper__doc-h { margin: 18px 0 8px; font: 600 15px/20px var(--font-sans); color: var(--title); }
 .paper__doc-p { margin: 0 0 12px; font: 400 13px/20px var(--font-sans); color: var(--emboss-text); }
+.paper__doc--dark { min-height: 100%; box-sizing: border-box; }
+.paper__doc--dark :is(.paper__doc-title, .paper__doc-h, .paper__doc-p, .paper__eyebrow) { color: var(--emboss-on-fill); }
 .paper__bars { display: grid; gap: 8px; margin: 8px 0 16px; }
 .paper__bars span { height: 6px; border-radius: 3px; background: var(--emboss-placeholder); opacity: 0.55; }
 

@@ -13,6 +13,7 @@ import { useDocEditor, useDocMeta } from './useDocEditor';
 import { DocsToolbar, TableBar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
 import { MenuBar, MoreMenu, type MenuSpec } from './MenuBar';
 import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
+import { printPages } from './print';
 import { FindBar } from './FindBar';
 import { Peers, SyncStatus, useSessionStatus } from './SyncStatus';
 import { OutlinePanel, VersionPanel } from './panels';
@@ -340,7 +341,7 @@ export function DocsEditor(props: DocsEditorProps) {
         );
       case 'dl-docx': return void exportDocx();
       case 'dl-pdf':
-      case 'print': return printDocument(editor, title, docMeta.stylesCss, pageForPrint);
+      case 'print': return void (printPages(editor, title) || printDocument(editor, title, docMeta.stylesCss, pageForPrint));
       case 'dl-html': return downloadHTML(editor, title, docMeta.stylesCss, pageForPrint);
       case 'dl-md': return downloadMarkdown(editor, title);
       case 'dl-txt': return downloadText(editor, title);

@@ -53,14 +53,14 @@ export interface OeldocxModule {
 interface PMish {
   type?: string;
   text?: string;
-  attrs?: { outline?: number | null };
+  attrs?: { outline?: number | null; section?: string | null; behindDoc?: boolean; cx?: number; cy?: number; shape?: { fill?: string | null } };
   content?: PMish[];
 }
 
 const text = (n: PMish): string => (n.text ?? '') + (n.content ?? []).map(text).join(n.type === 'tableRow' ? ' ' : '');
 
 /** Desk preview from the codec's ProseMirror JSON (first blocks as text). */
-function previewOf(doc: PMish, page?: { width: number; height: number }): Preview {
+function previewOf(doc: PMish, page?: { width: number; height: number }, pageColour?: string | null): Preview {
   const blocks: Array<{ type: 'heading' | 'paragraph'; text: string }> = [];
   let words = 0;
   const visit = (n: PMish) => {
@@ -73,7 +73,24 @@ function previewOf(doc: PMish, page?: { width: number; height: number }): Previe
     (n.content ?? []).forEach(visit);
   };
   visit(doc);
-  return { kind: 'document', blocks, wordCount: words, pageCount: Math.max(1, Math.ceil(words / 450)), ...(page ? { page: { width: page.width, height: page.height } } : {}) };
+  const background = coverColour(doc, page) ?? pageColour ?? undefined;
+  return { kind: 'document', blocks, wordCount: words, pageCount: Math.max(1, Math.ceil(words / 450)), ...(page ? { page: { width: page.width, height: page.height } } : {}), ...(background ? { background } : {}) };
+}
+
+/** A solid behind-text shape of the first section covering half page 1 or more (same rule as @oel/docs `firstPageBackground`). */
+function coverColour(doc: PMish, page?: { width: number; height: number }): string | undefined {
+  if (!page) return undefined;
+  const area = page.width * page.height * 635 * 635;
+  let found: string | undefined;
+  const visit = (n: PMish): boolean => {
+    if (found) return false;
+    const a = n.attrs;
+    if (n.type === 'anchor' && a?.behindDoc && a.shape?.fill && !a.shape.fill.includes('gradient') && (a.cx ?? 0) * (a.cy ?? 0) >= area / 2) found = a.shape.fill;
+    (n.content ?? []).forEach(visit);
+    return !(n.type === 'paragraph' && a?.section);
+  };
+  for (const n of doc.content ?? []) if (!visit(n)) break;
+  return found;
 }
 
 /**
@@ -91,9 +108,9 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
         throw new Error('Format non pris en charge par le moteur DOCX');
       }
       const out = mod.docx_to_pm(bytes);
-      const json = JSON.parse(out.json) as { doc: PMish; title?: string | null; sections?: Array<{ page: { width: number; height: number } }> };
+      const json = JSON.parse(out.json) as { doc: PMish; title?: string | null; background?: string | null; sections?: Array<{ page: { width: number; height: number } }> };
       const payload: DocxPayload = { format: PAYLOAD_FORMATS.docx, json: out.json, media: out.media, original: bytes };
-      return { kind: 'document', title: json.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: previewOf(json.doc, json.sections?.[0]?.page), payload };
+      return { kind: 'document', title: json.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: previewOf(json.doc, json.sections?.[0]?.page, json.background), payload };
     },
     export(mod, req) {
       if (req.format !== 'docx') throw new Error(`Format d’export inconnu : ${req.format}`);

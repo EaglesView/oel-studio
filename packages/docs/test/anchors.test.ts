@@ -60,3 +60,14 @@ describe('text wrap approximation', () => {
     expect(anchorWrapStyle(pageSquare)).toEqual({ style: '', note: expect.stringContaining('par rapport à la page') });
   });
 });
+
+describe('desk preview colour', () => {
+  it('takes the cover shape of page 1, else the page colour', async () => {
+    const { firstPageBackground } = await import('../src/model/preview');
+    const t = load('complex_template.docx');
+    expect(firstPageBackground(t.doc, t.sections[0]!.page, null)).toBe('#262626');
+    const plain = load('table-borders.docx');
+    expect(firstPageBackground(plain.doc, plain.sections[0]!.page, '#FFF8E7')).toBe('#FFF8E7');
+    expect(firstPageBackground(plain.doc, plain.sections[0]!.page, null)).toBeUndefined();
+  });
+});

@@ -84,6 +84,15 @@ export const Paper = memo(
   (a, b) => a.node === b.node && a.ctx.lod === b.ctx.lod && a.ctx.isSelected === b.ctx.isSelected,
 );
 
+/** Whether a CSS colour (`#RRGGBB` or `rgba(…)`) is dark enough for light ink. */
+function isDark(css: string): boolean {
+  const hex = /^#([0-9a-f]{6})$/i.exec(css)?.[1];
+  const rgb = hex ? [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) : /rgba?\(([^)]+)\)/.exec(css)?.[1]?.split(',').slice(0, 3).map(Number);
+  if (!rgb || rgb.length < 3) return false;
+  const [r, g, b] = rgb as [number, number, number];
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+}
+
 function Content({ node }: { node: PaperNode }) {
   const { data } = node;
   const p = data.preview;
@@ -93,8 +102,10 @@ function Content({ node }: { node: PaperNode }) {
       const [first, ...rest] = blocks;
       const title = first?.type === 'heading' ? first.text : node.title;
       const body = first?.type === 'heading' ? rest : blocks;
+      // The first page's colour (a dark cover…) shows on the desk too.
+      const bg = p.kind === 'document' ? p.background : undefined;
       return (
-        <div className="paper__doc">
+        <div className={`paper__doc${bg && isDark(bg) ? ' paper__doc--dark' : ''}`} style={bg ? { background: bg } : undefined}>
           {data.eyebrow && <span className="paper__eyebrow">{data.eyebrow}</span>}
           <h3 className="paper__doc-title">{title}</h3>
           {body.length === 0 && <Bars count={8} />}

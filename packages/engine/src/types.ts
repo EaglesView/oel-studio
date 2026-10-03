@@ -9,7 +9,7 @@ export interface PageSize {
 
 /** Lightweight, serialisable preview: what a paper shows on the desk. */
 export type Preview =
-  | { kind: 'document'; blocks: Array<{ type: 'heading' | 'paragraph'; text: string }>; pageCount?: number; wordCount?: number; page?: PageSize }
+  | { kind: 'document'; blocks: Array<{ type: 'heading' | 'paragraph'; text: string }>; pageCount?: number; wordCount?: number; page?: PageSize; background?: string }
   | { kind: 'slides'; slides: Array<{ title: string; body?: string }> }
   | { kind: 'spreadsheet'; sheets: string[]; rows: string[][] }
   | { kind: 'pdf'; pageCount: number; scanned: boolean; title?: string }

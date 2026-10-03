@@ -392,3 +392,15 @@ tr.oel-pgap td { padding: 0 !important; border: none !important; background: tra
 }
 .oel-docs--anchors .oel-doc .oel-anchor::before, .oel-doc .oel-anchor.ProseMirror-selectednode::before { display: block; }
 .oel-doc .oel-anchor--wrap::before { left: 0; }
+
+/* Printing (ui/print.ts): one page per sheet, at its section's size */
+.oel-print { color: #000; }
+.oel-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.oel-print__page { position: relative; overflow: hidden; break-after: page; }
+.oel-print__page:last-child { break-after: auto; }
+.oel-print__text { position: absolute; left: 0; right: 0; overflow: hidden; z-index: 1; }
+.oel-print .oel-sheet { box-shadow: none; border-radius: 0; }
+.oel-print .oel-sheet__num, .oel-print .oel-hf__bar, .oel-print .oel-anchor::before { display: none !important; }
+.oel-print .oel-hf { box-shadow: none !important; }
+.oel-print .oel-pagebreak { border: 0; margin: 0; }
+.oel-print .oel-noteref::after { content: attr(data-print-n) !important; counter-increment: none !important; }
