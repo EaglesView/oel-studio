@@ -60,3 +60,13 @@ fn page_background_is_enabled_in_the_related_settings_part() {
     assert!(out.get_str("word/settings2.xml").unwrap().contains("w:displayBackgroundShape"));
     assert!(!out.has("word/settings.xml"));
 }
+
+#[test]
+fn theme_colours_come_from_the_related_theme_and_settings_parts() {
+    let pkg = Package::read(&fixture("complex_template.docx")).unwrap();
+    let theme = oeldocx::theme::Theme::load(&pkg);
+    assert_eq!(theme.scheme_hex("accent1"), Some("F75952"));
+    assert_eq!(theme.scheme_hex("tx2"), Some("2A2A2A"));
+    let fill = oeldocx::xml::XDocument::parse(r#"<a:schemeClr xmlns:a="a" val="tx1"><a:lumMod val="75000"/><a:lumOff val="25000"/></a:schemeClr>"#).unwrap();
+    assert_eq!(theme.resolve(&fill.root).as_deref(), Some("#404040"));
+}

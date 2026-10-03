@@ -11,6 +11,7 @@ pub mod package;
 pub mod read;
 pub mod styles;
 pub mod template;
+pub mod theme;
 pub mod write;
 pub mod xml;
 
