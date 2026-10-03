@@ -1,0 +1,5 @@
+[env]
+# ts-rs bindings (`npm run gen:types`) land in the engine contract package.
+TS_RS_EXPORT_DIR = { value = "packages/engine/src/generated", relative = true }
+# Twips, EMU and ids fit in a JS number.
+TS_RS_LARGE_INT = "number"

@@ -1,4 +1,5 @@
 import type { DocumentEngine, DocxPayload, ExportRequest, FileKind, ImportResult, Preview, WorkbookPayload } from '../types';
+import type { Workbook } from '../generated/oelxlsx';
 
 /**
  * Adapter for WASM engines built with wasm-bindgen (oeldocx-rs, oelimg-rs).
@@ -106,21 +107,11 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
   });
 }
 
-/** The parts of the oelxlsx-rs wasm package this adapter uses. */
-export interface OelxlsxModule {
-  xlsx_to_model(bytes: Uint8Array): string;
-  csv_to_model(bytes: Uint8Array, opts: string): string;
-  new_workbook_model(): string;
-  model_to_xlsx(json: string, original?: Uint8Array | null): Uint8Array;
-  model_to_csv(json: string, sheet: number, dialect: string): Uint8Array;
-}
-
-interface WorkbookJsonish {
-  sheets: Array<{ name: string; state?: string; cells: Array<{ r: number; c: number; t?: string; v?: unknown; f?: string }> }>;
-}
+/** The parts of the oelxlsx-rs wasm package this adapter uses (signatures from its wasm-bindgen `.d.ts`). */
+export type OelxlsxModule = Pick<typeof import('oelxlsx-rs'), 'xlsx_to_model' | 'csv_to_model' | 'new_workbook_model' | 'model_to_xlsx' | 'model_to_csv'>;
 
 /** Desk preview: the first rows of the first visible sheet (cached values, formulas shown as their result). */
-function sheetPreview(wb: WorkbookJsonish): Preview {
+function sheetPreview(wb: Workbook): Preview {
   const visible = wb.sheets.filter((s) => !s.state || s.state === 'visible');
   const first = visible[0] ?? wb.sheets[0];
   const rows: string[][] = [];

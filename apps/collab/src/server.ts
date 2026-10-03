@@ -27,8 +27,8 @@ import { canEdit, signToken, verifyToken, type TokenPayload } from './auth';
 import { Store, type DocKind, type Role } from './db';
 
 const require = createRequire(import.meta.url);
-const codec = require('oeldocx-node') as { pm_to_docx(json: string, original: Uint8Array | null | undefined, media: Array<{ path: string; bytes: Uint8Array }>): Uint8Array };
-const sheets = require('oelxlsx-node') as { model_to_xlsx(json: string, original?: Uint8Array | null): Uint8Array; model_to_csv(json: string, sheet: number, dialect: string): Uint8Array };
+const codec = require('oeldocx-node') as Pick<typeof import('oeldocx-node'), 'pm_to_docx'>;
+const sheets = require('oelxlsx-node') as typeof import('oelxlsx-node');
 
 export interface CollabOptions {
   dbFile: string;

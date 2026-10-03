@@ -6,34 +6,65 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Value kind of a cell on the wire (`Cell.t`, `CellOut.t`). TypeScript only:
+/// Rust keeps the letter as a string.
+#[cfg(feature = "ts")]
+#[derive(ts_rs::TS)]
+#[ts(export, export_to = "oelxlsx/", rename_all = "lowercase")]
+pub enum CellType {
+    N,
+    S,
+    B,
+    E,
+}
+
+/// A literal cell value on the wire (`Cell.v`). TypeScript only: Rust keeps a `serde_json::Value`.
+#[cfg(feature = "ts")]
+#[derive(ts_rs::TS)]
+#[ts(export, export_to = "oelxlsx/", untagged)]
+pub enum CellValue {
+    Number(f64),
+    Text(String),
+    Bool(bool),
+}
+
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Workbook {
     pub sheets: Vec<Sheet>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub names: Vec<DefinedName>,
     /// Cell formats. The index is the style id: for an imported file it is the
     /// original `cellXfs` index; styles added while editing are appended.
     pub styles: Vec<CellStyle>,
     /// How many of `styles` came from the file (written back untouched).
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub base_styles: usize,
     /// Differential formats used by conditional formatting (`dxfs`).
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub dxfs: Vec<CellStyle>,
     /// Parts we keep but do not edit (charts, pivots, macros…), for the UI.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub preserved: Vec<Preserved>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub date1904: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub active_sheet: usize,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub source: Source,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub csv: Option<CsvDialect>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
@@ -43,6 +74,7 @@ pub enum Source {
     Csv,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CsvDialect {
@@ -55,9 +87,11 @@ pub struct CsvDialect {
     pub line_ending: String,
     /// Numbers written `1234,5` (French Excel with `;` lists).
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub decimal_comma: bool,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Sheet {
@@ -65,43 +99,57 @@ pub struct Sheet {
     pub id: String,
     pub name: String,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub state: SheetState,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tab_color: Option<Color>,
     #[serde(default)]
     pub cells: Vec<Cell>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub cols: Vec<ColInfo>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub rows: Vec<RowInfo>,
     /// Character widths, as Excel stores them.
     #[serde(default = "default_col_width")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub default_col_width: f64,
     /// Points.
     #[serde(default = "default_row_height")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub default_row_height: f64,
     /// A1 ranges (`A15:C15`).
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub merges: Vec<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub frozen_rows: u32,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub frozen_cols: u32,
     #[serde(default = "default_zoom")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub zoom: u32,
     #[serde(default = "yes")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub show_grid: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auto_filter: Option<AutoFilter>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub validations: Vec<Validation>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub cond_formats: Vec<CondFormat>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub hyperlinks: Vec<Hyperlink>,
     /// Cell notes (legacy comments). Read-only in this version: the parts are
     /// preserved, the text is shown.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub notes: Vec<Note>,
 }
 
@@ -118,6 +166,7 @@ fn yes() -> bool {
     true
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/"))]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SheetState {
@@ -127,6 +176,7 @@ pub enum SheetState {
     VeryHidden,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Cell {
@@ -134,9 +184,11 @@ pub struct Cell {
     pub c: u32,
     /// Value kind: `n` number, `s` text, `b` boolean, `e` error; absent = empty.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<CellType>"))]
     pub t: Option<String>,
     /// The literal value, or a formula's cached result.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<CellValue>"))]
     pub v: Option<serde_json::Value>,
     /// Formula text without the leading `=`, English, with `_xlfn.` prefixes removed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -145,6 +197,7 @@ pub struct Cell {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub a: Option<String>,
     #[serde(default, skip_serializing_if = "is_zero")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub s: u32,
     /// Raw `<si>` children of a rich-text shared string, written back while the text is unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -155,6 +208,7 @@ fn is_zero(n: &u32) -> bool {
     *n == 0
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ColInfo {
@@ -164,13 +218,16 @@ pub struct ColInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub width: Option<f64>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub hidden: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<u32>,
     #[serde(default, skip_serializing_if = "is_zero_u8")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub outline: u8,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RowInfo {
@@ -179,10 +236,12 @@ pub struct RowInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub height: Option<f64>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub hidden: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<u32>,
     #[serde(default, skip_serializing_if = "is_zero_u8")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub outline: u8,
 }
 
@@ -190,6 +249,7 @@ fn is_zero_u8(n: &u8) -> bool {
     *n == 0
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DefinedName {
@@ -199,9 +259,11 @@ pub struct DefinedName {
     pub scope: Option<String>,
     pub formula: String,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub hidden: bool,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Color {
@@ -217,6 +279,7 @@ pub struct Color {
     pub indexed: Option<u32>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CellStyle {
@@ -239,6 +302,7 @@ pub fn general() -> String {
     "General".into()
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Font {
@@ -248,13 +312,16 @@ pub struct Font {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size: Option<f64>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub bold: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub italic: bool,
     /// `single`, `double`, `singleAccounting`, `doubleAccounting`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub underline: Option<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub strike: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<Color>,
@@ -263,6 +330,7 @@ pub struct Font {
     pub vert_align: Option<String>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Border {
@@ -276,6 +344,7 @@ pub struct Border {
     pub bottom: Option<BorderSide>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BorderSide {
@@ -285,6 +354,7 @@ pub struct BorderSide {
     pub color: Option<Color>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Align {
@@ -295,15 +365,20 @@ pub struct Align {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub v: Option<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub wrap: bool,
     #[serde(default, skip_serializing_if = "is_zero")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub indent: u32,
     #[serde(default, skip_serializing_if = "is_zero")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub rotation: u32,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub shrink: bool,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AutoFilter {
@@ -317,15 +392,18 @@ pub struct AutoFilter {
     pub columns: Vec<FilterColumn>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FilterColumn {
     pub col: u32,
     pub values: Vec<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub blank: bool,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Validation {
@@ -339,6 +417,7 @@ pub struct Validation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub formula2: Option<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub allow_blank: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -349,6 +428,7 @@ pub struct Validation {
     pub raw: Option<String>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CondFormat {
@@ -356,6 +436,7 @@ pub struct CondFormat {
     pub rules: Vec<CondRule>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CondRule {
@@ -371,6 +452,7 @@ pub struct CondRule {
     #[serde(default)]
     pub priority: i32,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub stop: bool,
     /// colorScale / dataBar colours, low → high.
     #[serde(default)]
@@ -379,6 +461,7 @@ pub struct CondRule {
     pub raw: Option<String>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Hyperlink {
@@ -396,6 +479,7 @@ pub struct Hyperlink {
     pub display: Option<String>,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
@@ -405,6 +489,7 @@ pub struct Note {
     pub text: String,
 }
 
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Preserved {

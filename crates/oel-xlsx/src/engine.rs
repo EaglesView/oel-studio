@@ -16,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 
 /// One cell input change from the editor (0-based row and column).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct CellInput {
     pub sheet: usize,
@@ -25,8 +26,10 @@ pub struct CellInput {
     #[serde(default)]
     pub f: Option<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<crate::model::CellType>"))]
     pub t: Option<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<crate::model::CellValue>"))]
     pub v: Option<serde_json::Value>,
     #[serde(default)]
     pub a: Option<String>,
@@ -37,12 +40,15 @@ pub struct CellInput {
 
 /// A computed cell for the grid.
 #[derive(Debug, Clone, Serialize, PartialEq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/"))]
 #[serde(rename_all = "camelCase")]
 pub struct CellOut {
     pub r: u32,
     pub c: u32,
     /// `n`, `s`, `b`, `e`.
+    #[cfg_attr(feature = "ts", ts(as = "crate::model::CellType"))]
     pub t: &'static str,
+    #[cfg_attr(feature = "ts", ts(as = "Option<crate::model::CellValue>"))]
     pub v: serde_json::Value,
     /// Text as displayed with the number format.
     pub text: String,
@@ -50,6 +56,7 @@ pub struct CellOut {
 
 /// Structural edits, applied the same way on every client.
 #[derive(Debug, Clone, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/"))]
 #[serde(tag = "op", rename_all = "camelCase")]
 pub enum Structural {
     InsertRows { sheet: usize, at: u32, count: u32 },

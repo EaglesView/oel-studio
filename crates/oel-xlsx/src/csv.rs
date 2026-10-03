@@ -10,6 +10,7 @@ use crate::model::{Cell, CellStyle, CsvDialect, Sheet, Source, Workbook};
 use serde::Deserialize;
 
 #[derive(Debug, Default, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelxlsx/", optional_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct CsvOptions {
     /// Force a delimiter (`\t` for `.tsv`); sniffed when absent.
