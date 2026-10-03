@@ -2,7 +2,7 @@ import { useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import type { Preview } from '@oel/engine';
 import { Badge, Button, Icon, Kbd } from '@oel/emboss';
-import { kindLabel, type Bureau, type Paper } from './model';
+import { kindLabel, paperSizeFor, type Bureau, type Paper } from './model';
 import { DocumentWorkspace } from './workspaces/DocumentWorkspace';
 import { SlidesWorkspace } from './workspaces/SlidesWorkspace';
 import { SheetWorkspace } from './workspaces/SheetWorkspace';
@@ -111,9 +111,15 @@ export function OpenSheet({
         const firstHeading = preview.kind === 'document' ? preview.blocks.find((b) => b.type === 'heading')?.text : undefined;
         const cur = store.node(paper.id) as Paper | undefined;
         if (!cur) return;
+        // A document's paper follows its page setup (portrait, landscape, Legal…).
+        const size = cur.kind === 'document' ? paperSizeFor('document', preview) : null;
         store.update(
           paper.id,
-          { data: { ...cur.data, preview }, ...(firstHeading && paper.kind === 'note' ? { title: firstHeading } : {}) },
+          {
+            data: { ...cur.data, preview },
+            ...(firstHeading && paper.kind === 'note' ? { title: firstHeading } : {}),
+            ...(size && (size.w !== cur.w || size.h !== cur.h) ? { w: size.w, h: size.h } : {}),
+          },
           { label: `Modification de « ${paper.title} »` },
         );
       },

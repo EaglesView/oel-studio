@@ -79,6 +79,19 @@ export const PAPER_SIZE: Record<PaperKind, { w: number; h: number }> = {
   form: { w: 340, h: 460 },
 };
 
+/**
+ * A paper's size: its type's shape, except documents, which take the shape of
+ * their first page (landscape papers are wide; the long side stays the same).
+ * `PAPER_SIZE.document` is then only the default for new blank documents.
+ */
+export function paperSizeFor(kind: PaperKind, preview?: Preview | null): { w: number; h: number } {
+  const base = PAPER_SIZE[kind];
+  const page = preview?.kind === 'document' ? preview.page : undefined;
+  if (kind !== 'document' || !page || page.width <= 0 || page.height <= 0) return base;
+  const long = Math.max(base.w, base.h);
+  return page.width >= page.height ? { w: long, h: Math.round((long * page.height) / page.width) } : { w: Math.round((long * page.width) / page.height), h: long };
+}
+
 export function statusText(p: Paper): string {
   const s = p.data.status;
   if (s.state === 'importing') return `${s.stage}${s.progress != null ? ` ${Math.round(s.progress * 100)} %` : ''}`;

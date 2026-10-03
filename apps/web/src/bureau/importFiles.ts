@@ -2,7 +2,7 @@ import EngineWorker from '@oel/engine/worker?worker';
 import { EngineHost, MAX_IMPORT_BYTES, detectKind, stripExtension, type ImportResult } from '@oel/engine';
 import { toast } from '@oel/emboss';
 import type { Vec } from '@oel/desk';
-import { PAPER_SIZE, uid, type Bureau, type Paper, type PaperKind } from './model';
+import { PAPER_SIZE, paperSizeFor, uid, type Bureau, type Paper, type PaperKind } from './model';
 import type { ArrivalRules } from './Chrome';
 import { createDocFromPayload } from './docs';
 import { createSheetFromPayload } from './sheets';
@@ -78,14 +78,14 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
       const current = store.node(paper.id);
       if (!current) return result;
       const kind = toPaperKind(result.kind);
-      const size = PAPER_SIZE[kind];
+      const size = paperSizeFor(kind, result.preview);
       const scanned = result.preview.kind === 'pdf' && result.preview.scanned;
       store.update(
         paper.id,
         {
           kind,
           title: result.title,
-          ...(kind !== current.kind ? { w: size.w, h: size.h } : {}),
+          ...(kind !== current.kind || size.w !== current.w || size.h !== current.h ? { w: size.w, h: size.h } : {}),
           data: {
             ...current.data,
             ...(docId ? { docId } : {}),

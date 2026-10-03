@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DocsEditor, fragmentJSON, toPreview, type DocSession } from '@oel/docs';
+import { DocsEditor, previewFromYDoc, type DocSession } from '@oel/docs';
 import '@oel/docs/styles.css';
 import type { WorkspaceProps } from '../OpenSheet';
 import { exportDocx, identity, sessionFor } from '../docs';
@@ -25,7 +25,7 @@ export function DocumentWorkspace({ paper, level, onDraft, registerFlush, onPatc
 
   // On close, the desk thumbnail is rebuilt from the shared document itself (no 700 ms wait).
   useEffect(() => {
-    registerFlush(() => (session ? toPreview(fragmentJSON(session.fragment)) : null));
+    registerFlush(() => (session ? previewFromYDoc(session.ydoc) : null));
   }, [session, registerFlush]);
 
   if (error) return <p className="workspace-empty">Impossible d’ouvrir le document : {error}</p>;
