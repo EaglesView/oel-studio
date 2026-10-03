@@ -68,81 +68,88 @@ attrs leave the raw XML untouched".
 
 ### 1a Codec + contract
 
-- [ ] `contract.rs`: `DocxJson.sections: Vec<Section>` (document order; the last is the body's
+- [x] `contract.rs`: `DocxJson.sections: Vec<Section>` (document order; the last is the body's
       final `sectPr`), replacing `DocxJson.page` (kept as an alias of the last section's page
       for one version, then removed). `Section { id, page: PageSetup, kind: SectionKind
       (nextPage | continuous | evenPage | oddPage | nextColumn), titlePg, pgNum: { fmt, start: Option<i64> },
       cols: { num, space, equalWidth }, headers: { default?, first?, even? → story id },
       footers: {…}, sectPr }`. Header/footer slots hold only **explicit** references (needed
       to write back what Word had); inheritance is computed, not stored.
-- [ ] `ParagraphAttrs.sectionBreak: bool` → `section: Option<String>` (id of the section that
+- [x] `ParagraphAttrs.sectionBreak: bool` → `section: Option<String>` (id of the section that
       ends at this paragraph). Ids are stable strings (`s1`… on import, random for new ones) so
       concurrent edits in Yjs don't shift them.
-- [ ] Stories are keyed by **part**, not by kind: `DocxJson.stories: Map<storyId, StoryPart>`
+- [x] Stories are keyed by **part**, not by kind: `DocxJson.stories: Map<storyId, StoryPart>`
       (`headers`/`footers` maps go away). The same part may be referenced by several sections.
-- [ ] `DocxJson.settings: { evenAndOddHeaders, defaultTabStop, mirrorMargins }` from the related settings part.
-- [ ] Reader: walk the body, read each paragraph `w:sectPr` into a `Section`, plus the body one.
-- [ ] Writer: for each section, patch its own `sectPr` (pgSz, pgMar, type, titlePg, pgNumType,
+- [x] `DocxJson.settings: { evenAndOddHeaders, defaultTabStop, mirrorMargins }` from the related settings part.
+- [x] Reader: walk the body, read each paragraph `w:sectPr` into a `Section`, plus the body one.
+- [x] Writer: for each section, patch its own `sectPr` (pgSz, pgMar, type, titlePg, pgNumType,
       cols, header/footer references) only where the modelled values changed (same rule as
       today's final `sectPr` patch); new stories create parts + relationships (relative
       targets, `main_related`); removed section breaks drop that paragraph's `sectPr`.
-- [ ] Rust tests: `sections_are_read` (complex_template: 5 sections, margins and `lowerRoman`
+- [x] Rust tests: `sections_are_read` (complex_template: 5 sections, margins and `lowerRoman`
       on s1, explicit refs on s2/s3, none on s4/s5); `editing_a_section_patches_its_sectPr`;
       `adding_and_removing_a_section_break`; round trips of the new fixtures; contract test on all.
 
 ### 1b Shared document (Y.Doc), format v2
 
-- [ ] `ydoc.ts`: `meta.sections` becomes a `Y.Map<sectionId, Section>` + `meta.sectionOrder`
+- [x] `ydoc.ts`: `meta.sections` becomes a `Y.Map<sectionId, Section>` + `meta.sectionOrder`
       is **not** stored (order = order of `section` attrs in the body, plus `body` last), so
       two people inserting breaks cannot desynchronise a list. Stories: `story:<storyId>`
       fragments + `stories` index `storyId → part`.
-- [ ] Pure helpers in `@oel/docs/model/sections.ts` (unit-tested in vitest):
+- [x] Pure helpers in `@oel/docs/model/sections.ts` (unit-tested in vitest):
       `sectionOrder(doc)`, `effectiveStory(sections, i, side, kind, settings)` (Word rules:
       own reference, else the previous section's, recursively; `first` only if `titlePg`;
       `even` only if `evenAndOddHeaders`), `formatPageNumber(n, fmt)` (decimal, lowerRoman,
       upperRoman, lowerLetter, upperLetter, decimalZero…), `pageNumberAt(pages, i)` honouring
       restarts.
-- [ ] No migration (decision 3): documents seeded at `formatVersion` 1 are refused on open
+- [ ] Delete local dev data (`apps/collab/data/`, IndexedDB): left to the user (older documents are refused with the re-import message meanwhile).
+- [x] No migration (decision 3): documents seeded at `formatVersion` 1 are refused on open
       with a fr-CA message asking to re-import the file; `asDocxPayload` accepts
       `oeldocx-pm@2` only and the engine produces @2. Delete local dev data
       (`apps/collab/data/`, IndexedDB) after this lands.
-- [ ] `exportJsonFromYDoc` / collab server export emit the new shape (server test in `apps/collab/test`).
+- [x] `exportJsonFromYDoc` / collab server export emit the new shape (server test in `apps/collab/test`).
 
 ### 1c Layout and page view
 
-- [ ] `pagination.ts`: geometry **per section**. Units carry their section; a section of
+- [x] `pagination.ts`: geometry **per section**. Units carry their section; a section of
       kind `nextPage` forces a break before its first block (`oddPage`/`evenPage` may insert
       an empty page); `continuous` doesn't. `storage.pages` becomes `PageInfo[]`
       (`{ section, width, height, margins, number }`) instead of a count.
-- [ ] Text width per section: the body wrap spans the widest page; top-level blocks of section
+- [x] Text width per section: the body wrap spans the widest page; top-level blocks of section
       *i* get a node decoration setting `margin-left`/`width` from that section's margins, so
       the cover's table fits its 7.5" and chapters get their 2" left margin. Mixed sizes and
       orientations: each sheet has its own size and is **centred** like in Word; section
       blocks are offset by `(widest − width) / 2` so text stays on its sheet.
-- [ ] Page size and orientation actually change the canvas: the page setup dialog (paper
+- [x] Page size and orientation actually change the canvas: the page setup dialog (paper
       size, Portrait/Paysage, margins) applies per section and the sheets, pagination and
       header/footer zones follow immediately (vitest on the geometry helpers + browser check
       switching the template's chapter section to landscape).
-- [ ] `continuous` sections with different margins: they start on the same page with the new
+- [x] `continuous` sections with different margins: they start on the same page with the new
       text width (Word does the same); different **page size** in a continuous section applies
       from the next page (Word's rule).
-- [ ] `PageView.tsx`: sheets drawn from `PageInfo[]`; header/footer per page via
+- [x] `PageView.tsx`: sheets drawn from `PageInfo[]`; header/footer per page via
       `effectiveStory`; `PAGE` fields use `formatPageNumber`, `NUMPAGES` the total,
       `SECTIONPAGES` the section's count.
-- [ ] Header/footer editing: the bar shows « Section 2 · Pied de page », and « Lier au
+- [x] Header/footer editing: the bar shows « Section 2 · Pied de page », and « Lier au
       précédent » (Word's "Link to previous"): on = drop this section's reference (inherit),
       off = copy the inherited story into a new part. Editing a story used by several
       sections says so (« Utilisé par les sections 3 à 5 »).
-- [ ] Page setup dialog (`dialogs.tsx`): « Appliquer à : cette section / tout le document ».
+- [x] Page setup dialog (`dialogs.tsx`): « Appliquer à : cette section / tout le document ».
       `setPage` becomes `setSectionPage(session, sectionId | 'all', patch)`.
-- [ ] Insertion menu: « Saut de section » › « Page suivante » / « Continu ». Deleting the
+- [x] Insertion menu: « Saut de section » › « Page suivante » / « Continu ». Deleting the
       paragraph that carries a break merges the two sections (the merged text takes the
       **following** section's setup, as in Word); undo restores it.
-- [ ] Status bar: « Page 3 sur 12 · Section 2 ».
-- [ ] Bureau paper follows the document (symptom 11): the desk paper's aspect ratio comes
+- [x] Status bar: « Page 3 sur 12 · Section 2 ».
+- [x] Bureau paper follows the document (symptom 11): the desk paper's aspect ratio comes
       from the document's first page (`PageInfo` of page 1; landscape papers are wide), set
       at import and updated when page setup changes in place; `PAPER_SIZE.document` becomes
       the default for new blank documents only. Thumbnails render at that ratio.
+
+Notes (as built): `DocxJson.page` was removed outright rather than kept as an alias (no
+migration, nothing reads it); section ids are `s1…` and `body` for the final `sectPr`;
+paragraphs of a narrower section are inset with transparent side borders, so a paragraph
+with its own left/right border inside such a section loses that border on screen. The
+browser check below is pending (browser tooling was unavailable).
 
 **Done when**, compared with the reference render: `complex_template.docx` shows the cover
 alone on page 1 with 0.5" margins and the table inside the page, each chapter starts on a new
