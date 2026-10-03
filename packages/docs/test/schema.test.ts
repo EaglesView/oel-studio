@@ -32,7 +32,7 @@ describe('codec JSON fits the editor schema', () => {
       const doc = schema.nodeFromJSON(j.doc);
       doc.check();
       for (const kind of ['footnote', 'endnote'] as const) for (const n of Object.values(j.notes[kind])) schema.nodeFromJSON(n).check();
-      for (const s of [...Object.values(j.headers), ...Object.values(j.footers)]) schema.nodeFromJSON(s!.doc).check();
+      for (const s of Object.values(j.stories)) schema.nodeFromJSON(s!.doc).check();
     });
   }
 
@@ -91,7 +91,8 @@ describe('Y.Doc layout', () => {
     const out = exportJsonFromYDoc(ydoc);
     expect(plainText(out.doc)).toContain('Rapport d’essai');
     expect(Object.keys(out.notes.footnote)).toHaveLength(1);
-    expect(out.headers.default?.part).toBe('word/header1.xml');
+    const body = out.sections[out.sections.length - 1]!;
+    expect(out.stories[body.headers.default!]?.part).toBe('word/header1.xml');
     const bytes = codec.pm_to_docx(JSON.stringify(out), original, []);
     const back = load(bytes);
     expect(back.doc).toEqual(j.doc);

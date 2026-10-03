@@ -2,7 +2,7 @@ import type { DocxPayload, WorkbookPayload } from './types';
 
 /** Payload formats this build understands. Bump with the codec when its JSON breaks. */
 export const PAYLOAD_FORMATS = {
-  docx: 'oeldocx-pm@1',
+  docx: 'oeldocx-pm@2',
   workbook: 'oelxlsx-workbook@1',
 } as const satisfies { docx: DocxPayload['format']; workbook: WorkbookPayload['format'] };
 

@@ -4,14 +4,15 @@ import { MenuTrigger } from 'react-aria-components';
 import { Badge, Button, Icon, Kbd, Menu, MenuItem, MenuPopover, toast } from '@oel/emboss';
 import type { DocSession } from '../collab/session';
 import type { Identity } from '../collab/identity';
-import { toPreview, type DocumentPreview } from '../model/preview';
+import { previewFromYDoc, type DocumentPreview } from '../model/preview';
 import { meta } from '../model/ydoc';
-import { twipsToPx, type HeaderFooterKind } from '../model/types';
+import type { HeaderFooterKind } from '../model/types';
+import { pageKind, type PageInfo } from '../model/sections';
 import { sanitizeStylesheet } from '../model/format';
-import { useDocEditor, useDocMeta, PAGE_GAP } from './useDocEditor';
+import { useDocEditor, useDocMeta } from './useDocEditor';
 import { DocsToolbar, TableBar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
 import { MenuBar, MoreMenu, type MenuSpec } from './MenuBar';
-import { NotesArea, PageView, type EditingStory } from './PageView';
+import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
 import { FindBar } from './FindBar';
 import { Peers, SyncStatus, useSessionStatus } from './SyncStatus';
 import { OutlinePanel, VersionPanel } from './panels';
@@ -23,6 +24,8 @@ import {
   downloadText,
   ensureStory,
   insertFootnote,
+  insertSectionBreak,
+  sectionIndexAt,
   insertImageFile,
   insertOrUpdateToc,
   insertPageNumbers,
@@ -106,7 +109,8 @@ export function DocsEditor(props: DocsEditorProps) {
   const target = active && !active.isDestroyed ? active : editor;
   const toolbar = useToolbarState(target, docMeta.styles, docMeta.defaults);
   const painter = useEditorState({ editor, selector: ({ editor: e }) => !!e?.storage.docEditing.painter }) ?? false;
-  const pages = useEditorState({ editor, selector: ({ editor: e }) => e?.storage.pagination.pages ?? 1 }) ?? 1;
+  const sheets = usePages(editor);
+  const pages = Math.max(1, sheets.length);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Put the caret and the scroll back where they were, and focus the page: typing writes at once.
@@ -167,21 +171,36 @@ export function DocsEditor(props: DocsEditorProps) {
     }
   };
 
-  const contentWidth = twipsToPx(docMeta.page.width - docMeta.page.left - docMeta.page.right);
-  const pageForPrint = { width: twipsToPx(docMeta.page.width), margins: [docMeta.page.top, docMeta.page.right, docMeta.page.bottom, docMeta.page.left].map(twipsToPx) as [number, number, number, number] };
+  // Geometry of the section at the selection (image widths, page setup, printing).
+  const sectionInfo = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      if (!e) return null;
+      const { sections, frame } = e.storage.pagination.layout;
+      const index = sectionIndexAt(e, e.state.selection.from);
+      return { index, count: sections.length, id: sections[index]?.id ?? 'body', textWidth: frame.boxes[index]?.textWidth ?? 624, frameWidth: frame.width };
+    },
+    equalityFn: (a, b) => !!a && !!b && a.index === b.index && a.count === b.count && a.id === b.id && a.textWidth === b.textWidth && a.frameWidth === b.frameWidth,
+  });
+  const contentWidth = sectionInfo?.textWidth ?? 624;
+  const currentSection = (sectionInfo && docMeta.sections.get(sectionInfo.id)) ?? null;
+  const firstSheet = sheets[0];
+  const pageForPrint = firstSheet
+    ? { width: firstSheet.width, margins: [firstSheet.margins.top, firstSheet.margins.right, firstSheet.margins.bottom, firstSheet.margins.left] as [number, number, number, number] }
+    : { width: 816, margins: [96, 96, 96, 96] as [number, number, number, number] };
 
   // Fit the page to narrow screens.
+  const frameWidth = sectionInfo?.frameWidth ?? 816;
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
     const fit = () => {
       const avail = el.clientWidth - 32;
-      const w = twipsToPx(docMeta.page.width);
-      if (avail < w && zoom === 1) setZoom(Math.max(0.5, Math.floor((avail / w) * 20) / 20));
+      if (avail < frameWidth && zoom === 1) setZoom(Math.max(0.5, Math.floor((avail / frameWidth) * 20) / 20));
     };
     fit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docMeta.page.width]);
+  }, [frameWidth]);
 
   useEffect(() => {
     if (editor) editor.storage.docEditing.frenchTypography = french;
@@ -193,7 +212,7 @@ export function DocsEditor(props: DocsEditorProps) {
     let t: ReturnType<typeof setTimeout> | null = null;
     const fire = () => {
       if (t) clearTimeout(t);
-      t = setTimeout(() => props.onPreview?.(toPreview(editor.getJSON() as never, editor.storage.pagination.pages)), 700);
+      t = setTimeout(() => props.onPreview?.(previewFromYDoc(session.ydoc, editor.storage.pagination.pages.length)), 700);
     };
     editor.on('update', fire);
     fire();
@@ -235,19 +254,31 @@ export function DocsEditor(props: DocsEditorProps) {
     });
   }, [editor, addImage]);
 
-  const pageOf = useCallback(
+  /** Sheet index (0-based) holding document position `pos`. */
+  const sheetAt = useCallback(
     (pos: number): number | null => {
       if (!editor || !paginated) return null;
       try {
+        const list = editor.storage.pagination.pages;
         const root = editor.view.dom.getBoundingClientRect();
         const scale = root.width / (editor.view.dom.offsetWidth || 1) || 1;
-        const y = (editor.view.coordsAtPos(pos + 1).top - root.top) / scale;
-        return Math.floor(y / (twipsToPx(docMeta.page.height) + PAGE_GAP)) + 1;
+        const y = (editor.view.coordsAtPos(pos + 1).top - root.top) / scale + (list[0]?.margins.top ?? 0);
+        let k = 0;
+        while (k + 1 < list.length && list[k + 1]!.top <= y) k++;
+        return k;
       } catch {
         return null;
       }
     },
-    [editor, paginated, docMeta.page.height],
+    [editor, paginated],
+  );
+  /** Page number as printed on the sheet (roman numerals, restarts…), for the table of contents. */
+  const pageOf = useCallback(
+    (pos: number): string | null => {
+      const k = sheetAt(pos);
+      return k == null ? null : (editor?.storage.pagination.pages[k]?.label ?? String(k + 1));
+    },
+    [editor, sheetAt],
   );
 
   const exportDocx = async () => {
@@ -276,10 +307,16 @@ export function DocsEditor(props: DocsEditorProps) {
 
   const openStory = (side: 'header' | 'footer') => {
     if (!editor) return;
+    const { sections } = editor.storage.pagination.layout;
+    const index = sectionIndexAt(editor, editor.state.selection.from);
     const kind: HeaderFooterKind = 'default';
-    ensureStory(editor, session, side, kind);
+    const storyId = ensureStory(editor, session, sections, index, side, kind);
     if (!paginated) setPaginated(true);
-    setEditingStory({ side, kind, page: docMeta.page.titlePg ? 1 : 0 });
+    // Open it on the section's first sheet that shows the default slot.
+    const list = editor.storage.pagination.pages;
+    const section = sections[index]!;
+    const at = list.findIndex((p: PageInfo) => p.section === index && pageKind(p.indexInSection, p.number, section, docMeta.settings) === kind);
+    setEditingStory({ side, kind, page: Math.max(0, at >= 0 ? at : list.findIndex((p: PageInfo) => p.section === index)), section: index, storyId });
   };
 
   const act = (id: string) => {
@@ -329,6 +366,8 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'ins-link': return setDialog('link');
       case 'ins-hr': return void chain().insertHorizontalLine().run();
       case 'ins-pagebreak': return void chain().insertPageBreak().run();
+      case 'ins-section-next': return void (insertSectionBreak(editor, session, 'nextPage') || toast({ title: 'Placez le curseur dans un paragraphe du corps du texte.', tone: 'warning' }));
+      case 'ins-section-cont': return void (insertSectionBreak(editor, session, 'continuous') || toast({ title: 'Placez le curseur dans un paragraphe du corps du texte.', tone: 'warning' }));
       case 'ins-footnote': return void insertFootnote(editor, session, 'footnote');
       case 'ins-endnote': return void insertFootnote(editor, session, 'endnote');
       case 'ins-chars': return setDialog('chars');
@@ -462,6 +501,15 @@ export function DocsEditor(props: DocsEditorProps) {
           '-',
           { id: 'ins-hr', label: 'Ligne horizontale', icon: 'minus', disabled: ro },
           { id: 'ins-pagebreak', label: 'Saut de page', icon: 'page-break', shortcut: 'Ctrl+Entrée', disabled: ro },
+          {
+            id: 'ins-section',
+            label: 'Saut de section',
+            disabled: ro,
+            children: [
+              { id: 'ins-section-next', label: 'Page suivante' },
+              { id: 'ins-section-cont', label: 'Continu' },
+            ],
+          },
           { id: 'ins-footnote', label: 'Note de bas de page', icon: 'footnote', shortcut: 'Ctrl+Alt+F', disabled: ro },
           { id: 'ins-endnote', label: 'Note de fin', disabled: ro },
           '-',
@@ -763,10 +811,21 @@ export function DocsEditor(props: DocsEditorProps) {
         {showVersions && <VersionPanel session={session} onClose={() => setShowVersions(false)} onRestored={() => editor.storage.pagination.relayout()} />}
       </div>
 
-      {!sheet && <StatusBar editor={editor} pages={pages} pageOf={pageOf} zoom={zoom} setZoom={setZoom} paginated={paginated} />}
+      {!sheet && <StatusBar editor={editor} sheets={sheets} sheetAt={sheetAt} sectionCount={sectionInfo?.count ?? 1} zoom={zoom} setZoom={setZoom} paginated={paginated} />}
 
       <LinkDialog editor={target!} isOpen={dialog === 'link'} onClose={() => setDialog(null)} />
-      <PageSetupDialog session={session} page={docMeta.page} isOpen={dialog === 'page'} onClose={() => setDialog(null)} />
+      {currentSection && (
+        <PageSetupDialog
+          session={session}
+          page={currentSection.page}
+          background={docMeta.background}
+          sectionId={currentSection.id}
+          sectionIndex={sectionInfo?.index ?? 0}
+          sectionCount={sectionInfo?.count ?? 1}
+          isOpen={dialog === 'page'}
+          onClose={() => setDialog(null)}
+        />
+      )}
       <WordCountDialog editor={editor} pages={pages} isOpen={dialog === 'words'} onClose={() => setDialog(null)} />
       <SpecialCharsDialog editor={target!} isOpen={dialog === 'chars'} onClose={() => setDialog(null)} />
       <ImageDialog editor={editor} isOpen={dialog === 'image'} onClose={() => setDialog(null)} onFile={(f) => addImage(f)} />
@@ -776,17 +835,34 @@ export function DocsEditor(props: DocsEditorProps) {
   );
 }
 
-/** Barre d’état (B1 · 7): page, words, language, zoom of the page. */
-function StatusBar({ editor, pages, pageOf, zoom, setZoom, paginated }: { editor: Editor; pages: number; pageOf: (pos: number) => number | null; zoom: number; setZoom: (z: number) => void; paginated: boolean }) {
+/** Barre d’état (B1 · 7): page (and section), words, language, zoom of the page. */
+function StatusBar({
+  editor,
+  sheets,
+  sheetAt,
+  sectionCount,
+  zoom,
+  setZoom,
+  paginated,
+}: {
+  editor: Editor;
+  sheets: PageInfo[];
+  sheetAt: (pos: number) => number | null;
+  sectionCount: number;
+  zoom: number;
+  setZoom: (z: number) => void;
+  paginated: boolean;
+}) {
+  const pages = Math.max(1, sheets.length);
   const info = useEditorState({
     editor,
     selector: ({ editor: e }) => {
       const { $from, from } = e.state.selection;
       const rpr = ($from.marks().find((m) => m.type.name === 'textStyle')?.attrs.rPr as string | null) ?? '';
       const lang = /<w:lang [^>]*w:val="([^"]+)"/.exec(rpr)?.[1] ?? e.view.dom.getAttribute('lang') ?? 'fr-CA';
-      return { page: paginated ? pageOf(from) : null, words: e.storage.characterCount?.words?.() ?? 0, lang };
+      return { sheet: paginated ? sheetAt(from) : null, section: sectionIndexAt(e, from), words: e.storage.characterCount?.words?.() ?? 0, lang };
     },
-    equalityFn: (a, b) => !!a && !!b && a.page === b.page && a.words === b.words && a.lang === b.lang,
+    equalityFn: (a, b) => !!a && !!b && a.sheet === b.sheet && a.section === b.section && a.words === b.words && a.lang === b.lang,
   });
   const step = (dir: 1 | -1) => {
     const i = ZOOMS.findIndex((z) => z >= zoom - 0.001);
@@ -795,7 +871,8 @@ function StatusBar({ editor, pages, pageOf, zoom, setZoom, paginated }: { editor
   return (
     <footer className="oel-statusbar" aria-label="Barre d’état">
       <span>
-        {info?.page ? `Page ${info.page} sur ${pages}` : `${pages} page${pages > 1 ? 's' : ''}`} · {(info?.words ?? 0).toLocaleString('fr-CA')} mot{(info?.words ?? 0) > 1 ? 's' : ''} ·{' '}
+        {info?.sheet != null ? `Page ${info.sheet + 1} sur ${pages}` : `${pages} page${pages > 1 ? 's' : ''}`}
+        {sectionCount > 1 && info ? ` · Section ${info.section + 1}` : ''} · {(info?.words ?? 0).toLocaleString('fr-CA')} mot{(info?.words ?? 0) > 1 ? 's' : ''} ·{' '}
         {LANGS[info?.lang ?? 'fr-CA'] ?? LANGS[(info?.lang ?? 'fr').split('-')[0]!] ?? info?.lang}
       </span>
       <span className="oel-statusbar__zoom" role="group" aria-label="Zoom de la page">

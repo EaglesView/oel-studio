@@ -4,7 +4,7 @@ import { Badge, Button, DialogOverlay, NumberField, Radio, RadioGroup, Select, S
 import type { DocSession } from '../collab/session';
 import { countWords } from '../model/ydoc';
 import { EMU_PER_PX, type PageSetup } from '../model/types';
-import { setPage } from './useDocEditor';
+import { setBackground, setSectionPage } from './useDocEditor';
 import { SPECIAL_CHARS } from './actions';
 
 interface Controlled {
@@ -81,9 +81,30 @@ const PAGE_COLORS = ['#FFFFFF', '#FFF8E7', '#F3F3F3', '#FCE5CD', '#D9EAD3', '#CF
 const twToCm = (tw: number) => Math.round((tw / 1440) * 2.54 * 100) / 100;
 const cmToTw = (cm: number) => Math.round((cm / 2.54) * 1440);
 
-export function PageSetupDialog({ session, page, isOpen, onClose }: Controlled & { session: DocSession; page: PageSetup }) {
+export function PageSetupDialog({
+  session,
+  page,
+  background,
+  sectionId,
+  sectionIndex,
+  sectionCount,
+  isOpen,
+  onClose,
+}: Controlled & { session: DocSession; page: PageSetup; background: string | null; sectionId: string; sectionIndex: number; sectionCount: number }) {
   const [draft, setDraft] = useState(page);
-  useEffect(() => void (isOpen && setDraft(page)), [isOpen, page]);
+  const [bg, setBg] = useState(background);
+  const [scope, setScope] = useState<'section' | 'all'>('section');
+  useEffect(() => {
+    if (!isOpen) return;
+    setDraft(page);
+    setBg(background);
+    setScope('section');
+  }, [isOpen, page, background]);
+  const apply = () => {
+    setSectionPage(session, sectionCount > 1 && scope === 'section' ? sectionId : 'all', draft);
+    if (bg !== background) setBackground(session, bg);
+    onClose();
+  };
   const landscape = draft.width > draft.height;
   const paper = PAPERS.find((p) => (p.w === draft.width && p.h === draft.height) || (p.h === draft.width && p.w === draft.height))?.id ?? 'custom';
   const margin = (k: 'top' | 'bottom' | 'left' | 'right', label: string) => (
@@ -97,11 +118,17 @@ export function PageSetupDialog({ session, page, isOpen, onClose }: Controlled &
         actions={() => (
           <>
             <Button variant="secondary" onPress={onClose}>Annuler</Button>
-            <Button onPress={() => (setPage(session, draft), onClose())}>OK</Button>
+            <Button onPress={apply}>OK</Button>
           </>
         )}
       >
         <div className="oel-form">
+          {sectionCount > 1 && (
+            <RadioGroup label="Appliquer à" orientation="horizontal" value={scope} onChange={(v) => setScope(v as 'section' | 'all')}>
+              <Radio value="section">Cette section (section {sectionIndex + 1})</Radio>
+              <Radio value="all">Tout le document</Radio>
+            </RadioGroup>
+          )}
           <RadioGroup
             label="Orientation"
             orientation="horizontal"
@@ -135,7 +162,7 @@ export function PageSetupDialog({ session, page, isOpen, onClose }: Controlled &
             <p className="emb-field__label">Couleur de la page</p>
             <div className="oel-swatches__grid">
               {PAGE_COLORS.map((c) => (
-                <button key={c} type="button" className={`oel-swatch${(draft.background ?? '#FFFFFF').toUpperCase() === c ? ' is-on' : ''}`} style={{ background: c }} aria-label={c} onClick={() => setDraft({ ...draft, background: c === '#FFFFFF' ? null : c })} />
+                <button key={c} type="button" className={`oel-swatch${(bg ?? '#FFFFFF').toUpperCase() === c ? ' is-on' : ''}`} style={{ background: c }} aria-label={c} onClick={() => setBg(c === '#FFFFFF' ? null : c)} />
               ))}
             </div>
           </div>

@@ -1,5 +1,5 @@
 import type { DocStyle, DocxJson, PMDoc } from './types';
-import { DEFAULT_PAGE } from './types';
+import { DEFAULT_SETTINGS, defaultSection } from './sections';
 
 const style = (id: string, name: string, role: string | null, outline: number | null = null, isDefault = false): DocStyle => ({
   id, name, kind: 'paragraph', role, basedOn: isDefault ? null : 'Normal', isDefault, quick: true, hidden: false, outline, numId: null,
@@ -20,12 +20,13 @@ export function blankDocxJson(doc?: PMDoc): DocxJson {
     '.oel-doc [data-rstyle="Hyperlink"]{color:#1155CC;text-decoration-line:underline;}',
   ].join('\n');
   return {
-    version: 1,
+    version: 2,
     doc: doc ?? { type: 'doc', content: [{ type: 'paragraph', attrs: { styleId: null } }] },
     notes: { footnote: {}, endnote: {} },
-    headers: {},
-    footers: {},
-    page: { ...DEFAULT_PAGE },
+    stories: {},
+    sections: [defaultSection()],
+    settings: { ...DEFAULT_SETTINGS },
+    background: null,
     styles: [
       style('Normal', 'Normal', 'normal', null, true),
       style('Title', 'Title', 'title'),

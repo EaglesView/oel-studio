@@ -60,7 +60,7 @@ interface PMish {
 const text = (n: PMish): string => (n.text ?? '') + (n.content ?? []).map(text).join(n.type === 'tableRow' ? ' ' : '');
 
 /** Desk preview from the codec's ProseMirror JSON (first blocks as text). */
-function previewOf(doc: PMish): Preview {
+function previewOf(doc: PMish, page?: { width: number; height: number }): Preview {
   const blocks: Array<{ type: 'heading' | 'paragraph'; text: string }> = [];
   let words = 0;
   const visit = (n: PMish) => {
@@ -73,7 +73,7 @@ function previewOf(doc: PMish): Preview {
     (n.content ?? []).forEach(visit);
   };
   visit(doc);
-  return { kind: 'document', blocks, wordCount: words, pageCount: Math.max(1, Math.ceil(words / 450)) };
+  return { kind: 'document', blocks, wordCount: words, pageCount: Math.max(1, Math.ceil(words / 450)), ...(page ? { page: { width: page.width, height: page.height } } : {}) };
 }
 
 /**
@@ -91,9 +91,9 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
         throw new Error('Format non pris en charge par le moteur DOCX');
       }
       const out = mod.docx_to_pm(bytes);
-      const json = JSON.parse(out.json) as { doc: PMish; title?: string | null };
+      const json = JSON.parse(out.json) as { doc: PMish; title?: string | null; sections?: Array<{ page: { width: number; height: number } }> };
       const payload: DocxPayload = { format: PAYLOAD_FORMATS.docx, json: out.json, media: out.media, original: bytes };
-      return { kind: 'document', title: json.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: previewOf(json.doc), payload };
+      return { kind: 'document', title: json.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: previewOf(json.doc, json.sections?.[0]?.page), payload };
     },
     export(mod, req) {
       if (req.format !== 'docx') throw new Error(`Format d’export inconnu : ${req.format}`);

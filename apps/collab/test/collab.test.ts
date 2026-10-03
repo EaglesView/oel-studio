@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { docsSchema } from '@oel/docs/schema';
-import { BODY, exportJsonFromYDoc, plainText, seedYDoc, type DocxJson } from '@oel/docs/model';
+import { BODY, exportJsonFromYDoc, plainText, sectionsMap, seedYDoc, type DocxJson } from '@oel/docs/model';
 import { signToken, verifyToken } from '../src/auth';
 import { createCollabServer } from '../src/server';
 
@@ -143,6 +143,31 @@ describe('collaboration server', () => {
     const back = JSON.parse(codec.docx_to_pm(bytes).json) as DocxJson;
     expect(plainText(back.doc)).toContain('Ajout de l’éditeur');
     expect(plainText(back.doc)).toContain('La première chose');
+  });
+
+  it('exports sections and shared headers/footers (format 2)', async () => {
+    const file = readFileSync(fileURLToPath(new URL('../../../fixtures/docx/sections-headers.docx', import.meta.url)));
+    const r = await fetch(`${base}/docs?title=Sections`, { method: 'POST', body: file });
+    const { docId: id, ownerToken } = (await r.json()) as { docId: string; ownerToken: string };
+    const a = connect(id, ownerToken);
+    await a.synced;
+    const json = JSON.parse(codec.docx_to_pm(file).json) as DocxJson;
+    expect(seedYDoc(a.document, json, docsSchema())).toBe(true);
+    // A collaborator widens the second section's left margin and drops the third's own footer.
+    const map = sectionsMap(a.document);
+    map.set('s2', { ...map.get('s2')!, page: { ...map.get('s2')!.page, left: 2880 } });
+    map.set('body', { ...map.get('body')!, footers: {} });
+    await new Promise((res) => setTimeout(res, 300));
+
+    const out = await api(`/docs/${id}/export.docx`, ownerToken);
+    expect(out.status).toBe(200);
+    const back = JSON.parse(codec.docx_to_pm(new Uint8Array(await out.arrayBuffer())).json) as DocxJson;
+    expect(back.sections.map((s) => s.id)).toEqual(['s1', 's2', 'body']);
+    expect(back.sections[1]!.page.left).toBe(2880);
+    expect(back.sections[0]!.headers).toEqual(json.sections[0]!.headers);
+    expect(back.sections[2]!.footers).toEqual({});
+    expect(back.settings.evenAndOddHeaders).toBe(true);
+    a.provider.destroy();
   });
 
   it('stores media behind unguessable ids', async () => {

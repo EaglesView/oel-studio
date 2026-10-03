@@ -6,10 +6,13 @@
 import type { PageSetup } from '@oel/engine/generated/oeldocx';
 
 export type {
+  Columns,
+  DocSettings,
   DocStyle,
   DocxJson,
   ExportJson,
   HeaderFooterKind,
+  HeaderFooterRefs,
   HighlightAttrs,
   ImageAttrs,
   Indent,
@@ -22,11 +25,15 @@ export type {
   PMDoc,
   PMMark,
   PMNode,
+  PageNumbering,
   PageSetup,
   ParagraphAttrs,
   SdtBlockAttrs,
+  Section,
+  SectionKind,
   Spacing,
   StoryPart,
+  StorySide,
   SyntheticListKind,
   TableAttrs,
   TableCellAttrs,
@@ -51,9 +58,6 @@ export const DEFAULT_PAGE: PageSetup = {
   header: 720,
   footer: 720,
   gutter: 0,
-  titlePg: false,
-  sectPr: null,
-  background: null,
 };
 
 export const TWIPS_PER_PX = 15;

@@ -42,9 +42,9 @@ function exportJson(e: Editor, base: DocxJson, extra: Partial<ExportJson> = {}):
   return {
     doc: e.getJSON() as ExportJson['doc'],
     notes: base.notes,
-    headers: base.headers,
-    footers: base.footers,
-    page: base.page,
+    stories: base.stories,
+    sections: base.sections,
+    background: base.background,
     numbering: { synthetic: [...e.storage.docList.synthetic].map(([numId, kind]) => ({ numId, kind })) },
     ...extra,
   };

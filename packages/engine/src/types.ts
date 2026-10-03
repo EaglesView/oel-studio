@@ -1,9 +1,15 @@
 /** What the editor shell adapts to (Figma 08 · Coquille adaptative). */
 export type FileKind = 'document' | 'slides' | 'spreadsheet' | 'pdf' | 'image' | 'note' | 'unsupported';
 
+/** Size of a document's first page, in twips (the desk paper takes its shape). */
+export interface PageSize {
+  width: number;
+  height: number;
+}
+
 /** Lightweight, serialisable preview: what a paper shows on the desk. */
 export type Preview =
-  | { kind: 'document'; blocks: Array<{ type: 'heading' | 'paragraph'; text: string }>; pageCount?: number; wordCount?: number }
+  | { kind: 'document'; blocks: Array<{ type: 'heading' | 'paragraph'; text: string }>; pageCount?: number; wordCount?: number; page?: PageSize }
   | { kind: 'slides'; slides: Array<{ title: string; body?: string }> }
   | { kind: 'spreadsheet'; sheets: string[]; rows: string[][] }
   | { kind: 'pdf'; pageCount: number; scanned: boolean; title?: string }
@@ -30,7 +36,7 @@ export interface ImportResult {
 
 /** oeldocx-rs import result: editor JSON (as text), images, and the original file for round trips. */
 export interface DocxPayload {
-  format: 'oeldocx-pm@1';
+  format: 'oeldocx-pm@2';
   json: string;
   media: Array<{ path: string; mime: string; bytes: Uint8Array }>;
   original: Uint8Array | null;

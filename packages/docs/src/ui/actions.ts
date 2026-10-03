@@ -5,10 +5,11 @@
  */
 import { generateHTML, type Editor, type JSONContent } from '@tiptap/core';
 import type { DocSession } from '../collab/session';
-import { docsExtensions } from '../extensions';
-import { noteKey, notesIndex, plainText, storiesIndex, storyKey } from '../model/ydoc';
+import { docsExtensions, SHARED_EDIT_ORIGIN } from '../extensions';
+import { fragmentJSON, noteKey, notesIndex, plainText, sectionsMap, storiesIndex, storyKey } from '../model/ydoc';
+import { effectiveStory, newSectionId, type PageInfo } from '../model/sections';
 import { prosemirrorJSONToYXmlFragment } from '@tiptap/y-tiptap';
-import { EMU_PER_PX, type HeaderFooterKind, type PMDoc, type PMNode } from '../model/types';
+import { EMU_PER_PX, type HeaderFooterKind, type PMDoc, type PMNode, type Section, type StorySide } from '../model/types';
 import { sanitizeStylesheet } from '../model/format';
 
 const staticExtensions = docsExtensions({ bare: true });
@@ -79,31 +80,135 @@ export function noteOrder(editor: Editor, kind: 'footnote' | 'endnote'): string[
 // Headers, footers, page numbers
 // ---------------------------------------------------------------------------
 
-export function ensureStory(editor: Editor, session: DocSession, side: 'header' | 'footer', kind: HeaderFooterKind = 'default') {
-  const idx = storiesIndex(session.ydoc);
-  const key = `${side}:${kind}`;
-  if (idx.has(key)) return;
+const randomStoryId = () => `hf-${Math.random().toString(36).slice(2, 10)}`;
+
+/** A new header/footer story (one empty paragraph in the Header/Footer style), or a copy of `from`. */
+export function createStory(editor: Editor, session: DocSession, side: StorySide, from?: string | null): string {
+  const id = randomStoryId();
   const styleId = editor.storage.paragraph.styles.idForRole(side) ?? (side === 'header' ? 'Header' : 'Footer');
+  const doc = from ? fragmentJSON(session.ydoc.getXmlFragment(storyKey(from))) : { type: 'doc' as const, content: [{ type: 'paragraph', attrs: { styleId } }] };
   session.ydoc.transact(() => {
-    prosemirrorJSONToYXmlFragment(editor.schema, { type: 'doc', content: [{ type: 'paragraph', attrs: { styleId } }] }, session.ydoc.getXmlFragment(storyKey(side, kind)));
-    idx.set(key, '');
+    prosemirrorJSONToYXmlFragment(editor.schema, doc.content.length ? doc : { type: 'doc', content: [{ type: 'paragraph', attrs: { styleId } }] }, session.ydoc.getXmlFragment(storyKey(id)));
+    storiesIndex(session.ydoc).set(id, { part: null, side });
   });
+  return id;
 }
 
-export function removeStory(session: DocSession, side: 'header' | 'footer', kind: HeaderFooterKind = 'default') {
+/** Point one section's slot at a story (`null` = no reference of its own: inherit). */
+export function setSectionStory(session: DocSession, sectionId: string, side: StorySide, kind: HeaderFooterKind, storyId: string | null) {
+  const map = sectionsMap(session.ydoc);
+  const s = map.get(sectionId);
+  if (!s) return;
+  const key = side === 'header' ? 'headers' : 'footers';
+  const refs = { ...s[key] };
+  if (storyId) refs[kind] = storyId;
+  else delete refs[kind];
+  session.ydoc.transact(() => map.set(sectionId, { ...s, [key]: refs }), SHARED_EDIT_ORIGIN);
+}
+
+/** The story a section's slot shows, created on that section when there is none. */
+export function ensureStory(editor: Editor, session: DocSession, sections: Section[], index: number, side: StorySide, kind: HeaderFooterKind = 'default'): string {
+  const found = effectiveStory(sections, index, side, kind);
+  if (found && storiesIndex(session.ydoc).has(found)) return found;
+  const id = createStory(editor, session, side);
+  setSectionStory(session, sections[index]!.id, side, kind, id);
+  return id;
+}
+
+/**
+ * « Lier au précédent » (Word's Link to previous). On: the section drops its
+ * own reference and shows the previous section's story. Off: it gets its own
+ * copy of what it was showing.
+ */
+export function linkToPrevious(editor: Editor, session: DocSession, sections: Section[], index: number, side: StorySide, kind: HeaderFooterKind, link: boolean): string | null {
+  const id = sections[index]!.id;
+  if (link) {
+    setSectionStory(session, id, side, kind, null);
+    return effectiveStory(sections, index - 1, side, kind);
+  }
+  const inherited = effectiveStory(sections, index, side, kind);
+  const copy = createStory(editor, session, side, inherited);
+  setSectionStory(session, id, side, kind, copy);
+  return copy;
+}
+
+/** Remove a story: every section referencing it stops doing so. */
+export function removeStory(session: DocSession, storyId: string) {
   session.ydoc.transact(() => {
-    storiesIndex(session.ydoc).delete(`${side}:${kind}`);
-    const f = session.ydoc.getXmlFragment(storyKey(side, kind));
+    const map = sectionsMap(session.ydoc);
+    for (const [id, s] of [...map.entries()]) {
+      const strip = (refs: Section['headers']) => Object.fromEntries(Object.entries(refs).filter(([, v]) => v !== storyId));
+      const headers = strip(s.headers);
+      const footers = strip(s.footers);
+      if (Object.keys(headers).length !== Object.keys(s.headers).length || Object.keys(footers).length !== Object.keys(s.footers).length) map.set(id, { ...s, headers, footers });
+    }
+    storiesIndex(session.ydoc).delete(storyId);
+    const f = session.ydoc.getXmlFragment(storyKey(storyId));
     f.delete(0, f.length);
   });
 }
 
+/** Index of the section that contains document position `pos`. */
+export function sectionIndexAt(editor: Editor, pos: number): number {
+  const { blockSection } = editor.storage.pagination.layout;
+  const doc = editor.state.doc;
+  const index = doc.resolve(Math.max(0, Math.min(pos, doc.content.size))).index(0);
+  return blockSection[index] ?? blockSection[blockSection.length - 1] ?? 0;
+}
+
+/**
+ * Insert a section break at the selection (« Saut de section »): the text
+ * before it becomes a new section with the current one's setup; the current
+ * section continues after it and starts as `kind`.
+ */
+export function insertSectionBreak(editor: Editor, session: DocSession, kind: 'nextPage' | 'continuous') {
+  const { sections } = editor.storage.pagination.layout;
+  const current = sections[sectionIndexAt(editor, editor.state.selection.from)];
+  if (!current) return false;
+  const id = newSectionId();
+  const map = sectionsMap(session.ydoc);
+  const record = map.get(current.id) ?? current;
+  // Split at the cursor (or after the current paragraph when it is at its end), then mark the first half.
+  const ok = editor
+    .chain()
+    .focus()
+    .command(({ tr, state }) => {
+      const { $from } = state.selection;
+      if ($from.depth < 1 || $from.node(1).type.name !== 'paragraph' || $from.depth > 1) return false;
+      const para = $from.node(1);
+      const start = $from.before(1);
+      const atEnd = $from.parentOffset === para.content.size;
+      if (atEnd) tr.insert(start + para.nodeSize, state.schema.nodes.paragraph!.create({ ...para.attrs, section: null, numId: null, pPr: null }));
+      else tr.split($from.pos);
+      // The first half ends the new section; a break the paragraph already had stays at its end (second half).
+      tr.setNodeAttribute(start, 'section', id);
+      const second = start + tr.doc.nodeAt(start)!.nodeSize;
+      tr.setNodeAttribute(second, 'section', para.attrs.section ?? null);
+      return true;
+    })
+    .run();
+  if (!ok) return false;
+  session.ydoc.transact(() => {
+    map.set(id, { ...record, id });
+    map.set(current.id, { ...record, kind });
+  }, SHARED_EDIT_ORIGIN);
+  return true;
+}
+
+/** Number of pages per section index (for SECTIONPAGES). */
+export function pagesPerSection(pages: PageInfo[]): Map<number, number> {
+  const m = new Map<number, number>();
+  for (const p of pages) m.set(p.section, (m.get(p.section) ?? 0) + 1);
+  return m;
+}
+
 export const PAGE_FIELD = { type: 'ooxmlInline', attrs: { xml: '<w:fldSimple w:instr=" PAGE "><w:r><w:t>1</w:t></w:r></w:fldSimple>', label: '1', hidden: false, field: 'PAGE' } };
 
-/** Page numbers at the bottom right, as Docs' "Numéros de page". */
+/** Page numbers at the bottom right, as Docs' "Numéros de page" (the first section's footer, inherited by the next ones). */
 export function insertPageNumbers(editor: Editor, session: DocSession) {
-  ensureStory(editor, session, 'footer');
-  const frag = session.ydoc.getXmlFragment(storyKey('footer', 'default'));
+  const { sections } = editor.storage.pagination.layout;
+  const id = ensureStory(editor, session, sections, 0, 'footer');
+  const frag = session.ydoc.getXmlFragment(storyKey(id));
   const styleId = editor.storage.paragraph.styles.idForRole('footer') ?? 'Footer';
   session.ydoc.transact(() => {
     frag.delete(0, frag.length);
@@ -119,8 +224,8 @@ const TOC_PR = '<w:docPartObj><w:docPartGallery w:val="Table of Contents"/><w:do
 const fld = (xml: string, field: string | null = null) => ({ type: 'ooxmlInline', attrs: { xml, label: '', hidden: true, field } });
 
 /** Build (or rebuild) a Word-compatible TOC from the headings; Word can refresh it (it is a TOC field). */
-export function tocNode(editor: Editor, pageOf: (pos: number) => number | null): PMNode {
-  const entries: Array<{ text: string; level: number; page: number | null }> = [];
+export function tocNode(editor: Editor, pageOf: (pos: number) => number | string | null): PMNode {
+  const entries: Array<{ text: string; level: number; page: number | string | null }> = [];
   editor.state.doc.descendants((n, pos) => {
     if (n.type.name === 'sdtBlock' && n.attrs.gallery === 'Table of Contents') return false;
     if (n.type.name === 'paragraph' && n.attrs.outline != null && n.attrs.outline < 3 && n.textContent.trim()) {
@@ -146,7 +251,7 @@ export function tocNode(editor: Editor, pageOf: (pos: number) => number | null):
   return { type: 'sdtBlock', attrs: { sdtPr: TOC_PR, gallery: 'Table of Contents' }, content: paras };
 }
 
-export function insertOrUpdateToc(editor: Editor, pageOf: (pos: number) => number | null) {
+export function insertOrUpdateToc(editor: Editor, pageOf: (pos: number) => number | string | null) {
   const node = tocNode(editor, pageOf);
   let existing: { pos: number; size: number } | null = null;
   editor.state.doc.descendants((n, pos) => {

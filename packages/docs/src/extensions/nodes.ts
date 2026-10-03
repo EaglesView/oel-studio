@@ -85,7 +85,7 @@ export const DocParagraph = Node.create({
       ilvl: raw(0),
       outline: raw(),
       css: raw(),
-      sectionBreak: { default: false, rendered: false, keepOnSplit: false },
+      section: { default: null, rendered: false, keepOnSplit: false },
       checked: raw(),
     };
   },
@@ -120,7 +120,7 @@ export const DocParagraph = Node.create({
       mergeAttributes(HTMLAttributes, {
         class: 'oel-p',
         'data-style': a.styleId ?? undefined,
-        'data-section-break': a.sectionBreak ? '' : undefined,
+        'data-section': a.section ?? undefined,
         style: paragraphCss(a) || undefined,
       }),
       0,

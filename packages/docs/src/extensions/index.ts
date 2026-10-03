@@ -1,4 +1,4 @@
-import { getSchema, type AnyExtension } from '@tiptap/core';
+import { Extension, getSchema, type AnyExtension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Color, FontFamily, FontSize } from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
@@ -7,7 +7,8 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
+import { defaultDeleteFilter, defaultProtectedNodes, ySyncPluginKey } from '@tiptap/y-tiptap';
 import {
   DocImage,
   DocParagraph,
@@ -37,7 +38,16 @@ export interface DocsExtensionOptions {
   pagination?: boolean;
   /** Minimal set for schema checks and static rendering (no plugins with views). */
   bare?: boolean;
+  /**
+   * Other shared types undone together with the fragment (e.g. the section
+   * records, so a section break is one undo step). Changes to them are tracked
+   * when made in a transaction with origin `SHARED_EDIT_ORIGIN`.
+   */
+  undoAlso?: Array<Y.AbstractType<unknown>>;
 }
+
+/** Transaction origin for edits outside the fragment that undo/redo should include. */
+export const SHARED_EDIT_ORIGIN = 'oel-shared-edit';
 
 export function docsExtensions(o: DocsExtensionOptions = {}): AnyExtension[] {
   const exts: AnyExtension[] = [
@@ -84,7 +94,18 @@ export function docsExtensions(o: DocsExtensionOptions = {}): AnyExtension[] {
     exts.push(FindReplace, DocEditing, CharacterCount, Placeholder.configure({ placeholder: o.placeholder ?? 'Commencez à écrire…' }));
     if (o.pagination !== false) exts.push(Pagination);
   }
-  if (o.fragment) exts.push(Collaboration.configure({ fragment: o.fragment }));
+  if (o.fragment) {
+    // Same settings as y-tiptap's own manager, with a wider scope; we own its lifecycle.
+    const undoManager = o.undoAlso?.length
+      ? new Y.UndoManager([o.fragment, ...o.undoAlso], {
+          trackedOrigins: new Set<unknown>([ySyncPluginKey, SHARED_EDIT_ORIGIN]),
+          deleteFilter: (item) => defaultDeleteFilter(item, defaultProtectedNodes),
+          captureTransaction: (tr) => tr.meta.get('addToHistory') !== false,
+        })
+      : null;
+    exts.push(Collaboration.configure({ fragment: o.fragment, ...(undoManager ? { yUndoOptions: { undoManager } } : {}) }));
+    if (undoManager) exts.push(Extension.create({ name: 'sharedUndoLifecycle', onDestroy: () => undoManager.destroy() }));
+  }
   return exts;
 }
 

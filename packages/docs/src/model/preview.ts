@@ -1,5 +1,7 @@
 import type { PMDoc, PMNode } from './types';
-import { countWords, plainText } from './ydoc';
+import type * as Y from 'yjs';
+import { BODY, countWords, fragmentJSON, plainText, sectionsById } from './ydoc';
+import { sectionBreaks, sectionOrder } from './sections';
 
 /** Same shape as `@oel/engine`'s document Preview (kept structural to avoid a dependency). */
 export interface DocumentPreview {
@@ -7,10 +9,12 @@ export interface DocumentPreview {
   blocks: Array<{ type: 'heading' | 'paragraph'; text: string }>;
   pageCount?: number;
   wordCount?: number;
+  /** First page size, twips: the desk paper takes its shape. */
+  page?: { width: number; height: number };
 }
 
 /** Desk thumbnail content: the first blocks of the document as text. */
-export function toPreview(doc: PMDoc, pageCount?: number, limit = 40): DocumentPreview {
+export function toPreview(doc: PMDoc, pageCount?: number, limit = 40, page?: { width: number; height: number }): DocumentPreview {
   const blocks: DocumentPreview['blocks'] = [];
   const visit = (n: PMNode) => {
     if (blocks.length >= limit) return;
@@ -23,7 +27,14 @@ export function toPreview(doc: PMDoc, pageCount?: number, limit = 40): DocumentP
   };
   visit(doc);
   const wordCount = countWords(plainText(doc));
-  return { kind: 'document', blocks, wordCount, pageCount: pageCount ?? Math.max(1, Math.ceil(wordCount / 450)) };
+  return { kind: 'document', blocks, wordCount, pageCount: pageCount ?? Math.max(1, Math.ceil(wordCount / 450)), ...(page ? { page } : {}) };
+}
+
+/** Desk preview straight from the shared document (first page size included). */
+export function previewFromYDoc(ydoc: Y.Doc, pageCount?: number): DocumentPreview {
+  const doc = fragmentJSON(ydoc.getXmlFragment(BODY));
+  const first = sectionOrder(sectionBreaks(doc), sectionsById(ydoc))[0];
+  return toPreview(doc, pageCount, 40, first ? { width: first.page.width, height: first.page.height } : undefined);
 }
 
 /** A document from the preview engine's blocks (papers created before the codec existed). */

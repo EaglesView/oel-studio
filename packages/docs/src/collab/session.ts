@@ -6,7 +6,7 @@
 import * as Y from 'yjs';
 import type { Schema } from '@tiptap/pm/model';
 import { CollabApi, YSession, createRemoteDoc, localFiles, mediaKey, randomId, type Identity } from '@oel/collab-client';
-import { exportJsonFromYDoc, mediaIndex, replaceYDocContent, seedYDoc, BODY } from '../model/ydoc';
+import { assertFormat, exportJsonFromYDoc, mediaIndex, replaceYDocContent, seedYDoc, BODY } from '../model/ydoc';
 import type { DocxJson, ExportJson, MediaFile } from '../model/types';
 
 export { tokenStore, type Peer, type SessionStatus } from '@oel/collab-client';
@@ -24,11 +24,22 @@ export class DocSession extends YSession {
     super('doc', docId, token, api, identity);
   }
 
-  /** Open an existing document (or a new local one when `docId` is empty). */
+  /**
+   * Open an existing document (or a new local one when `docId` is empty).
+   * Rejects with a `DocFormatError` (fr-CA message) when the stored document
+   * uses another Y.Doc layout version: re-import the .docx instead.
+   */
   static async open(o: { docId?: string | null; token?: string | null; api?: CollabApi | null; identity: Identity; seed?: SeedInput | null; schema?: Schema }): Promise<DocSession> {
     const { docId, token } = YSession.ids(o.docId, o.token);
     const s = new DocSession(docId, token, o.api ?? null, o.identity);
     await s.start();
+    if (s.provider && !s.isSeeded) await s.waitSynced(4000);
+    try {
+      assertFormat(s.ydoc);
+    } catch (e) {
+      s.destroy();
+      throw e;
+    }
     if (o.seed && o.schema) await s.seed(o.seed, o.schema);
     await s.preloadMedia();
     return s;

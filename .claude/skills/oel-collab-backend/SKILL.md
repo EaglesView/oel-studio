@@ -14,6 +14,7 @@ description: Server-side work for OutilsEnLigne in apps/collab (Hocuspocus/Yjs +
 - `src/main.ts` — config (`COLLAB_SECRET`, `COLLAB_PUBLIC_URL`, `COLLAB_DATA_DIR`, port 8787).
 - `src/server.ts` — Hono routes + Hocuspocus (`onAuthenticate` checks share tokens; viewers read-only). Server-side exports use `exportJsonFromYDoc` (`@oel/docs/model`) / `SheetDoc` (`@oel/sheets/model`) and the Node WASM builds (`oeldocx-node`, `oelxlsx-node`).
 - `src/db.ts` — `Store` on `node:sqlite` (docs, links, versions, media, packages); `DocKind = 'doc' | 'sheet'`.
+- Documents use Y.Doc layout version 2 (`FORMAT_VERSION` in `@oel/docs/model/ydoc.ts`: sections map + stories by id); `exportJsonFromYDoc` orders sections from the body, so server exports need nothing else. Stored dev data of an older version is not migrated: delete `apps/collab/data/` and re-import.
 - `src/auth.ts` — HMAC tokens `{ d, r, l }`, `canEdit`.
 - Client: `packages/collab-client/src/api.ts` (`CollabApi`) — add the matching client method there, not in an editor.
 

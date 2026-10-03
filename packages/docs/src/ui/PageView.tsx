@@ -3,12 +3,11 @@ import { EditorContent, type Editor } from '@tiptap/react';
 import { Button, Checkbox } from '@oel/emboss';
 import type { DocSession } from '../collab/session';
 import { fragmentJSON, noteKey, notesIndex, storiesIndex, storyKey } from '../model/ydoc';
-import { twipsToPx, type HeaderFooterKind } from '../model/types';
-import { PAGE_GAP, setPage, type DocMeta } from './useDocEditor';
+import type { HeaderFooterKind, Section, StorySide } from '../model/types';
+import { effectiveStory, pageKind, sectionsPhrase, sectionsUsingStory, storyOwner, type PageInfo } from '../model/sections';
+import { updateSections, type DocMeta } from './useDocEditor';
 import { StoryEditor } from './StoryEditor';
-import { noteOrder, removeStory, toHTML } from './actions';
-
-type Side = 'header' | 'footer';
+import { createStory, linkToPrevious, noteOrder, pagesPerSection, removeStory, setSectionStory, toHTML } from './actions';
 
 /** Live HTML of every header/footer story, for drawing them on each sheet. */
 function useStories(session: DocSession) {
@@ -19,12 +18,11 @@ function useStories(session: DocSession) {
     const render = () => {
       frame = 0;
       const out: Record<string, string> = {};
-      idx.forEach((_, key) => {
-        const [side, kind] = key.split(':') as [Side, HeaderFooterKind];
+      idx.forEach((_, id) => {
         try {
-          out[key] = toHTML(fragmentJSON(session.ydoc.getXmlFragment(storyKey(side, kind))));
+          out[id] = toHTML(fragmentJSON(session.ydoc.getXmlFragment(storyKey(id))));
         } catch {
-          out[key] = '';
+          out[id] = '';
         }
       });
       setStories(out);
@@ -42,13 +40,44 @@ function useStories(session: DocSession) {
   return stories;
 }
 
-/** Fill PAGE / NUMPAGES fields inside a static header or footer. */
-function Fields({ html, page, pages, className }: { html: string; page: number; pages: number; className: string }) {
+/** The laid-out sheets, live. */
+export function usePages(editor: Editor | null): PageInfo[] {
+  const [pages, setPages] = useState<PageInfo[]>(() => editor?.storage.pagination.pages ?? []);
+  useEffect(() => {
+    if (!editor) return;
+    const st = editor.storage.pagination;
+    const l = (p: PageInfo[]) => setPages(p);
+    st.listeners.add(l);
+    setPages(st.pages);
+    return () => void st.listeners.delete(l);
+  }, [editor]);
+  return pages;
+}
+
+/** Sections in layout order, with the latest records from the shared document. */
+export function useOrderedSections(editor: Editor, docMeta: DocMeta, pages: PageInfo[]): Section[] {
+  return useMemo(
+    () => editor.storage.pagination.layout.sections.map((s) => docMeta.sections.get(s.id) ?? s),
+    // `pages` changes whenever the layout does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editor, docMeta.sections, pages],
+  );
+}
+
+interface FieldValues {
+  page: string;
+  pages: number;
+  sectionPages: number;
+}
+
+/** Fill PAGE / NUMPAGES / SECTIONPAGES fields inside a static header or footer. */
+function Fields({ html, values, className }: { html: string; values: FieldValues; className: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const root = ref.current;
     if (!root) return;
-    const value = (field: string | undefined) => (field === 'PAGE' ? String(page) : field === 'NUMPAGES' ? String(pages) : null);
+    const value = (field: string | undefined) =>
+      field === 'PAGE' ? values.page : field === 'NUMPAGES' ? String(values.pages) : field === 'SECTIONPAGES' ? String(values.sectionPages) : null;
     // Simple fields (w:fldSimple) render as one element.
     root.querySelectorAll<HTMLElement>('[data-field]:not([data-hidden])').forEach((el) => {
       const v = value(el.dataset.field);
@@ -77,15 +106,18 @@ function Fields({ html, page, pages, className }: { html: string; page: number; 
         first = false;
       }
     }
-  }, [html, page, pages]);
+  }, [html, values.page, values.pages, values.sectionPages]);
   return <div ref={ref} className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export interface EditingStory {
-  side: Side;
+  side: StorySide;
   kind: HeaderFooterKind;
   /** Sheet it was opened on (the editor appears there). */
   page: number;
+  /** Section shown on that sheet, and the story being edited. */
+  section: number;
+  storyId: string;
 }
 
 export interface PageViewProps {
@@ -101,22 +133,14 @@ export interface PageViewProps {
   children?: ReactNode;
 }
 
-export function PageView({ editor, session, docMeta, editable, paginated, zoom, onStoryFocus, editingStory, setEditingStory, children }: PageViewProps) {
-  const [pages, setPages] = useState(editor.storage.pagination.pages);
-  useEffect(() => {
-    const st = editor.storage.pagination;
-    const l = (n: number) => setPages(n);
-    st.listeners.add(l);
-    setPages(st.pages);
-    return () => void st.listeners.delete(l);
-  }, [editor]);
+const SIDE_LABEL: Record<StorySide, string> = { header: 'En-tête', footer: 'Pied de page' };
+const KIND_LABEL: Record<HeaderFooterKind, string> = { default: '', first: ' · première page', even: ' · pages paires' };
 
+export function PageView({ editor, session, docMeta, editable, paginated, zoom, onStoryFocus, editingStory, setEditingStory, children }: PageViewProps) {
+  const pages = usePages(editor);
+  const sections = useOrderedSections(editor, docMeta, pages);
   const stories = useStories(session);
-  const p = docMeta.page;
-  const W = twipsToPx(p.width);
-  const H = twipsToPx(p.height);
-  const m = { top: twipsToPx(p.top), right: twipsToPx(p.right), bottom: twipsToPx(p.bottom), left: twipsToPx(p.left), header: twipsToPx(p.header), footer: twipsToPx(p.footer) };
-  const stride = H + PAGE_GAP;
+  const { frame } = editor.storage.pagination.layout;
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
   useEffect(() => {
@@ -127,36 +151,97 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
     return () => ro.disconnect();
   }, []);
 
-  const count = paginated ? pages : 1;
-  const sheetHeight = paginated ? H : Math.max(H, bodyHeight + m.top + m.bottom);
-  const total = paginated ? count * stride - PAGE_GAP : sheetHeight;
+  const sheets = pages.length ? pages : editor.storage.pagination.pages;
+  const first = sheets[0]!;
+  const W = frame.width;
+  const single = !paginated;
+  const sheetHeight = (p: PageInfo) => (single ? Math.max(p.height, bodyHeight + p.margins.top + p.margins.bottom) : p.height);
+  const last = sheets[sheets.length - 1]!;
+  const total = single ? sheetHeight(first) : last.top + last.height;
+  const perSection = useMemo(() => pagesPerSection(sheets), [sheets]);
 
-  const storyFor = (side: Side, page: number): HeaderFooterKind | null => {
-    if (p.titlePg && page === 0) return stories[`${side}:first`] !== undefined ? 'first' : null;
-    return stories[`${side}:default`] !== undefined ? 'default' : null;
+  const slotOf = (side: StorySide, p: PageInfo) => {
+    const section = sections[p.section];
+    const kind = section ? pageKind(p.indexInSection, p.number, section, docMeta.settings) : 'default';
+    const id = effectiveStory(sections, p.section, side, kind);
+    return { kind, id: id && stories[id] !== undefined ? id : null };
   };
 
-  const zone = (side: Side, page: number) => {
-    const kind = storyFor(side, page);
-    const editingHere = editingStory?.side === side && editingStory.page === page;
-    const style = side === 'header' ? { top: m.header, left: m.left, right: m.right } : { bottom: m.footer, left: m.left, right: m.right };
-    const label = side === 'header' ? 'En-tête' : 'Pied de page';
-    const open = () => {
-      if (!editable) return;
-      setEditingStory({ side, kind: kind ?? (p.titlePg && page === 0 ? 'first' : 'default'), page });
+  const open = (side: StorySide, index: number) => {
+    if (!editable) return;
+    const p = sheets[index]!;
+    const { kind, id } = slotOf(side, p);
+    let storyId = id;
+    if (!storyId) {
+      storyId = createStory(editor, session, side);
+      setSectionStory(session, sections[p.section]!.id, side, kind, storyId);
+    }
+    setEditingStory({ side, kind, page: index, section: p.section, storyId });
+  };
+
+  const bar = (e: EditingStory) => {
+    const section = sections[e.section];
+    if (!section) return null;
+    const own = (e.side === 'header' ? section.headers : section.footers)[e.kind];
+    const linked = e.section > 0 && !own;
+    const users = sectionsUsingStory(sections, e.storyId).filter((i) => i !== e.section);
+    const relink = (link: boolean) => {
+      const next = linkToPrevious(editor, session, sections, e.section, e.side, e.kind, link);
+      if (next) setEditingStory({ ...e, storyId: next });
+      else setEditingStory(null);
     };
+    const remove = () => {
+      const owner = storyOwner(sections, e.section, e.side, e.kind);
+      // Only drop the reference when other sections still use the story; else delete it.
+      if (users.length && owner != null) setSectionStory(session, sections[owner]!.id, e.side, e.kind, null);
+      else removeStory(session, e.storyId);
+      setEditingStory(null);
+    };
+    return (
+      <div className="oel-hf__bar" onMouseDown={(ev) => ev.preventDefault()}>
+        <span className="oel-hf__label">
+          {sections.length > 1 ? `Section ${e.section + 1} · ` : ''}
+          {SIDE_LABEL[e.side]}
+          {KIND_LABEL[e.kind]}
+        </span>
+        {users.length > 0 && <span className="oel-hf__shared">Aussi utilisé par {sectionsPhrase(users)}</span>}
+        {e.section > 0 && (
+          <Checkbox isSelected={linked} onChange={relink}>
+            Lier au précédent
+          </Checkbox>
+        )}
+        <Checkbox isSelected={section.titlePg} onChange={(v) => updateSections(session, section.id, () => ({ titlePg: v }))}>
+          Première page différente
+        </Checkbox>
+        <Button size="sm" variant="ghost" onPress={remove}>
+          Supprimer
+        </Button>
+        <Button size="sm" variant="secondary" onPress={() => setEditingStory(null)}>
+          Fermer
+        </Button>
+      </div>
+    );
+  };
+
+  const zone = (side: StorySide, index: number) => {
+    const p = sheets[index]!;
+    const editingHere = editingStory?.side === side && editingStory.page === index;
+    const m = p.margins;
+    const style = side === 'header' ? { top: m.header, left: m.left, right: m.right } : { bottom: m.footer, left: m.left, right: m.right };
+    const label = SIDE_LABEL[side];
+    const { id } = slotOf(side, p);
     return (
       <div
         className={`oel-hf oel-hf--${side}${editingHere ? ' is-editing' : ''}`}
         style={style}
-        onDoubleClick={open}
+        onDoubleClick={() => open(side, index)}
         title={editable && !editingHere ? `Double-cliquez pour modifier : ${label.toLowerCase()}` : undefined}
       >
         {editingHere && editingStory ? (
           <div className="oel-hf__editor">
             <StoryEditor
               session={session}
-              fragment={storyKey(side, editingStory.kind)}
+              fragment={storyKey(editingStory.storyId)}
               docMeta={docMeta}
               editable={editable}
               label={label}
@@ -164,47 +249,33 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
               className="oel-doc oel-hf__content"
               onFocus={onStoryFocus}
             />
-            <div className="oel-hf__bar" onMouseDown={(e) => e.preventDefault()}>
-              <span className="oel-hf__label">{label}{editingStory.kind === 'first' ? ' · première page' : ''}</span>
-              <Checkbox isSelected={p.titlePg} onChange={(v) => setPage(session, { titlePg: v })}>
-                Première page différente
-              </Checkbox>
-              <Button size="sm" variant="ghost" onPress={() => (removeStory(session, side, editingStory.kind), setEditingStory(null))}>
-                Supprimer
-              </Button>
-              <Button size="sm" variant="secondary" onPress={() => setEditingStory(null)}>
-                Fermer
-              </Button>
-            </div>
+            {bar(editingStory)}
           </div>
-        ) : kind ? (
-          <Fields html={stories[`${side}:${kind}`] ?? ''} page={page + 1} pages={count} className="oel-doc oel-hf__content" />
+        ) : id ? (
+          <Fields html={stories[id] ?? ''} values={{ page: p.label, pages: sheets.length, sectionPages: perSection.get(p.section) ?? 1 }} className="oel-doc oel-hf__content" />
         ) : null}
       </div>
     );
   };
 
-  // Ensure a story exists before editing it.
-  useEffect(() => {
-    if (!editingStory) return;
-    const key = `${editingStory.side}:${editingStory.kind}`;
-    const idx = storiesIndex(session.ydoc);
-    if (!idx.has(key)) idx.set(key, '');
-  }, [editingStory, session]);
-
   return (
     <div className="oel-pages" style={{ width: W * zoom, minHeight: total * zoom }}>
       <div className="oel-pages__inner" style={{ zoom, width: W }}>
         <div className="oel-sheets" style={{ height: total }} aria-hidden={!editingStory}>
-          {Array.from({ length: count }, (_, i) => (
-            <div key={i} className="oel-sheet" style={{ top: paginated ? i * stride : 0, height: sheetHeight, width: W, background: p.background ?? undefined }}>
+          {(single ? [first] : sheets).map((p, i) => (
+            <div
+              key={i}
+              className={`oel-sheet${p.blank ? ' is-blank' : ''}`}
+              data-section={p.sectionId}
+              style={{ top: single ? 0 : p.top, left: p.sheetLeft, height: sheetHeight(p), width: p.width, background: docMeta.background ?? undefined }}
+            >
               {zone('header', i)}
               {zone('footer', i)}
-              {paginated && count > 1 && <span className="oel-sheet__num" aria-hidden>{i + 1}</span>}
+              {!single && sheets.length > 1 && <span className="oel-sheet__num" aria-hidden>{p.label}</span>}
             </div>
           ))}
         </div>
-        <div className="oel-doc oel-body-wrap" ref={bodyRef} style={{ marginTop: m.top, marginLeft: m.left, width: W - m.left - m.right }}>
+        <div className="oel-doc oel-body-wrap" ref={bodyRef} style={{ marginTop: first.margins.top, marginLeft: frame.textLeft, width: frame.textWidth }}>
           <EditorContent editor={editor} />
         </div>
         {children}

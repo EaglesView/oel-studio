@@ -10,8 +10,8 @@ describe('payload format guard', () => {
   });
 
   it('refuses unknown or missing formats with a French message', () => {
-    expect(() => asDocxPayload({ format: 'oeldocx-pm@2', json: '{}' })).toThrow(PayloadFormatError);
-    expect(() => asDocxPayload({ format: 'oeldocx-pm@2' })).toThrow(/non pris en charge.*oeldocx-pm@2/);
+    expect(() => asDocxPayload({ format: 'oeldocx-pm@1', json: '{}' })).toThrow(PayloadFormatError);
+    expect(() => asDocxPayload({ format: 'oeldocx-pm@9' })).toThrow(/non pris en charge.*oeldocx-pm@9/);
     expect(() => asWorkbookPayload({ format: PAYLOAD_FORMATS.docx })).toThrow(/attendu « oelxlsx-workbook@1 »/);
     expect(() => asWorkbookPayload(undefined)).toThrow(/Contenu illisible/);
   });

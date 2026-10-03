@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useEditor, type Editor } from '@tiptap/react';
 import type * as Y from 'yjs';
-import { docsExtensions, fallbackRegistry, type StyleRegistry } from '../extensions';
+import { docsExtensions, fallbackRegistry, SHARED_EDIT_ORIGIN, type StyleRegistry } from '../extensions';
 import type { DocSession } from '../collab/session';
-import { lists, meta } from '../model/ydoc';
-import { DEFAULT_PAGE, twipsToPx, type DocStyle, type NumberingDefs, type PageSetup } from '../model/types';
+import { lists, meta, sectionsById, sectionsMap, settingsOf } from '../model/ydoc';
+import { defaultSection, BODY_SECTION } from '../model/sections';
+import type { DocSettings, DocStyle, NumberingDefs, PageSetup, Section } from '../model/types';
 import { sanitizeStylesheet } from '../model/format';
 
 export const PAGE_GAP = 24;
 
 export interface DocMeta {
-  page: PageSetup;
+  /** Section records by id; their order comes from the body (see `editor.storage.pagination.layout`). */
+  sections: Map<string, Section>;
+  settings: DocSettings;
+  /** Page colour, `#RRGGBB`. */
+  background: string | null;
   styles: DocStyle[];
   stylesCss: string;
   defaults: { fontFamily: string; fontSize: string };
@@ -21,7 +26,9 @@ export interface DocMeta {
 function readMeta(ydoc: Y.Doc): DocMeta {
   const m = meta(ydoc);
   return {
-    page: { ...DEFAULT_PAGE, ...((m.get('page') as PageSetup | undefined) ?? {}) },
+    sections: sectionsById(ydoc),
+    settings: settingsOf(ydoc),
+    background: (m.get('background') as string | null | undefined) ?? null,
     styles: (m.get('styles') as DocStyle[] | undefined) ?? [],
     stylesCss: sanitizeStylesheet((m.get('stylesCss') as string | undefined) ?? ''),
     defaults: (m.get('defaults') as DocMeta['defaults'] | undefined) ?? { fontFamily: 'Arial', fontSize: '11pt' },
@@ -46,22 +53,40 @@ export function useDocMeta(session: DocSession): DocMeta {
   useEffect(() => {
     const m = meta(session.ydoc);
     const update = () => setState(readMeta(session.ydoc));
+    const sm = sectionsMap(session.ydoc);
     m.observe(update);
+    sm.observe(update);
     update();
-    return () => m.unobserve(update);
+    return () => {
+      m.unobserve(update);
+      sm.unobserve(update);
+    };
   }, [session]);
   return state;
 }
 
-export function setPage(session: DocSession, patch: Partial<PageSetup>) {
-  const m = meta(session.ydoc);
-  m.set('page', { ...DEFAULT_PAGE, ...((m.get('page') as PageSetup) ?? {}), ...patch });
+/** Change one section (`sectionId`) or every section (`'all'`), as one undoable change. */
+export function updateSections(session: DocSession, sectionId: string | 'all', patch: (s: Section) => Partial<Section>) {
+  const map = sectionsMap(session.ydoc);
+  session.ydoc.transact(() => {
+    if (!map.size) map.set(BODY_SECTION, defaultSection());
+    for (const [id, s] of [...map.entries()]) if (sectionId === 'all' || id === sectionId) map.set(id, { ...s, ...patch(s) });
+  }, SHARED_EDIT_ORIGIN);
+}
+
+/** Page setup of one section or of the whole document. */
+export function setSectionPage(session: DocSession, sectionId: string | 'all', patch: Partial<PageSetup>) {
+  updateSections(session, sectionId, (s) => ({ page: { ...s.page, ...patch } }));
+}
+
+export function setBackground(session: DocSession, color: string | null) {
+  meta(session.ydoc).set('background', color);
 }
 
 /** The Tiptap editor bound to the session's body fragment. */
 export function useDocEditor(session: DocSession, docMeta: DocMeta, opts: { editable: boolean; pagination: boolean }): Editor | null {
   const extensions = useMemo(
-    () => docsExtensions({ fragment: session.fragment, resolver: { url: session.mediaUrl }, pagination: true }),
+    () => docsExtensions({ fragment: session.fragment, resolver: { url: session.mediaUrl }, pagination: true, undoAlso: [sectionsMap(session.ydoc) as Y.AbstractType<unknown>] }),
     [session],
   );
   const editor = useEditor(
@@ -98,15 +123,16 @@ export function useDocEditor(session: DocSession, docMeta: DocMeta, opts: { edit
     return () => l.unobserve(sync);
   }, [editor, session]);
 
-  // Page geometry for pagination.
+  // Sections for pagination (page sizes, margins, breaks).
   useEffect(() => {
     if (!editor) return;
-    const p = docMeta.page;
     const st = editor.storage.pagination;
-    st.geometry = { pageHeight: twipsToPx(p.height), marginTop: twipsToPx(p.top), marginBottom: twipsToPx(p.bottom), gap: PAGE_GAP };
+    st.sections = docMeta.sections;
+    st.settings = docMeta.settings;
+    st.gap = PAGE_GAP;
     st.enabled = opts.pagination;
     st.relayout();
-  }, [editor, docMeta.page, opts.pagination]);
+  }, [editor, docMeta.sections, docMeta.settings, opts.pagination]);
 
   useEffect(() => {
     editor?.setEditable(opts.editable);
