@@ -62,7 +62,7 @@ export const CODEC_VOCABULARY: { nodes: Record<string, string[]>; marks: Record<
       "numId",
       "outline",
       "pPr",
-      "sectionBreak",
+      "section",
       "spacing",
       "styleId"
     ],

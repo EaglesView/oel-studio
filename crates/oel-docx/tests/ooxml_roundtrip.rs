@@ -80,8 +80,10 @@ fn imports_test_document() {
     let first = &paras[0]["content"][0];
     let ts = first["marks"].as_array().unwrap().iter().find(|m| m["type"] == "textStyle").unwrap();
     assert!(ts["attrs"]["rPr"].as_str().unwrap().contains("fr-CA"));
-    assert_eq!(j["page"]["width"], 12240);
-    assert_eq!(j["page"]["left"], 1440);
+    let body = j["sections"].as_array().unwrap().last().unwrap();
+    assert_eq!(body["id"], "body");
+    assert_eq!(body["page"]["width"], 12240);
+    assert_eq!(body["page"]["left"], 1440);
     assert!(j["stylesCss"].as_str().unwrap().contains(".oel-doc .oel-p"));
     assert!(j["styles"].as_array().unwrap().iter().any(|s| s["role"] == "heading1"));
 }
@@ -115,8 +117,12 @@ fn imports_rich_document() {
     let notes = j["notes"]["footnote"].as_object().unwrap();
     assert_eq!(notes.len(), 1);
     assert!(all_text(notes.values().next().unwrap()).contains("Une note de bas de page."));
-    assert!(all_text(&j["headers"]["default"]["doc"]).contains("En-tête du rapport"));
-    assert!(j["footers"]["default"].is_object());
+    let body = j["sections"].as_array().unwrap().last().unwrap();
+    let header = body["headers"]["default"].as_str().unwrap();
+    assert!(all_text(&j["stories"][header]["doc"]).contains("En-tête du rapport"));
+    assert_eq!(j["stories"][header]["side"], "header");
+    let footer = body["footers"]["default"].as_str().unwrap();
+    assert!(j["stories"][footer]["doc"].is_object());
     let bold = nodes(&j["doc"], "text").into_iter().find(|t| t["text"] == "gras").unwrap();
     assert!(bold["marks"].as_array().unwrap().iter().any(|m| m["type"] == "bold"));
 }
@@ -126,7 +132,7 @@ fn round_trip(name: &str) {
     let a = import_docx(&original).unwrap();
     let bytes = export_docx(&a.json, Some(&original), HashMap::new()).unwrap();
     let b = import_docx(&bytes).unwrap();
-    for key in ["doc", "notes", "headers", "footers", "page", "numbering", "styles"] {
+    for key in ["doc", "notes", "stories", "sections", "settings", "background", "numbering", "styles"] {
         let (x, y) = (&a.json[key], &b.json[key]);
         assert_eq!(x, y, "{name}: `{key}` changed through a round trip");
     }
@@ -202,10 +208,12 @@ fn edits_are_written() {
     j["doc"]["content"].as_array_mut().unwrap().extend(new_blocks);
     j["notes"]["footnote"]["1"] = json!({ "type": "doc", "content": [p(json!([{ "type": "text", "text": "Ma note." }]), json!({}))] });
     j["numbering"]["synthetic"] = json!([{ "numId": 900, "kind": "bullet" }, { "numId": 901, "kind": "decimal" }]);
-    j["headers"]["default"] = json!({ "doc": { "type": "doc", "content": [p(json!([{ "type": "text", "text": "Mon en-tête" }]), json!({}))] } });
-    j["page"]["width"] = json!(11906);
-    j["page"]["height"] = json!(16838);
-    j["page"]["background"] = json!("#FAF7F0");
+    j["stories"]["hf-new"] = json!({ "side": "header", "doc": { "type": "doc", "content": [p(json!([{ "type": "text", "text": "Mon en-tête" }]), json!({}))] } });
+    let body = j["sections"].as_array_mut().unwrap().last_mut().unwrap();
+    body["headers"]["default"] = json!("hf-new");
+    body["page"]["width"] = json!(11906);
+    body["page"]["height"] = json!(16838);
+    j["background"] = json!("#FAF7F0");
 
     let png = std::fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/docx/rich.docx")).ok().and_then(|b| Package::read(&b).ok()).and_then(|p| p.get("word/media/image1.png").map(|b| b.to_vec())).unwrap();
     let mut media = HashMap::new();
@@ -235,14 +243,16 @@ fn edits_are_written() {
     assert_eq!(nodes(&back["doc"], "pageBreak").len(), 1);
     assert_eq!(nodes(&back["doc"], "noteRef").len(), 1);
     assert!(all_text(&back["notes"]["footnote"]["1"]).contains("Ma note."));
-    assert!(all_text(&back["headers"]["default"]["doc"]).contains("Mon en-tête"));
+    let back_body = back["sections"].as_array().unwrap().last().unwrap();
+    let header = back_body["headers"]["default"].as_str().unwrap();
+    assert!(all_text(&back["stories"][header]["doc"]).contains("Mon en-tête"));
     assert!(back["numbering"]["nums"]["900"]["levels"][0]["fmt"] == "bullet");
     assert!(back["numbering"]["nums"]["901"]["levels"][1]["fmt"] == "lowerLetter");
     let cells = nodes(&back["doc"], "tableCell");
     assert!(cells.iter().any(|c| c["attrs"]["colspan"] == 2 && c["attrs"]["background"] == "#EEEEEE"));
     assert!(cells.iter().any(|c| c["attrs"]["rowspan"] == 2));
-    assert_eq!(back["page"]["width"], 11906);
-    assert_eq!(back["page"]["background"], "#FAF7F0");
+    assert_eq!(back_body["page"]["width"], 11906);
+    assert_eq!(back["background"], "#FAF7F0");
     let link = nodes(&back["doc"], "text").into_iter().find(|t| t["text"] == "lien").unwrap();
     assert!(link["marks"].as_array().unwrap().iter().any(|m| m["type"] == "link" && m["attrs"]["href"] == "https://example.org/"));
     // Untouched parts still byte-identical.
@@ -286,4 +296,181 @@ fn new_document_exports() {
 #[test]
 fn round_trip_long_document() {
     round_trip("long.docx");
+}
+
+// ---------------------------------------------------------------------------
+// Sections
+// ---------------------------------------------------------------------------
+
+fn sections(j: &Value) -> &Vec<Value> {
+    j["sections"].as_array().unwrap()
+}
+
+/// The `w:sectPr` elements of a package's main document, in order, in the
+/// serializer's canonical form (the document part is always re-serialized).
+fn sect_prs(bytes: &[u8]) -> Vec<String> {
+    let pkg = Package::read(bytes).unwrap();
+    let doc = pkg.get_str("word/document.xml").unwrap().to_string();
+    let mut out = Vec::new();
+    let mut rest = doc.as_str();
+    while let Some(i) = rest.find("<w:sectPr") {
+        let end = rest[i..].find("</w:sectPr>").map(|e| i + e + "</w:sectPr>".len()).unwrap();
+        out.push(oeldocx::xml::XDocument::parse(&rest[i..end]).unwrap().root.to_xml());
+        rest = &rest[end..];
+    }
+    out
+}
+
+#[test]
+fn sections_are_read() {
+    let j = import_docx(&fixture("complex_template.docx")).unwrap().json;
+    let s = sections(&j);
+    assert_eq!(s.len(), 5);
+    assert_eq!(s.iter().map(|x| x["id"].as_str().unwrap()).collect::<Vec<_>>(), ["s1", "s2", "s3", "s4", "body"]);
+    // Cover: 0.5" margins, roman numbers restarting at 1, first page different.
+    assert_eq!(s[0]["page"]["left"], 720);
+    assert_eq!(s[0]["page"]["right"], 720);
+    assert_eq!(s[0]["pgNum"], json!({ "fmt": "lowerRoman", "start": 1 }));
+    assert_eq!(s[0]["titlePg"], true);
+    assert_eq!(s[0]["kind"], "nextPage");
+    // Chapters: 2" left margin; explicit references on s2 and s3 only.
+    assert_eq!(s[1]["page"]["left"], 2880);
+    assert_eq!(s[1]["pgNum"], json!({ "fmt": "decimal", "start": 1 }));
+    assert_eq!(s[1]["footers"], json!({ "default": "footer13", "first": "footer22" }));
+    assert_eq!(s[1]["headers"], json!({ "first": "header11" }));
+    assert_eq!(s[2]["footers"], json!({ "default": "footer31" }));
+    assert_eq!(s[3]["footers"], json!({}));
+    assert_eq!(s[4]["headers"], json!({}));
+    assert_eq!(s[4]["pgNum"]["start"], Value::Null);
+    // Each story once, keyed by part.
+    assert_eq!(j["stories"]["footer13"]["part"], "word/footer13.xml");
+    assert_eq!(j["stories"]["footer13"]["side"], "footer");
+    assert_eq!(j["stories"].as_object().unwrap().len(), 4);
+    // The paragraph that ends a section names it, and its pPr no longer holds the sectPr.
+    let paras = nodes(&j["doc"], "paragraph");
+    let ends: Vec<_> = paras.iter().filter(|p| !p["attrs"]["section"].is_null()).collect();
+    assert_eq!(ends.iter().map(|p| p["attrs"]["section"].as_str().unwrap()).collect::<Vec<_>>(), ["s1", "s2", "s3", "s4"]);
+    assert!(paras.iter().all(|p| !p["attrs"]["pPr"].as_str().unwrap_or("").contains("sectPr")));
+    assert_eq!(j["settings"]["evenAndOddHeaders"], false);
+}
+
+#[test]
+fn section_settings_are_read() {
+    let j = import_docx(&fixture("sections-headers.docx")).unwrap().json;
+    assert_eq!(j["settings"]["evenAndOddHeaders"], true);
+    let s = sections(&j);
+    assert_eq!(s[0]["headers"], json!({ "default": "header1", "first": "header2", "even": "header3" }));
+    assert_eq!(s[1]["headers"], json!({}));
+    assert_eq!(s[2]["footers"], json!({ "default": "footer2" }));
+    let m = import_docx(&fixture("sections-margins.docx")).unwrap().json;
+    let s = sections(&m);
+    assert_eq!(s[1]["page"]["orient"], "landscape");
+    assert_eq!(s[1]["page"]["width"], 15840);
+    assert_eq!(s[2]["kind"], "continuous");
+}
+
+#[test]
+fn round_trip_section_fixtures() {
+    for name in ["sections-margins.docx", "sections-headers.docx", "anchors.docx", "table-borders.docx"] {
+        round_trip(name);
+        // Unchanged sections are written back exactly.
+        let original = fixture(name);
+        let a = import_docx(&original).unwrap();
+        let out = export_docx(&a.json, Some(&original), HashMap::new()).unwrap();
+        assert_eq!(sect_prs(&original), sect_prs(&out), "{name}");
+    }
+}
+
+#[test]
+fn editing_a_section_patches_its_sect_pr() {
+    let original = fixture("complex_template.docx");
+    let mut j = import_docx(&original).unwrap().json;
+    let s2 = &mut j["sections"][1];
+    s2["page"]["left"] = json!(1440);
+    s2["page"]["orient"] = json!("landscape");
+    s2["page"]["width"] = json!(15840);
+    s2["page"]["height"] = json!(12240);
+    s2["pgNum"]["fmt"] = json!("upperRoman");
+    let out = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let (before, after) = (sect_prs(&original), sect_prs(&out));
+    assert_eq!(before.len(), after.len());
+    for (i, (b, a)) in before.iter().zip(&after).enumerate() {
+        if i == 1 {
+            assert_ne!(b, a);
+            assert!(a.contains(r#"w:left="1440""#) && a.contains(r#"w:orient="landscape""#) && a.contains(r#"w:fmt="upperRoman""#), "{a}");
+            // References and the rsid attributes are kept.
+            assert!(a.contains("footerReference") && a.contains("w:rsidSect"), "{a}");
+        } else {
+            assert_eq!(b, a, "section {i} must be byte-identical");
+        }
+    }
+    let back = import_docx(&out).unwrap().json;
+    assert_eq!(back["sections"][1]["page"]["left"], 1440);
+    assert_eq!(back["sections"][1]["pgNum"]["fmt"], "upperRoman");
+    assert_eq!(back["sections"][1]["footers"], j["sections"][1]["footers"]);
+}
+
+#[test]
+fn adding_and_removing_a_section_break() {
+    let original = fixture("sections-margins.docx");
+    let j = import_docx(&original).unwrap().json;
+
+    // Remove the first break: the merged text takes the following section's setup.
+    let mut merged = j.clone();
+    for p in merged["doc"]["content"].as_array_mut().unwrap() {
+        if p["attrs"]["section"] == "s1" {
+            p["attrs"]["section"] = Value::Null;
+        }
+    }
+    merged["sections"].as_array_mut().unwrap().remove(0);
+    let out = export_docx(&merged, Some(&original), HashMap::new()).unwrap();
+    let back = import_docx(&out).unwrap().json;
+    assert_eq!(sections(&back).len(), 2);
+    assert_eq!(back["sections"][0]["page"]["orient"], "landscape");
+
+    // Add a continuous break with its own margins after the first paragraph.
+    let mut added = j.clone();
+    added["doc"]["content"][0]["attrs"]["section"] = json!("sNew");
+    let mut sec = j["sections"][0].clone();
+    sec["id"] = json!("sNew");
+    sec["sectPr"] = Value::Null;
+    sec["kind"] = json!("continuous");
+    sec["page"]["left"] = json!(2000);
+    added["sections"].as_array_mut().unwrap().insert(0, sec);
+    let out = export_docx(&added, Some(&original), HashMap::new()).unwrap();
+    let back = import_docx(&out).unwrap().json;
+    assert_eq!(sections(&back).len(), 4);
+    assert_eq!(back["sections"][0]["kind"], "continuous");
+    assert_eq!(back["sections"][0]["page"]["left"], 2000);
+    assert_eq!(back["sections"][1]["page"]["left"], 720);
+    assert_opens_in_libreoffice(&out, "added-section");
+
+    // A break copied onto a second paragraph (split) is written once.
+    let mut dup = j.clone();
+    dup["doc"]["content"][1]["attrs"]["section"] = json!("s1");
+    let out = export_docx(&dup, Some(&original), HashMap::new()).unwrap();
+    assert_eq!(sections(&import_docx(&out).unwrap().json).len(), 3);
+}
+
+#[test]
+fn linking_a_header_to_the_previous_section() {
+    let original = fixture("sections-headers.docx");
+    let mut j = import_docx(&original).unwrap().json;
+    // s3 drops its own footer (« Lier au précédent »): the part stays, the reference goes.
+    j["sections"][2]["footers"] = json!({});
+    let out = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let back = import_docx(&out).unwrap().json;
+    assert_eq!(back["sections"][2]["footers"], json!({}));
+    assert_eq!(back["sections"][0]["footers"], json!({ "default": "footer1" }));
+    // s2 gets its own copy of the inherited default header.
+    let mut j = import_docx(&original).unwrap().json;
+    let copy = j["stories"]["header1"].clone();
+    j["stories"]["hf-copy"] = json!({ "side": "header", "doc": copy["doc"] });
+    j["sections"][1]["headers"] = json!({ "default": "hf-copy" });
+    let out = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let back = import_docx(&out).unwrap().json;
+    let id = back["sections"][1]["headers"]["default"].as_str().unwrap().to_string();
+    assert_ne!(id, "header1");
+    assert_eq!(all_text(&back["stories"][&id]["doc"]), all_text(&back["stories"]["header1"]["doc"]));
+    assert_opens_in_libreoffice(&out, "linked-header");
 }

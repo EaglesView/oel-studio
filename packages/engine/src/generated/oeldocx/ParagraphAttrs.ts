@@ -11,4 +11,8 @@ pPr: string | null, styleId: string | null, align: Align | null, spacing: Spacin
 /**
  * Display-only CSS for what the editor renders but does not edit.
  */
-css: string | null, sectionBreak: boolean, checked: boolean | null, };
+css: string | null, 
+/**
+ * Id of the section that ends at this paragraph (it carries that `w:sectPr`).
+ */
+section: string | null, checked: boolean | null, };

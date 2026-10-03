@@ -76,9 +76,15 @@ pub struct DocxJson {
     pub version: u32,
     pub doc: PmDoc,
     pub notes: Notes,
-    pub headers: BTreeMap<HeaderFooterKind, StoryPart>,
-    pub footers: BTreeMap<HeaderFooterKind, StoryPart>,
-    pub page: PageSetup,
+    /// Headers and footers, keyed by story id (one per package part; several
+    /// sections may reference the same story).
+    pub stories: BTreeMap<String, StoryPart>,
+    /// Document order. Every section but the last ends at the paragraph whose
+    /// `section` attr names it; the last one (id `body`) is the body's final `sectPr`.
+    pub sections: Vec<Section>,
+    pub settings: DocSettings,
+    /// Page colour (`w:background`), `#RRGGBB`.
+    pub background: Option<String>,
     pub styles: Vec<DocStyle>,
     pub styles_css: String,
     pub defaults: Defaults,
@@ -94,9 +100,9 @@ pub struct DocxJson {
 pub struct ExportJson {
     pub doc: PmDoc,
     pub notes: Notes,
-    pub headers: BTreeMap<HeaderFooterKind, StoryPart>,
-    pub footers: BTreeMap<HeaderFooterKind, StoryPart>,
-    pub page: PageSetup,
+    pub stories: BTreeMap<String, StoryPart>,
+    pub sections: Vec<Section>,
+    pub background: Option<String>,
     pub numbering: ExportNumbering,
 }
 
@@ -117,6 +123,14 @@ pub enum HeaderFooterKind {
     Even,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum StorySide {
+    Header,
+    Footer,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
 #[serde(deny_unknown_fields)]
@@ -125,11 +139,90 @@ pub struct StoryPart {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub part: Option<String>,
+    pub side: StorySide,
     pub doc: PmDoc,
 }
 
-/// Page geometry in twips (1/1440 in).
+/// One section (`w:sectPr`). Header/footer slots hold only the section's own
+/// references; Word's inheritance from earlier sections is computed by the editor.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Section {
+    /// `s1`, `s2`… on import (random for sections made in the editor); `body` for the last.
+    pub id: String,
+    pub page: PageSetup,
+    pub kind: SectionKind,
+    pub title_pg: bool,
+    pub pg_num: PageNumbering,
+    pub cols: Columns,
+    pub headers: HeaderFooterRefs,
+    pub footers: HeaderFooterRefs,
+    /// The raw `w:sectPr` element, written back as is while the values above are
+    /// unchanged, else patched where they changed.
+    pub sect_pr: Option<String>,
+}
+
+/// How a section starts (`w:type`).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase")]
+pub enum SectionKind {
+    #[default]
+    NextPage,
+    Continuous,
+    EvenPage,
+    OddPage,
+    NextColumn,
+}
+
+/// `w:pgNumType`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PageNumbering {
+    /// `decimal`, `lowerRoman`, `upperRoman`, `lowerLetter`, `upperLetter`, `decimalZero`…
+    pub fmt: String,
+    /// Restart at this number; `null` continues from the previous section.
+    pub start: Option<i64>,
+}
+
+/// `w:cols` (twips).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Columns {
+    pub num: i64,
+    pub space: i64,
+    pub equal_width: bool,
+}
+
+/// Story ids referenced by a section, per kind.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", optional_fields))]
+#[serde(deny_unknown_fields)]
+pub struct HeaderFooterRefs {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub even: Option<String>,
+}
+
+/// Document settings the layout needs (from the related settings part; read only).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocSettings {
+    pub even_and_odd_headers: bool,
+    /// Twips.
+    pub default_tab_stop: i64,
+    pub mirror_margins: bool,
+}
+
+/// Page geometry of a section, in twips (1/1440 in).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PageSetup {
@@ -143,10 +236,6 @@ pub struct PageSetup {
     pub header: i64,
     pub footer: i64,
     pub gutter: i64,
-    pub title_pg: bool,
-    /// Raw final sectPr, patched on export.
-    pub sect_pr: Option<String>,
-    pub background: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -273,7 +362,8 @@ pub struct ParagraphAttrs {
     pub outline: Option<u8>,
     /// Display-only CSS for what the editor renders but does not edit.
     pub css: Option<String>,
-    pub section_break: bool,
+    /// Id of the section that ends at this paragraph (it carries that `w:sectPr`).
+    pub section: Option<String>,
     pub checked: Option<bool>,
 }
 
@@ -555,10 +645,44 @@ pub fn check(json: &Value) -> Result<(), String> {
     let stories = std::iter::once(&d.doc)
         .chain(d.notes.footnote.values())
         .chain(d.notes.endnote.values())
-        .chain(d.headers.values().map(|s| &s.doc))
-        .chain(d.footers.values().map(|s| &s.doc));
+        .chain(d.stories.values().map(|s| &s.doc));
     for doc in stories {
         doc.content.iter().try_for_each(check_node)?;
+    }
+    check_sections(&d)
+}
+
+/// Sections: unique ids, `body` last, every break names an earlier section,
+/// every header/footer reference names a story of the right side.
+fn check_sections(d: &DocxJson) -> Result<(), String> {
+    let ids: Vec<&str> = d.sections.iter().map(|s| s.id.as_str()).collect();
+    if ids.last() != Some(&"body") {
+        return Err(format!("sections: the last section must be `body`, got {ids:?}"));
+    }
+    let unique: std::collections::BTreeSet<&str> = ids.iter().copied().collect();
+    if unique.len() != ids.len() {
+        return Err(format!("sections: duplicate ids {ids:?}"));
+    }
+    let mut breaks = Vec::new();
+    fn walk<'a>(n: &'a PmNode, out: &mut Vec<&'a str>) {
+        if let Some(id) = n.attrs.as_ref().and_then(|a| a.get("section")).and_then(Value::as_str) {
+            out.push(id);
+        }
+        n.content.iter().flatten().for_each(|c| walk(c, out));
+    }
+    d.doc.content.iter().for_each(|n| walk(n, &mut breaks));
+    if breaks != ids[..ids.len() - 1] {
+        return Err(format!("sections: breaks in the body {breaks:?} do not match sections {ids:?}"));
+    }
+    for s in &d.sections {
+        for (side, refs) in [(StorySide::Header, &s.headers), (StorySide::Footer, &s.footers)] {
+            for id in [&refs.default, &refs.first, &refs.even].into_iter().flatten() {
+                match d.stories.get(id) {
+                    Some(story) if story.side == side => {}
+                    _ => return Err(format!("section {}: reference to missing {side:?} story `{id}`", s.id)),
+                }
+            }
+        }
     }
     Ok(())
 }

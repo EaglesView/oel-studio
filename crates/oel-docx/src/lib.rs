@@ -19,13 +19,13 @@ pub mod xml;
 pub mod wasm;
 
 use numbering::Numbering;
-use package::{DocxPackage, Package, REL_ENDNOTES, REL_FOOTNOTES, resolve_target};
-use read::{ReadCtx, header_footer_refs, page_json, read_blocks};
+use package::{DocxPackage, Package, REL_ENDNOTES, REL_FOOTNOTES, REL_SETTINGS, resolve_target};
+use read::{ReadCtx, read_blocks, section_json};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeSet, HashMap};
 use styles::Styles;
 
-pub const FORMAT_VERSION: u32 = 1;
+pub const FORMAT_VERSION: u32 = 2;
 
 pub struct Media {
     pub path: String,
@@ -56,37 +56,40 @@ fn import_package(pkg: &Package) -> Result<Imported, String> {
     let body = doc.root.child("w:body").ok_or("document has no w:body")?;
     let mut media: BTreeSet<String> = BTreeSet::new();
 
-    let mut ctx = ReadCtx::new(pkg, &styles, &numbering, &main);
+    let mut ctx = ReadCtx::body(pkg, &styles, &numbering, &main);
     let mut content = read_blocks(&mut ctx, body);
     if content.is_empty() {
         content.push(json!({ "type": "paragraph", "attrs": read::paragraph_attrs(&styles, None) }));
     }
-    let sect = body.child("w:sectPr");
-    let mut page = page_json(sect);
-    if let Some(bg) = doc.root.child("w:background").and_then(|b| b.attr("w:color")).filter(|c| c.len() == 6) {
-        page["background"] = Value::from(format!("#{bg}"));
-    }
-    let header_refs = header_footer_refs(&ctx, sect, "w:headerReference");
-    let footer_refs = header_footer_refs(&ctx, sect, "w:footerReference");
+    let last = section_json(&mut ctx, "body", body.child("w:sectPr"));
+    let mut sections = ctx.sections.take().unwrap_or_default();
+    sections.push(last);
+    let background = doc.root.child("w:background").and_then(|b| b.attr("w:color")).filter(|c| c.len() == 6).map(|c| format!("#{c}"));
     let main_rels = pkg.rels(&main);
     media.extend(std::mem::take(&mut ctx.media));
 
-    let mut story = |refs: Vec<(String, String)>, root: &str| -> Map<String, Value> {
-        let mut out = Map::new();
-        for (kind, part) in refs {
-            let Some(d) = pkg.get_xml(&part) else { continue };
-            if d.root.name != root {
-                continue;
+    // Headers and footers, one story per part, whichever sections reference them.
+    let mut stories = Map::new();
+    for (id, (side, part)) in std::mem::take(&mut ctx.stories) {
+        let root = if side == "header" { "w:hdr" } else { "w:ftr" };
+        let Some(d) = pkg.get_xml(&part).filter(|d| d.root.name == root) else { continue };
+        let mut c = ReadCtx::new(pkg, &styles, &numbering, &part);
+        let blocks = read_blocks(&mut c, &d.root);
+        media.extend(c.media);
+        stories.insert(id, json!({ "part": part, "side": side, "doc": { "type": "doc", "content": blocks } }));
+    }
+    // A reference to a missing or invalid part is dropped (Word ignores it too).
+    for sec in &mut sections {
+        for key in ["headers", "footers"] {
+            if let Some(refs) = sec[key].as_object_mut() {
+                refs.retain(|_, v| v.as_str().is_some_and(|id| stories.contains_key(id)));
             }
-            let mut c = ReadCtx::new(pkg, &styles, &numbering, &part);
-            let blocks = read_blocks(&mut c, &d.root);
-            media.extend(c.media);
-            out.insert(kind, json!({ "part": part, "doc": { "type": "doc", "content": blocks } }));
         }
-        out
-    };
-    let headers = story(header_refs, "w:hdr");
-    let footers = story(footer_refs, "w:ftr");
+    }
+
+    let settings = pkg.get_xml(&pkg.main_related(REL_SETTINGS, "settings.xml"));
+    let flag = |name: &str| settings.as_ref().and_then(|d| d.root.child(name)).is_some_and(|e| !matches!(e.attr("w:val"), Some("0" | "false" | "off")));
+    let default_tab = settings.as_ref().and_then(|d| d.root.child_val("w:defaultTabStop")).and_then(|v| v.parse::<i64>().ok()).unwrap_or(720);
 
     let mut notes = Map::new();
     for (kind, rel_type, root, tag) in [("footnote", REL_FOOTNOTES, "w:footnotes", "w:footnote"), ("endnote", REL_ENDNOTES, "w:endnotes", "w:endnote")] {
@@ -130,9 +133,10 @@ fn import_package(pkg: &Package) -> Result<Imported, String> {
         "version": FORMAT_VERSION,
         "doc": { "type": "doc", "content": content },
         "notes": notes,
-        "headers": headers,
-        "footers": footers,
-        "page": page,
+        "stories": stories,
+        "sections": sections,
+        "settings": { "evenAndOddHeaders": flag("w:evenAndOddHeaders"), "defaultTabStop": default_tab, "mirrorMargins": flag("w:mirrorMargins") },
+        "background": background,
         "styles": style_list,
         "stylesCss": styles.css(),
         "defaults": styles.defaults_json(),

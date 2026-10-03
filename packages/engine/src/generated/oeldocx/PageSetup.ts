@@ -2,10 +2,6 @@
 import type { Orient } from "./Orient";
 
 /**
- * Page geometry in twips (1/1440 in).
+ * Page geometry of a section, in twips (1/1440 in).
  */
-export type PageSetup = { width: number, height: number, orient: Orient, top: number, right: number, bottom: number, left: number, header: number, footer: number, gutter: number, titlePg: boolean, 
-/**
- * Raw final sectPr, patched on export.
- */
-sectPr: string | null, background: string | null, };
+export type PageSetup = { width: number, height: number, orient: Orient, top: number, right: number, bottom: number, left: number, header: number, footer: number, gutter: number, };

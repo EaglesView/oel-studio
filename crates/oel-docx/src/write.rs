@@ -4,7 +4,7 @@
 //! types); every other part is copied byte for byte.
 
 use super::package::*;
-use super::read::{HIGHLIGHTS, IND_KEYS, SPACING_KEYS, paragraph_attrs, run_model};
+use super::read::{HIGHLIGHTS, IND_KEYS, SPACING_KEYS, paragraph_attrs, run_model, section_values, story_id};
 use super::styles::Styles;
 use super::template;
 use super::xml::{XDocument, XElement, XNode, escape_attr, escape_text, parse_fragment};
@@ -95,6 +95,8 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
     let j = input.json;
     let main = pkg.main_part();
     let styles = Styles::load(&pkg);
+    let sections: Vec<Value> = j["sections"].as_array().cloned().unwrap_or_default();
+    let orig_story_of_rid: HashMap<String, String> = pkg.rels(&main).into_iter().filter(|r| !r.external).map(|r| (r.id, story_id(&resolve_target(&main, &r.target)))).collect();
     let mut w = Writer {
         pkg: &mut pkg,
         styles,
@@ -106,10 +108,13 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
         notes: (note_ids(&j["notes"]["footnote"]), note_ids(&j["notes"]["endnote"])),
         prefix: None,
         content_width: 0,
+        sections: sections.iter().filter_map(|sec| Some((s(&sec["id"])?.to_string(), sec.clone()))).collect(),
+        section_order: sections.iter().filter_map(|sec| s(&sec["id"]).map(String::from)).collect(),
+        sections_written: HashSet::new(),
+        story_rids: HashMap::new(),
+        orig_story_of_rid,
     };
-    let page = &j["page"];
-    let pw = page["width"].as_i64().unwrap_or(12240);
-    w.content_width = (pw - page["left"].as_i64().unwrap_or(1440) - page["right"].as_i64().unwrap_or(1440)).max(1440);
+    w.content_width = sections.first().map(content_width).unwrap_or(9360);
 
     // --- Numbering for lists created in the editor -----------------------
     w.write_synthetic_numbering(&j["numbering"]["synthetic"]);
@@ -121,42 +126,45 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
         }
     }
 
-    // --- Headers / footers -------------------------------------------------
-    let mut refs: Vec<(String, String, String)> = Vec::new(); // (tag, type, rId)
-    for (tag, key, rel_type, ct, root_name, prefix) in [
-        ("w:headerReference", "headers", REL_HEADER, CT_HEADER, "w:hdr", "header"),
-        ("w:footerReference", "footers", REL_FOOTER, CT_FOOTER, "w:ftr", "footer"),
-    ] {
-        if let Some(map) = j[key].as_object() {
-            for (kind, hf) in map {
-                let part = match s(&hf["part"]).filter(|p| w.pkg.has(p)) {
-                    Some(p) => p.to_string(),
-                    None => {
-                        let mut n = 1;
-                        while w.pkg.has(&format!("word/{prefix}{n}.xml")) {
-                            n += 1;
-                        }
-                        format!("word/{prefix}{n}.xml")
-                    }
-                };
-                w.write_story_part(&part, root_name, &hf["doc"], &main)?;
-                w.pkg.ensure_override(&part, ct);
-                let rid = w.pkg.add_rel(&main, rel_type, &relative_target(&main, &part), false);
-                refs.push((tag.to_string(), kind.clone(), rid));
+    // --- Headers / footers: every story some section references ------------
+    let referenced: HashSet<String> = sections
+        .iter()
+        .flat_map(|sec| ["headers", "footers"].into_iter().flat_map(move |k| sec[k].as_object().into_iter().flat_map(|m| m.values().filter_map(|v| v.as_str().map(String::from)))))
+        .collect();
+    if let Some(map) = j["stories"].as_object() {
+        for (id, story) in map {
+            if !referenced.contains(id) {
+                continue;
             }
+            let header = s(&story["side"]) == Some("header");
+            let (rel_type, ct, root_name, prefix) = if header { (REL_HEADER, CT_HEADER, "w:hdr", "header") } else { (REL_FOOTER, CT_FOOTER, "w:ftr", "footer") };
+            let part = match s(&story["part"]).filter(|p| w.pkg.has(p)) {
+                Some(p) => p.to_string(),
+                None => {
+                    let mut n = 1;
+                    while w.pkg.has(&format!("word/{prefix}{n}.xml")) {
+                        n += 1;
+                    }
+                    format!("word/{prefix}{n}.xml")
+                }
+            };
+            w.write_story_part(&part, root_name, &story["doc"], &main)?;
+            w.pkg.ensure_override(&part, ct);
+            let rid = w.pkg.add_rel(&main, rel_type, &relative_target(&main, &part), false);
+            w.story_rids.insert(id.clone(), rid);
         }
     }
 
     // --- Main document -----------------------------------------------------
     w.part = main.clone();
     let body = w.blocks(&j["doc"]["content"], true)?;
-    let sect = w.final_sect_pr(page, &refs, j.get("headers").is_some());
+    let sect = w.sect_pr(sections.last().unwrap_or(&Value::Null));
     let mut doc = w.pkg.get_xml(&main).unwrap_or_else(|| XDocument::parse(template::DOCUMENT_XML).expect("template"));
     ensure_namespaces(&mut doc.root);
     let mut out = String::with_capacity(body.len() + 4096);
     out.push_str(if doc.prolog.trim().is_empty() { "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" } else { &doc.prolog });
     out.push_str(&doc.root.open_tag());
-    let background = s(&page["background"]).map(|c| c.trim_start_matches('#').to_ascii_uppercase());
+    let background = s(&j["background"]).map(|c| c.trim_start_matches('#').to_ascii_uppercase());
     let mut wrote_bg = false;
     for c in &doc.root.children {
         match c {
@@ -223,7 +231,22 @@ struct Writer<'p> {
     notes: (HashSet<String>, HashSet<String>),
     /// Run XML to put at the start of the next paragraph (note number in notes).
     prefix: Option<String>,
+    /// Text width (twips) of the section being written, for tables without widths.
     content_width: i64,
+    sections: HashMap<String, Value>,
+    section_order: Vec<String>,
+    /// Section ids already written (a copied break must not duplicate its section).
+    sections_written: HashSet<String>,
+    /// Story id → relationship id from the main part.
+    story_rids: HashMap<String, String>,
+    /// The original package's main-part relationship ids → story ids.
+    orig_story_of_rid: HashMap<String, String>,
+}
+
+/// Text width of a section, in twips.
+fn content_width(sec: &Value) -> i64 {
+    let p = &sec["page"];
+    (p["width"].as_i64().unwrap_or(12240) - p["left"].as_i64().unwrap_or(1440) - p["right"].as_i64().unwrap_or(1440)).max(1440)
 }
 
 impl Writer<'_> {
@@ -304,9 +327,21 @@ impl Writer<'_> {
             });
             replace_or_insert(&mut children, "w:numPr", np);
         }
-        // A copied section break (split paragraph) must not duplicate the section.
-        if a["sectionBreak"] == Value::Bool(false) {
-            children.retain(|e| e.name != "w:sectPr");
+        // The section that ends here: its sectPr goes in this pPr (once; never the final section).
+        children.retain(|e| e.name != "w:sectPr");
+        if let Some(id) = s(&a["section"]) {
+            let last = self.section_order.last().map(String::as_str) == Some(id);
+            if !last && self.sections_written.insert(id.to_string()) {
+                if let Some(sec) = self.sections.get(id).cloned() {
+                    let xml = self.sect_pr(&sec);
+                    children.extend(frag_elements(Some(&xml)));
+                    // Blocks after this paragraph belong to the next section.
+                    let next = self.section_order.iter().position(|x| x == id).and_then(|i| self.section_order.get(i + 1)).and_then(|n| self.sections.get(n));
+                    if let Some(next) = next {
+                        self.content_width = content_width(next);
+                    }
+                }
+            }
         }
         sort_schema(&mut children, PPR_ORDER);
 
@@ -802,36 +837,103 @@ impl Writer<'_> {
         Ok(())
     }
 
-    fn final_sect_pr(&mut self, page: &Value, refs: &[(String, String, String)], has_hf: bool) -> String {
-        let mut ch = frag_elements(s(&page["sectPr"]));
-        if ch.is_empty() && s(&page["sectPr"]).is_none() {
-            ch = frag_elements(Some(template::SECT_PR));
+    /// A section's `w:sectPr`. Unchanged sections are written back exactly as read;
+    /// otherwise only the modelled values that changed are patched into the original.
+    fn sect_pr(&mut self, sec: &Value) -> String {
+        let raw = s(&sec["sectPr"]);
+        let parsed = raw.and_then(|r| frag_elements(Some(r)).into_iter().find(|e| e.name == "w:sectPr"));
+        let from_raw = parsed.is_some();
+        let el = parsed.unwrap_or_else(|| wrap("w:sectPr", frag_elements(Some(template::SECT_PR))));
+        let orig = section_values(Some(&el));
+        let orig_refs = |tag: &str| -> HashMap<String, String> {
+            el.elements()
+                .filter(|e| e.name == tag)
+                .filter_map(|e| Some((e.attr("w:type").unwrap_or("default").to_string(), self.orig_story_of_rid.get(e.attr("r:id")?)?.clone())))
+                .collect()
+        };
+        let new_refs = |key: &str| -> HashMap<String, String> {
+            sec[key].as_object().map(|m| m.iter().filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string()))).collect()).unwrap_or_default()
+        };
+        let hf: Vec<(&str, HashMap<String, String>, bool)> = [("w:headerReference", "headers"), ("w:footerReference", "footers")]
+            .into_iter()
+            .map(|(tag, key)| {
+                let now = new_refs(key);
+                let changed = now != orig_refs(tag);
+                (tag, now, changed)
+            })
+            .collect();
+        let changed = |k: &str| !sec[k].is_null() && sec[k] != orig[k];
+        let any = ["page", "kind", "titlePg", "pgNum", "cols"].iter().any(|k| changed(k)) || hf.iter().any(|(_, _, c)| *c);
+        if from_raw && !any {
+            return raw.unwrap_or_default().to_string();
         }
-        let g = |k: &str, d: i64| page[k].as_i64().unwrap_or(d);
-        let mut pg = ch.iter().find(|e| e.name == "w:pgSz").cloned().unwrap_or_else(|| XElement::new("w:pgSz"));
-        pg.set_attr("w:w", g("width", 12240).to_string());
-        pg.set_attr("w:h", g("height", 15840).to_string());
-        match s(&page["orient"]) {
-            Some("landscape") => pg.set_attr("w:orient", "landscape"),
-            _ if pg.attr("w:orient").is_some() => pg.set_attr("w:orient", "portrait"),
-            _ => {}
+
+        let mut ch: Vec<XElement> = el.elements().cloned().collect();
+        if changed("page") || !from_raw {
+            let page = &sec["page"];
+            let g = |k: &str, d: i64| page[k].as_i64().unwrap_or(d);
+            let mut pg = ch.iter().find(|e| e.name == "w:pgSz").cloned().unwrap_or_else(|| XElement::new("w:pgSz"));
+            pg.set_attr("w:w", g("width", 12240).to_string());
+            pg.set_attr("w:h", g("height", 15840).to_string());
+            match s(&page["orient"]) {
+                Some("landscape") => pg.set_attr("w:orient", "landscape"),
+                _ if pg.attr("w:orient").is_some() => pg.set_attr("w:orient", "portrait"),
+                _ => {}
+            }
+            replace_or_insert(&mut ch, "w:pgSz", Some(pg));
+            let mut mar = ch.iter().find(|e| e.name == "w:pgMar").cloned().unwrap_or_else(|| XElement::new("w:pgMar"));
+            for (k, d) in [("top", 1440), ("right", 1440), ("bottom", 1440), ("left", 1440), ("header", 720), ("footer", 720), ("gutter", 0)] {
+                mar.set_attr(&format!("w:{k}"), g(k, d).to_string());
+            }
+            replace_or_insert(&mut ch, "w:pgMar", Some(mar));
         }
-        replace_or_insert(&mut ch, "w:pgSz", Some(pg));
-        let mut mar = ch.iter().find(|e| e.name == "w:pgMar").cloned().unwrap_or_else(|| XElement::new("w:pgMar"));
-        for (k, d) in [("top", 1440), ("right", 1440), ("bottom", 1440), ("left", 1440), ("header", 720), ("footer", 720), ("gutter", 0)] {
-            mar.set_attr(&format!("w:{k}"), g(k, d).to_string());
+        if changed("kind") {
+            let kind = s(&sec["kind"]).unwrap_or("nextPage");
+            replace_or_insert(&mut ch, "w:type", if kind == "nextPage" { None } else { Some(el_val("w:type", kind)) });
         }
-        replace_or_insert(&mut ch, "w:pgMar", Some(mar));
-        if has_hf {
-            ch.retain(|e| e.name != "w:headerReference" && e.name != "w:footerReference");
-            for (tag, kind, rid) in refs.iter().rev() {
-                ch.insert(0, XElement::new(tag).with_attr("w:type", kind.clone()).with_attr("r:id", rid.clone()));
+        if changed("titlePg") {
+            replace_or_insert(&mut ch, "w:titlePg", if sec["titlePg"].as_bool().unwrap_or(false) { Some(XElement::new("w:titlePg")) } else { None });
+        }
+        if changed("pgNum") {
+            let mut e = ch.iter().find(|e| e.name == "w:pgNumType").cloned().unwrap_or_else(|| XElement::new("w:pgNumType"));
+            match s(&sec["pgNum"]["fmt"]).filter(|f| *f != "decimal") {
+                Some(f) => e.set_attr("w:fmt", f),
+                None => e.remove_attr("w:fmt"),
+            }
+            match sec["pgNum"]["start"].as_i64() {
+                Some(n) => e.set_attr("w:start", n.to_string()),
+                None => e.remove_attr("w:start"),
+            }
+            replace_or_insert(&mut ch, "w:pgNumType", if e.attrs.is_empty() { None } else { Some(e) });
+        }
+        if changed("cols") {
+            let c = &sec["cols"];
+            let mut e = ch.iter().find(|e| e.name == "w:cols").cloned().unwrap_or_else(|| XElement::new("w:cols"));
+            let num = c["num"].as_i64().unwrap_or(1).max(1);
+            if num > 1 || e.attr("w:num").is_some() {
+                e.set_attr("w:num", num.to_string());
+            }
+            e.set_attr("w:space", c["space"].as_i64().unwrap_or(720).to_string());
+            if c["equalWidth"].as_bool().unwrap_or(true) {
+                e.remove_attr("w:equalWidth");
+            } else {
+                e.set_attr("w:equalWidth", "0");
+            }
+            replace_or_insert(&mut ch, "w:cols", Some(e));
+        }
+        for (tag, refs, changed) in &hf {
+            if !*changed {
+                continue;
+            }
+            ch.retain(|e| e.name != *tag);
+            for kind in ["default", "first", "even"] {
+                if let Some(rid) = refs.get(kind).and_then(|id| self.story_rids.get(id)) {
+                    ch.insert(0, XElement::new(tag).with_attr("w:type", kind).with_attr("r:id", rid.clone()));
+                }
             }
         }
-        let title_pg = page["titlePg"].as_bool().unwrap_or(false);
-        replace_or_insert(&mut ch, "w:titlePg", if title_pg { Some(XElement::new("w:titlePg")) } else { None });
         sort_schema(&mut ch, SECTPR_ORDER);
-        let mut out = String::from("<w:sectPr>");
+        let mut out = el.open_tag();
         for e in &ch {
             e.write(&mut out);
         }

@@ -13,9 +13,9 @@
 use super::numbering::Numbering;
 use super::package::{Package, Rel, resolve_target};
 use super::styles::{Styles, ppr_css};
-use super::xml::{XElement, nodes_to_xml};
+use super::xml::{XElement, XNode, nodes_to_xml, write_node};
 use serde_json::{Map, Value, json};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 pub struct ReadCtx<'a> {
     pub pkg: &'a Package,
@@ -24,12 +24,34 @@ pub struct ReadCtx<'a> {
     pub part: String,
     pub rels: HashMap<String, Rel>,
     pub media: BTreeSet<String>,
+    /// Sections met so far, in document order (only collected for the body).
+    pub sections: Option<Vec<Value>>,
+    /// Header/footer stories referenced by those sections: id → (side, part).
+    pub stories: BTreeMap<String, (&'static str, String)>,
 }
 
 impl<'a> ReadCtx<'a> {
     pub fn new(pkg: &'a Package, styles: &'a Styles, numbering: &'a Numbering, part: &str) -> Self {
         let rels = pkg.rels(part).into_iter().map(|r| (r.id.clone(), r)).collect();
-        ReadCtx { pkg, styles, numbering, part: part.to_string(), rels, media: BTreeSet::new() }
+        ReadCtx { pkg, styles, numbering, part: part.to_string(), rels, media: BTreeSet::new(), sections: None, stories: BTreeMap::new() }
+    }
+
+    /// Reader for the main document body: also collects its sections.
+    pub fn body(pkg: &'a Package, styles: &'a Styles, numbering: &'a Numbering, part: &str) -> Self {
+        let mut c = Self::new(pkg, styles, numbering, part);
+        c.sections = Some(Vec::new());
+        c
+    }
+
+    /// Story id for a `w:headerReference` / `w:footerReference` relationship id.
+    fn story_ref(&mut self, side: &'static str, rid: &str) -> Option<String> {
+        let (path, external) = self.rel_target(rid)?;
+        if external {
+            return None;
+        }
+        let id = story_id(&path);
+        self.stories.entry(id.clone()).or_insert((side, path));
+        Some(id)
     }
 
     fn rel_target(&self, id: &str) -> Option<(String, bool)> {
@@ -164,7 +186,15 @@ pub fn paragraph_attrs(styles: &Styles, ppr: Option<&XElement>) -> Map<String, V
         .map(|p| ppr_css(p).into_iter().filter(|(k, _)| !matches!(k.as_str(), "text-align" | "margin-top" | "margin-bottom" | "line-height" | "margin-left" | "margin-right" | "text-indent")).map(|(k, v)| format!("{k}:{v}")).collect())
         .unwrap_or_default();
     let mut a = Map::new();
-    a.insert("pPr".into(), ppr.map(inner_xml).filter(|s| !s.is_empty()).map(Value::from).unwrap_or(Value::Null));
+    // The section a paragraph ends lives on the section (`DocxJson.sections`), not in its pPr.
+    let raw = ppr.map(|p| {
+        let mut out = String::new();
+        for c in p.children.iter().filter(|c| !matches!(c, XNode::Element(e) if e.name == "w:sectPr")) {
+            write_node(c, &mut out);
+        }
+        out
+    });
+    a.insert("pPr".into(), raw.filter(|s| !s.is_empty()).map(Value::from).unwrap_or(Value::Null));
     a.insert("styleId".into(), style_id.map(Value::from).unwrap_or(Value::Null));
     a.insert("align".into(), align_of(ppr).map(Value::from).unwrap_or(Value::Null));
     a.insert("spacing".into(), attr_map(ppr.and_then(|p| p.child("w:spacing")), SPACING_KEYS));
@@ -173,7 +203,7 @@ pub fn paragraph_attrs(styles: &Styles, ppr: Option<&XElement>) -> Map<String, V
     a.insert("ilvl".into(), Value::from(ilvl));
     a.insert("outline".into(), outline.map(Value::from).unwrap_or(Value::Null));
     a.insert("css".into(), if css.is_empty() { Value::Null } else { Value::from(css.join(";")) });
-    a.insert("sectionBreak".into(), Value::from(ppr.and_then(|p| p.child("w:sectPr")).is_some()));
+    a.insert("section".into(), Value::Null);
     a.insert("checked".into(), Value::Null);
     a
 }
@@ -181,7 +211,14 @@ pub fn paragraph_attrs(styles: &Styles, ppr: Option<&XElement>) -> Map<String, V
 pub fn read_paragraph(ctx: &mut ReadCtx, p: &XElement) -> Value {
     let ppr = p.child("w:pPr");
     let mut n = node("paragraph");
-    n.insert("attrs".into(), Value::Object(paragraph_attrs(ctx.styles, ppr)));
+    let mut attrs = paragraph_attrs(ctx.styles, ppr);
+    if let (Some(sect), true) = (ppr.and_then(|p| p.child("w:sectPr")), ctx.sections.is_some()) {
+        let id = format!("s{}", ctx.sections.as_ref().map_or(0, Vec::len) + 1);
+        let sec = section_json(ctx, &id, Some(sect));
+        ctx.sections.get_or_insert_with(Vec::new).push(sec);
+        attrs.insert("section".into(), Value::from(id));
+    }
+    n.insert("attrs".into(), Value::Object(attrs));
     let mut inl = Vec::new();
     read_inline_children(ctx, p, &[], &mut inl);
     merge_text(&mut inl);
@@ -609,6 +646,12 @@ pub fn merge_text(nodes: &mut Vec<Value>) {
 // Sections
 // ---------------------------------------------------------------------------
 
+/// Story id of a header/footer part: its file name without extension (`word/footer13.xml` → `footer13`).
+pub fn story_id(part: &str) -> String {
+    let name = part.rsplit('/').next().unwrap_or(part);
+    name.strip_suffix(".xml").unwrap_or(name).to_string()
+}
+
 /// Page geometry (twips) from a sectPr.
 pub fn page_json(sect: Option<&XElement>) -> Value {
     let pg = sect.and_then(|s| s.child("w:pgSz"));
@@ -625,22 +668,59 @@ pub fn page_json(sect: Option<&XElement>) -> Value {
         "header": g(mar, "w:header", 720),
         "footer": g(mar, "w:footer", 720),
         "gutter": g(mar, "w:gutter", 0),
-        "titlePg": sect.and_then(|s| s.child("w:titlePg")).map(is_on).unwrap_or(false),
-        "sectPr": sect.map(inner_xml),
-        "background": Value::Null,
     })
 }
 
-/// Parts referenced by `w:headerReference` / `w:footerReference` in a sectPr.
-pub fn header_footer_refs(ctx: &ReadCtx, sect: Option<&XElement>, tag: &str) -> Vec<(String, String)> {
-    let Some(sect) = sect else { return Vec::new() };
-    sect.elements()
-        .filter(|e| e.name == tag)
-        .filter_map(|e| {
-            let kind = e.attr("w:type").unwrap_or("default").to_string();
-            let (path, external) = ctx.rel_target(e.attr("r:id")?)?;
-            if external { None } else { Some((kind, path)) }
-        })
-        .collect()
+/// The modelled values of a sectPr, without references or raw XML (shared with the writer).
+pub fn section_values(sect: Option<&XElement>) -> Map<String, Value> {
+    let kind = match sect.and_then(|s| s.child_val("w:type")) {
+        Some("continuous") => "continuous",
+        Some("evenPage") => "evenPage",
+        Some("oddPage") => "oddPage",
+        Some("nextColumn") => "nextColumn",
+        _ => "nextPage",
+    };
+    let pg_num = sect.and_then(|s| s.child("w:pgNumType"));
+    let cols = sect.and_then(|s| s.child("w:cols"));
+    let mut m = Map::new();
+    m.insert("page".into(), page_json(sect));
+    m.insert("kind".into(), Value::from(kind));
+    m.insert("titlePg".into(), Value::from(sect.and_then(|s| s.child("w:titlePg")).map(is_on).unwrap_or(false)));
+    m.insert(
+        "pgNum".into(),
+        json!({
+            "fmt": pg_num.and_then(|p| p.attr("w:fmt")).unwrap_or("decimal"),
+            "start": pg_num.and_then(|p| num_attr(p, "w:start")),
+        }),
+    );
+    m.insert(
+        "cols".into(),
+        json!({
+            "num": cols.and_then(|c| num_attr(c, "w:num")).unwrap_or(1).max(1),
+            "space": cols.and_then(|c| num_attr(c, "w:space")).unwrap_or(720),
+            "equalWidth": cols.and_then(|c| c.attr("w:equalWidth")).map(|v| !matches!(v, "0" | "false" | "off")).unwrap_or(true),
+        }),
+    );
+    m
 }
 
+/// A section from its sectPr (`None`: Word's defaults), registering the stories it references.
+pub fn section_json(ctx: &mut ReadCtx, id: &str, sect: Option<&XElement>) -> Value {
+    let mut m = section_values(sect);
+    m.insert("id".into(), Value::from(id));
+    for (tag, key, side) in [("w:headerReference", "headers", "header"), ("w:footerReference", "footers", "footer")] {
+        let mut refs = Map::new();
+        for e in sect.into_iter().flat_map(|s| s.elements()).filter(|e| e.name == tag) {
+            let kind = e.attr("w:type").unwrap_or("default");
+            if !matches!(kind, "default" | "first" | "even") {
+                continue;
+            }
+            if let Some(story) = e.attr("r:id").and_then(|rid| ctx.story_ref(side, rid)) {
+                refs.insert(kind.into(), Value::from(story));
+            }
+        }
+        m.insert(key.into(), Value::Object(refs));
+    }
+    m.insert("sectPr".into(), sect.map(|s| Value::from(s.to_xml())).unwrap_or(Value::Null));
+    Value::Object(m)
+}

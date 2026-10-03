@@ -55,7 +55,7 @@ fn page_background_is_enabled_in_the_related_settings_part() {
     // Settings live in word/settings2.xml; there is no word/settings.xml.
     let bytes = fixture("complex_template.docx");
     let mut j = import_docx(&bytes).unwrap().json;
-    j["page"]["background"] = json!("#FFF4E0");
+    j["background"] = json!("#FFF4E0");
     let out = Package::read(&export_docx(&j, Some(&bytes), HashMap::new()).unwrap()).unwrap();
     assert!(out.get_str("word/settings2.xml").unwrap().contains("w:displayBackgroundShape"));
     assert!(!out.has("word/settings.xml"));
