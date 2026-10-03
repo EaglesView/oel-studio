@@ -1,4 +1,4 @@
-import type { DocumentEngine, DocxPayload, ExportRequest, FileKind, ImportResult, Preview } from '../types';
+import type { DocumentEngine, DocxPayload, ExportRequest, FileKind, ImportResult, Preview, WorkbookPayload } from '../types';
 
 /**
  * Adapter for WASM engines built with wasm-bindgen (oeldocx-rs, oelimg-rs).
@@ -14,6 +14,7 @@ export interface WasmEngineSpec<M> {
   run: (mod: M, bytes: Uint8Array, name: string) => Promise<Omit<ImportResult, 'engine'>> | Omit<ImportResult, 'engine'>;
   export?: (mod: M, req: ExportRequest) => Promise<Uint8Array> | Uint8Array;
   create?: (mod: M, kind: FileKind, title: string) => Promise<Omit<ImportResult, 'engine'>> | Omit<ImportResult, 'engine'>;
+  accepts?: (name: string) => boolean;
 }
 
 export function createWasmEngine<M>(spec: WasmEngineSpec<M>): DocumentEngine {
@@ -26,6 +27,7 @@ export function createWasmEngine<M>(spec: WasmEngineSpec<M>): DocumentEngine {
   return {
     id: spec.id,
     kinds: spec.kinds,
+    accepts: spec.accepts,
     async import(req, onProgress) {
       onProgress({ value: null, stage: 'Chargement du moteur' });
       const mod = await module();
@@ -100,6 +102,75 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
       const out = mod.new_document_pm();
       const payload: DocxPayload = { format: 'oeldocx-pm@1', json: out.json, media: out.media, original: null };
       return { kind: 'document', title: title || 'Document sans titre', readOnly: false, preview: { kind: 'document', blocks: [], wordCount: 0, pageCount: 1 }, payload };
+    },
+  });
+}
+
+/** The parts of the oelxlsx-rs wasm package this adapter uses. */
+export interface OelxlsxModule {
+  xlsx_to_model(bytes: Uint8Array): string;
+  csv_to_model(bytes: Uint8Array, opts: string): string;
+  new_workbook_model(): string;
+  model_to_xlsx(json: string, original?: Uint8Array | null): Uint8Array;
+  model_to_csv(json: string, sheet: number, dialect: string): Uint8Array;
+}
+
+interface WorkbookJsonish {
+  sheets: Array<{ name: string; state?: string; cells: Array<{ r: number; c: number; t?: string; v?: unknown; f?: string }> }>;
+}
+
+/** Desk preview: the first rows of the first visible sheet (cached values, formulas shown as their result). */
+function sheetPreview(wb: WorkbookJsonish): Preview {
+  const visible = wb.sheets.filter((s) => !s.state || s.state === 'visible');
+  const first = visible[0] ?? wb.sheets[0];
+  const rows: string[][] = [];
+  for (const c of first?.cells ?? []) {
+    if (c.r >= 40 || c.c >= 12 || c.v == null) continue;
+    while (rows.length <= c.r) rows.push([]);
+    const row = rows[c.r]!;
+    while (row.length <= c.c) row.push('');
+    row[c.c] = c.t === 'b' ? (c.v ? 'TRUE' : 'FALSE') : String(c.v);
+  }
+  return { kind: 'spreadsheet', sheets: visible.map((s) => s.name), rows };
+}
+
+/**
+ * oelxlsx-rs: lossless .xlsx ↔ workbook JSON (IronCalc computes formulas in
+ * the editor's calc worker; here we only read and write files). CSV/TSV keep
+ * their dialect (delimiter, encoding, BOM, line endings, decimal comma).
+ */
+export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngine {
+  return createWasmEngine<OelxlsxModule>({
+    id: 'oelxlsx-rs',
+    kinds: ['spreadsheet'],
+    // .ods and .xls stay previews (read-only) for now.
+    accepts: (name) => /\.(xlsx|xlsm|csv|tsv)$/i.test(name),
+    load: load as WasmEngineSpec<OelxlsxModule>['load'],
+    run(mod, bytes, name) {
+      const ext = /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase() ?? '';
+      const title = name.replace(/\.[^.]+$/, '');
+      if (ext === 'csv' || ext === 'tsv' || ext === 'txt') {
+        const json = mod.csv_to_model(bytes, JSON.stringify({ ...(ext === 'tsv' ? { delimiter: '\t' } : {}), sheetName: title.slice(0, 31) }));
+        const payload: WorkbookPayload = { format: 'oelxlsx-workbook@1', json, original: null };
+        return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
+      }
+      if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error('Format non pris en charge par le moteur de tableurs (.xlsx, .xlsm, .csv)');
+      const json = mod.xlsx_to_model(bytes);
+      const payload: WorkbookPayload = { format: 'oelxlsx-workbook@1', json, original: bytes };
+      return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
+    },
+    export(mod, req) {
+      const d = req.data as { json: unknown; original?: Uint8Array | null; sheet?: number };
+      const json = typeof d.json === 'string' ? d.json : JSON.stringify(d.json);
+      if (req.format === 'xlsx') return mod.model_to_xlsx(json, d.original ?? undefined);
+      if (req.format === 'csv') return mod.model_to_csv(json, d.sheet ?? 0, '');
+      if (req.format === 'tsv') return mod.model_to_csv(json, d.sheet ?? 0, JSON.stringify({ delimiter: '\t', encoding: 'utf-8', bom: false, lineEnding: '\r\n' }));
+      throw new Error(`Format d’export inconnu : ${req.format}`);
+    },
+    create(mod, _kind, title) {
+      const json = mod.new_workbook_model();
+      const payload: WorkbookPayload = { format: 'oelxlsx-workbook@1', json, original: null };
+      return { kind: 'spreadsheet', title: title || 'Tableur sans titre', readOnly: false, preview: { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [] }, payload };
     },
   });
 }

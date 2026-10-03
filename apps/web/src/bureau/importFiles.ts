@@ -5,6 +5,7 @@ import type { Vec } from '@oel/desk';
 import { PAPER_SIZE, uid, type Bureau, type Paper, type PaperKind } from './model';
 import type { ArrivalRules } from './Chrome';
 import { createDocFromPayload } from './docs';
+import { createSheetFromPayload } from './sheets';
 
 let host: EngineHost | null = null;
 
@@ -73,6 +74,7 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
       });
       let docId: string | undefined;
       if (result.kind === 'document' && result.payload) docId = await createDocFromPayload(result.payload, result.title).catch(() => undefined);
+      if (result.kind === 'spreadsheet' && result.payload) docId = await createSheetFromPayload(result.payload, result.title).catch(() => undefined);
       const current = store.node(paper.id);
       if (!current) return result;
       const kind = toPaperKind(result.kind);

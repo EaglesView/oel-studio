@@ -36,6 +36,14 @@ export interface DocxPayload {
   original: Uint8Array | null;
 }
 
+/** oelxlsx-rs import result: the workbook JSON (as text) and the original .xlsx for round trips. */
+export interface WorkbookPayload {
+  format: 'oelxlsx-workbook@1';
+  json: string;
+  /** The original .xlsx; null for CSV (its dialect is in the JSON). */
+  original: Uint8Array | null;
+}
+
 /** Serialise editor content back to a file format. */
 export interface ExportRequest {
   kind: FileKind;
@@ -66,6 +74,8 @@ export interface ImportRequest {
 export interface DocumentEngine {
   id: string;
   kinds: FileKind[];
+  /** Narrower than `kinds`: the files this engine opens (others of the kind fall back to the next engine). */
+  accepts?(name: string): boolean;
   import(req: ImportRequest, onProgress: (p: ImportProgress) => void): Promise<ImportResult>;
   /** Optional round trip: serialise editor content back to a file. */
   export?(req: ExportRequest): Promise<Uint8Array>;

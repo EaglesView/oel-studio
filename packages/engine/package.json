@@ -8,6 +8,7 @@
     "./worker": "./src/worker/engine.worker.ts"
   },
   "dependencies": {
-    "oeldocx-rs": "file:../../../oeldocx_rs/pkg"
+    "oeldocx-rs": "file:../../../oeldocx_rs/pkg",
+    "oelxlsx-rs": "file:../../../oelxlsx_rs/pkg"
   }
 }

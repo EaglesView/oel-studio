@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@hocuspocus/provider": "^4.7.0",
+    "@oel/collab-client": "*",
     "@oel/emboss": "*",
     "@tiptap/core": "^3.31.4",
     "@tiptap/extension-collaboration": "^3.31.4",

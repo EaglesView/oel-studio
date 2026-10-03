@@ -10,7 +10,7 @@
     "dev": "concurrently -k -n web,collab -c blue,magenta \"npm run dev -w @oel/web\" \"npm run dev -w @oel/collab\"",
     "build": "npm run build -w @oel/web",
     "preview": "npm run preview -w @oel/web",
-    "typecheck": "tsc -p packages/emboss --noEmit && tsc -p packages/desk --noEmit && tsc -p packages/engine --noEmit && tsc -p packages/docs --noEmit && tsc -p packages/forms --noEmit && tsc -p apps/collab --noEmit && npm run check -w @oel/web",
+    "typecheck": "tsc -p packages/emboss --noEmit && tsc -p packages/desk --noEmit && tsc -p packages/engine --noEmit && tsc -p packages/collab-client --noEmit && tsc -p packages/docs --noEmit && tsc -p packages/sheets --noEmit && tsc -p packages/forms --noEmit && tsc -p apps/collab --noEmit && npm run check -w @oel/web",
     "test": "vitest run",
     "dev:web": "npm run dev -w @oel/web",
     "dev:collab": "npm run dev -w @oel/collab"

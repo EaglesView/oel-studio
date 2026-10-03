@@ -1,0 +1,288 @@
+/* @oel/sheets — spreadsheet editor on the emboss kit. The cells are paper
+   (white, black "automatic" ink in both themes, like Excel); the chrome
+   around them uses emboss tokens. Layout mirrors @oel/docs. */
+
+@import '@oel/collab-client/styles.css';
+
+.oel-sheets {
+  --oel-desk: var(--emboss-surface);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--oel-desk);
+  color: var(--emboss-text);
+  font-family: var(--font-sans);
+}
+.oel-sheets--loading { display: grid; place-items: center; color: var(--emboss-ink-muted); }
+
+/* Title bar + menus */
+.oel-sheets__top { display: flex; align-items: center; gap: 10px; padding: 8px 16px 2px; min-width: 0; flex: none; }
+.oel-sheets__icon { color: var(--emboss-success, var(--emboss-fill-primary)); display: grid; }
+.oel-sheets__crumbs { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.oel-sheets__crumb-sep { color: var(--emboss-ink-muted); font: 400 18px/1 var(--font-sans); }
+.oel-sheets__titles { display: grid; min-width: 0; flex: 1; }
+.oel-sheets__titlerow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.oel-sheets__title {
+  justify-self: start;
+  max-width: 100%;
+  min-width: 8ch;
+  field-sizing: content;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--emboss-text);
+  font: 500 18px/24px var(--font-sans);
+}
+.oel-sheets__title:hover { border-color: var(--emboss-edge); }
+.oel-sheets__title:focus { outline: none; border-color: var(--emboss-fill-primary); background: var(--emboss-well); }
+.oel-sheets__right, .oel-sheets__sheet-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.oel-sheets__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  padding: 3px 10px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-full);
+  background: var(--emboss-well);
+  color: var(--emboss-ink-muted);
+  font: 500 12px/16px var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.oel-sheets__chip:hover { color: var(--emboss-text); }
+.oel-sheets__chip:focus-visible { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+
+/* Toolbar */
+.oel-sheets__toolbar { display: flex; align-items: center; gap: 8px; padding: 4px 16px 6px; min-width: 0; flex: none; }
+.oel-sheets--sheet .oel-sheets__toolbar { padding-top: 10px; }
+.oel-sheets__toolbar > .emb-toolbar { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.oel-toolbar__select--numfmt { width: 128px; }
+.oel-toolbar__select--font { width: 130px; }
+.oel-toolbar__select--size { width: 64px; }
+.oel-numfmt { display: flex; justify-content: space-between; gap: 16px; width: 100%; }
+.oel-numfmt__ex { color: var(--emboss-ink-muted); font-variant-numeric: tabular-nums; }
+
+/* CSV banner */
+.oel-sheets__banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--emboss-warning-soft);
+  color: var(--emboss-warning-ink, var(--emboss-text));
+  font: 400 13px/18px var(--font-sans);
+  flex: none;
+}
+.oel-sheets__banner > span { flex: 1; }
+
+/* Find bar */
+.oel-findbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--emboss-sheet);
+  box-shadow: var(--shadow-raised-soft, var(--shadow-raised));
+  flex: none;
+}
+.oel-findbar .emb-field { width: 200px; }
+.oel-findbar__count { min-width: 80px; color: var(--emboss-ink-muted); font: 400 12px/16px var(--font-sans); }
+
+/* Formula bar */
+.oel-formulabar { display: flex; align-items: center; gap: 6px; padding: 0 16px 6px; flex: none; }
+.oel-formulabar__name,
+.oel-formulabar__input {
+  height: 28px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--emboss-well);
+  box-shadow: var(--shadow-well);
+  color: var(--emboss-text);
+  font: 400 13px/24px var(--font-sans);
+}
+.oel-formulabar__name { width: 96px; text-align: center; font-weight: 500; }
+.oel-formulabar__input { flex: 1; min-width: 0; font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace; }
+.oel-formulabar__name:focus, .oel-formulabar__input:focus { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+.oel-formulabar__fx { display: grid; place-items: center; width: 24px; color: var(--emboss-ink-muted); font-style: italic; }
+
+/* Body: grid + panels */
+.oel-sheets__body { display: flex; flex: 1; min-height: 0; margin: 0 16px; gap: 0; }
+.oel-grid {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: #fff;
+  box-shadow: var(--shadow-sheet);
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+.oel-grid:focus-visible { box-shadow: var(--shadow-sheet), 0 0 0 2px var(--emboss-focus); }
+.oel-grid__scroll { position: absolute; inset: 0; overflow: auto; z-index: 1; }
+.oel-grid__canvas { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 0; }
+.oel-grid__scroll { background: transparent; }
+.oel-grid__tip {
+  position: absolute;
+  z-index: 6;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--emboss-tooltip);
+  color: var(--emboss-tooltip-text);
+  font: 400 12px/16px var(--font-sans);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+.oel-grid__listarrow {
+  position: absolute;
+  z-index: 4;
+  width: 18px;
+  padding: 0;
+  border: 1px solid #bdbdbd;
+  border-radius: 3px;
+  background: #fff;
+  color: #333;
+  font-size: 11px;
+  cursor: pointer;
+}
+.oel-sheet-editor {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1px 3px;
+  border: 2px solid var(--emboss-fill-primary);
+  background: #fff;
+  color: #000;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  max-width: 60vw;
+  white-space: pre;
+  outline: none;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.18);
+}
+.oel-sheet-suggest {
+  position: absolute;
+  z-index: 7;
+  display: grid;
+  min-width: 260px;
+  max-width: 420px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: var(--emboss-sheet);
+  box-shadow: var(--shadow-raised);
+  font: 400 13px/18px var(--font-sans);
+}
+.oel-sheet-suggest__item {
+  display: grid;
+  gap: 1px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--emboss-text);
+  text-align: left;
+  cursor: pointer;
+}
+.oel-sheet-suggest__item span, .oel-sheet-suggest__sig > span { color: var(--emboss-ink-muted); font-size: 12px; }
+.oel-sheet-suggest__item.is-on, .oel-sheet-suggest__item:hover { background: var(--emboss-accent-soft); }
+.oel-sheet-suggest__sig { display: grid; gap: 2px; padding: 4px 8px; }
+.oel-sheet-suggest__sig code { font: 500 13px/18px ui-monospace, monospace; }
+.oel-sheet-suggest__sig .is-arg { font-weight: 700; color: var(--emboss-fill-primary); }
+
+/* Sheet tabs + status */
+.oel-sheetbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 2px 6px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--emboss-well);
+  min-height: 34px;
+  flex: none;
+}
+.oel-sheetbar__tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; flex: 0 1 auto; }
+.oel-sheettab {
+  flex: none;
+  padding: 4px 14px;
+  border: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: transparent;
+  color: var(--emboss-ink-muted);
+  font: 500 13px/20px var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.oel-sheettab:hover { color: var(--emboss-text); background: var(--emboss-well-hover, var(--emboss-accent-soft)); }
+.oel-sheettab.is-on { background: #fff; color: var(--emboss-fill-primary); box-shadow: var(--shadow-raised-soft, var(--shadow-raised)); }
+.oel-sheettab:focus-visible { outline: 2px solid var(--emboss-focus); outline-offset: -2px; }
+.oel-sheettab.is-dragging { opacity: 0.5; }
+.oel-sheettab--input { width: 140px; background: #fff; color: #000; cursor: text; }
+.oel-tabcolor { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; }
+.oel-sheetbar__stats { flex: 1; text-align: right; color: var(--emboss-ink-muted); font: 400 12px/20px var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oel-sheetbar__zoom { display: inline-flex; align-items: center; gap: 2px; color: var(--emboss-ink-muted); font: 400 12px/20px var(--font-sans); font-variant-numeric: tabular-nums; }
+.oel-sheetbar__zoom .emb-button { min-height: 24px; width: 24px; }
+
+/* Dialog content */
+.oel-form__row { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.oel-form__row .emb-field { flex: 1; min-width: 120px; }
+.oel-form__label { font: 500 13px/32px var(--font-sans); min-width: 70px; }
+.oel-fmtlist { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; max-height: 260px; overflow: auto; }
+.oel-fmtlist__item { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--emboss-well); color: var(--emboss-text); font: 400 13px/18px var(--font-sans); cursor: pointer; text-align: left; }
+.oel-fmtlist__item.is-on { border-color: var(--emboss-fill-primary); background: var(--emboss-accent-soft); }
+.oel-cfpreview { padding: 1px 8px; border-radius: 3px; }
+.oel-cflist h3 { margin: 4px 0; font: 600 13px/18px var(--font-sans); }
+.oel-cflist ul, .oel-names { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.oel-cflist li, .oel-names li { display: flex; align-items: center; gap: 10px; font: 400 13px/18px var(--font-sans); }
+.oel-cflist li > span:first-child { font-weight: 600; min-width: 80px; }
+.oel-cflist li > span:nth-child(2) { flex: 1; color: var(--emboss-ink-muted); }
+.oel-names code { flex: 1; color: var(--emboss-ink-muted); font: 400 12px/16px ui-monospace, monospace; }
+.oel-anchor { position: fixed; width: 1px; height: 1px; pointer-events: none; }
+.oel-filtermenu { display: grid; gap: 8px; width: 260px; }
+.oel-filtermenu__sort { display: grid; }
+.oel-filtermenu__sort .emb-button { justify-content: flex-start; }
+.oel-filtermenu__actions { display: flex; gap: 12px; }
+.oel-filtermenu__actions button { padding: 0; border: none; background: none; color: var(--emboss-fill-primary); font: 500 12px/16px var(--font-sans); cursor: pointer; }
+.oel-filtermenu__list { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; display: grid; gap: 2px; }
+.oel-filtermenu__n { color: var(--emboss-ink-muted); font-size: 11px; margin-left: 4px; }
+.oel-filtermenu__foot { display: flex; justify-content: space-between; }
+.oel-validlist { list-style: none; margin: 0; padding: 0; min-width: 160px; max-height: 260px; overflow: auto; }
+.oel-validlist button { display: block; width: 100%; padding: 5px 10px; border: none; border-radius: var(--radius-sm); background: none; color: var(--emboss-text); text-align: left; font: 400 13px/18px var(--font-sans); cursor: pointer; }
+.oel-validlist button:hover, .oel-validlist button:focus-visible, .oel-validlist button[aria-selected='true'] { background: var(--emboss-accent-soft); outline: none; }
+.oel-preserved { max-width: 340px; font: 400 13px/19px var(--font-sans); }
+.oel-preserved p { margin: 0 0 6px; }
+.oel-preserved ul { margin: 0 0 8px; padding-left: 18px; }
+.oel-preserved__note { color: var(--emboss-ink-muted); font-size: 12px; }
+.oel-versions__sheet { max-height: 50vh; overflow: auto; border-radius: var(--radius-md); background: #fff; color: #000; }
+.oel-versions__sheetname { margin: 0; padding: 4px 8px; font: 600 12px/16px var(--font-sans); background: var(--emboss-well); color: var(--emboss-text); }
+.oel-versions__sheet table { border-collapse: collapse; font: 400 11px/15px Carlito, Calibri, sans-serif; }
+.oel-versions__sheet td { border: 1px solid #e1e1e1; padding: 1px 4px; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 760px) {
+  .oel-sheets__body, .oel-formulabar, .oel-sheetbar { margin-left: 0; margin-right: 0; }
+  .oel-formulabar { padding: 0 8px 6px; }
+  .oel-sheets__right .oel-sync span:not(.emb-visually-hidden),
+  .oel-sheets--sheet .oel-sheets__sheet-actions .oel-sync span:not(.emb-visually-hidden),
+  .oel-sheets__chip { display: none; }
+  .oel-sheetbar__stats { display: none; }
+}
+
+@media print {
+  .oel-sheets__top, .oel-sheets__toolbar, .oel-formulabar, .oel-sheetbar, .oel-findbar { display: none; }
+}

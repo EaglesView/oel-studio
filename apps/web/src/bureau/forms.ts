@@ -3,12 +3,16 @@ import type { DeskLink } from '@oel/desk';
 import { toast } from '@oel/emboss';
 import { applyResponses, headerRow, type FormDef, type FormResponse, type FormsBackend, type SheetLink, type SheetRef } from '@oel/forms';
 import { PAPER_SIZE, uid, type Bureau, type Paper } from './model';
+import { paperRows, setPaperRows } from './sheets';
 
 /**
  * Forms on the desk (Editor — Behaviors · E2 · 7): a form and its spreadsheet
  * are joined by a thread « Réponses → Inscriptions »; every new response adds
  * a row, flagged for a moment. The form logic itself lives in @oel/forms; this
- * file only maps it onto desk papers.
+ * file only maps it onto desk papers. A response sheet backed by a workbook
+ * (@oel/sheets) receives its rows in the workbook itself, typed as Excel would
+ * read them; TODO(backend): on the server, the same mapping should write into
+ * the stored workbook so responses land even when no organiser is online.
  */
 
 const isSheet = (p: Paper | undefined): p is Paper => !!p && p.kind === 'spreadsheet' && p.data.preview.kind === 'spreadsheet';
@@ -64,13 +68,24 @@ export function ensureFormThread(store: Bureau, formPaperId: string, link: Sheet
 export function writeHeaders(store: Bureau, link: SheetLink) {
   const sheet = store.node(link.sheetId) as Paper | undefined;
   if (!isSheet(sheet)) return;
+  const withHeader = (current: string[][]) => {
+    const rows = current.length ? current.map((r) => r.slice()) : [[]];
+    headerRow(link).forEach((h, i) => {
+      if (h) rows[0]![i] = h;
+    });
+    for (let i = 0; i < rows[0]!.length; i++) rows[0]![i] ??= '';
+    return rows;
+  };
+  // A sheet backed by a workbook (@oel/sheets): the header goes into the workbook itself.
+  if (sheet.data.docId) {
+    void paperRows(sheet).then((current) => {
+      const rows = withHeader(current);
+      if (JSON.stringify(rows) !== JSON.stringify(current)) return setPaperRows(store, sheet, rows);
+    });
+    return;
+  }
   const pv = sheet.data.preview as { kind: 'spreadsheet'; sheets: string[]; rows: string[][] };
-  const header = headerRow(link);
-  const rows = pv.rows.length ? pv.rows.map((r) => r.slice()) : [[]];
-  header.forEach((h, i) => {
-    if (h) rows[0]![i] = h;
-  });
-  for (let i = 0; i < rows[0]!.length; i++) rows[0]![i] ??= '';
+  const rows = withHeader(pv.rows);
   if (JSON.stringify(rows) !== JSON.stringify(pv.rows)) store.update(sheet.id, { data: { ...sheet.data, preview: { ...pv, rows } } }, { history: false });
 }
 
@@ -106,7 +121,17 @@ export function useFormSync(store: Bureau, backend: () => FormsBackend, announce
       let nextForm: FormDef = form;
       const link = form.link;
       const sheet = link ? (store.node(link.sheetId) as Paper | undefined) : undefined;
-      if (link && isSheet(sheet)) {
+      if (link && isSheet(sheet) && sheet.data.docId) {
+        // The response sheet is a real workbook: rows are read from and written to it.
+        void paperRows(sheet).then(async (rows) => {
+          const res = applyResponses(form, link, rows, responses);
+          if (JSON.stringify(res.rows) !== JSON.stringify(rows)) await setPaperRows(store, sheet, res.rows, res.added ? { label: `+${res.added} ligne${res.added > 1 ? 's' : ''}`, at: Date.now() } : undefined);
+          if (JSON.stringify(res.link.rows) !== JSON.stringify(link.rows)) {
+            const fresh = store.node(paperId) as Paper | undefined;
+            if (fresh?.data.form) store.update(paperId, { data: { ...fresh.data, form: { ...fresh.data.form, link: res.link } } }, { history: false });
+          }
+        });
+      } else if (link && isSheet(sheet)) {
         const pv = sheet.data.preview as { kind: 'spreadsheet'; sheets: string[]; rows: string[][] };
         const res = applyResponses(form, link, pv.rows, responses);
         if (JSON.stringify(res.rows) !== JSON.stringify(pv.rows)) {

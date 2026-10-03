@@ -4,9 +4,12 @@ import { randomBytes } from 'node:crypto';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 
+export type DocKind = 'doc' | 'sheet';
+
 export interface DocRow {
   id: string;
   title: string;
+  kind: DocKind;
   created_at: number;
 }
 
@@ -28,7 +31,7 @@ export interface VersionRow {
 }
 
 const SCHEMA = `
-create table if not exists docs (id text primary key, title text not null default '', created_at integer not null);
+create table if not exists docs (id text primary key, title text not null default '', kind text not null default 'doc', created_at integer not null);
 create table if not exists doc_state (doc_id text primary key references docs(id) on delete cascade, state blob not null, updated_at integer not null);
 create table if not exists packages (doc_id text primary key references docs(id) on delete cascade, bytes blob not null);
 create table if not exists media (id text primary key, doc_id text not null references docs(id) on delete cascade, path text not null, mime text not null, bytes blob not null, created_at integer not null);
@@ -47,17 +50,20 @@ export class Store {
     this.db = new DatabaseSync(file);
     this.db.exec('pragma journal_mode = wal; pragma foreign_keys = on;');
     this.db.exec(SCHEMA);
+    // Databases created before spreadsheets: add the kind column.
+    const cols = this.db.prepare('pragma table_info(docs)').all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === 'kind')) this.db.exec("alter table docs add column kind text not null default 'doc'");
   }
 
-  createDoc(title: string, pkg: Uint8Array | null): DocRow {
-    const row: DocRow = { id: newId(), title, created_at: Date.now() };
-    this.db.prepare('insert into docs (id, title, created_at) values (?, ?, ?)').run(row.id, row.title, row.created_at);
+  createDoc(title: string, pkg: Uint8Array | null, kind: DocKind = 'doc'): DocRow {
+    const row: DocRow = { id: newId(), title, kind, created_at: Date.now() };
+    this.db.prepare('insert into docs (id, title, kind, created_at) values (?, ?, ?, ?)').run(row.id, row.title, row.kind, row.created_at);
     if (pkg?.length) this.db.prepare('insert into packages (doc_id, bytes) values (?, ?)').run(row.id, pkg);
     return row;
   }
 
   doc(id: string): DocRow | undefined {
-    return this.db.prepare('select id, title, created_at from docs where id = ?').get(id) as DocRow | undefined;
+    return this.db.prepare('select id, title, kind, created_at from docs where id = ?').get(id) as DocRow | undefined;
   }
 
   loadState(id: string): Uint8Array | null {

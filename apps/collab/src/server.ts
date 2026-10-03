@@ -3,7 +3,7 @@
  * API (Hono) on the same port.
  *
  *   WS   /                      Yjs sync; document name = doc id; token = share token
- *   POST /docs                  body: original .docx (optional) → { docId, ownerToken }
+ *   POST /docs?kind=doc|sheet   body: original .docx/.xlsx (optional) → { docId, ownerToken }
  *   GET  /docs/:id              → { id, title, role }
  *   GET  /docs/:id/package      original .docx (round-trip base)
  *   POST /docs/:id/media?path=  body: image bytes → { id, url }
@@ -11,6 +11,8 @@
  *   GET|POST /docs/:id/links    share links (owner)            DELETE /docs/:id/links/:lid
  *   GET|POST /docs/:id/versions version history (editors)      GET /docs/:id/versions/:vid
  *   GET  /docs/:id/export.docx  server-side .docx export
+ *   GET  /docs/:id/export.xlsx  server-side .xlsx export (spreadsheets)
+ *   GET  /docs/:id/export.csv?sheet=n   one sheet as CSV, in the file's dialect
  */
 import { Server, type onAuthenticatePayload } from '@hocuspocus/server';
 import { getRequestListener } from '@hono/node-server';
@@ -20,11 +22,13 @@ import { cors } from 'hono/cors';
 import { createRequire } from 'node:module';
 import * as Y from 'yjs';
 import { exportJsonFromYDoc } from '@oel/docs/model';
+import { SheetDoc } from '@oel/sheets/model';
 import { canEdit, signToken, verifyToken, type TokenPayload } from './auth';
-import { Store, type Role } from './db';
+import { Store, type DocKind, type Role } from './db';
 
 const require = createRequire(import.meta.url);
 const codec = require('oeldocx-node') as { pm_to_docx(json: string, original: Uint8Array | null | undefined, media: Array<{ path: string; bytes: Uint8Array }>): Uint8Array };
+const sheets = require('oelxlsx-node') as { model_to_xlsx(json: string, original?: Uint8Array | null): Uint8Array; model_to_csv(json: string, sheet: number, dialect: string): Uint8Array };
 
 export interface CollabOptions {
   dbFile: string;
@@ -127,8 +131,10 @@ export function createCollabServer(o: CollabOptions) {
 
   app.post('/docs', async (c) => {
     const body = new Uint8Array(await c.req.arrayBuffer());
-    if (body.length && (body[0] !== 0x50 || body[1] !== 0x4b)) return c.json({ error: 'Le fichier n’est pas un .docx' }, 400);
-    const doc = store.createDoc(c.req.query('title') ?? '', body.length ? body : null);
+    const kind: DocKind = c.req.query('kind') === 'sheet' ? 'sheet' : 'doc';
+    // The round-trip base is an OOXML zip (.docx/.xlsx); CSV workbooks have none.
+    if (body.length && (body[0] !== 0x50 || body[1] !== 0x4b)) return c.json({ error: kind === 'sheet' ? 'Le fichier n’est pas un .xlsx' : 'Le fichier n’est pas un .docx' }, 400);
+    const doc = store.createDoc(c.req.query('title') ?? '', body.length ? body : null, kind);
     const link = store.createLink(doc.id, 'owner');
     return c.json({ docId: doc.id, ownerToken: signToken({ d: doc.id, r: 'owner', l: link.id }, o.secret) }, 201);
   });
@@ -137,7 +143,7 @@ export function createCollabServer(o: CollabOptions) {
     const p = need(c, ['owner', 'editor', 'viewer']);
     if (p instanceof Response) return p;
     const doc = store.doc(p.d);
-    return c.json({ id: p.d, title: doc?.title ?? '', role: p.r, hasPackage: !!store.package(p.d) });
+    return c.json({ id: p.d, title: doc?.title ?? '', role: p.r, kind: doc?.kind ?? 'doc', hasPackage: !!store.package(p.d) });
   });
 
   app.get('/docs/:id/package', (c) => {
@@ -145,7 +151,8 @@ export function createCollabServer(o: CollabOptions) {
     if (p instanceof Response) return p;
     const pkg = store.package(p.d);
     if (!pkg) return c.body(null, 204);
-    return c.body(pkg as Uint8Array<ArrayBuffer>, 200, { 'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const mime = store.doc(p.d)?.kind === 'sheet' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return c.body(pkg as Uint8Array<ArrayBuffer>, 200, { 'Content-Type': mime });
   });
 
   app.post('/docs/:id/media', async (c) => {
@@ -232,6 +239,42 @@ export function createCollabServer(o: CollabOptions) {
     return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(title)}.docx`,
+    });
+  });
+
+  /** The workbook JSON of a spreadsheet's current state. */
+  const workbook = (docId: string) => {
+    const state = currentState(docId);
+    if (!state) return null;
+    const ydoc = new Y.Doc();
+    Y.applyUpdate(ydoc, state);
+    return new SheetDoc(ydoc).toWorkbook();
+  };
+  const fileName = (docId: string, fallback: string) => (store.doc(docId)?.title || fallback).replace(/[^\p{L}\p{N} _.-]/gu, '').slice(0, 80) || fallback;
+
+  app.get('/docs/:id/export.xlsx', (c) => {
+    const p = need(c, ['owner', 'editor', 'viewer']);
+    if (p instanceof Response) return p;
+    const wb = workbook(p.d);
+    if (!wb) return c.json({ error: 'Classeur vide' }, 409);
+    // Cached values are recomputed by the codec (IronCalc) before writing.
+    const bytes = sheets.model_to_xlsx(JSON.stringify(wb), wb.source === 'xlsx' ? store.package(p.d) : null);
+    return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName(p.d, 'classeur'))}.xlsx`,
+    });
+  });
+
+  app.get('/docs/:id/export.csv', (c) => {
+    const p = need(c, ['owner', 'editor', 'viewer']);
+    if (p instanceof Response) return p;
+    const wb = workbook(p.d);
+    if (!wb) return c.json({ error: 'Classeur vide' }, 409);
+    const sheet = Math.max(0, Math.min(wb.sheets.length - 1, Number(c.req.query('sheet') ?? 0) || 0));
+    const bytes = sheets.model_to_csv(JSON.stringify(wb), sheet, '');
+    return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName(p.d, 'classeur'))}.csv`,
     });
   });
 

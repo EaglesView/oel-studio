@@ -18,7 +18,9 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "@oel/docs": "*",
-    "@oel/forms": "*"
+    "@oel/forms": "*",
+    "@oel/sheets": "*",
+    "@oel/collab-client": "*"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

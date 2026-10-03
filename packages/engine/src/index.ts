@@ -3,6 +3,6 @@ export { detectKind, extensionOf, stripExtension, KIND_LABEL, ACCEPTED_EXTENSION
 export { EngineRegistry } from './registry';
 export { EngineHost } from './host';
 export { previewEngine } from './engines/preview';
-export { createWasmEngine, createOeldocxEngine, type WasmEngineSpec } from './engines/wasm';
+export { createWasmEngine, createOeldocxEngine, createOelxlsxEngine, type WasmEngineSpec } from './engines/wasm';
 export { serveEngines } from './worker/serve';
 export type { ToWorker, FromWorker } from './worker/protocol';

@@ -4,9 +4,12 @@
  * over the kinds they handle; WASM modules load on first use.
  */
 import { previewEngine } from '../engines/preview';
-import { createOeldocxEngine } from '../engines/wasm';
+import { createOeldocxEngine, createOelxlsxEngine } from '../engines/wasm';
 import { EngineRegistry } from '../registry';
 import { serveEngines } from './serve';
 
-const registry = new EngineRegistry().register(previewEngine).register(createOeldocxEngine(() => import('oeldocx-rs')));
+const registry = new EngineRegistry()
+  .register(previewEngine)
+  .register(createOeldocxEngine(() => import('oeldocx-rs')))
+  .register(createOelxlsxEngine(() => import('oelxlsx-rs')));
 serveEngines(registry, self as unknown as Parameters<typeof serveEngines>[1]);

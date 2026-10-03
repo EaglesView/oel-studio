@@ -38,7 +38,7 @@ export interface OpenSheetHandle {
 }
 
 /** Kinds whose workspace brings its own full-screen chrome (breadcrumb, « Réduire », status bar). */
-const OWN_CHROME = new Set(['document']);
+const OWN_CHROME = new Set(['document', 'spreadsheet']);
 
 /**
  * B4 · Ouvrir sur place (level 2) and Plein écran (level 3).

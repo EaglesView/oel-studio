@@ -30,7 +30,7 @@ export interface PaperData {
   /** Object URL for imported images. */
   imageUrl?: string;
   fileName?: string;
-  /** Collaborative document (@oel/docs) backing this paper, once created. */
+  /** Collaborative document (@oel/docs) or workbook (@oel/sheets) backing this paper, once created. */
   docId?: string;
   /** Sticky note colour/assignee. */
   assignee?: string;

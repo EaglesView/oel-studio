@@ -15,7 +15,7 @@ export class EngineRegistry {
 
   pick(req: Pick<ImportRequest, 'name' | 'type' | 'bytes'>): DocumentEngine | undefined {
     const kind = detectKind(req, req.bytes.subarray(0, 16));
-    return this.engines.find((e) => e.kinds.includes(kind)) ?? this.engines[this.engines.length - 1];
+    return this.engines.find((e) => e.kinds.includes(kind) && (!e.accepts || e.accepts(req.name))) ?? this.engines[this.engines.length - 1];
   }
 
   async import(req: ImportRequest, onProgress: (p: ImportProgress) => void = () => {}): Promise<ImportResult> {
