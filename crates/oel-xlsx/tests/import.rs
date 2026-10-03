@@ -102,6 +102,10 @@ fn reads_drawings() {
     assert_eq!(d[1].mime.as_deref(), Some("image/svg+xml"));
     assert_eq!(d[1].rot, 180.0);
     assert_eq!((d[1].to.unwrap().r, d[1].to.unwrap().c), (2, 1));
+    // « Move but don't size with cells »: the size from the file's columns and rows is kept (px).
+    assert_eq!(d[1].edit_as.as_deref(), Some("oneCell"));
+    assert_eq!(((d[1].cx as f64 / 9525.0).round(), (d[1].cy as f64 / 9525.0).round()), (198.0, 529.0));
+    assert_eq!((d[2].edit_as.as_deref(), d[2].cx), (Some("twoCell"), 0));
     // Scheme colour accent2 of the file's theme.
     assert_eq!(d[2].fill.as_deref(), Some("#3C9FE0"));
 }

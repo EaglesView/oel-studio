@@ -15,7 +15,8 @@ from: DrawingMarker,
  */
 to?: DrawingMarker, 
 /**
- * Size in EMU for one-cell and absolute anchors.
+ * Size in EMU: for drawings that do not size with cells (`oneCell`,
+ * `absolute`), the size they keep when columns or rows are resized.
  */
 cx?: number, cy?: number, 
 /**

@@ -3,7 +3,7 @@
 //! Read-only: the editor shows pictures, shapes and chart frames over the
 //! grid; the part itself is written back untouched by [`crate::write`].
 
-use crate::model::{Drawing, DrawingMarker};
+use crate::model::{Drawing, DrawingMarker, Sheet};
 use oel_opc::package::{Package, resolve_target};
 use oel_opc::xml::XElement;
 
@@ -27,6 +27,45 @@ pub fn read_drawings(pkg: &Package, sheet_part: &str, theme: &[String]) -> Vec<D
     }
     out
 }
+
+/// Drawings that do not size with cells (`oneCell`, `absolute`) keep the size
+/// their anchor gave them in the file, in `cx`/`cy`: resizing a column later
+/// moves them but does not stretch them, as in Excel. Pixel sizes follow the
+/// grid (column width × 7 + 5 px, row height in points × 4/3).
+pub fn fix_sizes(sheet: &mut Sheet) {
+    let col_px = |c: u32| -> f64 {
+        match sheet.cols.iter().find(|x| c >= x.min && c <= x.max) {
+            Some(x) if x.hidden => 0.0,
+            Some(x) => x.width.map(|w| (w * 7.0 + 5.0).round()).unwrap_or((sheet.default_col_width * 7.0 + 5.0).round()),
+            None => (sheet.default_col_width * 7.0 + 5.0).round(),
+        }
+    };
+    let row_px = |r: u32| -> f64 {
+        match sheet.rows.iter().find(|x| x.r == r) {
+            Some(x) if x.hidden => 0.0,
+            Some(x) => (x.height.unwrap_or(sheet.default_row_height) * 4.0 / 3.0).round(),
+            None => (sheet.default_row_height * 4.0 / 3.0).round(),
+        }
+    };
+    let x_of = |m: &DrawingMarker| (0..m.c).map(col_px).sum::<f64>() + m.dx as f64 / EMU_PER_PX;
+    let y_of = |m: &DrawingMarker| (0..m.r).map(row_px).sum::<f64>() + m.dy as f64 / EMU_PER_PX;
+    let mut sizes = Vec::new();
+    for d in &sheet.drawings {
+        let fixed = matches!(d.edit_as.as_deref(), Some("oneCell") | Some("absolute"));
+        sizes.push(match (&d.to, fixed) {
+            (Some(to), true) => Some((((x_of(to) - x_of(&d.from)).max(0.0) * EMU_PER_PX) as i64, ((y_of(to) - y_of(&d.from)).max(0.0) * EMU_PER_PX) as i64)),
+            _ => None,
+        });
+    }
+    for (d, s) in sheet.drawings.iter_mut().zip(sizes) {
+        if let Some((cx, cy)) = s {
+            d.cx = cx;
+            d.cy = cy;
+        }
+    }
+}
+
+const EMU_PER_PX: f64 = 9525.0;
 
 struct Ctx<'a> {
     pkg: &'a Package,

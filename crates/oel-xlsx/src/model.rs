@@ -569,7 +569,8 @@ pub struct Drawing {
     /// Bottom-right corner (two-cell anchors); otherwise `cx`/`cy` give the size.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to: Option<DrawingMarker>,
-    /// Size in EMU for one-cell and absolute anchors.
+    /// Size in EMU: for drawings that do not size with cells (`oneCell`,
+    /// `absolute`), the size they keep when columns or rows are resized.
     #[serde(default)]
     #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub cx: i64,

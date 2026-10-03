@@ -341,6 +341,7 @@ fn read_sheet(ctx: &SheetCtx, name: &str, state: SheetState) -> Result<Sheet, St
     sheet.notes = read_notes(ctx);
     sheet.tables = read_tables(ctx);
     sheet.drawings = crate::drawing::read_drawings(ctx.pkg, &ctx.part, ctx.theme);
+    crate::drawing::fix_sizes(&mut sheet);
     Ok(sheet)
 }
 
