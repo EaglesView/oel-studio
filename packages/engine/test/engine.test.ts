@@ -82,3 +82,26 @@ describe('previewEngine', () => {
     expect(r.preview).toMatchObject({ rows: [['Poste', 'Montant'], ['Affiches', '1200']] });
   });
 });
+
+describe('oeldocx engine', () => {
+  it('imports with a payload, exports, and creates blank documents', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { createOeldocxEngine, EngineRegistry, previewEngine } = await import('../src');
+    const mod = createRequire(import.meta.url)('oeldocx-node');
+    const registry = new EngineRegistry().register(previewEngine).register(createOeldocxEngine(async () => mod));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../tests/tesxte.docx', import.meta.url))));
+    const res = await registry.import({ name: 'tesxte.docx', type: '', bytes });
+    expect(res.engine).toBe('oeldocx-rs');
+    expect(res.preview.kind === 'document' && res.preview.blocks[0]?.text.startsWith('La première chose')).toBe(true);
+    const payload = res.payload as { json: string; original: Uint8Array };
+    const out = await registry.export({ kind: 'document', format: 'docx', data: { json: JSON.parse(payload.json), original: payload.original, media: [] } });
+    expect(out[0]).toBe(0x50);
+    const blank = await registry.create('document', 'Nouveau');
+    expect(blank.title).toBe('Nouveau');
+    // Other formats still go to the preview engine.
+    const csv = await registry.import({ name: 'a.csv', type: 'text/csv', bytes: new TextEncoder().encode('a;b\n1;2') });
+    expect(csv.engine).not.toBe('oeldocx-rs');
+  });
+});

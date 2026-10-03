@@ -1,9 +1,13 @@
 import type { DeskNode, DeskStore } from '@oel/desk';
 import { KIND_LABEL, type FileKind, type Preview } from '@oel/engine';
 import type { IconName, Person, Tone } from '@oel/emboss';
+import type { FormDef } from '@oel/forms/model';
 
-/** Desk paper kinds = engine file kinds (minus "unsupported" which shows as a generic file). */
-export type PaperKind = Exclude<FileKind, 'unsupported'> | 'file';
+/**
+ * Desk paper kinds = engine file kinds (minus "unsupported" which shows as a generic file),
+ * plus forms (Editor — Behaviors · E), which are OEL papers rather than imported files.
+ */
+export type PaperKind = Exclude<FileKind, 'unsupported'> | 'file' | 'form';
 
 export type PaperStatus =
   | { state: 'ready' }
@@ -26,8 +30,16 @@ export interface PaperData {
   /** Object URL for imported images. */
   imageUrl?: string;
   fileName?: string;
+  /** Collaborative document (@oel/docs) backing this paper, once created. */
+  docId?: string;
   /** Sticky note colour/assignee. */
   assignee?: string;
+  /** Form definition (@oel/forms) for `form` papers. */
+  form?: FormDef;
+  /** Live counters shown on the form paper (« 42 RÉPONSES »). */
+  formStats?: { accepted: number; held: number };
+  /** Spreadsheet that just received a response row: flashes « +1 ligne » for a moment. */
+  flash?: { label: string; at: number };
 }
 
 export type Paper = DeskNode<PaperData> & { kind: PaperKind };
@@ -47,9 +59,11 @@ export const KIND_ICON: Record<PaperKind, IconName> = {
   image: 'image',
   note: 'note',
   file: 'file',
+  form: 'form',
 };
 
 export function kindLabel(kind: string): string {
+  if (kind === 'form') return 'Formulaire';
   return kind === 'file' ? 'Fichier' : (KIND_LABEL[kind as FileKind] ?? 'Fichier');
 }
 
@@ -62,6 +76,7 @@ export const PAPER_SIZE: Record<PaperKind, { w: number; h: number }> = {
   image: { w: 300, h: 330 },
   note: { w: 200, h: 140 },
   file: { w: 260, h: 320 },
+  form: { w: 340, h: 460 },
 };
 
 export function statusText(p: Paper): string {
@@ -76,6 +91,10 @@ export function statusText(p: Paper): string {
 export function describePaper(p: Paper): string {
   const parts = [p.title, kindLabel(p.kind)];
   if (p.data.stamp) parts.push(p.data.stamp.label);
+  if (p.kind === 'form') {
+    const st = p.data.formStats;
+    parts.push(p.data.form?.publication ? `${st?.accepted ?? 0} réponses${st?.held ? `, ${st.held} à vérifier` : ''}` : 'brouillon');
+  }
   const st = statusText(p);
   if (st) parts.push(st);
   return parts.join(', ');
@@ -94,6 +113,7 @@ export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper
     pdf: 'PDF',
     image: 'Image',
     file: 'Fichier',
+    form: 'Formulaire sans titre',
   };
   const preview: Preview =
     kind === 'document'

@@ -1,0 +1,9 @@
+---
+import Base from '../layouts/Base.astro';
+import { FormPage } from '../forms/FormPage';
+---
+<Base title="Formulaire · OutilsEnLigne" description="Répondre à un formulaire OutilsEnLigne : pas de compte, brouillon gardé sur l’appareil.">
+  <!-- Drafts live in localStorage and the backend is client-side for now: client only. -->
+  <FormPage client:only="react" />
+  <noscript><p class="page">Ce formulaire a besoin de JavaScript.</p></noscript>
+</Base>

@@ -10,6 +10,7 @@ import {
   ToolButton,
   toast,
 } from '@oel/emboss';
+import { copyLink } from '@oel/forms';
 import { kindLabel, uid, type Bureau, type Paper } from './model';
 import { sheetTotal } from './Paper';
 
@@ -21,6 +22,10 @@ interface Props {
   store: Bureau;
   onOpen: (id: string) => void;
   onConvert: (id: string) => void;
+  /** E2 · 1 « Créer un formulaire » from a selected spreadsheet. */
+  onCreateForm: (sheetId: string) => void;
+  /** Open a paper straight in full screen (form → Réponses lives there). */
+  onOpenFull: (id: string) => void;
   /** Ref so "/" can move focus into the toolbar (B3: keyboard first). */
   toolbarRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -31,7 +36,7 @@ interface Props {
  * B7 · several types selected:
  * only actions every type supports (arrange, produce, share).
  */
-export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) {
+export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenFull, toolbarRef }: Props) {
   const { announce } = useDesk();
   const rect = useSelectionScreenRect(store);
   const selection = useDeskState(store, (s) => s.selection);
@@ -82,7 +87,7 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
         appearance="pill"
         aria-label={single ? `Outils : ${kindLabel(single.kind)} « ${single.title} »` : `Outils pour ${selected.length} fichiers`}
       >
-        {single ? <TypeTools node={single} store={store} onConvert={onConvert} /> : <MultiTools store={store} ids={selection} kinds={kinds.size} />}
+        {single ? <TypeTools node={single} store={store} onConvert={onConvert} onCreateForm={onCreateForm} onOpenFull={onOpenFull} /> : <MultiTools store={store} ids={selection} kinds={kinds.size} />}
         <ToolbarSeparator />
         {single ? (
           <ToolButton
@@ -101,7 +106,19 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
   );
 }
 
-function TypeTools({ node, store, onConvert }: { node: Paper; store: Bureau; onConvert: (id: string) => void }) {
+function TypeTools({
+  node,
+  store,
+  onConvert,
+  onCreateForm,
+  onOpenFull,
+}: {
+  node: Paper;
+  store: Bureau;
+  onConvert: (id: string) => void;
+  onCreateForm: (sheetId: string) => void;
+  onOpenFull: (id: string) => void;
+}) {
   const readOnly = node.data.status.state === 'readonly';
   const importing = node.data.status.state === 'importing';
   if (importing) {
@@ -132,6 +149,29 @@ function TypeTools({ node, store, onConvert }: { node: Paper; store: Bureau; onC
           <ToolButton icon="sum" label="Somme" description="Somme de la colonne Montant." value={total != null ? `${nf.format(total)} $` : '—'} />
           <ToolButton icon="chart" label="Graphique" description="Crée un graphique lié sur une diapo." onPress={() => toast({ title: 'Graphique lié créé', description: 'Le fil de liaison apparaît sur le bureau.', tone: 'success' })} />
           <ToolButton icon="table" label="Format nombre" unavailableReason="Sélectionnez une plage de cellules (ouvrez le tableur)." />
+          <ToolButton icon="form" label="Créer un formulaire" description="Une question par colonne ; les réponses arrivent dans ce tableur." onPress={() => onCreateForm(node.id)} />
+        </>
+      );
+    }
+    case 'form': {
+      const pub = node.data.form?.publication;
+      return (
+        <>
+          <ToolButton
+            icon="copy"
+            label="Copier le lien"
+            description="Lien public du formulaire."
+            unavailableReason={pub ? undefined : 'Publiez d’abord le formulaire (ouvrez-le, puis « Publier »).'}
+            onPress={() => pub && void copyLink(pub.url)}
+          />
+          <ToolButton
+            icon="eye"
+            label="Voir comme un répondant"
+            description="Ouvre la page publique dans un nouvel onglet."
+            unavailableReason={pub ? undefined : 'Pas encore publié : utilisez « Aperçu » dans le formulaire.'}
+            onPress={() => pub && window.open(pub.url, '_blank', 'noopener')}
+          />
+          <ToolButton icon="chart" label="Réponses" value={String(node.data.formStats?.accepted ?? 0)} description="Résumé et réponses une par une (plein écran)." onPress={() => onOpenFull(node.id)} />
         </>
       );
     }

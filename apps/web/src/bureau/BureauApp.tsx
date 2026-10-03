@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createDesk } from '@oel/desk';
 import { DeskCanvas, Minimap, useDesk, useDeskState } from '@oel/desk/react';
 import '@oel/desk/desk.css';
@@ -17,11 +17,14 @@ import { ContextToolbar } from './ContextToolbar';
 import { Dock, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
-import { OpenSheet } from './OpenSheet';
+import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper } from './Paper';
 import { SEED_LINKS, SEED_PAPERS } from './seed';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { convertToEditable, importFiles } from './importFiles';
+import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
+import { formsBackend } from '../forms/backend';
+import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms';
 import './bureau.css';
 
 const PROJECT = 'Lancement automne 2026';
@@ -49,7 +52,13 @@ export function BureauApp() {
   const [rules, setRules] = useState<ArrivalRules>({ sortByType: false, ocr: true, linkTables: true });
   const [menu, setMenu] = useState<{ ids: string[]; at: { x: number; y: number } } | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<OpenSheetHandle>(null);
+  const [full, setFull] = useState(false);
   const announceRef = useRef<(m: string) => void>(() => {});
+  const announce = useCallback((m: string) => announceRef.current(m), []);
+  /** E2 · 1 « Nouveau formulaire » (from the dock, or from a selected spreadsheet). */
+  const [newForm, setNewForm] = useState<{ sheetId: string | null } | null>(null);
+  useFormSync(store, formsBackend, announce);
 
   const count = useDeskState(store, (s) => s.order.length);
   const openId = useDeskState(store, (s) => s.openId);
@@ -71,12 +80,103 @@ export function BureauApp() {
     return unsub;
   }, [store]);
 
-  const open = (id: string) => store.open(id);
+  // ── Levels (Editor — Behaviors · A1/A2) ─────────────────────────────
+  // 1 desk · 2 ouvert sur place (?f=id) · 3 plein écran (&vue=plein-ecran).
+  // Each level has its own address, so the browser's Back does what Échap does.
+  const urlFor = (id: string | null, isFull: boolean) =>
+    id ? `${location.pathname}?f=${encodeURIComponent(id)}${isFull ? '&vue=plein-ecran' : ''}` : location.pathname;
+  const depth = (): number => (history.state as { oelDepth?: number } | null)?.oelDepth ?? 0;
+
+  /** Show a level. Leaving a file commits its thumbnail and puts it back, selected and focused. */
+  const apply = (id: string | null, isFull: boolean) => {
+    const prev = store.getState().openId;
+    if (prev && prev !== id) {
+      sheetRef.current?.commit();
+      const paper = store.node(prev) as PaperNode | undefined;
+      store.open(null);
+      store.select([prev]);
+      store.focus(prev);
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(prev)}"]`)?.focus({ preventScroll: true }));
+      if (paper && !id) {
+        toast({
+          title: `${paper.title} · enregistré`,
+          description: 'Entrée pour rouvrir.',
+          tone: 'success',
+          action: { label: 'Rouvrir', onAction: () => openAt(prev, 2) },
+        });
+      }
+    }
+    if (id) store.open(id);
+    setFull(!!id && isFull);
+  };
+  const openAt = (id: string, level: 2 | 3) => {
+    history.pushState({ oelDepth: 1 }, '', urlFor(id, false));
+    if (level === 3) history.pushState({ oelDepth: 2 }, '', urlFor(id, true));
+    apply(id, level === 3);
+  };
+  const expand = () => {
+    const id = store.getState().openId;
+    if (!id) return;
+    history.pushState({ oelDepth: depth() + 1 }, '', urlFor(id, true));
+    apply(id, true);
+  };
+  const reduce = () => {
+    const id = store.getState().openId;
+    if (!id) return;
+    if (depth() >= 2) return history.back();
+    history.replaceState({ oelDepth: 1 }, '', urlFor(id, false));
+    apply(id, false);
+  };
+  /** Back to the desk in one step (« ‹ Bureau », « Reposer », Échap at level 2). */
+  const toDesk = () => {
+    const d = depth();
+    if (d > 0) return history.go(-d);
+    history.replaceState(null, '', urlFor(null, false));
+    apply(null, false);
+  };
+
+  useEffect(() => {
+    const fromUrl = () => {
+      const u = new URL(location.href);
+      const id = u.searchParams.get('f');
+      return { id: id && store.node(id) ? id : null, isFull: u.searchParams.get('vue') === 'plein-ecran' };
+    };
+    const onPop = () => {
+      const { id, isFull } = fromUrl();
+      apply(id, isFull);
+    };
+    // Deep link: /bureau?f=communique&vue=plein-ecran opens that level.
+    const first = fromUrl();
+    if (first.id) {
+      history.replaceState({ oelDepth: 0 }, '', urlFor(null, false));
+      openAt(first.id, first.isFull ? 3 : 2);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store]);
+
+  const open = (id: string) => openAt(id, 2);
   const create = (kind: PaperKind) => {
+    if (kind === 'form') return setNewForm({ sheetId: null });
     const p = blankPaper(kind, store.viewCenter());
     store.add([p]);
     announceRef.current(`${kindLabel(kind)} créé au centre de la vue`);
-    if (kind !== 'note') setTimeout(() => store.open(p.id), 50);
+    if (kind !== 'note') setTimeout(() => openAt(p.id, 2), 50);
+  };
+  const createForm = ({ form, linkTo }: NewFormResult) => {
+    const p = blankPaper('form', store.viewCenter());
+    const link = linkTo ? createLink(form, { id: linkTo.id, title: linkTo.title, tab: linkTo.tab, header: linkTo.rows[0] ?? [] }) : null;
+    // Lay the form left of the sheet it reads from, so the thread is short.
+    const sheet = linkTo ? store.node(linkTo.id) : null;
+    const at = sheet ? { x: sheet.x - p.w - 80, y: sheet.y } : { x: p.x, y: p.y };
+    store.add([{ ...p, ...at, title: form.title, data: { ...p.data, preview: { kind: 'unsupported' }, form: { ...form, link } } }]);
+    if (link) {
+      ensureFormThread(store, p.id, link);
+      writeHeaders(store, link);
+    }
+    announceRef.current(`Formulaire « ${form.title} » créé`);
+    setTimeout(() => openAt(p.id, 2), 50);
   };
   const doImport = (files: File[], at: { x: number; y: number } | null = null) =>
     void importFiles(store, files, at, rules, (m) => announceRef.current(m));
@@ -137,7 +237,14 @@ export function BureauApp() {
                 <span>PDF, Word, PowerPoint, Excel, images · 100 Mo max</span>
               </div>
             )}
-            onKeyDown={(e, s) => {
+            onKeyDown={(e) => {
+              // Ctrl+Maj+Entrée on the desk opens the selection straight in full screen (A2).
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+                const st = store.getState();
+                const id = st.focusedId ?? st.selection[0];
+                if (id) openAt(id, 3);
+                return true;
+              }
               if (e.key === '/' && toolbarRef.current) {
                 toolbarRef.current.querySelector<HTMLElement>('button')?.focus();
                 return true;
@@ -151,7 +258,14 @@ export function BureauApp() {
           >
             <AnnounceBridge target={announceRef} />
             <PresenceCursors store={store} />
-            <ContextToolbar store={store} onOpen={open} onConvert={(id) => convertToEditable(store, id, announceRef.current)} toolbarRef={toolbarRef} />
+            <ContextToolbar
+              store={store}
+              onOpen={open}
+              onConvert={(id) => convertToEditable(store, id, announceRef.current)}
+              onCreateForm={(sheetId) => setNewForm({ sheetId })}
+              onOpenFull={(id) => openAt(id, 3)}
+              toolbarRef={toolbarRef}
+            />
             {menu && (
               <ContextMenu
                 at={menu.at}
@@ -187,13 +301,28 @@ export function BureauApp() {
 
       {openId && openPaper && (
         <OpenSheet
+          handle={sheetRef}
           store={store}
           paper={openPaper}
-          onClose={() => store.open(null)}
+          level={full ? 3 : 2}
+          onExpand={expand}
+          onReduce={reduce}
+          onRepose={toDesk}
+          onBureau={toDesk}
           onConvert={(id) => {
-            store.open(null);
+            toDesk();
             convertToEditable(store, id, announceRef.current);
           }}
+          onOpenPaper={(id) => openAt(id, 2)}
+        />
+      )}
+      {newForm && (
+        <NewFormDialog
+          isOpen
+          onOpenChange={(o) => !o && setNewForm(null)}
+          sheets={sheetRefs(store)}
+          initialSheetId={newForm.sheetId}
+          onCreate={createForm}
         />
       )}
       <ShortcutsDialog isOpen={help} onOpenChange={setHelp} />

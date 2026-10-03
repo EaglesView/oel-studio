@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import type { NodeRenderContext } from '@oel/desk/react';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
+import { contrastGuard, questionsOf } from '@oel/forms/model';
 import type { Paper as PaperNode } from './model';
 
 const nf = new Intl.NumberFormat('fr-CA');
@@ -54,6 +55,11 @@ export const Paper = memo(
       aria-hidden
     >
       <Content node={content} />
+      {node.data.flash && Date.now() - node.data.flash.at < 4000 && (
+        <Badge key={node.data.flash.at} tone="success" className="paper__flash">
+          {node.data.flash.label}
+        </Badge>
+      )}
 
       {status.state === 'importing' && (
         <div className="paper__veil">
@@ -169,6 +175,51 @@ function Content({ node }: { node: PaperNode }) {
           )}
           <span className="paper__pdf-pages">{pages} p.</span>
         </div>
+      );
+    }
+    case 'form': {
+      const f = data.form;
+      const a = f?.appearance;
+      const stats = data.formStats;
+      const initials = (f?.organiser || node.title).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
+      return (
+        <>
+          <div
+            className="paper__form-band"
+            style={{ ['--paper-accent' as string]: a ? contrastGuard(a.accent).applied : undefined, backgroundImage: a?.coverUrl ? `url(${a.coverUrl})` : undefined }}
+          >
+            <span className="paper__form-logo">{a?.logoUrl ? <img src={a.logoUrl} alt="" /> : initials}</span>
+          </div>
+          <div className="paper__form-body">
+            <h3 className="paper__form-title">{node.title}</h3>
+            {(f ? questionsOf(f) : []).slice(0, 6).map((q) => (
+              <div key={q.id} className="paper__form-q">
+                <span>
+                  {q.title || 'Question'}
+                  {q.required ? ' *' : ''}
+                </span>
+                <i />
+              </div>
+            ))}
+          </div>
+          <div className="paper__form-foot">
+            {f?.publication ? (
+              <Badge tone="accent">
+                {stats?.accepted ?? 0} réponse{(stats?.accepted ?? 0) > 1 ? 's' : ''}
+              </Badge>
+            ) : (
+              <Badge tone="neutral" dot={false}>
+                Brouillon
+              </Badge>
+            )}
+            {!!stats?.held && <Badge tone="warning">{stats.held} à vérifier</Badge>}
+            {f?.publication && !f.settings.acceptResponses && (
+              <Badge appearance="stamp" tone="neutral" dot={false}>
+                Fermé
+              </Badge>
+            )}
+          </div>
+        </>
       );
     }
     case 'note':

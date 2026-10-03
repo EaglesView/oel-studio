@@ -16,7 +16,9 @@
     "@oel/engine": "*",
     "astro": "^7.3.5",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "@oel/docs": "*",
+    "@oel/forms": "*"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

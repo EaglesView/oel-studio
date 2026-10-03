@@ -21,6 +21,28 @@ export interface ImportResult {
   preview: Preview;
   /** Engine that produced it, for debugging and capability checks. */
   engine: string;
+  /**
+   * Full editable content when the engine has one (e.g. `DocxPayload` from
+   * oeldocx-rs). Opaque to the shell: handed to the matching editor.
+   */
+  payload?: unknown;
+}
+
+/** oeldocx-rs import result: editor JSON (as text), images, and the original file for round trips. */
+export interface DocxPayload {
+  format: 'oeldocx-pm@1';
+  json: string;
+  media: Array<{ path: string; mime: string; bytes: Uint8Array }>;
+  original: Uint8Array | null;
+}
+
+/** Serialise editor content back to a file format. */
+export interface ExportRequest {
+  kind: FileKind;
+  /** Target format, e.g. `docx`. */
+  format: string;
+  /** Engine-specific content (for docx: `{ json, original, media }`). */
+  data: unknown;
 }
 
 export interface ImportProgress {
@@ -45,6 +67,8 @@ export interface DocumentEngine {
   id: string;
   kinds: FileKind[];
   import(req: ImportRequest, onProgress: (p: ImportProgress) => void): Promise<ImportResult>;
-  /** Optional round-trip: serialise back to the original format. */
-  export?(handle: unknown, format: string): Promise<Uint8Array>;
+  /** Optional round trip: serialise editor content back to a file. */
+  export?(req: ExportRequest): Promise<Uint8Array>;
+  /** Optional: a new, empty editable file of this kind (same shape as an import). */
+  create?(kind: FileKind, title: string): Promise<ImportResult>;
 }

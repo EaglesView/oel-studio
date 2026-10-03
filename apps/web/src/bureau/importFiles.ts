@@ -4,6 +4,7 @@ import { toast } from '@oel/emboss';
 import type { Vec } from '@oel/desk';
 import { PAPER_SIZE, uid, type Bureau, type Paper, type PaperKind } from './model';
 import type { ArrivalRules } from './Chrome';
+import { createDocFromPayload } from './docs';
 
 let host: EngineHost | null = null;
 
@@ -70,6 +71,8 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
         if (!current) return;
         store.update(paper.id, { data: { ...current.data, status: { state: 'importing', progress: p.value, stage: p.stage } } }, { history: false });
       });
+      let docId: string | undefined;
+      if (result.kind === 'document' && result.payload) docId = await createDocFromPayload(result.payload, result.title).catch(() => undefined);
       const current = store.node(paper.id);
       if (!current) return result;
       const kind = toPaperKind(result.kind);
@@ -83,6 +86,7 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
           ...(kind !== current.kind ? { w: size.w, h: size.h } : {}),
           data: {
             ...current.data,
+            ...(docId ? { docId } : {}),
             preview: result.preview,
             status: result.readOnly ? { state: 'readonly', reason: result.reason ?? 'Lecture seule.' } : { state: 'ready' },
             stamp: scanned ? { label: 'À vérifier', tone: 'danger' } : current.data.stamp,

@@ -242,6 +242,7 @@
 .open-overlay.is-full { background: var(--emboss-well); }
 .open-sheet {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   height: 100%;
   padding: 20px 24px 20px;
@@ -253,7 +254,7 @@
 .open-sheet__crumbs li { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .open-sheet__crumbs li + li::before { content: '›'; color: var(--emboss-ink-muted); font: 400 18px/1 var(--font-sans); }
 .open-sheet__title { margin: 0; font: 600 16px/22px var(--font-sans); color: var(--title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.open-sheet__work { min-height: 0; }
+.open-sheet__work { min-height: 0; min-width: 0; }
 .open-sheet__hint {
   justify-self: center;
   margin: 0;
@@ -513,3 +514,31 @@
 /* Zoomed-out thumbnails: drop the expensive layered shadows, keep the paper shape. */
 .paper[data-lod='thumbnail'] { box-shadow: var(--shadow-raised-soft); }
 .paper[data-lod='thumbnail'] .paper__readonly { display: none; }
+.ws--docs { display: block; height: 100%; min-height: 0; border-radius: var(--radius-xl); overflow: hidden; }
+/* Level 2: a raised sheet with the desk visible around it (click the margin to put it back). */
+.ws--docs-sheet { box-shadow: var(--shadow-sheet); border: 1px solid var(--emboss-edge); }
+/* Level 3: the editor fills the window, with its own breadcrumb and status bar. */
+.open-sheet--chromeless { grid-template-rows: minmax(0, 1fr); padding: 0; gap: 0; }
+.open-sheet--chromeless .ws--docs { border-radius: 0; }
+.open-sheet__actions { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+.open-sheet__crumbs { display: flex; align-items: center; }
+
+/* ── Forms (Editor — Behaviors · E) ────────────────────────────────── */
+.ws--form { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: 'stage'; }
+.paper--form { display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; }
+.paper__form-band { flex: none; height: 64px; background: var(--paper-accent, var(--emboss-fill-primary)) center / cover; position: relative; }
+.paper__form-logo {
+  position: absolute; left: 20px; bottom: -18px; display: grid; place-items: center; width: 40px; height: 40px;
+  overflow: hidden; border: 3px solid var(--emboss-sheet); border-radius: 50%; background: var(--emboss-sheet);
+  color: var(--emboss-ink); font: 700 13px/1 var(--font-sans); box-shadow: var(--shadow-flat);
+}
+.paper__form-logo img { width: 100%; height: 100%; object-fit: cover; }
+.paper__form-body { display: grid; align-content: start; gap: 10px; padding: 28px 20px 16px; min-height: 0; overflow: hidden; }
+.paper__form-title { margin: 0; font: 700 17px/22px var(--font-sans); color: var(--title); }
+.paper__form-q { display: grid; gap: 5px; }
+.paper__form-q span { font: 600 11px/14px var(--font-sans); color: var(--emboss-text); }
+.paper__form-q i { display: block; height: 18px; border-radius: 6px; background: var(--emboss-well); box-shadow: var(--shadow-well); }
+.paper__form-foot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding: 0 20px 16px; }
+.paper__flash { position: absolute; top: 10px; right: 10px; animation: paper-flash 4s var(--ease-paper) forwards; pointer-events: none; }
+@keyframes paper-flash { 0% { opacity: 0; translate: 0 6px; } 8%, 70% { opacity: 1; translate: 0 0; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .paper__flash { animation-duration: 6s; } }

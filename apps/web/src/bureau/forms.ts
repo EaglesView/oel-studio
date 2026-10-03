@@ -1,0 +1,166 @@
+import { useEffect, useRef } from 'react';
+import type { DeskLink } from '@oel/desk';
+import { toast } from '@oel/emboss';
+import { applyResponses, headerRow, type FormDef, type FormResponse, type FormsBackend, type SheetLink, type SheetRef } from '@oel/forms';
+import { PAPER_SIZE, uid, type Bureau, type Paper } from './model';
+
+/**
+ * Forms on the desk (Editor — Behaviors · E2 · 7): a form and its spreadsheet
+ * are joined by a thread « Réponses → Inscriptions »; every new response adds
+ * a row, flagged for a moment. The form logic itself lives in @oel/forms; this
+ * file only maps it onto desk papers.
+ */
+
+const isSheet = (p: Paper | undefined): p is Paper => !!p && p.kind === 'spreadsheet' && p.data.preview.kind === 'spreadsheet';
+
+export function sheetRefs(store: Bureau): SheetRef[] {
+  return store.nodes
+    .map((n) => n as Paper)
+    .filter(isSheet)
+    .map((p) => {
+      const pv = p.data.preview as { kind: 'spreadsheet'; sheets: string[]; rows: string[][] };
+      return { id: p.id, title: p.title, tab: pv.sheets[0] ?? 'Feuille 1', rows: pv.rows };
+    });
+}
+
+/** « Nouveau tableur « … — réponses » », laid next to the form. */
+export function createResponseSheet(store: Bureau, formPaperId: string, title: string, header: string[]): SheetRef {
+  const form = store.node(formPaperId);
+  const size = PAPER_SIZE.spreadsheet;
+  const tab = 'Réponses';
+  const paper: Paper = {
+    id: uid('sheet'),
+    kind: 'spreadsheet',
+    title,
+    x: form ? form.x + form.w + 80 : store.viewCenter().x,
+    y: form ? form.y : store.viewCenter().y,
+    w: size.w,
+    h: size.h,
+    rotation: 0,
+    data: { editor: 'JB', status: { state: 'ready' }, preview: { kind: 'spreadsheet', sheets: [tab], rows: [header.length ? header : ['']] } },
+  };
+  store.add([paper], { select: false });
+  return { id: paper.id, title, tab, rows: [header] };
+}
+
+const threadId = (formPaperId: string) => `form-${formPaperId}`;
+
+/** One thread per form: form → its response sheet. */
+export function ensureFormThread(store: Bureau, formPaperId: string, link: SheetLink | null) {
+  const links = store.getState().links;
+  const id = threadId(formPaperId);
+  const existing = links.find((l) => l.id === id);
+  if (!link) {
+    if (existing) store.setLinks(links.filter((l) => l.id !== id), 'Fil retiré');
+    return;
+  }
+  const label = `Réponses → ${link.tab} · en direct`;
+  if (existing && existing.to === link.sheetId && existing.label === label) return;
+  const thread: DeskLink = { id, from: formPaperId, to: link.sheetId, label, state: 'fresh' };
+  store.setLinks([...links.filter((l) => l.id !== id), thread], 'Fil Réponses');
+}
+
+/** Write the header row of a freshly linked sheet so the columns show at once. */
+export function writeHeaders(store: Bureau, link: SheetLink) {
+  const sheet = store.node(link.sheetId) as Paper | undefined;
+  if (!isSheet(sheet)) return;
+  const pv = sheet.data.preview as { kind: 'spreadsheet'; sheets: string[]; rows: string[][] };
+  const header = headerRow(link);
+  const rows = pv.rows.length ? pv.rows.map((r) => r.slice()) : [[]];
+  header.forEach((h, i) => {
+    if (h) rows[0]![i] = h;
+  });
+  for (let i = 0; i < rows[0]!.length; i++) rows[0]![i] ??= '';
+  if (JSON.stringify(rows) !== JSON.stringify(pv.rows)) store.update(sheet.id, { data: { ...sheet.data, preview: { ...pv, rows } } }, { history: false });
+}
+
+/**
+ * Keeps every published form's linked sheet in step with its responses, for
+ * the whole desk (not only while the form is open), and keeps the published
+ * copy's quota ranges in step with the sheets they come from.
+ */
+export function useFormSync(store: Bureau, backend: () => FormsBackend, announce: (m: string) => void) {
+  const watching = useRef(new Map<string, () => void>());
+  const known = useRef(new Map<string, Set<string>>());
+  const rangeKeys = useRef(new Map<string, string>());
+
+  useEffect(() => {
+    const apply = (paperId: string, responses: FormResponse[]) => {
+      const paper = store.node(paperId) as Paper | undefined;
+      const form = paper?.data.form;
+      if (!paper || !form) return;
+      const accepted = responses.filter((r) => r.status === 'accepted');
+      const held = responses.length - accepted.length;
+
+      // New responses since we started watching: tell the organiser.
+      const seen = known.current.get(paperId);
+      const fresh = seen ? responses.filter((r) => !seen.has(r.id)) : [];
+      known.current.set(paperId, new Set(responses.map((r) => r.id)));
+      if (fresh.length) {
+        const heldNew = fresh.filter((r) => r.status === 'held').length;
+        const msg = heldNew === fresh.length ? `${heldNew} réponse${heldNew > 1 ? 's' : ''} mise${heldNew > 1 ? 's' : ''} de côté · ${form.title}` : `Nouvelle réponse · ${form.title}`;
+        toast({ title: msg, description: form.link && heldNew < fresh.length ? `Ajoutée au tableur « ${form.link.sheetTitle} ».` : 'À vérifier dans l’onglet Réponses.', tone: heldNew === fresh.length ? 'warning' : 'success' });
+        announce(msg);
+      }
+
+      let nextForm: FormDef = form;
+      const link = form.link;
+      const sheet = link ? (store.node(link.sheetId) as Paper | undefined) : undefined;
+      if (link && isSheet(sheet)) {
+        const pv = sheet.data.preview as { kind: 'spreadsheet'; sheets: string[]; rows: string[][] };
+        const res = applyResponses(form, link, pv.rows, responses);
+        if (JSON.stringify(res.rows) !== JSON.stringify(pv.rows)) {
+          store.update(
+            sheet.id,
+            { data: { ...sheet.data, preview: { ...pv, rows: res.rows }, flash: res.added ? { label: `+${res.added} ligne${res.added > 1 ? 's' : ''}`, at: Date.now() } : sheet.data.flash } },
+            { history: false },
+          );
+        }
+        if (JSON.stringify(res.link.rows) !== JSON.stringify(link.rows)) nextForm = { ...form, link: res.link };
+      }
+      const stats = paper.data.formStats;
+      if (nextForm !== form || stats?.accepted !== accepted.length || stats?.held !== held) {
+        store.update(paperId, { data: { ...paper.data, form: nextForm, formStats: { accepted: accepted.length, held } } }, { history: false });
+      }
+    };
+
+    let lastNodes: unknown = null;
+    const reconcile = () => {
+      // Pans and zooms change the state too; only paper changes matter here.
+      const nodes = store.getState().nodes;
+      if (nodes === lastNodes) return;
+      lastNodes = nodes;
+      const papers = store.nodes.map((n) => n as Paper).filter((p) => p.kind === 'form' && p.data.form?.publication);
+      const ids = new Set(papers.map((p) => p.id));
+      for (const [id, stop] of watching.current) {
+        if (!ids.has(id)) {
+          stop();
+          watching.current.delete(id);
+          known.current.delete(id);
+        }
+      }
+      for (const p of papers) {
+        if (!watching.current.has(p.id)) watching.current.set(p.id, backend().watchResponses(p.data.form!.id, (list) => apply(p.id, list)));
+        // Quotas read from sheets: push the current rows to the published copy when they change.
+        const form = p.data.form!;
+        const sources = [...new Set(form.items.flatMap((i) => (i.kind === 'question' && i.choiceSource ? [i.choiceSource.sheetId] : [])))];
+        if (!sources.length) continue;
+        const ranges = Object.fromEntries(sources.map((id) => [id, ((store.node(id) as Paper | undefined)?.data.preview as { rows?: string[][] } | undefined)?.rows ?? []]));
+        const key = `${form.publication!.version}:${JSON.stringify(ranges)}`;
+        if (rangeKeys.current.get(p.id) !== key) {
+          rangeKeys.current.set(p.id, key);
+          void backend().updateRanges(form.id, ranges);
+        }
+      }
+    };
+
+    reconcile();
+    const unsub = store.subscribe(reconcile);
+    const map = watching.current;
+    return () => {
+      unsub();
+      map.forEach((stop) => stop());
+      map.clear();
+    };
+  }, [store, backend, announce]);
+}

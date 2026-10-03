@@ -6,5 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker/engine.worker.ts"
+  },
+  "dependencies": {
+    "oeldocx-rs": "file:../../../oeldocx_rs/pkg"
   }
 }

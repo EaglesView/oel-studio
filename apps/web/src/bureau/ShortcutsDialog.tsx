@@ -31,8 +31,32 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
       [['N'], 'Nouvelle note'],
       [['Ctrl', 'O'], 'Importer des fichiers'],
       [['Maj', 'F10'], 'Menu contextuel'],
-      [['Ctrl', 'Maj', 'Entrée'], 'Plein écran (fichier ouvert)'],
+      [['Ctrl', 'Maj', 'Entrée'], 'Ouvrir la sélection en plein écran'],
       [['?'], 'Afficher cette aide'],
+    ],
+  },
+  {
+    title: 'Fichier ouvert',
+    rows: [
+      [['Échap'], 'Un niveau à la fois : termine l’action en cours, puis plein écran → sur place → bureau'],
+      [['Ctrl', 'Maj', 'Entrée'], 'Agrandir en plein écran · réduire'],
+      [['Retour'], 'Le bouton Retour du navigateur fait comme Échap'],
+      [['Ctrl', 'Maj', 'F'], 'Mode concentration (Alt ou bouger la souris : outils visibles)'],
+      [['Ctrl', 'Maj', 'P'], 'Plan du document'],
+    ],
+  },
+  {
+    title: 'Document',
+    rows: [
+      [['Ctrl', 'B · I · U'], 'Gras · italique · souligné'],
+      [['Ctrl', 'Alt', '1–6'], 'Titres · Ctrl+Alt+0 texte normal'],
+      [['Ctrl', 'Maj', '7 · 8 · 9'], 'Liste numérotée · à puces · de contrôle'],
+      [['Ctrl', 'K'], 'Lien'],
+      [['Ctrl', 'Entrée'], 'Saut de page'],
+      [['Ctrl', 'Alt', 'F'], 'Note de bas de page'],
+      [['Ctrl', 'F · H'], 'Rechercher · remplacer'],
+      [['Ctrl', '\\'], 'Effacer la mise en forme'],
+      [['Ctrl', 'Maj', 'C'], 'Nombre de mots'],
     ],
   },
 ];

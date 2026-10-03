@@ -1,13 +1,12 @@
 /// <reference lib="webworker" />
 /**
- * Default engine worker. Swap or extend the registry here to add WASM engines:
- *
- *   import { createOeldocxEngine } from '../engines/wasm';
- *   registry.register(createOeldocxEngine(() => import('oeldocx-rs')));
+ * Default engine worker. Engines registered after the preview engine take
+ * over the kinds they handle; WASM modules load on first use.
  */
 import { previewEngine } from '../engines/preview';
+import { createOeldocxEngine } from '../engines/wasm';
 import { EngineRegistry } from '../registry';
 import { serveEngines } from './serve';
 
-const registry = new EngineRegistry().register(previewEngine);
+const registry = new EngineRegistry().register(previewEngine).register(createOeldocxEngine(() => import('oeldocx-rs')));
 serveEngines(registry, self as unknown as Parameters<typeof serveEngines>[1]);

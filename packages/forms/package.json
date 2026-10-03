@@ -1,0 +1,28 @@
+{
+  "name": "@oel/forms",
+  "version": "0.1.0",
+  "description": "Forms: builder (questions, linked spreadsheet, appearance, publishing) and respondent page (steps, errors, drafts, attachments). Backend calls go through FormsBackend; the local stub stands in until the server exists.",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/model/index.ts",
+    "./styles.css": "./src/ui/forms.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@oel/emboss": "*",
+    "qrcode-generator": "^2.0.4",
+    "react-aria-components": "^1.21.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "happy-dom": "^20.14.5"
+  }
+}

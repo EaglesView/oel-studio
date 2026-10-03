@@ -7,8 +7,8 @@ mainly *05 · Bureau* and the *Bureau — Exploration* section (B1–B8).
 
 ```
 npm install
-npm run dev        # http://localhost:4321  →  /bureau, /composants
-npm test           # desk core + engine unit tests (vitest)
+npm run dev        # web http://localhost:4321 (/bureau, /document, /composants) + collab server :8787
+npm test           # desk, engine, docs (headless editor → .docx → LibreOffice) and collab server tests
 npm run typecheck
 npm run build      # static site in apps/web/dist
 ```
@@ -21,8 +21,12 @@ packages/
   desk/     @oel/desk     Infinite-desk canvas: framework-free core + React DOM renderer
   engine/   @oel/engine   Document-processing contract, Web Worker host, JS preview engine,
                           adapter for WASM engines (oeldocx-rs, oelimg-rs)
+  docs/     @oel/docs     Docs-style DOCX editor (Tiptap/ProseMirror + Yjs), collaboration client
+  forms/    @oel/forms    Forms: builder, respondent page, linked-spreadsheet model, backend contract
 apps/
-  web/      Astro site: /bureau (the editor), /composants (kit showcase)
+  web/      Astro site: /bureau (the editor), /document (standalone docs + share links),
+            /f (public form page), /connexion (sign-in link landing), /composants (kit showcase)
+  collab/   @oel/collab   Collaboration server: Hocuspocus (Yjs) + HTTP API + SQLite
 ```
 
 Packages ship TypeScript source (`exports` → `src/`) and are compiled by the app's Vite.
@@ -92,17 +96,88 @@ interface DocumentEngine {
   tiny ZIP reader + `DecompressionStream`, CSV/TSV/TXT/MD, PDF page count / scanned
   detection, image dimensions. Enough for the UX flow on real files today.
 - `createWasmEngine` / `createOeldocxEngine` wrap a wasm-bindgen package and lazy-load it in
-  the worker on first use. To wire **oeldocx-rs** (sibling repo):
-  1. add `"oeldocx-rs": "file:../../oeldocx_rs/pkg"` to `packages/engine/package.json`;
-  2. in `src/worker/engine.worker.ts`:
-     `registry.register(createOeldocxEngine(() => import('oeldocx-rs')))`;
-  3. align the `EditorState → Preview` mapping in `engines/wasm.ts` with the crate's state.
-  Registered engines take precedence over the preview engine for their kinds.
+  the worker on first use. **oeldocx-rs** (sibling repo, `file:../../../oeldocx_rs/pkg`) is
+  registered in `src/worker/engine.worker.ts` and takes over `.docx`: imports carry a
+  `DocxPayload` (editor JSON, images, original file) and the engine also does
+  `export({ kind, format: 'docx', data })` and `create('document')`.
+  Rebuild it with `wasm-pack build --target web --release --out-dir pkg` (and
+  `--target nodejs --out-dir pkg-node` for the server and tests) in `oeldocx_rs/`.
   oelimg-rs plugs in the same way for `image`.
 
-In the document workspace the ribbon currently drives `contentEditable`/`execCommand`;
-each command maps 1:1 onto `DocxController` (`set_bold`, `set_alignment_*`,
-`toggle_bullet_list`, `apply_style`…), which is what replaces it.
+## @oel/docs — the document editor
+
+A Google-Docs-like editor for real .docx files.
+
+- **Schema** (`src/extensions`) mirrors the oeldocx-rs codec exactly. Paragraphs keep Word's
+  model (`styleId`, `numId`/`ilvl` lists, spacing/indent in twips) and the original `pPr`/`rPr`
+  XML; anything unmodelled is an opaque `ooxmlInline`/`ooxmlBlock`. The codec only rewrites
+  what changed, so untouched formatting, styles, themes, fields and bookmarks survive.
+- **Editing**: styles (Word's own style list), fonts, sizes, colours, highlight, sub/superscript,
+  alignment, line/paragraph spacing, indents, bullet/numbered/check lists (Tab/Maj+Tab levels),
+  tables (resize, merge/split, rows/columns, cell colour), images (paste, drop, URL, resize, alt
+  text), links, page breaks, tabs, footnotes/endnotes, table of contents (Word TOC field),
+  headers/footers with page numbers, special characters, find & replace (case, whole word,
+  regex), format painter, clear formatting, Markdown shortcuts, French typography.
+- **Page view**: line-by-line pagination (`extensions/pagination.ts`) with sheets, headers and
+  footers drawn behind the text; pageless mode; zoom; outline; non-printing characters.
+- **Files**: .docx (round trip through the engine worker), PDF via print, HTML, Markdown, text.
+- **Collaboration** (`src/collab`): one `Y.Doc` per document (`model/ydoc.ts` documents the
+  layout), IndexedDB offline copy (`y-indexeddb`), Hocuspocus sync, presence avatars, share
+  links with roles, named and automatic versions with preview and restore. Without a server a
+  document stays local and can be published later from « Partager ».
+
+- **Levels** (Figma *Editor — Behaviors*, sections A, B and F): in the Bureau a document opens
+  in place as a compact sheet (`DocsEditor variant="sheet"`: ribbon, « Plus » menu, « Reposer »,
+  « Agrandir »), or in full screen (`variant="full"`: breadcrumb, menus, outline, status bar,
+  « Réduire »). Each level has its URL (`/bureau?f=<id>`, `&vue=plein-ecran`) so the browser's
+  Back does what Échap does; Échap first closes what is in progress (menu, find bar, header
+  editing, format painter, focus mode — consumers `stopPropagation`, since ProseMirror
+  `preventDefault`s every Échap). Ctrl+Maj+Entrée toggles levels, and opens the selection in full
+  screen from the desk. Putting a file back commits its thumbnail from the shared document, keeps
+  it selected and focused, and offers « Rouvrir ». Focus mode: Ctrl+Maj+F.
+
+Remote cursors, comments and suggestion mode are not built yet; the Y.Doc layout leaves room.
+
+## @oel/forms — forms
+
+Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock « Formulaire »,
+« Nouveau », or « Créer un formulaire » on a selected spreadsheet).
+
+- **Builder** (`FormBuilder`): Questions · Réponses · Paramètres tabs; outline (drag, Alt+↑/↓),
+  question cards (↑/↓ select, Ctrl+D duplicate, Suppr, « / » in an empty title picks the type),
+  add rail (question, title + text, section = new step, import columns), inspector (type,
+  required, « Autre », hide full choices, file rules, data link, choices from a sheet range).
+  Paramètres: accent with the AA contrast guard, logo, cover, title font, rhythm, texts, live
+  desktop/mobile preview. « Aperçu » = respondent view, nothing sent.
+- **Linked spreadsheet** (`model/sheet.ts`): one question = one column (+ « Reçu le »), one
+  response = one row, edits update their row, deleted questions archive their column,
+  quotas read from ranges. In the Bureau, `bureau/forms.ts` keeps the sheet paper in step
+  with responses for every published form and draws the « Réponses → … » thread.
+- **Publishing** asks only for what is missing: a linked sheet, then an account (magic link,
+  `/connexion` signs in every tab and publishing resumes), then the rules (identity, closing
+  date, limit, one per verified email, copy, editable responses), link + QR (PNG/SVG).
+- **Respondent page** (`FormFiller`, `/f?s=<slug>`): welcome, optional/verified email (6-digit
+  code), steps with progress, validation on blur, GOV.UK-style error summary, drafts on the
+  device, file uploads with per-file states, review, invisible human check with accessible
+  fallback, rate limit countdown, confirmation with personal edit link and .ics.
+- **Backend**: the UI only talks to `FormsBackend` (`api/backend.ts`). `createLocalBackend`
+  implements it in the browser (localStorage + BroadcastChannel) so the flow works across tabs
+  today. Every server responsibility is marked `TODO(backend)` / `TODO(anti-abuse)`
+  (`grep -rn "TODO(" packages/forms apps/web/src/forms`).
+
+## apps/collab — collaboration server
+
+`npm run dev:collab` (port 8787, data in `apps/collab/data/`). Set `COLLAB_SECRET`,
+`COLLAB_PUBLIC_URL` and `COLLAB_DATA_DIR` in production; the web app reads
+`PUBLIC_COLLAB_URL` (default `http://localhost:8787`).
+
+- No accounts: creating a document returns an **owner token**; the owner creates editor or
+  viewer links (HMAC-signed tokens naming the document, role and link). Revoking a link
+  disconnects its sessions and refuses its tokens. Viewers connect read-only.
+- Stores Yjs state, the original .docx, images (unguessable ids), versions (automatic every
+  10 min of activity, 50 kept; named ones kept forever) and exports .docx server-side.
+- Share links look like `/document?d=<id>#t=<token>`: the token stays in the fragment
+  (never sent to the web server) and is kept in the browser after the first visit.
 
 ## What's real and what's stubbed
 
@@ -112,12 +187,14 @@ each command maps 1:1 onto `DocxController` (`set_bold`, `set_alignment_*`,
 | Papers ("windows") of every type: select, drag, zoom out to small thumbnails (refreshed every 15 s while zoomed out) | Working |
 | Contextual toolbar per type (B2), multi-selection actions (B7) | Working |
 | Comments | Removed from papers; planned as a canvas-wide feature |
-| Open in place (B4): document (rich text), slides (filmstrip + notes), spreadsheet (editable grid, live sum), PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
+| Documents (.docx): full editor, lossless round trip, offline, sharing, versions | Working (`@oel/docs` + `apps/collab`) |
+| Open in place (B4): slides (filmstrip + notes), spreadsheet (editable grid, live sum), PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
 | Import (B8): drop / file picker → worker → paper with progress, read-only states, toast | Working with the JS preview engine |
 | PDF → editable document (06) | **Simulated progress**; the new document says so |
 | Crop/OCR/cut-out, themes, export, "one PDF from selection" | Disabled tools that explain why (engines not wired) |
-| Presence (avatars, named cursors) | Static demo data; no sync layer |
-| Persistence | None yet (state is in memory) |
+| Presence (avatars, named cursors) | Desk: static demo data. Documents: live avatars (no cursors yet) |
+| Persistence | Documents: IndexedDB + collab server. Desk layout: none yet (in memory) |
+| Forms: builder, linked sheet, publishing, respondent page, drafts, quotas, held responses | Working UI on a **local stub backend** (localStorage); server, emails, OAuth, uploads, Turnstile are `TODO(backend)` |
 
 ## Figma ↔ code
 
@@ -133,3 +210,12 @@ each command maps 1:1 onto `DocxController` (`set_bold`, `set_alignment_*`,
 | Badge (Stamp/Tinted), Card, Sidebar/Nav Item, Pagination | same names |
 | Date Picker | not ported yet |
 | B1 desk (papers, pills, dock, minimap, cursors) | `apps/web/src/bureau/*` (`seed.ts` reproduces B1) |
+
+## Known gaps
+
+- `npm run check` (astro check) cannot run with TypeScript 7 (native, no JS API); `tsc -p`
+  typechecks the packages and `npm run build` type-strips the app.
+- Footnotes are shown together at the end of the document, not at the bottom of each page.
+- Print / PDF uses the browser's pagination and does not include headers and footers.
+- Floating (anchored) images keep their position on export but are shown inline.
+- Tracked changes in imported files are accepted on import.

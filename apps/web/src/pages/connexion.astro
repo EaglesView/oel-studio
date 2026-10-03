@@ -1,0 +1,8 @@
+---
+import Base from '../layouts/Base.astro';
+import { ConnexionPage } from '../forms/ConnexionPage';
+---
+<Base title="Connexion · OutilsEnLigne">
+  <ConnexionPage client:only="react" />
+  <noscript><p class="page">La connexion a besoin de JavaScript.</p></noscript>
+</Base>
