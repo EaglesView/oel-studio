@@ -288,7 +288,7 @@ function htmlDocument(editor: Editor, title: string, stylesCss: string, pagePx: 
   const [t, r, b, l] = pagePx.margins;
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${title.replace(/</g, '&lt;')}</title>
 <style>@page{size:${pagePx.width}px auto;margin:${t}px ${r}px ${b}px ${l}px}body{margin:0 auto;max-width:${pagePx.width - l - r}px;padding:24px}
-.oel-doc .oel-p{margin:0}.oel-tab{white-space:pre;tab-size:48px}.oel-pagebreak{display:block;break-after:page}table{border-collapse:collapse}td,th{border:1px solid #888;padding:4px 6px;vertical-align:top}
+.oel-doc .oel-p{margin:0}.oel-tab{white-space:pre;tab-size:48px}.oel-pagebreak{display:block;break-after:page}table{border-collapse:collapse}td,th{padding:0 5.4pt;vertical-align:top}table[data-new-table] td,table[data-new-table] th{border:0.5pt solid #000}
 .oel-ooxml[data-hidden]{display:none}.oel-noteref{font-size:.7em}img{max-width:100%}
 ${sanitizeStylesheet(stylesCss)}</style></head><body class="oel-doc">${body}</body></html>`;
 }

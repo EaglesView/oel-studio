@@ -263,7 +263,13 @@ tr.oel-pgap td { padding: 0 !important; border: none !important; background: tra
 
 /* Tables */
 .oel-doc table { border-collapse: collapse; table-layout: fixed; margin: 0; overflow: hidden; }
-.oel-doc td, .oel-doc th { position: relative; min-width: 1em; padding: 0 5.4pt; border: 1px solid #000; vertical-align: top; box-sizing: border-box; }
+/* Borders come from the document (cell `css`); where Word draws none, a dashed
+   gridline shows on screen only (Affichage › Quadrillage des tableaux). It is
+   thinner and weaker than any real border, so border-collapse keeps the real one. */
+.oel-doc td, .oel-doc th { position: relative; min-width: 1em; padding: 0 5.4pt; border: 0.5px dashed var(--oel-table-grid, transparent); vertical-align: top; box-sizing: border-box; }
+.oel-docs--grid .oel-body { --oel-table-grid: #b9c0ca; }
+/* Tables made in the editor are exported with the Table Grid style: draw it. */
+.oel-doc table[data-new-table] td, .oel-doc table[data-new-table] th { border: 0.5pt solid #000; }
 .oel-doc .tableWrapper { overflow-x: auto; }
 .oel-doc .selectedCell::after { content: ''; position: absolute; inset: 0; background: rgb(26 115 232 / 0.15); pointer-events: none; z-index: 2; }
 .oel-doc .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background: #1a73e8; pointer-events: none; }

@@ -4,4 +4,8 @@ export type TableAttrs = { tblPr: string | null,
 /**
  * `w:gridCol` widths, twips.
  */
-grid: Array<number>, styleId: string | null, };
+grid: Array<number>, styleId: string | null, 
+/**
+ * Display-only CSS (width, alignment, indent) resolved from the table and its style.
+ */
+css: string | null, };

@@ -474,3 +474,50 @@ fn linking_a_header_to_the_previous_section() {
     assert_eq!(all_text(&back["stories"][&id]["doc"]), all_text(&back["stories"]["header1"]["doc"]));
     assert_opens_in_libreoffice(&out, "linked-header");
 }
+
+// ---------------------------------------------------------------------------
+// Tables
+// ---------------------------------------------------------------------------
+
+fn tables(j: &Value) -> Vec<&Value> {
+    nodes(&j["doc"], "table")
+}
+
+fn cell_css<'a>(t: &'a Value, row: usize, col: usize) -> &'a str {
+    t["content"][row]["content"][col]["attrs"]["css"].as_str().unwrap_or("")
+}
+
+#[test]
+fn table_borders_are_resolved() {
+    let j = import_docx(&fixture("table-borders.docx")).unwrap().json;
+    let t = tables(&j);
+    assert_eq!(t.len(), 4);
+    // 1. No style, no borders: nothing drawn.
+    assert!(!cell_css(t[0], 0, 0).contains("border"));
+    // 2. Table Grid: every edge.
+    for side in ["top", "left", "bottom", "right"] {
+        assert!(cell_css(t[1], 1, 1).contains(&format!("border-{side}:0.5pt solid")), "{side}");
+    }
+    // 3. One cell's own border.
+    assert!(cell_css(t[2], 1, 1).contains("border-bottom:0.75pt double #C00000"));
+    assert!(!cell_css(t[2], 0, 0).contains("border"));
+    // 4. Banded style: header row, bands, bottom border, full width.
+    assert!(cell_css(t[3], 0, 0).contains("background-color:#4472C4") && cell_css(t[3], 0, 0).contains("font-weight:700") && cell_css(t[3], 0, 0).contains("color:#FFFFFF"));
+    assert!(cell_css(t[3], 1, 0).contains("background-color:#D9E2F3"));
+    assert!(!cell_css(t[3], 2, 0).contains("background-color"));
+    assert!(cell_css(t[3], 3, 2).contains("border-bottom:1pt solid #4472C4"));
+    assert!(t[3]["attrs"]["css"].as_str().unwrap().contains("width:100%"));
+    // Table style paragraph spacing reaches paragraphs in its tables.
+    assert!(j["stylesCss"].as_str().unwrap().contains(r#"table[data-tstyle="TableGrid"] .oel-p"#));
+}
+
+#[test]
+fn template_tables_have_no_default_grid() {
+    let j = import_docx(&fixture("complex_template.docx")).unwrap().json;
+    let cover = tables(&j)[0];
+    for row in cover["content"].as_array().unwrap() {
+        for cell in row["content"].as_array().unwrap() {
+            assert!(!cell["attrs"]["css"].as_str().unwrap_or("").contains("border"), "cover cell with a border: {}", cell["attrs"]["css"]);
+        }
+    }
+}

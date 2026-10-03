@@ -4,7 +4,8 @@
  * (`pPr`, `rPr`, `tcPr`, `xml`…) are what make the round trip lossless.
  */
 import { Node, mergeAttributes, type Attributes } from '@tiptap/core';
-import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
+import { Table, TableCell, TableHeader, TableRow, TableView } from '@tiptap/extension-table';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { paragraphCss } from '../model/format';
 import type { ParagraphAttrs } from '../model/types';
@@ -484,9 +485,65 @@ export const SdtBlock = Node.create({
   renderHTML: ({ node }) => ['div', { class: 'oel-sdt', 'data-gallery': node.attrs.gallery ?? undefined }, 0],
 });
 
+/** Declarations of a `a:b;c:d` CSS string. */
+function cssDecls(css: unknown): Array<[string, string]> {
+  if (typeof css !== 'string') return [];
+  return css
+    .split(';')
+    .map((d) => d.split(':'))
+    .filter((d) => d.length >= 2)
+    .map(([k, ...v]) => [k!.trim(), v.join(':').trim()] as [string, string]);
+}
+
+/**
+ * Word's look of a table on top of Tiptap's view: the codec's display-only
+ * CSS (width, alignment, indent), the table style (for its paragraph rules)
+ * and a marker for tables made in the editor, which are drawn with a grid.
+ */
+export class DocTableView extends TableView {
+  constructor(node: PMNode, cellMinWidth: number) {
+    super(node, cellMinWidth);
+    this.decorate(node);
+  }
+
+  override update(node: PMNode) {
+    if (!super.update(node)) return false;
+    this.decorate(node);
+    return true;
+  }
+
+  private decorate(node: PMNode) {
+    const t = this.table;
+    for (const [k, v] of cssDecls(node.attrs.css)) t.style.setProperty(k, v);
+    if (node.attrs.styleId) t.dataset.tstyle = node.attrs.styleId as string;
+    else delete t.dataset.tstyle;
+    // No Word properties at all: a table created here (exported with Table Grid).
+    if (node.attrs.tblPr == null) t.dataset.newTable = '';
+    else delete t.dataset.newTable;
+  }
+}
+
 export const DocTable = Table.extend({
+  addOptions() {
+    return { ...this.parent!(), View: DocTableView };
+  },
   addAttributes() {
-    return { ...this.parent?.(), tblPr: raw(), grid: raw(), styleId: raw() };
+    return {
+      ...this.parent?.(),
+      tblPr: raw(),
+      grid: raw(),
+      styleId: { default: null, rendered: false },
+      css: raw(),
+    };
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    // Static rendering (export, headers/footers): same look as the view.
+    const out = this.parent!({ node, HTMLAttributes }) as unknown as [string, Record<string, unknown>, ...unknown[]];
+    const attrs = { ...out[1] };
+    if (node.attrs.css) attrs.style = [attrs.style, node.attrs.css].filter(Boolean).join(';');
+    if (node.attrs.styleId) attrs['data-tstyle'] = node.attrs.styleId;
+    if (node.attrs.tblPr == null) attrs['data-new-table'] = '';
+    return [out[0], attrs, ...out.slice(2)] as never;
   },
 });
 
@@ -508,6 +565,12 @@ const cellAttrs = {
     renderHTML: (a: Record<string, unknown>) => (a.valign ? { style: `vertical-align:${a.valign === 'center' ? 'middle' : a.valign}` } : {}),
   },
   tcPr: raw(),
+  /** Display-only Word look (borders, conditional shading, margins), from the codec. */
+  css: {
+    default: null,
+    parseHTML: () => null,
+    renderHTML: (a: Record<string, unknown>) => (a.css ? { style: a.css as string } : {}),
+  },
 };
 
 export const DocTableCell = TableCell.extend({

@@ -10,6 +10,7 @@ pub mod numbering;
 pub mod package;
 pub mod read;
 pub mod styles;
+pub mod tables;
 pub mod template;
 pub mod theme;
 pub mod write;

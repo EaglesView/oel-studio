@@ -18,6 +18,10 @@ pub struct StyleDef {
     pub hidden: bool,
     pub ppr: Option<XElement>,
     pub rpr: Option<XElement>,
+    /// Table styles: `w:tblPr`, `w:tcPr`, and the conditional `w:tblStylePr` by type.
+    pub tblpr: Option<XElement>,
+    pub tcpr: Option<XElement>,
+    pub cond: Vec<(String, XElement)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -82,6 +86,9 @@ impl Styles {
                 hidden: st.child("w:semiHidden").is_some() || st.child("w:hidden").is_some(),
                 ppr: st.child("w:pPr").cloned(),
                 rpr: st.child("w:rPr").cloned(),
+                tblpr: st.child("w:tblPr").cloned(),
+                tcpr: st.child("w:tcPr").cloned(),
+                cond: st.elements().filter(|e| e.name == "w:tblStylePr").filter_map(|e| Some((e.attr("w:type")?.to_string(), e.clone()))).collect(),
             };
             s.by_id.insert(id, s.defs.len());
             s.defs.push(def);
@@ -103,7 +110,7 @@ impl Styles {
     }
 
     /// Basis chain from the root ancestor down to `id` (cycle-safe).
-    fn chain(&self, id: &str) -> Vec<&StyleDef> {
+    pub fn chain(&self, id: &str) -> Vec<&StyleDef> {
         let mut out = Vec::new();
         let mut cur = self.get(id);
         while let Some(d) = cur {
@@ -162,7 +169,7 @@ impl Styles {
     }
 
     /// CSS declarations for a run property set, merged over `base`.
-    fn rpr_decls(&self, rpr: &XElement, out: &mut Vec<(String, String)>) {
+    pub fn rpr_decls(&self, rpr: &XElement, out: &mut Vec<(String, String)>) {
         for c in rpr.elements() {
             let on = !matches!(c.attr("w:val"), Some("0") | Some("false") | Some("off") | Some("none"));
             match c.name.as_str() {
@@ -258,7 +265,27 @@ impl Styles {
                 _ => {}
             }
         }
+        // Table styles' paragraph and run properties apply to paragraphs in their tables;
+        // Word lets them win over the default paragraph style, not over other styles.
+        let normal = default_id.clone().unwrap_or_else(|| "Normal".into());
+        for d in self.defs.iter().filter(|d| d.kind == "table") {
+            let mut decls = Vec::new();
+            for s in self.chain(&d.id) {
+                if let Some(p) = &s.ppr {
+                    self.ppr_decls(p, &mut decls);
+                }
+                if let Some(r) = &s.rpr {
+                    self.rpr_decls(r, &mut decls);
+                }
+            }
+            rule(&mut css, &format!(".oel-doc table[data-tstyle=\"{}\"] .oel-p:is(:not([data-style]), [data-style=\"{}\"])", css_escape(&d.id), css_escape(&normal)), &decls);
+        }
         css
+    }
+
+    /// The table style that applies when a table names none (`w:default` table style).
+    pub fn default_table_style(&self) -> Option<&StyleDef> {
+        self.defs.iter().find(|d| d.kind == "table" && d.is_default)
     }
 
     fn style_decls(&self, id: &str, decls: &mut Vec<(String, String)>) {
@@ -384,7 +411,7 @@ pub fn border_css(side: &XElement) -> Option<String> {
     Some(format!("{width}pt {style} {color}"))
 }
 
-fn set(out: &mut Vec<(String, String)>, k: &str, v: String) {
+pub fn set(out: &mut Vec<(String, String)>, k: &str, v: String) {
     if let Some(slot) = out.iter_mut().find(|(kk, _)| kk == k) {
         slot.1 = v;
     } else {

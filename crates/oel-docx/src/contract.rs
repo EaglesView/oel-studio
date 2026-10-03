@@ -417,6 +417,8 @@ pub struct TableAttrs {
     /// `w:gridCol` widths, twips.
     pub grid: Vec<i64>,
     pub style_id: Option<String>,
+    /// Display-only CSS (width, alignment, indent) resolved from the table and its style.
+    pub css: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -443,6 +445,9 @@ pub struct TableCellAttrs {
     pub valign: Option<String>,
     #[serde(rename = "tcPr")]
     pub tc_pr: Option<String>,
+    /// Display-only CSS (borders, conditional shading and text, margins) resolved
+    /// from the table style, its conditional formats and the cell's own properties.
+    pub css: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

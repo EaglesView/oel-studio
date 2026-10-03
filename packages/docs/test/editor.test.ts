@@ -161,6 +161,9 @@ describe('editor commands → .docx', () => {
     expect(tables.length).toBe(2);
     expect(plainText(tables[0]!)).toContain('cellule');
     expect(all(tables[0]!, 'tableRow').length).toBe(3);
+    // A table made in the editor is drawn with a grid and exported with one.
+    expect(toHTML(e.getJSON() as never)).toContain('data-new-table');
+    for (const cell of all(tables[0]!, 'tableCell')) expect(String(cell.attrs?.css)).toMatch(/border-top:[^;]*solid/);
     expect(all(back.doc, 'sdtBlock')[0]?.attrs?.gallery).toBe('Table of Contents');
 
     expect(opensInLibreOffice(bytes)).not.toBe(false);

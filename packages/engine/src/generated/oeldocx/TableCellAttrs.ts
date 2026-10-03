@@ -8,4 +8,9 @@ colwidth: Array<number> | null,
 /**
  * `#RRGGBB`.
  */
-background: string | null, valign: string | null, tcPr: string | null, };
+background: string | null, valign: string | null, tcPr: string | null, 
+/**
+ * Display-only CSS (borders, conditional shading and text, margins) resolved
+ * from the table style, its conditional formats and the cell's own properties.
+ */
+css: string | null, };

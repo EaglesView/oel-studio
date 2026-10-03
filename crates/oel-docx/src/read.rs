@@ -13,6 +13,7 @@
 use super::numbering::Numbering;
 use super::package::{Package, Rel, resolve_target};
 use super::styles::{Styles, ppr_css};
+use super::tables::{CellPos, TableLook, table_css};
 use super::xml::{XElement, XNode, nodes_to_xml, write_node};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -238,6 +239,7 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
         .map(|g| g.elements().filter(|c| c.name == "w:gridCol").map(|c| num_attr(c, "w:w").unwrap_or(0)).collect())
         .unwrap_or_default();
     let style_id = t.child("w:tblPr").and_then(|p| p.child_val("w:tblStyle")).map(String::from);
+    let look = TableLook::new(ctx.styles, t.child("w:tblPr"));
 
     // First pass: place every w:tc on the grid, so vMerge chains become rowspans.
     struct Cell<'e> {
@@ -261,6 +263,7 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
         placed.push(cells);
     }
 
+    let ncols = placed.iter().map(|row| row.iter().map(|c| c.col + c.span).max().unwrap_or(0)).max().unwrap_or(0).max(grid.len());
     let mut out_rows = Vec::new();
     for (ri, r) in rows.iter().enumerate() {
         let mut cells_json = Vec::new();
@@ -289,6 +292,8 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
             let colwidth = if colwidth.iter().all(|v| !v.is_null()) && !colwidth.is_empty() { Value::Array(colwidth) } else { Value::Null };
             let background = tcpr.and_then(|p| p.child("w:shd")).and_then(|s| s.attr("w:fill")).filter(|f| f.len() == 6).map(|f| format!("#{f}"));
             let valign = tcpr.and_then(|p| p.child_val("w:vAlign")).map(String::from);
+            let pos = CellPos { row: ri, row_span: rowspan, rows: rows.len(), col: cell.col, span: cell.span, cols: ncols };
+            let css = look.cell_css(&pos, r.child("w:tblPrEx"), tcpr, background.is_some());
             let mut content = read_blocks(ctx, cell.el);
             if content.is_empty() {
                 content.push(Value::Object({
@@ -307,6 +312,7 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
                     "background": background,
                     "valign": valign,
                     "tcPr": tcpr.map(inner_xml).filter(|s| !s.is_empty()),
+                    "css": css,
                 }),
             );
             c.insert("content".into(), Value::Array(content));
@@ -337,6 +343,7 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
             "tblPr": t.child("w:tblPr").map(inner_xml).filter(|s| !s.is_empty()),
             "grid": grid,
             "styleId": style_id,
+            "css": table_css(ctx.styles, t.child("w:tblPr"), look.style_id()),
         }),
     );
     n.insert("content".into(), Value::Array(out_rows));

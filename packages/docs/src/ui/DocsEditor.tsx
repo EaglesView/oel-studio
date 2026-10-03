@@ -99,6 +99,7 @@ export function DocsEditor(props: DocsEditorProps) {
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showVersions, setShowVersions] = useState(false);
   const [showMarks, setShowMarks] = useState(false);
+  const [tableGrid, setTableGrid] = useState(true);
   const [find, setFind] = useState<{ replace: boolean } | null>(null);
   const [dialog, setDialog] = useState<DialogName>(null);
   const [editingStory, setEditingStory] = useState<EditingStory | null>(null);
@@ -359,6 +360,7 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'paginated': return setPaginated((v) => !v);
       case 'outline': return setShowOutline((v) => !v);
       case 'marks': return setShowMarks((v) => !v);
+      case 'table-grid': return setTableGrid((v) => !v);
       case 'fullscreen': return sheet ? props.onExpand?.() : props.onReduce?.();
       case 'focus': return setFocusMode((v) => !v);
       case 'ins-image': return setDialog('image');
@@ -486,6 +488,7 @@ export function DocsEditor(props: DocsEditorProps) {
           { id: 'paginated', label: 'Mise en page imprimable', checked: paginated },
           { id: 'outline', label: 'Plan du document', icon: 'outline', shortcut: 'Ctrl+Maj+P', checked: showOutline },
           { id: 'marks', label: 'Afficher les caractères non imprimables', checked: showMarks },
+          { id: 'table-grid', label: 'Quadrillage des tableaux', checked: tableGrid },
           { id: 'zoom', label: 'Zoom', icon: 'zoom', children: ZOOMS.map((z) => ({ id: `zoom:${z}`, label: `${Math.round(z * 100)} %`, checked: z === zoom })) },
           { id: 'focus', label: 'Mode concentration', icon: 'focus-mode', shortcut: 'Ctrl+Maj+F', checked: focusMode },
           ...(sheet && props.onExpand ? ([{ id: 'fullscreen', label: 'Agrandir en plein écran', icon: 'expand', shortcut: 'Ctrl+Maj+Entrée' }] as const) : []),
@@ -615,7 +618,7 @@ export function DocsEditor(props: DocsEditorProps) {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, paginated, showOutline, showMarks, zoom, ro, local, inTable, imageSelected, french, focusMode, sheet, status.readOnly, status.role],
+    [mode, paginated, showOutline, showMarks, tableGrid, zoom, ro, local, inTable, imageSelected, french, focusMode, sheet, status.readOnly, status.role],
   );
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
@@ -696,7 +699,7 @@ export function DocsEditor(props: DocsEditorProps) {
       Partager
     </Button>
   );
-  const classes = ['oel-docs', `oel-docs--${variant}`, showMarks && 'oel-docs--marks', focusMode && 'oel-docs--focus', focusMode && revealed && 'is-revealed'].filter(Boolean).join(' ');
+  const classes = ['oel-docs', `oel-docs--${variant}`, showMarks && 'oel-docs--marks', tableGrid && 'oel-docs--grid', focusMode && 'oel-docs--focus', focusMode && revealed && 'is-revealed'].filter(Boolean).join(' ');
 
   return (
     <div className={classes} onKeyDown={onKeyDown} onPointerMove={reveal}>
