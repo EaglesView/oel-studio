@@ -14,33 +14,35 @@ Legend: `[ ]` todo · **Done when** = acceptance check · **Skills** = skills to
 Nothing below is safe while `oel_opc_rs` and `oelxlsx_rs` are outside git and
 `oeldocx_rs/src/ooxml/` is uncommitted.
 
-- [ ] `oeldocx_rs`: commit the ooxml codec, fixtures, `ooxml_roundtrip.rs`, bindings (branch `codec`), with the user's OK.
-- [ ] `oel_opc_rs`, `oelxlsx_rs`: `git init` + initial commit (they move into the monorepo in Phase 1; this preserves their history with `git subtree`/`filter-repo` if wanted).
-- [ ] `oel-studio`: commit current `docx` branch state; ask the user whether to add a GitHub remote under `OutilsEnLigne-ca`.
+- [x] `oeldocx_rs`: commit the ooxml codec, fixtures, `ooxml_roundtrip.rs`, bindings (branch `codec`), with the user's OK.
+- [x] `oel_opc_rs`, `oelxlsx_rs`: `git init` + initial commit (they move into the monorepo in Phase 1; this preserves their history with `git subtree`/`filter-repo` if wanted).
+- [x] `oel-studio`: commit current `docx` branch state; ask the user whether to add a GitHub remote under `OutilsEnLigne-ca`.
 
 **Done when** `git status` is clean in all four repos.
 
 ## Phase 1 — Rust into the monorepo (~½ day)
 
-- [ ] Create `oel-studio/Cargo.toml` workspace (`members = ["crates/*"]`, shared `[profile.release] opt-level="s", lto=true`, `edition = "2024"`).
-- [ ] Move `oel_opc_rs` → `crates/oel-opc` (crate name unchanged).
-- [ ] Move `oelxlsx_rs` → `crates/oel-xlsx` (package name `oel-xlsx`, lib name `oelxlsx`). Replace `#[cfg(target_arch = "wasm32")]` with `#[cfg(feature = "wasm")]`, make `wasm-bindgen` optional.
-- [ ] Create `crates/oel-docx` from `oeldocx_rs/src/ooxml/*` + `fonts.rs` (if the codec uses it) + `tests/ooxml_roundtrip.rs` + fixtures. Write a new thin `src/wasm.rs` with `docx_to_pm`, `new_document_pm`, `pm_to_docx` (copied from `oeldocx_rs/src/wasm/bindings.rs` L399–444) behind `feature = "wasm"`. Drop `docx-rs`, `web-sys`, `getrandom` from this crate. Leave `oeldocx_rs` untouched for the old site.
-- [ ] `scripts/build-wasm.mjs` + root `npm run build:wasm`: for each crate with a `wasm` feature, `wasm-pack build crates/<c> --release --target web --out-dir ../../packages/wasm/<c>/web -- --features wasm` and the same with `--target nodejs` into `…/node`. Add `packages/wasm/` to `.gitignore`. Keep the generated module names stable (`oeldocx_rs`, `oelxlsx_rs`) or update imports in one go.
-- [ ] Replace every `file:../../../oeldocx_rs/pkg*` / `oelxlsx_rs/pkg*` dependency (`packages/engine`, `packages/sheets`, `apps/collab`) with workspace paths to `packages/wasm/...`; remove the sibling-repo entries from `apps/web/astro.config.mjs` `server.fs.allow`.
-- [ ] Root scripts: `"test": "cargo test --workspace && vitest run"`, `"predev"`/`"pretest"` run `build:wasm` only when sources are newer than outputs (cheap mtime check in the script).
-- [ ] Root `README.md`: layout section gains `crates/`; remove "sibling repos" wording.
+- [x] Create `oel-studio/Cargo.toml` workspace (`members = ["crates/*"]`, shared `[profile.release] opt-level="s", lto=true`, `edition = "2024"`).
+- [x] Move `oel_opc_rs` → `crates/oel-opc` (crate name unchanged).
+- [x] Move `oelxlsx_rs` → `crates/oel-xlsx` (package name `oel-xlsx`, lib name `oelxlsx`). Replace `#[cfg(target_arch = "wasm32")]` with `#[cfg(feature = "wasm")]`, make `wasm-bindgen` optional.
+- [x] Create `crates/oel-docx` from `oeldocx_rs/src/ooxml/*` + `fonts.rs` (if the codec uses it) + `tests/ooxml_roundtrip.rs` + fixtures. Write a new thin `src/wasm.rs` with `docx_to_pm`, `new_document_pm`, `pm_to_docx` (copied from `oeldocx_rs/src/wasm/bindings.rs` L399–444) behind `feature = "wasm"`. Drop `docx-rs`, `web-sys`, `getrandom` from this crate. Leave `oeldocx_rs` untouched for the old site.
+- [x] `scripts/build-wasm.mjs` + root `npm run build:wasm`: for each crate with a `wasm` feature, `wasm-pack build crates/<c> --release --target web --out-dir ../../packages/wasm/<c>/web -- --features wasm` and the same with `--target nodejs` into `…/node`. Add `packages/wasm/` to `.gitignore`. Keep the generated module names stable (`oeldocx_rs`, `oelxlsx_rs`) or update imports in one go.
+- [x] Replace every `file:../../../oeldocx_rs/pkg*` / `oelxlsx_rs/pkg*` dependency (`packages/engine`, `packages/sheets`, `apps/collab`) with workspace paths to `packages/wasm/...`; remove the sibling-repo entries from `apps/web/astro.config.mjs` `server.fs.allow`.
+- [x] Root scripts: `"test": "cargo test --workspace && vitest run"`, `"predev"`/`"pretest"` run `build:wasm` only when sources are newer than outputs (cheap mtime check in the script).
+- [x] Root `README.md`: layout section gains `crates/`; remove "sibling repos" wording.
 
+**Status (2026-10-03)** done on branch `restructure`; fresh copy green (`npm install && npm run build:wasm && npm test && npm run build`). Browser round trip (Bureau .docx/.xlsx → edit → export → LibreOffice) left to the user. Sibling `oel_opc_rs`/`oelxlsx_rs` still on disk until the user OKs deleting them. `astro check` can't run under TS 7 (known gap).
 **Done when** a fresh clone runs `npm install && npm run build:wasm && npm test && npm run build` green, and the Bureau imports a .docx and a .xlsx, edits and exports both (round trip opens in LibreOffice).
 **Skills** `oel-rust-engine` (paths, build command), `oel-verify`, `oel-architecture`.
 
 ## Phase 2 — One contract, one corpus (~½ day)
 
-- [ ] Move fixtures to `oel-studio/fixtures/{docx,xlsx,csv}`; cargo tests and vitest both read from there (`CARGO_MANIFEST_DIR/../../fixtures`).
-- [ ] Add `ts-rs` (dev-only via a `ts` feature) to `oel-xlsx` model structs; `cargo test --features ts` exports into `packages/engine/src/generated/`. Replace hand-written `WorkbookJsonish`/`OelxlsxModule` shapes and the matching types in `packages/sheets/src/model/types.ts` with imports from `generated/`.
-- [ ] For `oel-docx`: export the node/mark attrs types the codec writes; `packages/docs/src/model/types.ts` imports them. Add a test that every node/mark name in the Tiptap schema has a codec counterpart and vice versa.
-- [ ] Payload version guard: `@oel/engine` refuses payloads whose `format` is unknown with a fr-CA error.
+- [x] Move fixtures to `oel-studio/fixtures/{docx,xlsx,csv}`; cargo tests and vitest both read from there (`CARGO_MANIFEST_DIR/../../fixtures`).
+- [x] Add `ts-rs` (dev-only via a `ts` feature) to `oel-xlsx` model structs; `cargo test --features ts` exports into `packages/engine/src/generated/`. Replace hand-written `WorkbookJsonish`/`OelxlsxModule` shapes and the matching types in `packages/sheets/src/model/types.ts` with imports from `generated/`.
+- [x] For `oel-docx`: export the node/mark attrs types the codec writes; `packages/docs/src/model/types.ts` imports them. Add a test that every node/mark name in the Tiptap schema has a codec counterpart and vice versa.
+- [x] Payload version guard: `@oel/engine` refuses payloads whose `format` is unknown with a fr-CA error.
 
+**Status (2026-10-03)** done on branch `restructure`. Checked: a serde rename on `Sheet.frozen_rows` and on `ParagraphAttrs.section_break` both fail `npm run typecheck` (docx also fails `cargo test`). docx types come from a declared `contract.rs` checked against the reader's `json!` output, not from the reader itself (it still builds `Value`s). `oeldocx-node`'s functions return `any` (JsValue), so `OeldocxModule` stays hand-written.
 **Done when** changing a field name in Rust breaks `npm run typecheck`.
 **Skills** `oel-rust-engine`.
 

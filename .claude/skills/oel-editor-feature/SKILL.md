@@ -18,7 +18,7 @@ If the user gave a Figma link, read it with the Figma tools before coding.
 | `collab/` | Session on `@oel/collab-client` | Sharing/versions/sync UI comes from `@oel/collab-client`, don't fork it |
 
 ### Docs (`packages/docs`)
-- Schema: `src/extensions/{nodes,marks,lists,pagination,editing,find}.ts` — mirrors the codec in `oeldocx_rs/src/ooxml`. A new node/mark/attr that must survive save needs codec support (`oel-rust-engine`) and a schema test.
+- Schema: `src/extensions/{nodes,marks,lists,pagination,editing,find}.ts` — mirrors the codec in `crates/oel-docx`. A new node/mark/attr that must survive save needs codec support (`oel-rust-engine`) and a schema test.
 - UI: `DocsEditor.tsx` (variants: sheet = level 2, full = level 3), `DocsToolbar.tsx`, `MenuBar` spec in `actions.ts`, `PageView.tsx`, `StoryEditor.tsx` (headers/footers).
 - Tests: `test/schema.test.ts`, `test/editor.test.ts` (headless edit → .docx → LibreOffice when `soffice` is installed).
 

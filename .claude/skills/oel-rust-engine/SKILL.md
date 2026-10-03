@@ -1,43 +1,50 @@
 ---
 name: oel-rust-engine
-description: Change an OutilsEnLigne Rust engine (oeldocx DOCX codec, oelxlsx XLSX/CSV codec + IronCalc calc, oel-opc package plumbing, oelimg image ops) and carry the change through the WASM builds, the TypeScript adapters in @oel/engine / @oel/sheets / @oel/docs, and the round-trip tests. Use for any edit under oeldocx_rs, oelxlsx_rs, oel_opc_rs, oelimg-rs or crates/.
+description: Change an OutilsEnLigne Rust engine (oel-docx DOCX codec, oel-xlsx XLSX/CSV codec + IronCalc calc, oel-opc package plumbing, oelimg image ops) and carry the change through the WASM builds, the TypeScript adapters in @oel/engine / @oel/sheets / @oel/docs, and the round-trip tests. Use for any edit under crates/ (or the legacy oeldocx_rs, oelimg-rs repos).
 ---
 
 # Changing a Rust engine
 
-> Layout note: until `docs/plans/2026-10-restructure.md` Phase 1 is done, the crates are
-> sibling directories of `oel-studio` (`../oeldocx_rs`, `../oelxlsx_rs`, `../oel_opc_rs`,
-> `../oelimg-rs`). After Phase 1 they are `crates/oel-docx`, `crates/oel-xlsx`,
-> `crates/oel-opc`, `crates/oel-img` and `npm run build:wasm` replaces the commands below.
-> Check which is true (`ls crates 2>/dev/null`) and update this skill if it is stale.
+The crates live in the oel-studio Cargo workspace (`Cargo.toml` at the root, `crates/*`).
+`../oeldocx_rs` is the **legacy** repo kept for the old tools site (its `controller/`,
+`commands/`, `convert/`, `render/` editor) — do not extend it; the live codec is
+`crates/oel-docx`. `../oelimg-rs` moves in as `crates/oel-img` in plan Phase 8.
 
 ## Where things are
 
-| Crate | Core | WASM surface | JS consumers |
+| Crate (lib name) | Core | WASM surface (`feature = "wasm"`) | JS consumers |
 |---|---|---|---|
-| `oel_opc_rs` (`oel-opc`) | `src/xml.rs` (lossless DOM), `src/package.rs` (zip, rels, content types) | none | via docx/xlsx crates |
-| `oeldocx_rs` | **`src/ooxml/`** (DOCX ↔ ProseMirror JSON, the live codec). `controller/`, `commands/`, `convert/`, `render/` are the **legacy** editor used only by the old tools site — do not extend them. | `src/wasm/bindings.rs`: `docx_to_pm`, `new_document_pm`, `pm_to_docx` | `packages/engine/src/engines/wasm.ts` (`OeldocxModule`), `apps/collab` (`oeldocx-node`) |
-| `oelxlsx_rs` | `read.rs`, `write.rs`, `csv.rs`, `model.rs`, `styles.rs`, `refs.rs`, `engine.rs` (IronCalc — keep its types inside this file) | `src/wasm.rs`: codec fns + stateful `WasmCalc` | `packages/engine/src/engines/wasm.ts` (`OelxlsxModule`), `packages/sheets/src/calc/*` (calc worker), `apps/collab` (`oelxlsx-node`) |
-| `oelimg-rs` | `src/filters`, `src/core` | `src/wasm.rs` | not wired into oel-studio yet |
+| `crates/oel-opc` (`oel_opc`) | `src/xml.rs` (lossless DOM), `src/package.rs` (zip, rels, content types) | none | via docx/xlsx crates |
+| `crates/oel-docx` (`oeldocx`) | `src/lib.rs` (import/export entry points), `read.rs`, `write.rs`, `styles.rs`, `numbering.rs`, `template.rs`; **`contract.rs`** (declared JSON shape + node/mark vocabulary, checked by `tests/contract.rs`); `package.rs`/`xml.rs` re-export `oel-opc` | `src/wasm.rs`: `docx_to_pm`, `new_document_pm`, `pm_to_docx` | `packages/engine/src/engines/wasm.ts` (`OeldocxModule`), `apps/collab` + vitest (`oeldocx-node`) |
+| `crates/oel-xlsx` (`oelxlsx`) | `read.rs`, `write.rs`, `csv.rs`, `model.rs`, `styles.rs`, `refs.rs`, `engine.rs` (IronCalc — keep its types inside this file) | `src/wasm.rs`: codec fns + stateful `WasmCalc` | `packages/engine/src/engines/wasm.ts` (`OelxlsxModule`), `packages/sheets/src/calc/*` (calc worker), `apps/collab` + vitest (`oelxlsx-node`) |
+
+WASM outputs (git-ignored) land in `packages/wasm/<crate>/{web,node}` with stable module
+names `oeldocx_rs` / `oelxlsx_rs`; npm packages alias them as `oeldocx-rs` / `oelxlsx-rs`
+(web) and `oeldocx-node` / `oelxlsx-node` (nodejs) via `file:` dependencies.
+
+Fixtures for every crate and for vitest live in `fixtures/{docx,xlsx,csv}` at the root
+(Rust: `concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/…")`).
+
+**Contract types are generated.** `npm run gen:types` (also run by `npm run typecheck`) runs the
+ts-rs exports (`--features <crate>/ts`) into `packages/engine/src/generated/{oeldocx,oelxlsx}/`
+— committed, never edited by hand. `@oel/sheets` and `@oel/docs` re-export them from
+`src/model/types.ts`; `@oel/engine` imports them directly. Wasm function signatures come from
+the wasm-bindgen `.d.ts` (`typeof import('oelxlsx-rs')`), not hand-written interfaces.
 
 ## Rules
 
-1. Core code is pure Rust: no `wasm_bindgen`, `js_sys`, `web_sys` outside the wasm module. Bindings are thin: bytes/JSON strings in, bytes/JSON strings out, errors as fr-CA messages.
+1. Core code is pure Rust: no `wasm_bindgen`, `js_sys`, `web_sys` outside `src/wasm.rs`, and those deps are optional behind the `wasm` feature. Bindings are thin: bytes/JSON strings in, bytes/JSON strings out, errors as fr-CA messages.
 2. Lossless: anything you don't model is kept raw and written back unchanged. Never regenerate a part you didn't edit.
-3. JSON shape changes are contract changes: update the TS types (`packages/engine/src/types.ts`, `packages/docs/src/model/types.ts`, `packages/sheets/src/model/types.ts`) in the same change. A breaking change bumps the payload `format` (`oeldocx-pm@N`, `oelxlsx-workbook@N`).
-4. A docx node/mark added in the codec needs its Tiptap counterpart in `packages/docs/src/extensions/` (and vice versa) — `packages/docs/test/schema.test.ts` checks the mapping.
-5. Add a fixture for the case you handle (`tests/fixtures/*.docx|xlsx|csv`) and a round-trip assertion.
+3. JSON shape changes are contract changes. xlsx: change the serde types in `model.rs`/`engine.rs` (new fields need the `cfg_attr(feature = "ts", …)` attrs like their neighbours: `optional` for `serde(default)` fields the editor may omit). docx: change `json!` in `read.rs` **and** the matching struct in `contract.rs` (`cargo test` fails until both agree). Then `npm run gen:types` and fix what `npm run typecheck` reports. A breaking change bumps `PAYLOAD_FORMATS` in `packages/engine/src/payload.ts` (`oeldocx-pm@N`, `oelxlsx-workbook@N`); apps read payloads through `asDocxPayload` / `asWorkbookPayload`, which refuse unknown formats.
+4. A docx node/mark/attr added in the codec goes into `contract.rs` (`NODES`/`MARKS`/attrs struct) and needs its Tiptap counterpart in `packages/docs/src/extensions/` (and vice versa) — `packages/docs/test/schema.test.ts` compares the schema with `CODEC_VOCABULARY` both ways (editor-only differences are listed with a reason in `EDITOR_ONLY`).
+5. Add a fixture for the case you handle (`fixtures/<ext>/`) and a round-trip assertion; new .docx fixtures are picked up by `tests/contract.rs` automatically.
 
 ## Steps
 
-1. Edit the core; add/extend a Rust test (`oeldocx_rs/tests/ooxml_roundtrip.rs`, `oelxlsx_rs/tests/{import,roundtrip,csv}.rs`).
-2. `cargo test` in the crate (and in `oel_opc_rs` + both dependents if you touched `oel-opc`).
-3. Rebuild **both** WASM targets (web for the browser worker, nodejs for collab and vitest):
-   ```bash
-   cd ../oeldocx_rs && wasm-pack build --release --target web --out-dir pkg --out-name oeldocx_rs \
-     && wasm-pack build --release --target nodejs --out-dir pkg-node --out-name oeldocx_rs
-   cd ../oelxlsx_rs && npm run build:all
-   ```
-   (The `build:nodejs` script in `oeldocx_rs/package.json` writes to `pkg/`, not `pkg-node/` — use the explicit command.)
-4. Update the adapter in `packages/engine/src/engines/wasm.ts` (module interface + `run`/`export`/`create`) and any editor types.
-5. In `oel-studio`: `npm install` if a package.json `file:` target changed, then follow `oel-verify` (vitest covers engine, docs → LibreOffice, sheets calc, collab exports).
+1. Edit the core; add/extend a Rust test (`crates/oel-docx/tests/ooxml_roundtrip.rs`, `crates/oel-xlsx/tests/{import,roundtrip,csv}.rs`).
+2. `cargo test --workspace` from the oel-studio root (covers `oel-opc` dependents).
+   Check the bindings compile: `cargo check --target wasm32-unknown-unknown --features oel-docx/wasm,oel-xlsx/wasm`.
+3. `npm run build:wasm` (both targets of every crate with a `wasm` feature; `wasm-pack` is a root
+   devDependency). `npm run dev|test|build` already rebuild stale outputs (`--if-stale`, mtime check).
+4. `npm run gen:types`; update the adapter in `packages/engine/src/engines/wasm.ts` (`run`/`export`/`create`) and the editor code `npm run typecheck` flags.
+5. Follow `oel-verify` (vitest covers engine, docs → LibreOffice, sheets calc, collab exports).

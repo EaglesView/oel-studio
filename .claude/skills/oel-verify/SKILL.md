@@ -10,16 +10,19 @@ Run what applies, report actual results (paste failures, don't paraphrase them).
 ## Rust (if a crate changed)
 
 ```bash
-cargo test                       # in each changed crate (or `cargo test --workspace` after plan Phase 1)
-cargo clippy -- -D warnings
+cargo test --workspace           # from the oel-studio root
+cargo clippy --workspace --all-targets -- -D warnings   # needs the clippy component (Fedora: dnf install clippy)
+cargo check --workspace --target wasm32-unknown-unknown --features oel-docx/wasm,oel-xlsx/wasm
+npm run build:wasm               # web + node targets into packages/wasm/
 ```
-Then rebuild WASM web + node targets (see `oel-rust-engine`) — stale `pkg/` is the most common cause of "works in Rust, broken in the app".
+A stale `packages/wasm/` is the most common cause of "works in Rust, broken in the app"
+(`npm run dev|test|build` rebuild stale crates automatically).
 
 ## oel-studio
 
 ```bash
-npm test                         # vitest: desk, engine, docs (+LibreOffice if soffice exists), sheets, forms, collab
-npm run typecheck                # tsc per package; `astro check` cannot run under TypeScript 7 (known gap)
+npm test                         # cargo test --workspace, then vitest: desk, engine, docs (+LibreOffice if soffice exists), sheets, forms, collab
+npm run typecheck                # regenerates contract types (gen:types), then tsc per package; `astro check` cannot run under TypeScript 7 (known gap)
 npm run build                    # static site; catches app-level type errors stripped by tsc runs
 ```
 
