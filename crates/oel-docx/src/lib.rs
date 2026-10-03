@@ -5,6 +5,7 @@
 //! `export_docx` writes editor JSON back into a copy of the original package:
 //! parts the editor does not model are copied byte for byte.
 
+pub mod contract;
 pub mod numbering;
 pub mod package;
 pub mod read;

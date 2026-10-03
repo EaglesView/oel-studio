@@ -1,0 +1,579 @@
+//! The JSON contract between this codec and `@oel/docs`.
+//!
+//! The reader builds its JSON with `json!` for speed of iteration; these types
+//! are the declared shape of that JSON. [`check`] holds the reader to it (run on
+//! every fixture by `tests/contract.rs`), and `npm run gen:types` exports the
+//! same types to TypeScript (`packages/engine/src/generated/oeldocx/`) together
+//! with [`VOCABULARY`], which `packages/docs/test/schema.test.ts` compares with
+//! the Tiptap schema. Renaming a field here breaks both sides.
+//!
+//! Optional values are `null` on the wire (the reader always writes the key),
+//! except where a field is marked `optional` for TypeScript.
+
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+use std::collections::BTreeMap;
+
+// ---------------------------------------------------------------------------
+// ProseMirror JSON
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", rename = "PMMark"))]
+#[serde(deny_unknown_fields)]
+pub struct PmMark {
+    #[serde(rename = "type")]
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>", optional))]
+    pub attrs: Option<Map<String, Value>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", rename = "PMNode", optional_fields))]
+#[serde(deny_unknown_fields)]
+pub struct PmNode {
+    #[serde(rename = "type")]
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
+    pub attrs: Option<Map<String, Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<Vec<PmNode>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marks: Option<Vec<PmMark>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+pub enum DocTag {
+    #[default]
+    #[serde(rename = "doc")]
+    Doc,
+}
+
+/// A story: the body, a header/footer or a note.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", rename = "PMDoc"))]
+#[serde(deny_unknown_fields)]
+pub struct PmDoc {
+    #[serde(rename = "type")]
+    pub kind: DocTag,
+    pub content: Vec<PmNode>,
+}
+
+// ---------------------------------------------------------------------------
+// Envelope: what `docx_to_pm` returns and `pm_to_docx` takes
+// ---------------------------------------------------------------------------
+
+/// Output of `docx_to_pm` / `new_document_pm` (the `json` string, parsed).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocxJson {
+    pub version: u32,
+    pub doc: PmDoc,
+    pub notes: Notes,
+    pub headers: BTreeMap<HeaderFooterKind, StoryPart>,
+    pub footers: BTreeMap<HeaderFooterKind, StoryPart>,
+    pub page: PageSetup,
+    pub styles: Vec<DocStyle>,
+    pub styles_css: String,
+    pub defaults: Defaults,
+    pub numbering: NumberingDefs,
+    pub title: Option<String>,
+    pub media: Vec<MediaRef>,
+}
+
+/// What `pm_to_docx` reads (DocxJson minus the render-only fields). Built by the editor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase")]
+pub struct ExportJson {
+    pub doc: PmDoc,
+    pub notes: Notes,
+    pub headers: BTreeMap<HeaderFooterKind, StoryPart>,
+    pub footers: BTreeMap<HeaderFooterKind, StoryPart>,
+    pub page: PageSetup,
+    pub numbering: ExportNumbering,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct Notes {
+    pub footnote: BTreeMap<String, PmDoc>,
+    pub endnote: BTreeMap<String, PmDoc>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum HeaderFooterKind {
+    Default,
+    First,
+    Even,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct StoryPart {
+    /// Package part (`word/header1.xml`), absent for new ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub part: Option<String>,
+    pub doc: PmDoc,
+}
+
+/// Page geometry in twips (1/1440 in).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PageSetup {
+    pub width: i64,
+    pub height: i64,
+    pub orient: Orient,
+    pub top: i64,
+    pub right: i64,
+    pub bottom: i64,
+    pub left: i64,
+    pub header: i64,
+    pub footer: i64,
+    pub gutter: i64,
+    pub title_pg: bool,
+    /// Raw final sectPr, patched on export.
+    pub sect_pr: Option<String>,
+    pub background: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum Orient {
+    Portrait,
+    Landscape,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocStyle {
+    pub id: String,
+    pub name: String,
+    pub kind: StyleKind,
+    /// normal, title, subtitle, heading1…heading9, listParagraph, hyperlink…
+    pub role: Option<String>,
+    pub based_on: Option<String>,
+    pub is_default: bool,
+    pub quick: bool,
+    pub hidden: bool,
+    pub outline: Option<u8>,
+    pub num_id: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum StyleKind {
+    Paragraph,
+    Character,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Defaults {
+    pub font_family: String,
+    pub font_size: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NumberingDefs {
+    pub nums: BTreeMap<String, NumDef>,
+    pub max_num_id: i64,
+    pub max_abstract_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NumDef {
+    pub abstract_id: i64,
+    pub restart: bool,
+    pub levels: Vec<ListLevel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ListLevel {
+    pub fmt: String,
+    pub text: String,
+    pub start: i64,
+    pub ind_left: Option<i64>,
+    pub hanging: Option<i64>,
+    pub font: Option<String>,
+}
+
+/// Lists created in the editor, written as new `w:num` definitions on export.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+pub struct ExportNumbering {
+    pub synthetic: Vec<SyntheticList>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase")]
+pub struct SyntheticList {
+    pub num_id: i64,
+    pub kind: SyntheticListKind,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum SyntheticListKind {
+    Bullet,
+    Decimal,
+    Check,
+    Checked,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct MediaRef {
+    pub path: String,
+    pub mime: String,
+}
+
+// ---------------------------------------------------------------------------
+// Node and mark attrs
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ParagraphAttrs {
+    /// Raw `w:pPr` children, written back while the modelled attrs below are unchanged.
+    #[serde(rename = "pPr")]
+    pub p_pr: Option<String>,
+    pub style_id: Option<String>,
+    pub align: Option<Align>,
+    pub spacing: Option<Spacing>,
+    pub ind: Option<Indent>,
+    pub num_id: Option<i64>,
+    pub ilvl: i64,
+    pub outline: Option<u8>,
+    /// Display-only CSS for what the editor renders but does not edit.
+    pub css: Option<String>,
+    pub section_break: bool,
+    pub checked: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum Align {
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+/// `w:spacing`, in twips; only the attributes present in the file.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", optional_fields))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Spacing {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<i64>,
+    /// `auto`, `exact`, `atLeast`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line_rule: Option<String>,
+}
+
+/// `w:ind`, in twips; only the attributes present in the file.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/", optional_fields))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Indent {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub left: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub right: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_line: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hanging: Option<i64>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TableAttrs {
+    #[serde(rename = "tblPr")]
+    pub tbl_pr: Option<String>,
+    /// `w:gridCol` widths, twips.
+    pub grid: Vec<i64>,
+    pub style_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TableRowAttrs {
+    #[serde(rename = "trPr")]
+    pub tr_pr: Option<String>,
+    #[serde(rename = "tblPrEx")]
+    pub tbl_pr_ex: Option<String>,
+    pub header: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TableCellAttrs {
+    pub colspan: u32,
+    pub rowspan: u32,
+    /// Pixels, one per spanned grid column.
+    pub colwidth: Option<Vec<i64>>,
+    /// `#RRGGBB`.
+    pub background: Option<String>,
+    pub valign: Option<String>,
+    #[serde(rename = "tcPr")]
+    pub tc_pr: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ImageAttrs {
+    /// `media:<path>` for package images; resolved to a URL by the editor.
+    pub src: Option<String>,
+    pub path: Option<String>,
+    pub rid: Option<String>,
+    /// EMU.
+    pub cx: Option<i64>,
+    pub cy: Option<i64>,
+    pub alt: String,
+    pub title: String,
+    pub floating: bool,
+    /// The original run, written back while the image is unchanged.
+    pub xml: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NoteRefAttrs {
+    pub kind: NoteKind,
+    pub id: String,
+    #[serde(rename = "rPr")]
+    pub r_pr: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "lowercase")]
+pub enum NoteKind {
+    #[default]
+    Footnote,
+    Endnote,
+}
+
+/// Inline content the editor does not model, kept as XML.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OoxmlInlineAttrs {
+    pub xml: String,
+    pub label: String,
+    pub hidden: bool,
+    /// Field code (`PAGE`, `TOC`, `NOTENUM`…) when the XML is part of a field.
+    pub field: Option<String>,
+}
+
+/// Block content the editor does not model, kept as XML.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OoxmlBlockAttrs {
+    pub xml: String,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SdtBlockAttrs {
+    #[serde(rename = "sdtPr")]
+    pub sdt_pr: Option<String>,
+    #[serde(rename = "sdtEndPr")]
+    pub sdt_end_pr: Option<String>,
+    pub gallery: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct LinkAttrs {
+    pub href: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(deny_unknown_fields)]
+pub struct HighlightAttrs {
+    /// `#RRGGBB`.
+    pub color: Option<String>,
+}
+
+/// Run properties: the modelled ones, plus the raw `w:rPr`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oeldocx/"))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TextStyleAttrs {
+    pub font_family: Option<String>,
+    /// `11pt`.
+    pub font_size: Option<String>,
+    /// `#RRGGBB`.
+    pub color: Option<String>,
+    #[serde(rename = "rPr")]
+    pub r_pr: Option<String>,
+    #[serde(rename = "rStyle")]
+    pub r_style: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Vocabulary and conformance
+// ---------------------------------------------------------------------------
+
+/// Every node and mark the codec reads or writes, with its attrs type (if any).
+pub const NODES: &[&str] = &[
+    "doc", "paragraph", "text", "hardBreak", "tab", "pageBreak", "image", "noteRef", "ooxmlInline", "ooxmlBlock", "sdtBlock", "table", "tableRow", "tableCell",
+];
+pub const MARKS: &[&str] = &["bold", "italic", "underline", "strike", "subscript", "superscript", "highlight", "textStyle", "link"];
+
+fn keys_of<T: Default + Serialize>() -> Vec<String> {
+    match serde_json::to_value(T::default()) {
+        Ok(Value::Object(m)) => m.keys().cloned().collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Attr keys of a node or mark (empty for those without attrs).
+pub fn attr_keys(name: &str) -> Vec<String> {
+    match name {
+        "paragraph" => keys_of::<ParagraphAttrs>(),
+        "image" => keys_of::<ImageAttrs>(),
+        "noteRef" => keys_of::<NoteRefAttrs>(),
+        "ooxmlInline" => keys_of::<OoxmlInlineAttrs>(),
+        "ooxmlBlock" => keys_of::<OoxmlBlockAttrs>(),
+        "sdtBlock" => keys_of::<SdtBlockAttrs>(),
+        "table" => keys_of::<TableAttrs>(),
+        "tableRow" => keys_of::<TableRowAttrs>(),
+        "tableCell" => keys_of::<TableCellAttrs>(),
+        "link" => keys_of::<LinkAttrs>(),
+        "highlight" => keys_of::<HighlightAttrs>(),
+        "textStyle" => keys_of::<TextStyleAttrs>(),
+        _ => Vec::new(),
+    }
+}
+
+/// `{ nodes: { name: [attr…] }, marks: { name: [attr…] } }`, for the TypeScript side.
+pub fn vocabulary() -> Value {
+    let table = |names: &[&str]| -> Map<String, Value> {
+        names.iter().map(|n| (n.to_string(), Value::from(attr_keys(n)))).collect()
+    };
+    serde_json::json!({ "nodes": table(NODES), "marks": table(MARKS) })
+}
+
+fn check_attrs<T: for<'de> Deserialize<'de>>(attrs: &Value) -> Result<(), String> {
+    serde_json::from_value::<T>(attrs.clone()).map(|_| ()).map_err(|e| e.to_string())
+}
+
+fn check_typed(name: &str, attrs: Option<&Map<String, Value>>) -> Result<(), String> {
+    let expected = attr_keys(name);
+    let Some(attrs) = attrs else {
+        return if expected.is_empty() { Ok(()) } else { Err(format!("{name}: attrs missing")) };
+    };
+    let mut got: Vec<&String> = attrs.keys().collect();
+    let mut want: Vec<&String> = expected.iter().collect();
+    got.sort();
+    want.sort();
+    if got != want {
+        return Err(format!("{name}: attrs {got:?}, contract says {want:?}"));
+    }
+    let v = Value::Object(attrs.clone());
+    match name {
+        "paragraph" => check_attrs::<ParagraphAttrs>(&v),
+        "image" => check_attrs::<ImageAttrs>(&v),
+        "noteRef" => check_attrs::<NoteRefAttrs>(&v),
+        "ooxmlInline" => check_attrs::<OoxmlInlineAttrs>(&v),
+        "ooxmlBlock" => check_attrs::<OoxmlBlockAttrs>(&v),
+        "sdtBlock" => check_attrs::<SdtBlockAttrs>(&v),
+        "table" => check_attrs::<TableAttrs>(&v),
+        "tableRow" => check_attrs::<TableRowAttrs>(&v),
+        "tableCell" => check_attrs::<TableCellAttrs>(&v),
+        "link" => check_attrs::<LinkAttrs>(&v),
+        "highlight" => check_attrs::<HighlightAttrs>(&v),
+        "textStyle" => check_attrs::<TextStyleAttrs>(&v),
+        _ => Ok(()),
+    }
+    .map_err(|e| format!("{name}: {e}"))
+}
+
+fn check_node(n: &PmNode) -> Result<(), String> {
+    if !NODES.contains(&n.kind.as_str()) {
+        return Err(format!("node `{}` is not in the contract", n.kind));
+    }
+    check_typed(&n.kind, n.attrs.as_ref())?;
+    for m in n.marks.iter().flatten() {
+        if !MARKS.contains(&m.kind.as_str()) {
+            return Err(format!("mark `{}` is not in the contract", m.kind));
+        }
+        check_typed(&m.kind, m.attrs.as_ref())?;
+    }
+    n.content.iter().flatten().try_for_each(check_node)
+}
+
+/// Checks reader output (`DocxJson`) against the contract: envelope fields,
+/// node and mark names, and each attrs object's exact keys and value types.
+pub fn check(json: &Value) -> Result<(), String> {
+    let d: DocxJson = serde_json::from_value(json.clone()).map_err(|e| format!("envelope: {e}"))?;
+    let stories = std::iter::once(&d.doc)
+        .chain(d.notes.footnote.values())
+        .chain(d.notes.endnote.values())
+        .chain(d.headers.values().map(|s| &s.doc))
+        .chain(d.footers.values().map(|s| &s.doc));
+    for doc in stories {
+        doc.content.iter().try_for_each(check_node)?;
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "ts"))]
+mod ts_export {
+    /// Named like ts-rs's own tests so `npm run gen:types` picks it up.
+    #[test]
+    fn export_bindings_vocabulary() {
+        let dir = std::path::PathBuf::from(std::env::var("TS_RS_EXPORT_DIR").unwrap_or_else(|_| "bindings".into())).join("oeldocx");
+        std::fs::create_dir_all(&dir).unwrap();
+        let body = serde_json::to_string_pretty(&super::vocabulary()).unwrap();
+        let ts = format!(
+            "// Generated from crates/oel-docx/src/contract.rs. Do not edit.\n\n/** Nodes and marks the codec reads and writes, with their attr names. */\nexport const CODEC_VOCABULARY: {{ nodes: Record<string, string[]>; marks: Record<string, string[]> }} = {body};\n"
+        );
+        std::fs::write(dir.join("vocabulary.ts"), ts).unwrap();
+    }
+}

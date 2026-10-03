@@ -20,6 +20,7 @@
     "@hocuspocus/provider": "^4.7.0",
     "@oel/collab-client": "*",
     "@oel/emboss": "*",
+    "@oel/engine": "*",
     "@tiptap/core": "^3.31.4",
     "@tiptap/extension-collaboration": "^3.31.4",
     "@tiptap/extension-highlight": "^3.31.4",

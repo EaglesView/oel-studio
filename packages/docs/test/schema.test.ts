@@ -7,6 +7,7 @@ import { docsSchema } from '../src/extensions';
 import { exportJsonFromYDoc, plainText, seedYDoc } from '../src/model/ydoc';
 import { toPreview } from '../src/model/preview';
 import type { DocxJson } from '../src/model/types';
+import { CODEC_VOCABULARY } from '@oel/engine/generated/oeldocx';
 
 const require = createRequire(import.meta.url);
 const codec = require('oeldocx-node') as {
@@ -40,6 +41,44 @@ describe('codec JSON fits the editor schema', () => {
     schema.nodeFromJSON(j.doc).check();
     expect(j.styles.some((s) => s.role === 'heading1')).toBe(true);
   });
+});
+
+/**
+ * Editor-side differences from the codec vocabulary (`crates/oel-docx/src/contract.rs`),
+ * each with its reason. Anything else that differs fails the test.
+ */
+const EDITOR_ONLY = {
+  /** Header cells are written exactly like `tableCell` (the writer walks row content). */
+  nodes: { tableHeader: 'tableCell' } as Record<string, string>,
+  attrs: {
+    tableCell: ['align'], // Tiptap's own cell attr; Word alignment lives in the paragraphs.
+    tableHeader: ['align'],
+    link: ['target', 'rel', 'class', 'title'], // render-only; the codec keeps href.
+  } as Record<string, string[]>,
+};
+
+describe('Tiptap schema ↔ codec vocabulary', () => {
+  const editor = {
+    nodes: Object.fromEntries(Object.entries(schema.nodes).map(([n, t]) => [n, Object.keys(t.spec.attrs ?? {})])),
+    marks: Object.fromEntries(Object.entries(schema.marks).map(([n, t]) => [n, Object.keys(t.spec.attrs ?? {})])),
+  };
+  const codecName = (n: string) => EDITOR_ONLY.nodes[n] ?? n;
+
+  for (const kind of ['nodes', 'marks'] as const) {
+    it(`every editor ${kind.slice(0, -1)} has a codec counterpart with the same attrs`, () => {
+      for (const [name, attrs] of Object.entries(editor[kind])) {
+        const codec = CODEC_VOCABULARY[kind][kind === 'nodes' ? codecName(name) : name];
+        expect(codec, `${name} is not in the codec`).toBeDefined();
+        const own = attrs.filter((a) => !(EDITOR_ONLY.attrs[name] ?? []).includes(a));
+        expect([...own].sort(), name).toEqual([...codec!].sort());
+      }
+    });
+
+    it(`every codec ${kind.slice(0, -1)} exists in the editor schema`, () => {
+      const names = new Set(Object.keys(editor[kind]).map((n) => (kind === 'nodes' ? codecName(n) : n)));
+      for (const name of Object.keys(CODEC_VOCABULARY[kind])) expect(names.has(name), `${name} is missing from the Tiptap schema`).toBe(true);
+    });
+  }
 });
 
 describe('Y.Doc layout', () => {

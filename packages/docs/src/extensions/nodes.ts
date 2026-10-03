@@ -6,7 +6,8 @@
 import { Node, mergeAttributes, type Attributes } from '@tiptap/core';
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { TextSelection } from '@tiptap/pm/state';
-import { paragraphCss, type ParagraphAttrs } from '../model/format';
+import { paragraphCss } from '../model/format';
+import type { ParagraphAttrs } from '../model/types';
 import { EMU_PER_PX } from '../model/types';
 
 const raw = (def: unknown = null) => ({ default: def, rendered: false });

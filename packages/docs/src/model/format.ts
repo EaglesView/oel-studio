@@ -2,20 +2,7 @@
  * Paragraph attrs → CSS, shared by the editor's renderHTML and static renders
  * (headers on every page, version previews). Mirrors `ppr_css` in the codec.
  */
-
-export interface ParagraphAttrs {
-  pPr: string | null;
-  styleId: string | null;
-  align: 'left' | 'center' | 'right' | 'justify' | null;
-  spacing: { before?: number; after?: number; line?: number; lineRule?: string } | null;
-  ind: { left?: number; right?: number; firstLine?: number; hanging?: number } | null;
-  numId: number | null;
-  ilvl: number;
-  outline: number | null;
-  css: string | null;
-  sectionBreak: boolean;
-  checked: boolean | null;
-}
+import type { ParagraphAttrs } from './types';
 
 const pt = (tw: number) => `${+(tw / 20).toFixed(2)}pt`;
 

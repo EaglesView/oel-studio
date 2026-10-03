@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker/engine.worker.ts",
-    "./generated/oelxlsx": "./src/generated/oelxlsx/index.ts"
+    "./generated/oelxlsx": "./src/generated/oelxlsx/index.ts",
+    "./generated/oeldocx": "./src/generated/oeldocx/index.ts"
   },
   "dependencies": {
     "oeldocx-rs": "file:../wasm/oel-docx/web",
