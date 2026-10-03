@@ -164,17 +164,21 @@ per-section pagination, story ids), `oel-collab-backend` (format v2, export), `o
 
 ## Phase 2: Table fidelity (~1 day): fixes symptom 7
 
-- [ ] Codec: resolve borders per cell from `tcPr/tcBorders` → `tblPrEx` → `tblPr/tblBorders`
+- [x] Codec: resolve borders per cell from `tcPr/tcBorders` → `tblPrEx` → `tblPr/tblBorders`
       → table style (`w:tblStyle` chain incl. `basedOn`) with conditional formatting
       (`firstRow`, `lastRow`, `firstColumn`, `band1Horz`… gated by `tblLook`), plus table
       width (`tblW`, pct/dxa), alignment (`jc`), indent (`tblInd`) and cell margins
       (`tblCellMar`/`tcMar`). Expose display-only `css` on `table` and `tableCell` (like
       paragraphs), contract + Tiptap attrs (`rendered: false`, applied by `renderHTML`).
-- [ ] Editor: remove the default `1px solid #000`; when a table or cell has no visible
+- [x] Editor: remove the default `1px solid #000`; when a table or cell has no visible
       border, draw a light dashed gridline on screen only (« Affichage › Quadrillage des
       tableaux », on by default, never printed or exported), like Word.
-- [ ] Editing borders stays out of scope (table border UI is its own feature); new tables
+- [x] Editing borders stays out of scope (table border UI is its own feature); new tables
       created in the editor get the `Table Grid` style so they look as before.
+
+Notes (as built): table-style paragraph/run properties become scoped rules in `stylesCss`
+(`table[data-tstyle] .oel-p` for unstyled/Normal paragraphs, Word's precedence); conditional
+`insideH/insideV` borders are approximated per cell edge. Browser comparison pending.
 
 **Done when** `table-borders.docx` and the template's tables match their references, and
 tables created in the editor still show borders and export with them.
