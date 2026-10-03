@@ -7,7 +7,8 @@
  *   rows:<id>       Y.Array  stable row ids, in order (cols:<id> for columns)
  *   rowMeta:<id>    Y.Map    row id → { height?, hidden?, style?, outline? }   (colMeta:<id> for columns)
  *   cells:<id>      Y.Map    "<rowId>:<colId>" → YCell
- *   x:<id>          Y.Map    merges, filter, validations, condFormats, hyperlinks, notes (id ranges)
+ *   x:<id>          Y.Map    merges, filter, validations, condFormats, hyperlinks, notes, tables,
+ *                            drawings (id ranges and anchors)
  *   styles          Y.Array  CellStyle, append-only (index = style id, as in the file)
  *   dxfs            Y.Array  differential formats (conditional formatting)
  *   names           Y.Map    "<scope>|<name>" → { name, scope?, formula: StoredFormula, hidden? }
@@ -30,6 +31,8 @@ import {
   type CellValue,
   type Color,
   type CondFormat,
+  type Drawing,
+  type DrawingMarker,
   type CondRule,
   type CsvDialect,
   type Hyperlink,
@@ -38,6 +41,7 @@ import {
   type Sheet,
   type SheetState,
   type Source,
+  type Table,
   type Validation,
   type Workbook,
 } from './types';
@@ -94,6 +98,9 @@ export type YValidation = Omit<Validation, 'sqref'> & Anchored & { ranges: IdRan
 export type YCondFormat = { ranges: IdRange[]; rules: CondRule[] } & Anchored;
 export type YHyperlink = Omit<Hyperlink, 'ref'> & { range: IdRange };
 export type YNote = Omit<Note, 'r' | 'c'> & { r: Key; c: Key };
+export type YTable = Omit<Table, 'ref'> & { range: IdRange };
+export type YMarker = Omit<DrawingMarker, 'r' | 'c'> & { r: Key; c: Key };
+export type YDrawing = Omit<Drawing, 'from' | 'to'> & { from: YMarker; to?: YMarker };
 export interface YFilter {
   range: IdRange;
   raw?: string;
@@ -396,7 +403,8 @@ export class SheetDoc implements RefResolver {
         // References to the copied sheet itself (no sheet prefix) stay local to the copy.
         cells.set(k, v);
       }
-      for (const [k, v] of extras(this.doc, id).entries()) extras(this.doc, copy).set(k, v);
+      // Tables and drawings belong to their file part: a table name is unique in a workbook.
+      for (const [k, v] of extras(this.doc, id).entries()) if (k !== 'tables' && k !== 'drawings') extras(this.doc, copy).set(k, v);
     });
     return copy;
   }
@@ -801,6 +809,30 @@ export class SheetDoc implements RefResolver {
     });
   }
 
+  /** Structured tables (read from the file; their range follows row and column edits). */
+  tables(sheet: string): Table[] {
+    const list = (extras(this.doc, sheet).get('tables') as YTable[] | undefined) ?? [];
+    return list.flatMap(({ range, ...t }) => {
+      const r = this.range(sheet, range);
+      return r ? [{ ...t, ref: rangeA1(r) }] : [];
+    });
+  }
+
+  /** Pictures, shapes and charts over the grid (read-only), anchored to row and column ids. */
+  drawings(sheet: string): Drawing[] {
+    const list = (extras(this.doc, sheet).get('drawings') as YDrawing[] | undefined) ?? [];
+    const marker = (m: YMarker): DrawingMarker | null => {
+      const r = this.rowIndex(sheet, m.r);
+      const c = this.colIndex(sheet, m.c);
+      return r == null || c == null ? null : { ...m, r, c };
+    };
+    return list.flatMap(({ from: f, to: t, ...rest }) => {
+      const from = marker(f);
+      const to = t ? marker(t) : undefined;
+      return from && to !== null ? [{ ...rest, from, ...(to ? { to } : {}) }] : [];
+    });
+  }
+
   // ----- names ------------------------------------------------------------
 
   names(): Array<{ name: string; scope?: string; formula: string; hidden?: boolean }> {
@@ -924,6 +956,19 @@ export class SheetDoc implements RefResolver {
       }
       const links = x.get('hyperlinks') as YHyperlink[] | undefined;
       if (links) x.set('hyperlinks', links.flatMap((l) => (fixRange(l.range) ? [{ ...l, range: fixRange(l.range)! }] : [])));
+      const tables = x.get('tables') as YTable[] | undefined;
+      if (tables) x.set('tables', tables.flatMap((t) => (fixRange(t.range) ? [{ ...t, range: fixRange(t.range)! }] : [])));
+      // A drawing corner on a deleted line moves to the start of the next one, as in Excel.
+      const drawings = x.get('drawings') as YDrawing[] | undefined;
+      const fixMarker = (m: YMarker): YMarker => {
+        const k = isRow ? m.r : m.c;
+        if (!gone.has(k)) return m;
+        const to = after ?? before ?? k;
+        return isRow ? { ...m, r: to, dy: 0 } : { ...m, c: to, dx: 0 };
+      };
+      if (drawings?.some((d) => gone.has(isRow ? d.from.r : d.from.c) || (d.to && gone.has(isRow ? d.to.r : d.to.c)))) {
+        x.set('drawings', drawings.map((d) => ({ ...d, from: fixMarker(d.from), ...(d.to ? { to: fixMarker(d.to) } : {}) })));
+      }
       const filter = x.get('filter') as YFilter | undefined;
       if (filter) {
         const range = fixRange(filter.range);
@@ -1052,6 +1097,13 @@ export class SheetDoc implements RefResolver {
         if (s.condFormats?.length) this.setCondFormats(id, s.condFormats);
         if (s.hyperlinks?.length) this.setHyperlinks(id, s.hyperlinks);
         if (s.notes?.length) x.set('notes', s.notes.map((n) => ({ ...n, r: this.rowKey(id, n.r), c: this.colKey(id, n.c) })));
+        const tables = (s.tables ?? []).flatMap(({ ref, ...t }) => {
+          const r = parseRange(ref);
+          return r ? [{ ...t, range: this.idRange(id, r) }] : [];
+        });
+        if (tables.length) x.set('tables', tables);
+        const marker = (m: DrawingMarker): YMarker => ({ ...m, r: this.rowKey(id, m.r), c: this.colKey(id, m.c) });
+        if (s.drawings?.length) x.set('drawings', s.drawings.map((d) => ({ ...d, from: marker(d.from), ...(d.to ? { to: marker(d.to) } : {}) })));
       }
       m.set('source', wb.source ?? 'new');
       if (wb.csv) m.set('csv', wb.csv);
@@ -1158,6 +1210,8 @@ export class SheetDoc implements RefResolver {
       condFormats: this.condFormats(id),
       hyperlinks: this.hyperlinks(id),
       notes: this.notes(id),
+      tables: this.tables(id),
+      drawings: this.drawings(id),
     };
   }
 }

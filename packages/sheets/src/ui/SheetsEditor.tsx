@@ -66,6 +66,45 @@ function download(bytes: Uint8Array, name: string, mime: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+/**
+ * Object URLs for the images of the workbook's drawings. Imported images live
+ * in the original .xlsx (kept by the session, offline too); the calc worker
+ * reads them out of the package.
+ */
+function useDrawingMedia(session: SheetSession, ctl: SheetController, calc: CalcClient): ReadonlyMap<string, string> {
+  const [urls, setUrls] = useState<ReadonlyMap<string, string>>(() => new Map());
+  const paths = useMemo(() => {
+    const set = new Set<string>();
+    for (const id of ctl.doc.sheetIds()) for (const d of ctl.doc.drawings(id)) if (d.media) set.add(`${d.media}\n${d.mime ?? ''}`);
+    return [...set].sort().join('\t');
+  }, [ctl, ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!paths) return;
+    let alive = true;
+    const made: string[] = [];
+    void (async () => {
+      const original = await session.original().catch(() => null);
+      if (!original || !alive) return;
+      const wanted = paths.split('\t').map((p) => p.split('\n') as [string, string]);
+      const files = await calc.media(original, wanted.map(([p]) => p));
+      if (!alive) return;
+      const next = new Map<string, string>();
+      for (const f of files) {
+        const mime = wanted.find(([p]) => p === f.path)?.[1] || 'application/octet-stream';
+        const url = URL.createObjectURL(new Blob([f.bytes as Uint8Array<ArrayBuffer>], { type: mime }));
+        made.push(url);
+        next.set(f.path, url);
+      }
+      setUrls(next);
+    })();
+    return () => {
+      alive = false;
+      for (const u of made) URL.revokeObjectURL(u);
+    };
+  }, [session, calc, paths]);
+  return urls;
+}
+
 export function SheetsEditor(props: SheetsEditorProps) {
   const { session, identity } = props;
   const variant = props.variant ?? 'standalone';
@@ -114,6 +153,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
     }, 700);
     return () => clearTimeout(t);
   }, [ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const media = useDrawingMedia(session, ctl, calc);
 
   // Focus the grid when the editor opens (typing goes straight into cells).
   useEffect(() => {
@@ -631,6 +672,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
           onContextMenu={(at, kind) => setCtxMenu({ ...at, kind })}
           hasList={hasList}
           onListOpen={(at) => setListMenu(at)}
+          media={media}
         />
         {showVersions && (
           <VersionPanel

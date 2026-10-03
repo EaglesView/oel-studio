@@ -13,7 +13,12 @@ export interface WasmCalcLike {
   free(): void;
 }
 
-export function createCalcHandler(make: (json: string) => WasmCalcLike, ready: Promise<unknown> = Promise.resolve()) {
+export interface PartsLike {
+  part(path: string): Uint8Array | undefined;
+  free(): void;
+}
+
+export function createCalcHandler(make: (json: string) => WasmCalcLike, ready: Promise<unknown> = Promise.resolve(), openParts?: (bytes: Uint8Array) => PartsLike) {
   let calc: WasmCalcLike | null = null;
   return async (m: ToCalc): Promise<FromCalc> => {
     try {
@@ -42,6 +47,20 @@ export function createCalcHandler(make: (json: string) => WasmCalcLike, ready: P
         }
         case 'completion':
           return { op: 'completion', seq: m.seq, result: calc ? JSON.parse(calc.completion(m.sheet, m.r, m.c, m.formula, m.cursor)) : null };
+        case 'media': {
+          const files: Array<{ path: string; bytes: Uint8Array }> = [];
+          if (!openParts) return { op: 'media', seq: m.seq, files };
+          const pkg = openParts(m.original);
+          try {
+            for (const path of m.paths) {
+              const bytes = pkg.part(path);
+              if (bytes) files.push({ path, bytes });
+            }
+          } finally {
+            pkg.free();
+          }
+          return { op: 'media', seq: m.seq, files };
+        }
       }
     } catch (err) {
       return { op: 'error', seq: m.seq, message: err instanceof Error ? err.message : String(err) };

@@ -5,6 +5,7 @@ import { HEADER_H, Layout, conditionalFormats, formulaRefs, paint, readTheme, ro
 import { pxToColWidth } from '../grid/geometry';
 import { current, extendTo, single, type Pos } from '../grid/selection';
 import type { SheetController } from './controller';
+import { Drawings } from './Drawings';
 
 export interface GridProps {
   ctl: SheetController;
@@ -18,6 +19,8 @@ export interface GridProps {
   /** The active cell has a validation list: show its arrow; open the choices at a screen point. */
   hasList?: boolean;
   onListOpen?: (at: { x: number; y: number }) => void;
+  /** Object URLs of drawing images, by package path. */
+  media?: ReadonlyMap<string, string>;
 }
 
 /** Scrollable height/width is capped (browsers cap element sizes); past it the scrollbar scales. */
@@ -31,7 +34,9 @@ type Drag =
   | { kind: 'resize-row'; index: number; start: number; size: number }
   | { kind: 'point'; anchor: Pos };
 
-export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, onCommand, hasList, onListOpen }: GridProps) {
+const NO_MEDIA: ReadonlyMap<string, string> = new Map();
+
+export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, onCommand, hasList, onListOpen, media = NO_MEDIA }: GridProps) {
   useSyncExternalStore(ctl.subscribe, ctl.getVersion, ctl.getVersion);
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -64,6 +69,8 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
     () => new Layout(rows, cols, props.frozenRows, props.frozenCols, scroll.x / kx / zoom, scroll.y / ky / zoom, size.w / zoom, size.h / zoom, headerW),
     [rows, cols, props.frozenRows, props.frozenCols, scroll.x, scroll.y, kx, ky, zoom, size.w, size.h, headerW],
   );
+
+  const drawings = useMemo(() => ctl.doc.drawings(ctl.sheetId), [ctl, ctl.sheetId, ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- painting --------------------------------------------------------------
 
@@ -177,7 +184,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
     if (edit?.where === 'cell') {
       const ta = editorRef.current;
       if (ta && document.activeElement !== ta) {
-        ta.focus();
+        ta.focus({ preventScroll: true });
         ta.setSelectionRange(edit.cursor, edit.cursor);
       }
     } else if (!edit && rootRef.current && rootRef.current.contains(document.activeElement) && document.activeElement !== rootRef.current) {
@@ -630,6 +637,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
         <div style={{ width: contentW * kx, height: contentH * ky }} aria-hidden />
       </div>
       <canvas ref={canvasRef} className="oel-grid__canvas" style={{ width: size.w, height: size.h }} aria-hidden />
+      <Drawings drawings={drawings} layout={layout} zoom={zoom} media={media} />
       {/* The one cell assistive technology sees: the active one. */}
       <div role="row" aria-rowindex={ctl.sel.active.r + 1} className="emb-visually-hidden">
         <div id="oel-grid-active" role="gridcell" aria-colindex={ctl.sel.active.c + 1} aria-selected aria-label={announce}>

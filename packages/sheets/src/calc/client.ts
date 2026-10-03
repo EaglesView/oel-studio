@@ -80,6 +80,11 @@ export class CalcClient {
     return this.request({ op: 'completion', seq: 0, sheet: sheetIndex, r, c, formula, cursor }).then((m) => (m.op === 'completion' ? m.result : null));
   }
 
+  /** Read parts of the original .xlsx (drawing images) in the worker. */
+  media(original: Uint8Array, paths: string[]): Promise<Array<{ path: string; bytes: Uint8Array }>> {
+    return this.request({ op: 'media', seq: 0, original, paths }).then((m) => (m.op === 'media' ? m.files : []));
+  }
+
   /** Resolves when the engine has caught up with every edit sent so far. */
   async settled(): Promise<void> {
     // Let queued reloads and flushes start, then wait for all of them.
@@ -100,6 +105,7 @@ export class CalcClient {
       if (!name) continue;
       if (name === 'sheets' || name === 'names' || name.startsWith('rows:') || name.startsWith('cols:')) structural = true;
       else if (name.startsWith('sheet:') && keys.has('name')) structural = true;
+      else if (name.startsWith('x:') && keys.has('tables')) structural = true;
       else if (name === 'meta' && keys.has('seeded')) structural = true;
       else if (name.startsWith('cells:')) {
         const sheetId = name.slice(6);

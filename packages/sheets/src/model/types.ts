@@ -22,6 +22,8 @@ export type {
   CondRule,
   CsvDialect,
   DefinedName,
+  Drawing,
+  DrawingMarker,
   FilterColumn,
   Font,
   Hyperlink,
@@ -32,6 +34,7 @@ export type {
   SheetState,
   Source,
   Structural,
+  Table,
   Validation,
   Workbook,
 } from '@oel/engine/generated/oelxlsx';
