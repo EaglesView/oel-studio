@@ -233,7 +233,7 @@ tables created in the editor still show borders and export with them.
       to no wrap, with a tooltip saying so. `topAndBottom`: block spacer.
 - [x] Anchors in headers/footers drawn on every page that uses that story.
 
-### 3c Interaction: separate pass (decision 1: rendering first, editing after)
+### 3c Interaction: separate pass (decision 1: rendering first, editing after) (WHERE WE ARE AT - CLAUDE HERE IS WHERE YOU START AGAIN)
 
 Not part of this plan's execution: started only after 3a/3b are accepted, with its own
 go-ahead.
