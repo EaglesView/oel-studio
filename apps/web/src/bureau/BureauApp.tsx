@@ -92,19 +92,10 @@ export function BureauApp() {
     const prev = store.getState().openId;
     if (prev && prev !== id) {
       sheetRef.current?.commit();
-      const paper = store.node(prev) as PaperNode | undefined;
       store.open(null);
       store.select([prev]);
       store.focus(prev);
       requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(prev)}"]`)?.focus({ preventScroll: true }));
-      if (paper && !id) {
-        toast({
-          title: `${paper.title} · enregistré`,
-          description: 'Entrée pour rouvrir.',
-          tone: 'success',
-          action: { label: 'Rouvrir', onAction: () => openAt(prev, 2) },
-        });
-      }
     }
     if (id) store.open(id);
     setFull(!!id && isFull);

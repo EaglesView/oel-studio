@@ -98,6 +98,8 @@ import {
   DatabaseCheck,
   Database,
   MathBook,
+  Bell,
+  BellNotification,
 } from 'iconoir-react';
 
 /**
@@ -253,6 +255,8 @@ const EXTRA = {
   'validation': DatabaseCheck,
   'database': Database,
   'function': MathBook,
+  'bell': Bell,
+  'bell-dot': BellNotification,
 } as const;
 
 export type IconName = keyof typeof KIT | keyof typeof EXTRA;

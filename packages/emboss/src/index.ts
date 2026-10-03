@@ -23,11 +23,17 @@ export {
   MenuSeparator,
   MenuPopover,
   MenuTrigger,
+} from './components/Overlays';
+export {
   ToastRegion,
+  NotificationsButton,
   toast,
   toastQueue,
+  toastHistory,
+  useToastHistory,
   type ToastData,
-} from './components/Overlays';
+  type ToastRecord,
+} from './components/Toast';
 export {
   Badge,
   Card,

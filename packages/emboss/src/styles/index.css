@@ -5,4 +5,5 @@
 @import '../components/fields.css';
 @import '../components/controls.css';
 @import '../components/overlays.css';
+@import '../components/toast.css';
 @import '../components/display.css';

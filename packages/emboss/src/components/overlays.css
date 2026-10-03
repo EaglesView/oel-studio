@@ -1,4 +1,4 @@
-/* Popover · Dialog · Toast */
+/* Popover · Dialog */
 
 .emb-popover {
   max-width: min(360px, calc(100vw - 32px));
@@ -86,62 +86,4 @@
   flex-wrap: wrap;
   gap: var(--spacing-3);
   padding: var(--spacing-2) var(--spacing-6) var(--spacing-6);
-}
-
-/* Toast */
-.emb-toast-region {
-  position: fixed;
-  bottom: var(--spacing-6);
-  left: 50%;
-  z-index: 200;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: var(--spacing-2);
-  width: min(420px, calc(100vw - 32px));
-  translate: -50% 0;
-  outline: none;
-}
-.emb-toast-region[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 4px; border-radius: var(--radius-xl); }
-.emb-toast {
-  --_tone: var(--emboss-ink);
-  --_tone-soft: var(--emboss-accent-soft);
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-3);
-  padding: var(--spacing-3) var(--spacing-3) var(--spacing-3) var(--spacing-4);
-  border: 1px solid var(--emboss-edge);
-  border-left: 3px solid var(--_tone);
-  border-radius: var(--radius-xl);
-  background-color: var(--emboss-sheet);
-  background-image: var(--emboss-noise);
-  box-shadow: var(--shadow-sheet);
-  outline: none;
-}
-.emb-toast[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
-.emb-toast--success { --_tone: var(--emboss-success); --_tone-soft: var(--emboss-success-soft); }
-.emb-toast--warning { --_tone: var(--emboss-warning-ink); --_tone-soft: var(--emboss-warning-soft); }
-.emb-toast--danger { --_tone: var(--emboss-danger); --_tone-soft: var(--emboss-danger-soft); }
-.emb-toast__seal {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  margin-top: 2px;
-  border-radius: 50%;
-  background: var(--_tone-soft);
-  color: var(--_tone);
-}
-.emb-toast__content { flex: 1; display: grid; gap: 2px; padding-top: 2px; }
-.emb-toast__title { font: 600 14px/20px var(--font-sans); color: var(--emboss-text); }
-.emb-toast__desc { font: 400 13px/18px var(--font-sans); color: var(--emboss-ink-muted); }
-
-::view-transition-new(*):only-child { animation: emb-toast-in 280ms var(--ease-paper); }
-::view-transition-old(*):only-child { animation: emb-toast-out 280ms var(--ease-paper) forwards; }
-@keyframes emb-toast-in { from { opacity: 0; transform: translateY(16px); } }
-@keyframes emb-toast-out { to { opacity: 0; transform: translateY(16px); } }
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) { animation: none !important; }
 }

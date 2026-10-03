@@ -12,11 +12,6 @@ import {
   OverlayArrow,
   Popover as RACPopover,
   Separator,
-  Text,
-  UNSTABLE_Toast as RACToast,
-  UNSTABLE_ToastContent as ToastContent,
-  UNSTABLE_ToastQueue as ToastQueue,
-  UNSTABLE_ToastRegion as RACToastRegion,
   type DialogProps,
   type MenuItemProps,
   type MenuProps,
@@ -152,82 +147,5 @@ export function MenuPopover({ children, ...props }: Omit<RACPopoverProps, 'child
     <RACPopover {...props} offset={props.offset ?? 6} className="emb-menu-popover">
       {children}
     </RACPopover>
-  );
-}
-
-/* ── Toast (kit 67:568) ────────────────────────────────────────────── */
-
-export interface ToastData {
-  title: string;
-  description?: string;
-  tone?: 'info' | 'success' | 'warning' | 'danger';
-  action?: { label: string; onAction: () => void };
-}
-
-/**
- * App-wide toast queue. A paper slip that rises from the bottom, with a
- * tone-coloured edge and seal. Auto-dismiss after 5 s by default.
- */
-export const toastQueue = new ToastQueue<ToastData>({
-  maxVisibleToasts: 3,
-  wrapUpdate(fn) {
-    if ('startViewTransition' in document) {
-      (document as Document & { startViewTransition: (cb: () => void) => unknown }).startViewTransition(fn);
-    } else {
-      fn();
-    }
-  },
-});
-
-export function toast(content: ToastData, timeout = 5000) {
-  return toastQueue.add(content, { timeout: content.action ? undefined : timeout });
-}
-
-const TONE_ICON: Record<NonNullable<ToastData['tone']>, IconName> = {
-  info: 'info',
-  success: 'check',
-  warning: 'alert',
-  danger: 'alert',
-};
-
-/** Mount once near the root. Landmark region (F6 to reach it), polite announcements. */
-export function ToastRegion() {
-  return (
-    <RACToastRegion queue={toastQueue} className="emb-toast-region" aria-label="Notifications">
-      {({ toast: t }) => {
-        const tone = t.content.tone ?? 'info';
-        return (
-          <RACToast toast={t} className={cx('emb-toast', `emb-toast--${tone}`)} style={{ viewTransitionName: t.key }}>
-            <span className="emb-toast__seal" aria-hidden>
-              <Icon name={TONE_ICON[tone]} size={16} />
-            </span>
-            <ToastContent className="emb-toast__content">
-              <Text slot="title" className="emb-toast__title">
-                {t.content.title}
-              </Text>
-              {t.content.description && (
-                <Text slot="description" className="emb-toast__desc">
-                  {t.content.description}
-                </Text>
-              )}
-            </ToastContent>
-            {t.content.action && (
-              <RACButton
-                className="emb-button emb-button--secondary emb-button--sm"
-                onPress={() => {
-                  t.content.action?.onAction();
-                  toastQueue.close(t.key);
-                }}
-              >
-                {t.content.action.label}
-              </RACButton>
-            )}
-            <RACButton slot="close" className="emb-button emb-button--ghost emb-button--icon-sm" aria-label="Fermer">
-              <Icon name="close" size={16} />
-            </RACButton>
-          </RACToast>
-        );
-      }}
-    </RACToastRegion>
   );
 }

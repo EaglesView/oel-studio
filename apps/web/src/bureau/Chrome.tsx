@@ -13,6 +13,7 @@ import {
   MenuPopover,
   MenuSeparator,
   MenuTrigger,
+  NotificationsButton,
   Popover,
   Switch,
   Toolbar,
@@ -70,6 +71,7 @@ export function SharePill({ onHelp }: { onHelp: () => void }) {
       >
         Partager
       </Button>
+      <NotificationsButton />
       <Button variant="ghost" size="icon-sm" leadingIcon="keyboard" aria-label="Raccourcis clavier" aria-keyshortcuts="Shift+?" onPress={onHelp} />
       <ThemeToggle />
     </div>

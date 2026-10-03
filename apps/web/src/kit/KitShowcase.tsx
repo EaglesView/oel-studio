@@ -24,6 +24,7 @@ import {
   TabPanel,
   Tabs,
   TextField,
+  NotificationsButton,
   ToastRegion,
   Toolbar,
   ToolbarSeparator,
@@ -187,6 +188,21 @@ export function KitShowcase() {
           <Button variant="success" leadingIcon="check" onPress={() => toast({ title: 'Enregistré', description: 'Toutes les modifications sont sauvegardées.', tone: 'success' })}>
             Afficher un toast
           </Button>
+          <Button
+            leadingIcon="plus"
+            onPress={() => {
+              const pile: Parameters<typeof toast>[0][] = [
+                { title: 'Document enregistré', description: 'Toutes vos modifications sont dans le nuage.' },
+                { title: 'Exportation terminée', description: 'rapport-annuel.pdf est prêt à télécharger.', tone: 'success' },
+                { title: 'Espace presque plein', description: 'Il vous reste 200 Mo sur 5 Go.', tone: 'warning' },
+                { title: 'Échec de l’envoi', description: 'Vérifiez votre connexion puis réessayez.', tone: 'danger', action: { label: 'Réessayer', onAction: () => {} } },
+              ];
+              pile.forEach((t, i) => setTimeout(() => toast(t), i * 400));
+            }}
+          >
+            Empiler 4 toasts
+          </Button>
+          <NotificationsButton />
         </div>
       </section>
 
