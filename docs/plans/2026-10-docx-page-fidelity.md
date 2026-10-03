@@ -262,16 +262,20 @@ unchanged shapes.
 
 ## Phase 4: Fonts (~½ day): fixes symptom 8
 
-- [ ] Substitution table in `styles.rs` (already has metric-compatible fallbacks for Office
+- [x] Substitution table in `styles.rs` (already has metric-compatible fallbacks for Office
       fonts) extended with open fonts close to common template fonts (e.g. Century Gothic →
       TeX Gyre Adventor / Questrial; Felix Titling → Cinzel; Gill Sans → Lato…), each listed
       with its licence (OFL).
-- [ ] Self-host those web fonts in `@oel/docs` (approved, decision 2) (`@fontsource/*`, loaded on demand when a
+- [x] Self-host those web fonts in `@oel/docs` (approved, decision 2) (`@fontsource/*`, loaded on demand when a
       document's stack needs them; never at startup), so every machine renders alike.
-- [ ] Embedded fonts (`word/fonts/*.odttf`, obfuscated with the font key from `fontTable`):
+- [x] Embedded fonts (`word/fonts/*.odttf`, obfuscated with the font key from `fontTable`):
       de-obfuscate in Rust and hand them to the editor as `FontFace`s (the legacy
       `oeldocx_rs/src/fonts.rs` has the de-obfuscation to port).
-- [ ] The font menu shows « Felix Titling (remplacée par Cinzel) » when substituted.
+- [x] The font menu shows « Felix Titling (remplacée par Cinzel) » when substituted.
+
+Notes (as built): 14 substitutes (all SIL OFL 1.1 on Fontsource), loaded as woff2 URLs through
+the FontFace API (a dynamic CSS import was linked eagerly by Astro); Latin and Latin Extended
+subsets, regular and bold. Fixture `embedded-font.docx` (Comfortaa). Browser comparison pending.
 
 **Done when** the template's headings and body render in the substitute faces with line
 breaks close to the reference, and a document with embedded fonts uses them.
