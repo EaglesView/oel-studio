@@ -40,7 +40,7 @@ export function printPages(editor: Editor, title: string): boolean {
       const r = el.getBoundingClientRect();
       return { el, top: (r.top - rect.top) / scale, bottom: (r.bottom - rect.top) / scale, left: (r.left - rect.left) / scale, width: r.width / scale };
     });
-  const sheets = Array.from(inner.querySelectorAll<HTMLElement>(':scope > .oel-sheets > .oel-sheet'));
+  const sheets = Array.from(inner.querySelectorAll<HTMLElement>(':scope > .oel-pagestack > .oel-sheet'));
   const fronts = Array.from(inner.querySelectorAll<HTMLElement>(':scope > .oel-anchors-front > .oel-anchors-front__sheet'));
 
   const root = document.createElement('div');

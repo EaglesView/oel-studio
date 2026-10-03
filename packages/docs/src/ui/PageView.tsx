@@ -246,7 +246,7 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
   return (
     <div className="oel-pages" style={{ width: W * zoom, minHeight: total * zoom }}>
       <div className="oel-pages__inner" style={{ zoom, width: W }}>
-        <div className="oel-sheets" style={{ height: total }} aria-hidden={!editingStory}>
+        <div className="oel-pagestack" style={{ height: total }} aria-hidden={!editingStory}>
           {(single ? [first] : sheets).map((p, i) => (
             <div
               key={i}

@@ -169,7 +169,7 @@
 /* Pages */
 .oel-pages { position: relative; margin: 0 auto; }
 .oel-pages__inner { position: relative; display: flow-root; }
-.oel-sheets { position: absolute; inset: 0 auto auto 0; width: 100%; }
+.oel-pagestack { position: absolute; inset: 0 auto auto 0; width: 100%; }
 .oel-sheet {
   position: absolute;
   left: 0;
