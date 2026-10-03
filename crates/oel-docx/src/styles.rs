@@ -1,7 +1,7 @@
 //! `styles.xml` + theme fonts → style list for the editor and CSS that makes
 //! imported paragraphs look like they do in Word.
 
-use super::package::Package;
+use super::package::{DocxPackage, Package, REL_STYLES, REL_THEME};
 use super::xml::{XDocument, XElement};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -53,12 +53,12 @@ pub fn role_of(name: &str) -> Option<String> {
 impl Styles {
     pub fn load(pkg: &Package) -> Styles {
         let mut s = Styles::default();
-        if let Some(theme) = pkg.get_xml("word/theme/theme1.xml") {
+        if let Some(theme) = pkg.get_xml(&pkg.main_related(REL_THEME, "theme/theme1.xml")) {
             let font = |name: &str| theme.root.find(name).and_then(|f| f.child("a:latin")).and_then(|l| l.attr("typeface")).filter(|t| !t.is_empty()).map(String::from);
             s.minor_font = font("a:minorFont");
             s.major_font = font("a:majorFont");
         }
-        let Some(doc) = pkg.get_xml("word/styles.xml") else { return s };
+        let Some(doc) = pkg.get_xml(&pkg.main_related(REL_STYLES, "styles.xml")) else { return s };
         Self::from_xml(&doc, s)
     }
 

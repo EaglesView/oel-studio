@@ -842,7 +842,7 @@ impl Writer<'_> {
     fn write_synthetic_numbering(&mut self, synthetic: &Value) {
         let Some(list) = synthetic.as_array().filter(|l| !l.is_empty()) else { return };
         let main = self.pkg.main_part();
-        let part = "word/numbering.xml";
+        let part = &self.pkg.main_related(REL_NUMBERING, "numbering.xml");
         let mut doc = self.pkg.get_xml(part).unwrap_or_else(|| XDocument::parse(template::NUMBERING_XML).expect("template"));
         let existing: HashSet<String> = doc.root.elements().filter(|e| e.name == "w:num").filter_map(|e| e.attr("w:numId").map(String::from)).collect();
         let mut next_abs = doc.root.elements().filter(|e| e.name == "w:abstractNum").filter_map(|e| e.attr("w:abstractNumId").and_then(|v| v.parse::<i64>().ok())).max().unwrap_or(-1) + 1;
@@ -872,7 +872,8 @@ impl Writer<'_> {
         }
         self.pkg.set_xml(part, &doc);
         self.pkg.ensure_override(part, CT_NUMBERING);
-        self.pkg.add_rel(&main, REL_NUMBERING, "numbering.xml", false);
+        let target = relative_target(&main, part);
+        self.pkg.add_rel(&main, REL_NUMBERING, &target, false);
     }
 
     fn ensure_styles(&mut self) {
@@ -881,7 +882,8 @@ impl Writer<'_> {
             return;
         }
         let main = self.pkg.main_part();
-        let mut doc = self.pkg.get_xml("word/styles.xml").unwrap_or_else(|| XDocument::parse(&template::STYLES_XML).expect("template"));
+        let part = self.pkg.main_related(REL_STYLES, "styles.xml");
+        let mut doc = self.pkg.get_xml(&part).unwrap_or_else(|| XDocument::parse(&template::STYLES_XML).expect("template"));
         let tpl = XDocument::parse(&template::STYLES_XML).expect("template");
         let mut added = false;
         for id in missing {
@@ -891,19 +893,21 @@ impl Writer<'_> {
             }
         }
         if added {
-            self.pkg.set_xml("word/styles.xml", &doc);
-            self.pkg.add_rel(&main, REL_STYLES, "styles.xml", false);
+            self.pkg.set_xml(&part, &doc);
+            let target = relative_target(&main, &part);
+            self.pkg.add_rel(&main, REL_STYLES, &target, false);
         }
     }
 
     fn ensure_display_background(&mut self) {
-        let Some(mut doc) = self.pkg.get_xml("word/settings.xml") else { return };
+        let part = self.pkg.main_related(REL_SETTINGS, "settings.xml");
+        let Some(mut doc) = self.pkg.get_xml(&part) else { return };
         if doc.root.child("w:displayBackgroundShape").is_some() {
             return;
         }
         let at = doc.root.children.iter().position(|c| matches!(c, XNode::Element(e) if !matches!(e.local(), "writeProtection" | "view" | "zoom" | "removePersonalInformation" | "removeDateAndTime" | "doNotDisplayPageBoundaries"))).unwrap_or(0);
         doc.root.children.insert(at, XNode::Element(XElement::new("w:displayBackgroundShape")));
-        self.pkg.set_xml("word/settings.xml", &doc);
+        self.pkg.set_xml(&part, &doc);
     }
 }
 

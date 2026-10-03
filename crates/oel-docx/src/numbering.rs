@@ -1,7 +1,7 @@
 //! `numbering.xml`: list definitions resolved per `numId`, so the editor can
 //! draw Word-accurate markers (`1.`, `a)`, `•`, `1.2.`) itself.
 
-use super::package::Package;
+use super::package::{DocxPackage, Package, REL_NUMBERING};
 use super::styles::Styles;
 use super::xml::XElement;
 use serde_json::{Value, json};
@@ -68,7 +68,7 @@ pub fn bullet_glyph(text: &str, font: Option<&str>) -> String {
 impl Numbering {
     pub fn load(pkg: &Package, styles: &Styles) -> Numbering {
         let mut n = Numbering::default();
-        let Some(doc) = pkg.get_xml("word/numbering.xml") else { return n };
+        let Some(doc) = pkg.get_xml(&pkg.main_related(REL_NUMBERING, "numbering.xml")) else { return n };
         let mut abstracts: BTreeMap<i64, (Vec<Level>, Option<String>)> = BTreeMap::new();
         for a in doc.root.elements().filter(|e| e.name == "w:abstractNum") {
             let id = a.attr("w:abstractNumId").and_then(|v| v.parse().ok()).unwrap_or(0);

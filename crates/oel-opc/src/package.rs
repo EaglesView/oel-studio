@@ -93,6 +93,11 @@ impl Package {
         self.rels("").into_iter().find(|r| r.rel_type == REL_OFFICE_DOC).map(|r| resolve_target("", &r.target))
     }
 
+    /// The part a relationship of `source` points to (first one of that type), resolved to a package path.
+    pub fn part_by_rel(&self, source: &str, rel_type: &str) -> Option<String> {
+        self.rels(source).into_iter().find(|r| r.rel_type == rel_type && !r.external).map(|r| resolve_target(source, &r.target))
+    }
+
     /// Relationships of a part (`""` = the package itself).
     pub fn rels(&self, part: &str) -> Vec<Rel> {
         let Some(doc) = self.get_xml(&rels_path(part)) else { return Vec::new() };

@@ -16,13 +16,22 @@ pub const CT_FOOTNOTES: &str = "application/vnd.openxmlformats-officedocument.wo
 pub const CT_ENDNOTES: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml";
 pub const CT_NUMBERING: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml";
 
-/// The main document part, falling back to Word's default location.
+/// Where Word's parts live. Templates often rename them (`theme11.xml`,
+/// `settings2.xml`), so they are found through relationships; the usual names
+/// are only the fallback for packages that lack the relationship.
 pub trait DocxPackage {
+    /// The main document part.
     fn main_part(&self) -> String;
+    /// The part the main document relates to with `rel_type`, else `word/<fallback>`.
+    fn main_related(&self, rel_type: &str, fallback: &str) -> String;
 }
 
 impl DocxPackage for Package {
     fn main_part(&self) -> String {
         self.office_document().unwrap_or_else(|| "word/document.xml".to_string())
+    }
+
+    fn main_related(&self, rel_type: &str, fallback: &str) -> String {
+        self.part_by_rel(&self.main_part(), rel_type).unwrap_or_else(|| format!("word/{fallback}"))
     }
 }
