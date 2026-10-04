@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 
-export type DocKind = 'doc' | 'sheet';
+export type DocKind = 'doc' | 'sheet' | 'slides';
 
 export interface DocRow {
   id: string;

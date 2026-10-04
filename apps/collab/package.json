@@ -2,7 +2,7 @@
   "name": "@oel/collab",
   "private": true,
   "type": "module",
-  "description": "Collaboration server for @oel/docs and @oel/sheets: Hocuspocus (Yjs) sync, share links, versions, media, .docx/.xlsx/.csv export.",
+  "description": "Collaboration server for @oel/docs, @oel/sheets and @oel/slides: Hocuspocus (Yjs) sync, share links, versions, media, .docx/.xlsx/.csv/.pptx export.",
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts"
@@ -16,7 +16,9 @@
     "oeldocx-node": "file:../../packages/wasm/oel-docx/node",
     "@oel/docs": "*",
     "oelxlsx-node": "file:../../packages/wasm/oel-xlsx/node",
-    "@oel/sheets": "*"
+    "@oel/sheets": "*",
+    "oelpptx-node": "file:../../packages/wasm/oel-pptx/node",
+    "@oel/slides": "*"
   },
   "devDependencies": {
     "@hocuspocus/provider": "^4.7.0",

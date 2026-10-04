@@ -3,7 +3,7 @@
  * API (Hono) on the same port.
  *
  *   WS   /                      Yjs sync; document name = doc id; token = share token
- *   POST /docs?kind=doc|sheet   body: original .docx/.xlsx (optional) → { docId, ownerToken }
+ *   POST /docs?kind=doc|sheet|slides   body: original .docx/.xlsx/.pptx (optional) → { docId, ownerToken }
  *   GET  /docs/:id              → { id, title, role }
  *   GET  /docs/:id/package      original .docx (round-trip base)
  *   POST /docs/:id/media?path=  body: image bytes → { id, url }
@@ -13,6 +13,7 @@
  *   GET  /docs/:id/export.docx  server-side .docx export
  *   GET  /docs/:id/export.xlsx  server-side .xlsx export (spreadsheets)
  *   GET  /docs/:id/export.csv?sheet=n   one sheet as CSV, in the file's dialect
+ *   GET  /docs/:id/export.pptx server-side .pptx export (presentations)
  */
 import { Server, type onAuthenticatePayload } from '@hocuspocus/server';
 import { getRequestListener } from '@hono/node-server';
@@ -23,12 +24,22 @@ import { createRequire } from 'node:module';
 import * as Y from 'yjs';
 import { exportJsonFromYDoc } from '@oel/docs/model';
 import { SheetDoc } from '@oel/sheets/model';
+import { SlidesDoc } from '@oel/slides/model';
 import { canEdit, signToken, verifyToken, type TokenPayload } from './auth';
 import { Store, type DocKind, type Role } from './db';
 
 const require = createRequire(import.meta.url);
 const codec = require('oeldocx-node') as Pick<typeof import('oeldocx-node'), 'pm_to_docx'>;
 const sheets = require('oelxlsx-node') as typeof import('oelxlsx-node');
+const decks = require('oelpptx-node') as Pick<typeof import('oelpptx-node'), 'deck_to_pptx'>;
+
+/** Per server document kind: the original file's type and the name used in messages. */
+const KINDS: Record<DocKind, { mime: string; file: string }> = {
+  doc: { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', file: '.docx' },
+  sheet: { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', file: '.xlsx' },
+  slides: { mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', file: '.pptx' },
+};
+const kindOf = (q: string | undefined): DocKind => (q === 'sheet' || q === 'slides' ? q : 'doc');
 
 export interface CollabOptions {
   dbFile: string;
@@ -131,9 +142,9 @@ export function createCollabServer(o: CollabOptions) {
 
   app.post('/docs', async (c) => {
     const body = new Uint8Array(await c.req.arrayBuffer());
-    const kind: DocKind = c.req.query('kind') === 'sheet' ? 'sheet' : 'doc';
-    // The round-trip base is an OOXML zip (.docx/.xlsx); CSV workbooks have none.
-    if (body.length && (body[0] !== 0x50 || body[1] !== 0x4b)) return c.json({ error: kind === 'sheet' ? 'Le fichier n’est pas un .xlsx' : 'Le fichier n’est pas un .docx' }, 400);
+    const kind = kindOf(c.req.query('kind'));
+    // The round-trip base is an OOXML zip (.docx/.xlsx/.pptx); CSV workbooks have none.
+    if (body.length && (body[0] !== 0x50 || body[1] !== 0x4b)) return c.json({ error: `Le fichier n’est pas un ${KINDS[kind].file}` }, 400);
     const doc = store.createDoc(c.req.query('title') ?? '', body.length ? body : null, kind);
     const link = store.createLink(doc.id, 'owner');
     return c.json({ docId: doc.id, ownerToken: signToken({ d: doc.id, r: 'owner', l: link.id }, o.secret) }, 201);
@@ -151,7 +162,7 @@ export function createCollabServer(o: CollabOptions) {
     if (p instanceof Response) return p;
     const pkg = store.package(p.d);
     if (!pkg) return c.body(null, 204);
-    const mime = store.doc(p.d)?.kind === 'sheet' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const mime = KINDS[store.doc(p.d)?.kind ?? 'doc'].mime;
     return c.body(pkg as Uint8Array<ArrayBuffer>, 200, { 'Content-Type': mime });
   });
 
@@ -275,6 +286,23 @@ export function createCollabServer(o: CollabOptions) {
     return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
       'Content-Type': 'text/csv',
       'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName(p.d, 'classeur'))}.csv`,
+    });
+  });
+
+  app.get('/docs/:id/export.pptx', (c) => {
+    const p = need(c, ['owner', 'editor', 'viewer']);
+    if (p instanceof Response) return p;
+    const state = currentState(p.d);
+    if (!state) return c.json({ error: 'Présentation vide' }, 409);
+    const ydoc = new Y.Doc();
+    Y.applyUpdate(ydoc, state);
+    const deck = new SlidesDoc(ydoc).toDeck();
+    // Pictures added in the editor; imported ones are in the original package.
+    const media = [...store.mediaByPath(p.d)].filter(([path]) => path.split('/').pop()?.startsWith('oel-')).map(([path, bytes]) => ({ path, bytes }));
+    const bytes = decks.deck_to_pptx(JSON.stringify(deck), deck.source === 'pptx' ? (store.package(p.d) ?? undefined) : undefined, media);
+    return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
+      'Content-Type': KINDS.slides.mime,
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(fileName(p.d, 'presentation'))}.pptx`,
     });
   });
 
