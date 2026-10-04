@@ -400,6 +400,19 @@ impl XElement {
         None
     }
 
+    /// Depth-first search for the first descendant with this local name, whatever its prefix.
+    pub fn find_local(&self, local_name: &str) -> Option<&XElement> {
+        for e in self.elements() {
+            if e.local() == local_name {
+                return Some(e);
+            }
+            if let Some(found) = e.find_local(local_name) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
     pub fn find_mut(&mut self, name: &str) -> Option<&mut XElement> {
         for e in self.elements_mut() {
             if e.name == name {
