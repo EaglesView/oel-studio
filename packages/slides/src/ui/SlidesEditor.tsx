@@ -3,8 +3,8 @@ import type { KeyboardEvent as RKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from 'react-aria-components';
 import { Badge, Button, DialogOverlay, Icon, Popover, SheetDialog, Checkbox, toast } from '@oel/emboss';
-import { IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, VersionPanel, useSessionStatus, type Identity, type MenuSpec } from '@oel/collab-client';
-import { firstFontNotice, fontNotice, loadFonts } from '@oel/fonts';
+import { FontsDialog, IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, VersionPanel, useSessionStatus, type Identity, type MenuSpec } from '@oel/collab-client';
+import { firstFontNotice, fontNotice, loadFonts, type FontReport } from '@oel/fonts';
 import type * as Y from 'yjs';
 import type { SlideSession } from '../collab/session';
 import { SlidesDoc } from '../model/ydoc';
@@ -115,6 +115,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
   const [presenterWin, setPresenterWin] = useState<Window | null>(null);
   const [printing, setPrinting] = useState(false);
   const [, setFontsReady] = useState(0);
+  const [fontReport, setFontReport] = useState<FontReport | null>(null);
+  const [fontsOpen, setFontsOpen] = useState(false);
   const stageBox = useRef<HTMLDivElement>(null);
   const k = useZoom(stageBox, zoom, info.width, info.height);
   const [titleDraft, setTitleDraft] = useState(props.title);
@@ -127,8 +129,11 @@ export function SlidesEditor(props: SlidesEditorProps) {
     void loadFonts(info.fonts, session.media.url).then((report) => {
       if (!alive) return;
       setFontsReady((n) => n + 1);
+      setFontReport(report);
       const notice = fontNotice(report);
-      if (notice && firstFontNotice(session.status.docId)) toast({ ...notice, tone: 'warning' });
+      // TODO(ux): once this toast is dismissed (or times out) the fonts dialog cannot be reached again;
+      // decide where it lives (a font menu entry, the info panel, the toast history…).
+      if (notice && firstFontNotice(session.status.docId)) toast({ ...notice, tone: 'warning', action: { label: 'Voir plus', onAction: () => setFontsOpen(true) } });
     });
     return () => void (alive = false);
   }, [info.fonts, session]);
@@ -441,6 +446,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       {printing && <PrintDeck ctl={ctl} ctx={ctx} onDone={() => setPrinting(false)} />}
       <BackgroundDialog ctl={ctl} isOpen={dialog === 'background'} onClose={() => setDialog(null)} />
       <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
+      {fontReport && <FontsDialog fonts={info.fonts} report={fontReport} isOpen={fontsOpen} onClose={() => setFontsOpen(false)} onChange={() => setFontsReady((n) => n + 1)} />}
       <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
     </div>
   );

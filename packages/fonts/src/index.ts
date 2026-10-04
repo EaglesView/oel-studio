@@ -141,10 +141,67 @@ const registered = new Set<string>();
 
 /** Fonts of a file that this machine cannot show as they are (neither embedded nor installed). */
 export interface FontReport {
-  /** Drawn with their open look-alike. */
-  substituted: Array<{ name: string; substitute: string }>;
+  /** Drawn with another font: their open look-alike, or the one the user chose (`chosen`). */
+  substituted: Array<{ name: string; substitute: string; chosen?: boolean }>;
   /** No look-alike: drawn with the generic fallback. */
   missing: string[];
+}
+
+/** The open fonts a missing font can be shown with (self-hosted, SIL OFL), by name. */
+export const OPEN_FONTS: readonly string[] = Object.keys(WEB_FONTS).sort((a, b) => a.localeCompare(b));
+
+const CHOICES_KEY = 'oel:font-choices';
+
+/** Fonts the user chose to show missing fonts with, in this browser: missing font name → open font. */
+export function fontChoices(): Record<string, string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHOICES_KEY) ?? '{}') as unknown;
+    return raw && typeof raw === 'object' ? (raw as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Faces registered under a missing font's own name, drawing it with the chosen font. */
+const aliases = new Map<string, FontFace[]>();
+
+/** Register `family`'s files under the name `name`, so text set in `name` is drawn with `family`. */
+async function alias(name: string, family: string | null): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  for (const face of aliases.get(name) ?? []) document.fonts.delete(face);
+  aliases.delete(name);
+  const files = family ? WEB_FONTS[family] : undefined;
+  if (!files) return;
+  const faces = await Promise.all(
+    files.flatMap(([weight, latin, ext]) =>
+      [
+        [latin, LATIN],
+        [ext, LATIN_EXT],
+      ].map(async ([load, range]) => {
+        const url = (await (load as UrlModule)()).default;
+        return new FontFace(name, `url("${url}") format("woff2")`, { weight: String(weight), unicodeRange: range as string, display: 'swap' }).load();
+      }),
+    ),
+  ).catch(() => [] as FontFace[]);
+  for (const face of faces) document.fonts.add(face);
+  aliases.set(name, faces);
+}
+
+/**
+ * Show a missing font with an open font of the user's choice from now on
+ * (null: back to the automatic look-alike). Only the screen changes; files
+ * keep their fonts. Remembered in this browser.
+ */
+export async function chooseFont(name: string, family: string | null): Promise<void> {
+  const choices = fontChoices();
+  if (family) choices[name] = family;
+  else delete choices[name];
+  try {
+    localStorage.setItem(CHOICES_KEY, JSON.stringify(choices));
+  } catch {
+    // No storage: the choice lasts for this page.
+  }
+  await alias(name, family);
 }
 
 /**
@@ -178,7 +235,14 @@ export async function loadFonts(fonts: FontSpec[], mediaUrl: (path: string) => s
     }
     tasks.push(
       Promise.all(faces).then(async (ok) => {
-        if (ok.some(Boolean) || isFontAvailable(f.name)) return;
+        if (ok.some(Boolean)) return;
+        const chosen = fontChoices()[f.name];
+        if (chosen && WEB_FONTS[chosen]) {
+          if (!aliases.has(f.name)) await alias(f.name, chosen);
+          report.substituted.push({ name: f.name, substitute: chosen, chosen: true });
+          return;
+        }
+        if (isFontAvailable(f.name)) return;
         if (f.substitute) {
           report.substituted.push({ name: f.name, substitute: f.substitute });
           await loadWebFont(f.substitute);
@@ -190,25 +254,16 @@ export async function loadFonts(fonts: FontSpec[], mediaUrl: (path: string) => s
   return report;
 }
 
-const list = (names: string[]) => (names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`);
-
 /**
  * What to tell someone opening a file whose fonts are not all here (null
- * when they are). The file keeps its fonts: only the screen differs.
+ * when they are): short, the details are in the fonts dialog.
  */
 export function fontNotice(report: FontReport): { title: string; description: string } | null {
-  const { substituted, missing } = report;
-  const n = substituted.length + missing.length;
+  const n = report.substituted.length + report.missing.length;
   if (!n) return null;
-  const parts = [
-    ...substituted.map((f) => `${f.name} est remplacée par ${f.substitute}`),
-    ...(missing.length ? [`${list(missing)} ${missing.length > 1 ? 's’affichent' : 's’affiche'} dans une police par défaut`] : []),
-  ];
-  const lead = n > 1 ? 'Elles ne sont ni intégrées au fichier ni installées sur cet appareil' : 'Elle n’est ni intégrée au fichier ni installée sur cet appareil';
-  return {
-    title: n > 1 ? `${n} polices ne sont pas dans ce fichier` : 'Une police n’est pas dans ce fichier',
-    description: `${lead} : ${parts.join(' ; ')}. Le fichier ${n > 1 ? 'les' : 'la'} garde à l’export.`,
-  };
+  return n > 1
+    ? { title: `${n} polices manquantes`, description: 'Elles sont affichées avec des polices de remplacement.' }
+    : { title: 'Une police manquante', description: 'Elle est affichée avec une police de remplacement.' };
 }
 
 /** Whether the font notice for a file still has to be shown in this browser (then remembers it was). */
@@ -249,18 +304,21 @@ export async function fontFaceCss(fonts: FontSpec[], mediaUrl: (path: string) =>
     const data = await dataUrl(url);
     return data ? `@font-face{font-family:"${family.replace(/"/g, '')}";src:url(${data});font-weight:${weight};font-style:${italic ? 'italic' : 'normal'};${range ? `unicode-range:${range};` : ''}}` : '';
   };
-  const subs = new Set<string>();
+  // Open fonts to embed, each under the name text uses: its own, or the missing font it stands in for.
+  const open = new Map<string, string>();
+  const choices = fontChoices();
   for (const f of fonts) {
     const faces = (f.embedded ?? []).map((face) => [face, mediaUrl(face.path)] as const).filter(([, url]) => url);
     if (faces.length) for (const [face, url] of faces) rules.push(rule(f.name, url!, face.weight, face.italic));
-    else if (f.substitute && WEB_FONTS[f.substitute] && !isFontAvailable(f.name)) subs.add(f.substitute);
+    else if (choices[f.name] && WEB_FONTS[choices[f.name]!]) open.set(f.name, choices[f.name]!);
+    else if (f.substitute && WEB_FONTS[f.substitute] && !isFontAvailable(f.name)) open.set(f.substitute, f.substitute);
   }
-  for (const family of subs)
+  for (const [as, family] of open)
     for (const [weight, latin, ext] of WEB_FONTS[family]!)
       for (const [load, range] of [
         [latin, LATIN],
         [ext, LATIN_EXT],
       ] as const)
-        rules.push(load().then((m) => rule(family, m.default, weight, false, range)));
+        rules.push(load().then((m) => rule(as, m.default, weight, false, range)));
   return (await Promise.all(rules)).join('\n');
 }

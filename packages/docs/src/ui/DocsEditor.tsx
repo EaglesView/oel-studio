@@ -11,6 +11,7 @@ import { pageKind, type PageInfo } from '../model/sections';
 import { sanitizeStylesheet } from '../model/format';
 import { useDocEditor, useDocMeta } from './useDocEditor';
 import { fontNoticeOnFirstOpen } from './fonts';
+import type { FontReport } from '@oel/fonts';
 import { DocsToolbar, TableBar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
 import { MenuBar, MoreMenu, type MenuSpec } from './MenuBar';
 import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
@@ -19,6 +20,7 @@ import { FindBar } from './FindBar';
 import { Peers, SyncStatus, useSessionStatus } from './SyncStatus';
 import { OutlinePanel, VersionPanel } from './panels';
 import { IdentityDialog, ImageDialog, LinkDialog, PageSetupDialog, ShareDialog, SpecialCharsDialog, WordCountDialog } from './dialogs';
+import { FontsDialog } from '@oel/collab-client';
 import {
   download,
   downloadHTML,
@@ -91,7 +93,18 @@ export function DocsEditor(props: DocsEditorProps) {
   const sheet = variant === 'sheet';
   const status = useSessionStatus(session);
   const docMeta = useDocMeta(session);
-  useEffect(() => fontNoticeOnFirstOpen(session.status.docId, docMeta.fonts, session.mediaUrl, (n) => toast({ ...n, tone: 'warning' })), [session, docMeta.fonts]);
+  const [fontReport, setFontReport] = useState<FontReport | null>(null);
+  const [fontsOpen, setFontsOpen] = useState(false);
+  // TODO(ux): once this toast is dismissed (or times out) the fonts dialog cannot be reached again;
+  // decide where it lives (the font menu, the document info, the toast history…).
+  useEffect(
+    () =>
+      fontNoticeOnFirstOpen(session.status.docId, docMeta.fonts, session.mediaUrl, (n, report) => {
+        setFontReport(report);
+        toast({ ...n, tone: 'warning', action: { label: 'Voir plus', onAction: () => setFontsOpen(true) } });
+      }),
+    [session, docMeta.fonts],
+  );
   const [mode, setMode] = useState<'edit' | 'view'>('edit');
   const [paginated, setPaginated] = useState(true);
   const [zoom, setZoom] = useState(1);
@@ -840,6 +853,7 @@ export function DocsEditor(props: DocsEditorProps) {
       <SpecialCharsDialog editor={target!} isOpen={dialog === 'chars'} onClose={() => setDialog(null)} />
       <ImageDialog editor={editor} isOpen={dialog === 'image'} onClose={() => setDialog(null)} onFile={(f) => addImage(f)} />
       <ShareDialog session={session} title={title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
+      {fontReport && <FontsDialog fonts={docMeta.fonts} report={fontReport} isOpen={fontsOpen} onClose={() => setFontsOpen(false)} onChange={() => editor?.storage.pagination.relayout()} />}
       <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
     </div>
   );

@@ -6,18 +6,14 @@ describe('missing fonts notice', () => {
     expect(fontNotice({ substituted: [], missing: [] })).toBeNull();
   });
 
-  it('names one substituted font in the singular', () => {
+  it('stays short: a count, details in the dialog', () => {
     expect(fontNotice({ substituted: [{ name: 'Gill Sans Nova Light', substitute: 'Lato' }], missing: [] })).toEqual({
-      title: 'Une police n’est pas dans ce fichier',
-      description: 'Elle n’est ni intégrée au fichier ni installée sur cet appareil : Gill Sans Nova Light est remplacée par Lato. Le fichier la garde à l’export.',
+      title: 'Une police manquante',
+      description: 'Elle est affichée avec une police de remplacement.',
     });
-  });
-
-  it('lists substitutes, then fonts without a look-alike', () => {
-    const n = fontNotice({ substituted: [{ name: 'Kunstler Script', substitute: 'Great Vibes' }], missing: ['Mystery', 'Other'] });
-    expect(n?.title).toBe('3 polices ne sont pas dans ce fichier');
-    expect(n?.description).toBe(
-      'Elles ne sont ni intégrées au fichier ni installées sur cet appareil : Kunstler Script est remplacée par Great Vibes ; Mystery et Other s’affichent dans une police par défaut. Le fichier les garde à l’export.',
-    );
+    expect(fontNotice({ substituted: [{ name: 'Kunstler Script', substitute: 'Great Vibes' }], missing: ['Mystery', 'Other'] })).toEqual({
+      title: '3 polices manquantes',
+      description: 'Elles sont affichées avec des polices de remplacement.',
+    });
   });
 });

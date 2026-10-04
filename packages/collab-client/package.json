@@ -18,6 +18,7 @@
     "react-aria-components": "^1.21.1",
     "@hocuspocus/provider": "^4.7.0",
     "@oel/emboss": "*",
+    "@oel/fonts": "*",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.33"
   },

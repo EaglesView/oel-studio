@@ -106,3 +106,13 @@
 @media (prefers-reduced-motion: reduce) {
   .oel-swatch:hover { transform: none; }
 }
+
+/* Polices manquantes */
+.oel-fonts__intro { margin: 0 0 12px; color: var(--emboss-ink-muted); font: 400 14px/20px var(--font-sans); }
+.oel-fonts { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; max-height: 52vh; overflow: auto; }
+.oel-fonts__row { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--emboss-edge); }
+.oel-fonts__row:first-child { border-top: 0; }
+.oel-fonts__font { display: grid; gap: 2px; min-width: 0; }
+.oel-fonts__font strong { font: 600 14px/20px var(--font-sans); color: var(--emboss-text); }
+.oel-fonts__sample { overflow: hidden; font-size: 18px; line-height: 26px; color: var(--emboss-text); white-space: nowrap; text-overflow: ellipsis; }
+@media (max-width: 520px) { .oel-fonts__row { grid-template-columns: 1fr; } }

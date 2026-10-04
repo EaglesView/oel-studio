@@ -227,3 +227,7 @@ Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock �
 - Print / PDF uses the browser's pagination and does not include headers and footers.
 - Floating (anchored) images keep their position on export but are shown inline.
 - Tracked changes in imported files are accepted on import.
+- Missing fonts: the « Polices manquantes » dialog is only reachable from the toast shown the
+  first time a file opens; once that toast is dismissed there is no way back to it yet
+  (`TODO(ux)` in `SlidesEditor` and `DocsEditor`). Font choices only change the screen, in
+  this browser; they are not written to the file.
