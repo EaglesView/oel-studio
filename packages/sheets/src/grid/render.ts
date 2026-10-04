@@ -272,6 +272,8 @@ export interface PaintArgs {
   /** Ranges referenced by the formula being typed, with their colours. */
   refHighlights: Array<{ range: Range; color: string }>;
   focused: boolean;
+  /** Draw the selection (not on thumbnails). Default true. */
+  selection?: boolean;
   /** Pictures and shapes over the cells, and the decoded images by package path. */
   drawings?: Drawing[];
   images?: ReadonlyMap<string, CanvasImageSource>;
@@ -308,7 +310,7 @@ export function paint(a: PaintArgs) {
     ctx.clip();
     paintCells(a, pane.rows, pane.cols, merges, notes, filterRange, filter?.columns.map((c) => c.col) ?? [], props.showGrid);
     if (a.drawings?.length) paintDrawings(ctx, L, a.drawings, a.images ?? new Map(), { frozenRows: !!pane.frozenRows, frozenCols: !!pane.frozenCols }, theme.font);
-    paintSelection(a, merges);
+    if (a.selection !== false) paintSelection(a, merges);
     ctx.restore();
   }
 

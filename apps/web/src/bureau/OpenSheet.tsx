@@ -3,6 +3,7 @@ import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import type { Preview } from '@oel/engine';
 import { Badge, Button, Icon, Kbd } from '@oel/emboss';
 import { kindLabel, paperSizeFor, type Bureau, type Paper } from './model';
+import { queueThumbnail } from './thumbnails';
 import { DocumentWorkspace } from './workspaces/DocumentWorkspace';
 import { SlidesWorkspace } from './workspaces/SlidesWorkspace';
 import { SheetWorkspace } from './workspaces/SheetWorkspace';
@@ -122,6 +123,7 @@ export function OpenSheet({
           },
           { label: `Modification de « ${paper.title} »` },
         );
+        queueThumbnail(store, paper.id);
       },
     }),
     [store, paper.id, paper.kind, paper.title],

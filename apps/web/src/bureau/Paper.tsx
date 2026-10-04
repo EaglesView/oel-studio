@@ -54,7 +54,7 @@ export const Paper = memo(
       data-state={status.state}
       aria-hidden
     >
-      <Content node={content} />
+      {content.data.thumbnail ? <img className="paper__thumbnail" src={content.data.thumbnail} alt="" draggable={false} decoding="async" /> : <Content node={content} />}
       {node.data.flash && Date.now() - node.data.flash.at < 4000 && (
         <Badge key={node.data.flash.at} tone="success" className="paper__flash">
           {node.data.flash.label}

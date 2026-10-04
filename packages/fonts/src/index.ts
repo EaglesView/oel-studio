@@ -222,3 +222,45 @@ export function firstFontNotice(fileId: string): boolean {
   }
   return true;
 }
+
+const dataUrl = async (url: string): Promise<string | null> => {
+  try {
+    const blob = await (await fetch(url)).blob();
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * `@font-face` rules carrying a file's fonts as data URLs (embedded faces,
+ * and the substitutes of fonts this machine lacks), for drawing its pages as
+ * pictures: an SVG image cannot fetch fonts, nor see `FontFace`s.
+ */
+export async function fontFaceCss(fonts: FontSpec[], mediaUrl: (path: string) => string | null): Promise<string> {
+  if (typeof document === 'undefined') return '';
+  const rules: Array<Promise<string>> = [];
+  const rule = async (family: string, url: string, weight: number, italic: boolean, range?: string) => {
+    const data = await dataUrl(url);
+    return data ? `@font-face{font-family:"${family.replace(/"/g, '')}";src:url(${data});font-weight:${weight};font-style:${italic ? 'italic' : 'normal'};${range ? `unicode-range:${range};` : ''}}` : '';
+  };
+  const subs = new Set<string>();
+  for (const f of fonts) {
+    const faces = (f.embedded ?? []).map((face) => [face, mediaUrl(face.path)] as const).filter(([, url]) => url);
+    if (faces.length) for (const [face, url] of faces) rules.push(rule(f.name, url!, face.weight, face.italic));
+    else if (f.substitute && WEB_FONTS[f.substitute] && !isFontAvailable(f.name)) subs.add(f.substitute);
+  }
+  for (const family of subs)
+    for (const [weight, latin, ext] of WEB_FONTS[family]!)
+      for (const [load, range] of [
+        [latin, LATIN],
+        [ext, LATIN_EXT],
+      ] as const)
+        rules.push(load().then((m) => rule(family, m.default, weight, false, range)));
+  return (await Promise.all(rules)).join('\n');
+}

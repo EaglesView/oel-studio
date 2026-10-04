@@ -120,6 +120,8 @@
   transition: box-shadow var(--dur-hover) var(--ease-paper);
 }
 .desk__node:hover .paper { box-shadow: var(--shadow-sheet), 0 0 0 1px var(--emboss-accent-soft); }
+/* The file's own first page, sheet or slide (thumbnails.tsx): the paper is that picture. */
+.paper__thumbnail { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; background: #fff; user-select: none; }
 .paper--slides { border-radius: 10px; }
 .paper--spreadsheet { border-radius: 8px; }
 .paper--image { border-radius: 4px; }

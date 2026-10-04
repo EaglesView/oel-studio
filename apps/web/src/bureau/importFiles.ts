@@ -7,6 +7,7 @@ import type { ArrivalRules } from './Chrome';
 import { createDocFromPayload } from './docs';
 import { createSheetFromPayload } from './sheets';
 import { createSlidesFromPayload } from './slides';
+import { queueThumbnail } from './thumbnails';
 
 let host: EngineHost | null = null;
 
@@ -98,6 +99,7 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
         },
         { history: false },
       );
+      if (docId) queueThumbnail(store, paper.id);
       return result;
     }),
   );

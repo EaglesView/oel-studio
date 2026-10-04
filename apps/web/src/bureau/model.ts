@@ -24,6 +24,8 @@ export interface PaperData {
   /** Overline on documents and slides ("COMMUNIQUÉ"). */
   eyebrow?: string;
   preview: Preview;
+  /** Picture of the first page, sheet or slide (object URL), drawn by `thumbnails.tsx`; the sketch from `preview` shows until then. */
+  thumbnail?: string;
   status: PaperStatus;
   stamp?: Stamp;
   editor?: string;
