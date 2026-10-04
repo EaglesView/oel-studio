@@ -5,7 +5,7 @@
  * while the server is unreachable are "local-…" until published (Partager).
  *
  * Editors subclass it (`DocSession` in @oel/docs, `SheetSession` in
- * @oel/sheets) for seeding, media and export.
+ * @oel/sheets, `SlideSession` in @oel/slides) for seeding, media and export.
  */
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
@@ -60,11 +60,12 @@ export const tokenStore = {
 export const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(9)), (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 14);
 
 /** IndexedDB name per kind (docs keep the name they always had). */
-const IDB_PREFIX: Record<DocKind, string> = { doc: 'oel-doc', sheet: 'oel-sheet' };
+const IDB_PREFIX: Record<DocKind, string> = { doc: 'oel-doc', sheet: 'oel-sheet', slides: 'oel-slides' };
 
 const PACKAGE_MIME: Record<DocKind, string> = {
   doc: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   sheet: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  slides: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 };
 
 /**

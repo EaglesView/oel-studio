@@ -2,6 +2,7 @@ export { CollabApi, CollabError, decodeToken, shareUrl, SHARE_PATH, type DocKind
 export { loadIdentity, saveIdentity, defaultIdentity, IDENTITY_COLORS, type Identity } from './identity';
 export { localFiles, packageKey, mediaKey, type StoredFile } from './local';
 export { YSession, createRemoteDoc, randomId, tokenStore, type Peer, type SessionStatus } from './session';
+export { MediaStore, type MediaEntry } from './media';
 export { SyncStatus, Peers, useSessionStatus } from './ui/SyncStatus';
 export { IdentityDialog, ShareDialog, VersionPanel } from './ui/dialogs';
 export { MenuBar, MoreMenu, type MenuEntry, type MenuSpec } from './ui/MenuBar';

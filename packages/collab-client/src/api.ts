@@ -2,16 +2,17 @@
 
 export type Role = 'owner' | 'editor' | 'viewer';
 
-/** What a server document holds: a word-processing doc or a spreadsheet. */
-export type DocKind = 'doc' | 'sheet';
+/** What a server document holds: a word-processing doc, a spreadsheet or a presentation. */
+export type DocKind = 'doc' | 'sheet' | 'slides';
 
 const KIND_MIME: Record<DocKind, string> = {
   doc: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   sheet: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  slides: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 };
 
 /** Page that opens a shared document of each kind. */
-export const SHARE_PATH: Record<DocKind, string> = { doc: '/document', sheet: '/tableur' };
+export const SHARE_PATH: Record<DocKind, string> = { doc: '/document', sheet: '/tableur', slides: '/presentation' };
 
 export interface ShareLink {
   id: string;
