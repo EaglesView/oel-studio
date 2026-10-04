@@ -6,8 +6,12 @@ description: Add or modify a feature inside an OutilsEnLigne editor — the Docs
 # Editor features
 
 First locate the spec: Figma `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behaviors"
-(E = Formulaires, F = Documents Word; sheets follow the same level/back-gesture rules).
-If the user gave a Figma link, read it with the Figma tools before coding.
+(E = Formulaires, F = Documents Word; sheets follow the same level/back-gesture rules;
+G = Fils de liaison (links between files), H = Graphiques (charts) — see
+`docs/plans/2026-10-links-and-charts.md`).
+Link: https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca
+If the user gave a Figma link, read it with the Figma tools before coding. New UX is drawn
+there first (load `figma-use` before `use_figma`), using kit instances and `emboss/*` variables.
 
 ## Package anatomy (same for each editor)
 
