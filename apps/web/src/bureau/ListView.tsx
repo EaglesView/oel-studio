@@ -34,7 +34,7 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
         {(p) => (
           <GridListItem id={p.id} textValue={p.title} className="list-row">
             <Checkbox slot="selection" aria-label={`Sélectionner ${p.title}`} />
-            <span className="list-row__icon">
+            <span className="list-row__icon" data-kind={p.kind}>
               <Icon name={KIND_ICON[p.kind]} size={20} />
             </span>
             <span className="list-row__title">{p.title}</span>

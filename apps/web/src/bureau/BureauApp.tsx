@@ -16,12 +16,13 @@ import {
 import { ContextToolbar } from './ContextToolbar';
 import { Dock, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
-import { blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
+import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper } from './Paper';
 import { SEED_LINKS, SEED_PAPERS } from './seed';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { convertToEditable, importFiles } from './importFiles';
+import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
 import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms';
@@ -199,7 +200,7 @@ export function BureauApp() {
   }, []);
 
   return (
-    <div className="bureau">
+    <div className="bureau" style={{ ['--desk-selection' as string]: identity().color }}>
       <Sidebar collapsed={navCollapsed} onToggle={() => setNavCollapsed((c) => !c)}>
         <NavItem icon="home" label="Accueil" href="/" collapsed={navCollapsed} />
         <NavItem icon="folder" label="Bureau" href="/bureau" current count={count} collapsed={navCollapsed} />
@@ -213,6 +214,7 @@ export function BureauApp() {
             label={`Bureau du projet ${PROJECT}`}
             describeNode={(n) => describePaper(n as PaperNode)}
             renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} />}
+            selectionOverhang={(n, zoom) => (KIND_TAB[n.kind as PaperKind] ? tabHeightOnScreen(zoom) - 4 : 0)}
             renderGroupLabel={(nodes) => {
               const kinds = new Set(nodes.map((n) => n.kind)).size;
               return `${nodes.length} fichiers · ${kinds} type${kinds > 1 ? 's' : ''}`;
@@ -321,6 +323,9 @@ export function BureauApp() {
     </div>
   );
 }
+
+/** Height of a paper's kind tab on screen (`.paper-tab`: 22 px, scaled by clamp(1, 1 / zoom, 2.6)). */
+const tabHeightOnScreen = (zoom: number) => 22 * Math.min(Math.max(zoom, 1), 2.6 * zoom);
 
 /** Exposes the desk's live-region `announce` to callbacks outside the canvas. */
 function AnnounceBridge({ target }: { target: React.MutableRefObject<(m: string) => void> }) {

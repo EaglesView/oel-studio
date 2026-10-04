@@ -128,10 +128,10 @@ export function Dock({
   return (
     <div className="dock" data-desk-ui>
       <Toolbar appearance="pill" aria-label="Créer et importer">
-        <ToolButton icon="file" label="Document" showLabel description="Nouveau document au centre de la vue." onPress={() => onCreate('document')} />
-        <ToolButton icon="slide" label="Diapo" showLabel description="Nouvelle présentation 16:9." onPress={() => onCreate('slides')} />
-        <ToolButton icon="table" label="Tableur" showLabel description="Nouvelle grille." onPress={() => onCreate('spreadsheet')} />
-        <ToolButton icon="form" label="Formulaire" showLabel description="Questions, réponses rangées dans un tableur lié, publication par lien." onPress={() => onCreate('form')} />
+        <ToolButton className="dock__kind dock__kind--document" icon="file" label="Document" showLabel description="Nouveau document au centre de la vue." onPress={() => onCreate('document')} />
+        <ToolButton className="dock__kind dock__kind--slides" icon="slide" label="Diapo" showLabel description="Nouvelle présentation 16:9." onPress={() => onCreate('slides')} />
+        <ToolButton className="dock__kind dock__kind--spreadsheet" icon="table" label="Tableur" showLabel description="Nouvelle grille." onPress={() => onCreate('spreadsheet')} />
+        <ToolButton className="dock__kind dock__kind--form" icon="form" label="Formulaire" showLabel description="Questions, réponses rangées dans un tableur lié, publication par lien." onPress={() => onCreate('form')} />
         <ToolButton icon="note" label="Note" showLabel shortcut={['N']} description="Pense-bête, assignable à quelqu’un." onPress={() => onCreate('note')} />
         <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
           <ToolButton icon="upload" label="Importer" showLabel shortcut={['Ctrl', 'O']} description="PDF, Word, PowerPoint, Excel, images · 100 Mo max." />

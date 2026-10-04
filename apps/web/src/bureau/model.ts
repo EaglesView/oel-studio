@@ -64,6 +64,14 @@ export const KIND_ICON: Record<PaperKind, IconName> = {
   form: 'form',
 };
 
+/** Kinds that carry a coloured tab on the desk (and a tinted icon elsewhere): the OEL palette, one colour per editor. */
+export const KIND_TAB: Partial<Record<PaperKind, string>> = {
+  document: 'Document',
+  slides: 'Présentation',
+  spreadsheet: 'Tableur',
+  form: 'Formulaire',
+};
+
 export function kindLabel(kind: string): string {
   if (kind === 'form') return 'Formulaire';
   return kind === 'file' ? 'Fichier' : (KIND_LABEL[kind as FileKind] ?? 'Fichier');

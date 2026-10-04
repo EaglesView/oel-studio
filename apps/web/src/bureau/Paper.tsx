@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import type { NodeRenderContext } from '@oel/desk/react';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
 import { contrastGuard, questionsOf } from '@oel/forms/model';
-import type { Paper as PaperNode } from './model';
+import { KIND_ICON, KIND_TAB, type Paper as PaperNode } from './model';
 
 const nf = new Intl.NumberFormat('fr-CA');
 
@@ -46,7 +46,15 @@ export const Paper = memo(
     const thumbnail = ctx.lod === 'thumbnail';
     const content = useThrottledSnapshot<PaperNode>(node, thumbnail, THUMBNAIL_REFRESH_MS);
     const status = node.data.status;
+    const tab = KIND_TAB[node.kind];
     return (
+    <>
+    {tab && (
+      <span className="paper-tab" data-kind={node.kind} aria-hidden>
+        <Icon name={KIND_ICON[node.kind]} size={14} />
+        {tab}
+      </span>
+    )}
     <div
       className={`paper paper--${node.kind}`}
       data-lod={ctx.lod}
@@ -79,6 +87,7 @@ export const Paper = memo(
         </div>
       )}
     </div>
+    </>
     );
   },
   (a, b) => a.node === b.node && a.ctx.lod === b.ctx.lod && a.ctx.isSelected === b.ctx.isSelected,

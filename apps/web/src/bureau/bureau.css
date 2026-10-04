@@ -106,6 +106,53 @@
 
 /* ── Papers ───────────────────────────────────────────────────────── */
 
+/* One colour per editor, from the OEL brand palette (tokens.css): the paper's tab, list and dock icons. */
+.bureau {
+  --kind-document: var(--brand-blue);
+  --kind-slides: var(--brand-gold);
+  --kind-spreadsheet: var(--brand-green);
+  --kind-form: var(--brand-violet);
+}
+.bureau [data-kind='document'] { --kind: var(--kind-document); --kind-ink: #0b2a3d; }
+.bureau [data-kind='slides'] { --kind: var(--kind-slides); --kind-ink: #3d2c00; }
+.bureau [data-kind='spreadsheet'] { --kind: var(--kind-spreadsheet); --kind-ink: #fff; }
+.bureau [data-kind='form'] { --kind: var(--kind-form); --kind-ink: #fff; }
+
+/*
+ * The kind tab: a folder tab on the paper's top edge (outside the paper, so a
+ * thumbnail never covers it). It grows as you zoom out so it stays readable,
+ * and turns with the paper. The selection ring stays the selecting person's colour.
+ */
+.paper-tab {
+  position: absolute;
+  left: 14px;
+  bottom: 100%;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px 0 8px;
+  border-radius: 7px 7px 0 0;
+  background: var(--kind);
+  color: var(--kind-ink);
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+  transform-origin: 0 100%;
+  scale: clamp(1, calc(1 / var(--desk-zoom, 1)), 2.6);
+  pointer-events: none;
+}
+.paper-tab svg { flex: none; }
+/* A matching edge along the top, so the colour reads even when the tab is small. */
+.desk__node:has(.paper-tab) .paper { border-top: 3px solid var(--kind); }
+.list-row__icon[data-kind] { color: var(--kind); }
+.dock__kind--document svg { color: var(--kind-document); }
+.dock__kind--slides svg { color: var(--kind-slides); }
+.dock__kind--spreadsheet svg { color: var(--kind-spreadsheet); }
+.dock__kind--form svg { color: var(--kind-form); }
+
 .paper {
   position: relative;
   width: 100%;

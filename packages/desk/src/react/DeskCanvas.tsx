@@ -75,6 +75,8 @@ export interface DeskCanvasProps<D> {
   renderNode: (node: DeskNode<D>, ctx: NodeRenderContext) => ReactNode;
   /** Accessible label for a node (title, type, state). Defaults to `title`. */
   describeNode?: (node: DeskNode<D>) => string;
+  /** Screen pixels a node's selection ring reaches beyond its top edge (for a tab drawn above the node). */
+  selectionOverhang?: (node: DeskNode<D>, zoom: number) => number;
   /** Label of the dashed multi-selection frame. */
   renderGroupLabel?: (nodes: DeskNode<D>[]) => ReactNode;
   onOpen?: (id: string) => void;
@@ -113,6 +115,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     renderNode,
     describeNode = (n) => n.title,
     renderGroupLabel,
+    selectionOverhang,
     onOpen,
     onDelete = (ids) => store.remove(ids),
     onContextMenu,
@@ -522,11 +525,12 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
               const n = nodesMap[id];
               if (!n) return null;
               const r = rectToScreen(rectOf(n), viewport);
+              const up = selectionOverhang?.(n, viewport.zoom) ?? 0;
               return (
                 <div
                   key={id}
                   className="desk__selection"
-                  style={{ left: r.x - 8, top: r.y - 8, width: r.w + 16, height: r.h + 16 }}
+                  style={{ left: r.x - 8, top: r.y - 8 - up, width: r.w + 16, height: r.h + 16 + up }}
                 />
               );
             })}
