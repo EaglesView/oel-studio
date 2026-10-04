@@ -9,9 +9,10 @@ import { Icon, Menu, MenuItem, MenuPopover, MenuSeparator } from '@oel/emboss';
 import { ScaledSlide, type RenderCtx } from './render';
 import type { SlidesController } from './controller';
 
-const THUMB = 168;
+/** Room around a thumbnail in its row: list padding (4 + 12), number column (22), gap (4), border (2 × 2). */
+const AROUND = 46;
 
-function Thumb({ ctl, id, ctx }: { ctl: SlidesController; id: string; ctx: RenderCtx }) {
+function Thumb({ ctl, id, ctx, width }: { ctl: SlidesController; id: string; ctx: RenderCtx; width: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -24,8 +25,8 @@ function Thumb({ ctl, id, ctx }: { ctl: SlidesController; id: string; ctx: Rende
   const s = ctl.doc.slide(id);
   const info = ctl.info;
   return (
-    <div ref={ref} className="oel-film__thumb" style={{ width: THUMB, height: (THUMB * info.height) / info.width }}>
-      {seen && s && <ScaledSlide slide={s} info={info} ctx={ctx} width={THUMB} />}
+    <div ref={ref} className="oel-film__thumb" style={{ width, height: (width * info.height) / info.width }}>
+      {seen && s && <ScaledSlide slide={s} info={info} ctx={ctx} width={width} />}
     </div>
   );
 }
@@ -37,6 +38,17 @@ export function Filmstrip({ ctl, ctx, onPresent }: { ctl: SlidesController; ctx:
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const list = useRef<HTMLOListElement>(null);
   const ro = ctl.readOnly;
+  // Thumbnails fill the strip's width, whatever the level (the strip is narrower when open in place).
+  const [thumb, setThumb] = useState(150);
+  useEffect(() => {
+    const node = list.current;
+    if (!node) return;
+    const measure = () => setThumb(Math.max(60, Math.floor(node.clientWidth - AROUND)));
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
 
   // Keep the current slide in view.
   useEffect(() => {
@@ -117,7 +129,7 @@ export function Filmstrip({ ctl, ctx, onPresent }: { ctl: SlidesController; ctx:
                 onClick={() => ctl.goTo(id)}
                 onDoubleClick={() => onPresent(i)}
               >
-                <Thumb ctl={ctl} id={id} ctx={{ ...ctx, editing: false, editingText: null, slideNumber: i + 1 }} />
+                <Thumb ctl={ctl} id={id} width={thumb} ctx={{ ...ctx, editing: false, editingText: null, slideNumber: i + 1 }} />
               </button>
               {s?.hidden && (
                 <span className="oel-film__hidden" title="Masquée pendant le diaporama">
