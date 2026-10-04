@@ -20,7 +20,8 @@
     "@oel/docs": "*",
     "@oel/forms": "*",
     "@oel/sheets": "*",
-    "@oel/collab-client": "*"
+    "@oel/collab-client": "*",
+    "@oel/slides": "*"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

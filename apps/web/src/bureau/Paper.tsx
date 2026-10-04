@@ -122,17 +122,24 @@ function Content({ node }: { node: PaperNode }) {
       );
     }
     case 'slides': {
-      const slide = p.kind === 'slides' ? p.slides[0] : undefined;
+      const deck = p.kind === 'slides' ? p : undefined;
+      const slide = deck?.slides[0];
+      // A deck from a file shows its own colours; seeded papers keep the kit's look (with the chart).
+      const own = !!deck?.size;
+      const style = deck?.background || deck?.ink ? { background: deck.background, color: deck.ink ?? (deck.background && isDark(deck.background) ? '#fff' : undefined) } : undefined;
       return (
-        <div className="paper__slide">
+        <div className={`paper__slide${own ? ' paper__slide--deck' : ''}`} style={style}>
           {data.eyebrow && <span className="paper__eyebrow">{data.eyebrow}</span>}
           <h3 className="paper__slide-title">{slide?.title ?? node.title}</h3>
-          <div className="paper__chart">
-            {[58, 90, 120, 169].map((h, i) => (
-              <span key={i} style={{ height: h }} data-last={i === 3 || undefined} />
-            ))}
-          </div>
-          {p.kind === 'slides' && p.slides.length > 1 && <span className="paper__slide-count">{p.slides.length} diapos</span>}
+          {own && slide?.body && <p className="paper__slide-body">{slide.body}</p>}
+          {!own && (
+            <div className="paper__chart">
+              {[58, 90, 120, 169].map((h, i) => (
+                <span key={i} style={{ height: h }} data-last={i === 3 || undefined} />
+              ))}
+            </div>
+          )}
+          {deck && deck.slides.length > 1 && <span className="paper__slide-count">{deck.slides.length} diapos</span>}
         </div>
       );
     }

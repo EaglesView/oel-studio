@@ -13,6 +13,7 @@ import {
 import { copyLink } from '@oel/forms';
 import { kindLabel, uid, type Bureau, type Paper } from './model';
 import { sheetTotal } from './Paper';
+import { downloadSlides, requestPresent } from './slides';
 
 const nf = new Intl.NumberFormat('fr-CA');
 const ENGINE_LATER = 'Arrive avec le moteur de documents (WASM).';
@@ -136,9 +137,27 @@ function TypeTools({
     case 'slides':
       return (
         <>
-          <ToolButton icon="layout" label="Disposition" description="Change la mise en page de la diapo." onPress={() => store.open(node.id)} />
-          <ToolButton icon="sparkle" label="Thème" unavailableReason={ENGINE_LATER} />
-          <ToolButton icon="slide" label="Présenter" shortcut={['F5']} description="Plein écran, une diapo à la fois." onPress={() => document.documentElement.requestFullscreen?.()} />
+          <ToolButton icon="layout" label="Modifier" description="Ouvre la présentation sur place (Entrée)." onPress={() => store.open(node.id)} />
+          <ToolButton icon="sparkle" label="Thème" unavailableReason="Le thème du fichier est conservé ; il ne se change pas encore ici." />
+          <ToolButton
+            icon="play"
+            label="Présenter"
+            shortcut={['F5']}
+            description="Plein écran, une diapo à la fois."
+            onPress={() => {
+              requestPresent(node.id);
+              onOpenFull(node.id);
+            }}
+          />
+          <ToolButton
+            icon="download"
+            label="Télécharger (.pptx)"
+            onPress={() =>
+              void downloadSlides(node, (docId) => store.update(node.id, { data: { ...node.data, docId } }, { history: false })).catch((e: Error) =>
+                toast({ title: 'Téléchargement impossible', description: e.message, tone: 'danger' }),
+              )
+            }
+          />
         </>
       );
     case 'spreadsheet': {

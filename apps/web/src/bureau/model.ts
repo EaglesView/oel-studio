@@ -81,13 +81,14 @@ export const PAPER_SIZE: Record<PaperKind, { w: number; h: number }> = {
 
 /**
  * A paper's size: its type's shape, except documents, which take the shape of
- * their first page (landscape papers are wide; the long side stays the same).
+ * their first page (landscape papers are wide; the long side stays the same),
+ * and presentations, which take the shape of their slides (4:3, portrait…).
  * `PAPER_SIZE.document` is then only the default for new blank documents.
  */
 export function paperSizeFor(kind: PaperKind, preview?: Preview | null): { w: number; h: number } {
   const base = PAPER_SIZE[kind];
-  const page = preview?.kind === 'document' ? preview.page : undefined;
-  if (kind !== 'document' || !page || page.width <= 0 || page.height <= 0) return base;
+  const page = preview?.kind === 'document' ? preview.page : preview?.kind === 'slides' ? preview.size : undefined;
+  if ((kind !== 'document' && kind !== 'slides') || !page || page.width <= 0 || page.height <= 0) return base;
   const long = Math.max(base.w, base.h);
   return page.width >= page.height ? { w: long, h: Math.round((long * page.height) / page.width) } : { w: Math.round((long * page.width) / page.height), h: long };
 }
@@ -132,7 +133,7 @@ export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper
     kind === 'document'
       ? { kind: 'document', blocks: [{ type: 'heading', text: 'Titre' }, { type: 'paragraph', text: '' }] }
       : kind === 'slides'
-        ? { kind: 'slides', slides: [{ title: 'Titre de la diapositive' }] }
+        ? { kind: 'slides', slides: [] }
         : kind === 'spreadsheet'
           ? { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [['', ''], ['', '']] }
           : kind === 'note'

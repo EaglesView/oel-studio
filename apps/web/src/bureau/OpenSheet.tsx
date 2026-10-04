@@ -38,7 +38,7 @@ export interface OpenSheetHandle {
 }
 
 /** Kinds whose workspace brings its own full-screen chrome (breadcrumb, « Réduire », status bar). */
-const OWN_CHROME = new Set(['document', 'spreadsheet']);
+const OWN_CHROME = new Set(['document', 'spreadsheet', 'slides']);
 
 /**
  * B4 · Ouvrir sur place (level 2) and Plein écran (level 3).
@@ -111,8 +111,8 @@ export function OpenSheet({
         const firstHeading = preview.kind === 'document' ? preview.blocks.find((b) => b.type === 'heading')?.text : undefined;
         const cur = store.node(paper.id) as Paper | undefined;
         if (!cur) return;
-        // A document's paper follows its page setup (portrait, landscape, Legal…).
-        const size = cur.kind === 'document' ? paperSizeFor('document', preview) : null;
+        // A document's paper follows its page setup (portrait, landscape, Legal…), a deck its slide shape.
+        const size = cur.kind === 'document' || cur.kind === 'slides' ? paperSizeFor(cur.kind, preview) : null;
         store.update(
           paper.id,
           {
