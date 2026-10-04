@@ -649,8 +649,9 @@ impl<'p> Reader<'p> {
         }
         let bf = el.child_local("blipFill");
         let blip = bf.and_then(|b| b.child_local("blip"));
-        let media = blip.and_then(|b| b.attr("r:embed")).and_then(|rid| self.blip(sc.part, rid)).unwrap_or_default();
         let svg = blip.and_then(|b| b.find_local(SVG_BLIP)).and_then(|s| s.attr("r:embed")).and_then(|rid| self.blip(sc.part, rid));
+        // Office graphics may carry only their SVG (no raster fallback): the SVG is then the picture.
+        let media = blip.and_then(|b| b.attr("r:embed")).and_then(|rid| self.blip(sc.part, rid)).or_else(|| svg.clone()).unwrap_or_default();
         let alpha = blip.and_then(|b| b.child_local("alphaModFix")).and_then(|a| num(a, "amt")).map(|v| v / 100_000.0);
         if !media.is_empty() {
             // A filled picture placeholder shows the picture, not the placeholder's fill.

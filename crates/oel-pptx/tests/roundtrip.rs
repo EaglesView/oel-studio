@@ -253,3 +253,16 @@ fn embedded_fonts_reach_the_editor() {
     let out = export_pptx(&deck, Some(&bytes), HashMap::new()).unwrap();
     assert_eq!(part_map(&out).get("ppt/fonts/font1.fntdata"), part_map(&bytes).get("ppt/fonts/font1.fntdata"));
 }
+
+#[test]
+fn svg_only_graphics_are_pictures() {
+    // Presentation 1's title layout draws Office graphics that carry only an SVG.
+    let deck = import_pptx(&fixture(1)).unwrap().deck;
+    let layout = deck.layouts.iter().find(|l| l.id == deck.slides[0].layout).unwrap();
+    let graphics: Vec<_> = layout.decorations.iter().filter(|e| e.kind == ElementKind::Picture).collect();
+    assert!(!graphics.is_empty());
+    for g in graphics {
+        let img = g.image.as_ref().unwrap();
+        assert!(img.media.ends_with(".svg"), "{} draws its SVG", g.name);
+    }
+}

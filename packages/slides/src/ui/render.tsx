@@ -362,13 +362,15 @@ export const ElementView = memo(function ElementView({ el, offset }: { el: Eleme
   } else if (el.kind === 'table' && el.table) {
     body = <TableView el={el} />;
   } else {
+    // Only a picture placeholder waits for a picture; a picture whose file is missing draws nothing.
     const emptyPic = el.kind === 'picture' && !el.image?.media;
+    const waiting = emptyPic && !!el.ph;
     const showText = el.text && ctx.editingText !== el.id;
     const prompt = ctx.editing && el.ph ? (el.text?.prompt ?? PROMPTS[el.ph.type] ?? null) : null;
     body = (
       <>
         {!emptyPic && <Shape el={el} w={w} h={h} />}
-        {emptyPic && ctx.editing && (
+        {waiting && ctx.editing && (
           <div className="oel-el__empty">
             <span>{el.label ?? PROMPTS.pic}</span>
           </div>
