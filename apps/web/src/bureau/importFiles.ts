@@ -66,43 +66,7 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
   store.add(papers);
   announce(`${papers.length} fichier${papers.length > 1 ? 's' : ''} en cours d’import`);
 
-  const results = await Promise.allSettled(
-    accepted.map(async (file, i) => {
-      const paper = papers[i]!;
-      const result = await engineHost().import(file, (p) => {
-        const current = store.node(paper.id);
-        if (!current) return;
-        store.update(paper.id, { data: { ...current.data, status: { state: 'importing', progress: p.value, stage: p.stage } } }, { history: false });
-      });
-      let docId: string | undefined;
-      if (result.kind === 'document' && result.payload) docId = await createDocFromPayload(result.payload, result.title).catch(() => undefined);
-      if (result.kind === 'spreadsheet' && result.payload) docId = await createSheetFromPayload(result.payload, result.title).catch(() => undefined);
-      if (result.kind === 'slides' && result.payload) docId = await createSlidesFromPayload(result.payload, result.title).catch(() => undefined);
-      const current = store.node(paper.id);
-      if (!current) return result;
-      const kind = toPaperKind(result.kind);
-      const size = paperSizeFor(kind, result.preview);
-      const scanned = result.preview.kind === 'pdf' && result.preview.scanned;
-      store.update(
-        paper.id,
-        {
-          kind,
-          title: result.title,
-          ...(kind !== current.kind || size.w !== current.w || size.h !== current.h ? { w: size.w, h: size.h } : {}),
-          data: {
-            ...current.data,
-            ...(docId ? { docId } : {}),
-            preview: result.preview,
-            status: result.readOnly ? { state: 'readonly', reason: result.reason ?? 'Lecture seule.' } : { state: 'ready' },
-            stamp: scanned ? { label: 'À vérifier', tone: 'danger' } : current.data.stamp,
-          },
-        },
-        { history: false },
-      );
-      if (docId) queueThumbnail(store, paper.id);
-      return result;
-    }),
-  );
+  const results = await Promise.allSettled(accepted.map((file, i) => importInto(store, papers[i]!.id, file)));
 
   const ok = results.filter((r): r is PromiseFulfilledResult<ImportResult> => r.status === 'fulfilled').map((r) => r.value);
   const failed = results.length - ok.length;
@@ -120,6 +84,44 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
     description: parts.length ? parts.join(' · ') : 'Prêts à modifier.',
     tone: failed ? 'danger' : readOnly ? 'warning' : 'success',
   });
+}
+
+/** Read a file into an existing paper (its id, place and links stay): progress, then preview, editor session and thumbnail. */
+export async function importInto(store: Bureau, paperId: string, file: File): Promise<ImportResult> {
+  const result = await engineHost().import(file, (p) => {
+    const current = store.node(paperId);
+    if (!current) return;
+    store.update(paperId, { data: { ...current.data, status: { state: 'importing', progress: p.value, stage: p.stage } } }, { history: false });
+  });
+  // Without a shared file the paper still shows its preview; opening it then starts from that preview.
+  const noSession = (e: unknown) => (console.warn('Fichier partagé non créé', result.title, e), undefined);
+  let docId: string | undefined;
+  if (result.kind === 'document' && result.payload) docId = await createDocFromPayload(result.payload, result.title).catch(noSession);
+  if (result.kind === 'spreadsheet' && result.payload) docId = await createSheetFromPayload(result.payload, result.title).catch(noSession);
+  if (result.kind === 'slides' && result.payload) docId = await createSlidesFromPayload(result.payload, result.title).catch(noSession);
+  const current = store.node(paperId);
+  if (!current) return result;
+  const kind = toPaperKind(result.kind);
+  const size = paperSizeFor(kind, result.preview);
+  const scanned = result.preview.kind === 'pdf' && result.preview.scanned;
+  store.update(
+    paperId,
+    {
+      kind,
+      title: result.title,
+      ...(kind !== current.kind || size.w !== current.w || size.h !== current.h ? { w: size.w, h: size.h } : {}),
+      data: {
+        ...current.data,
+        ...(docId ? { docId } : {}),
+        preview: result.preview,
+        status: result.readOnly ? { state: 'readonly', reason: result.reason ?? 'Lecture seule.' } : { state: 'ready' },
+        stamp: scanned ? { label: 'À vérifier', tone: 'danger' } : current.data.stamp,
+      },
+    },
+    { history: false },
+  );
+  if (docId) queueThumbnail(store, paperId);
+  return result;
 }
 
 /**
