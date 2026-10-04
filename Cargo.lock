@@ -375,6 +375,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "oel-pptx"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+ "oel-opc",
+ "serde",
+ "serde_json",
+ "ts-rs",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "oel-xlsx"
 version = "0.1.0"
 dependencies = [

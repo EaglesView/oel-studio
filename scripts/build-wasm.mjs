@@ -2,7 +2,7 @@
 /**
  * Builds every crate in `crates/` that has a `wasm` feature into
  * `packages/wasm/<crate>/{web,node}` (web: engine + calc workers; node: collab
- * server and vitest). Module names stay `oeldocx_rs` / `oelxlsx_rs`.
+ * server and vitest). Module names stay `oeldocx_rs` / `oelxlsx_rs` / `oelpptx_rs`.
  *
  *   node scripts/build-wasm.mjs           build all
  *   node scripts/build-wasm.mjs --if-stale  skip crates whose outputs are newer than their sources
@@ -16,7 +16,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const ifStale = process.argv.includes('--if-stale');
 
 /** Generated module name per crate (what the JS adapters import). */
-const OUT_NAME = { 'oel-docx': 'oeldocx_rs', 'oel-xlsx': 'oelxlsx_rs' };
+const OUT_NAME = { 'oel-docx': 'oeldocx_rs', 'oel-xlsx': 'oelxlsx_rs', 'oel-pptx': 'oelpptx_rs' };
 const TARGETS = [['web', 'web'], ['nodejs', 'node']];
 
 function newest(path) {
