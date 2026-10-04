@@ -1,0 +1,33 @@
+{
+  "name": "@oel/slides",
+  "version": "0.1.0",
+  "description": "PowerPoint-compatible presentation editor: slides drawn from the oelpptx-rs deck JSON (layouts, themes, DrawingML shapes), Yjs collaboration, offline, lossless .pptx round trips, slideshow and presenter view.",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/model/index.ts",
+    "./styles.css": "./src/ui/slides.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@oel/collab-client": "*",
+    "@oel/docs": "*",
+    "@oel/emboss": "*",
+    "@oel/engine": "*",
+    "@tiptap/pm": "^3.31.4",
+    "react-aria-components": "^1.21.1",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "happy-dom": "^20.14.5",
+    "oelpptx-node": "file:../wasm/oel-pptx/node"
+  }
+}

@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./model": "./src/model/index.ts",
     "./schema": "./src/extensions/index.ts",
-    "./styles.css": "./src/ui/docs.css"
+    "./styles.css": "./src/ui/docs.css",
+    "./fonts": "./src/ui/fonts.ts"
   },
   "peerDependencies": {
     "react": "^19.0.0",

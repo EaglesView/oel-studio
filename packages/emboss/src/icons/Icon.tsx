@@ -100,6 +100,12 @@ import {
   MathBook,
   Bell,
   BellNotification,
+  Square,
+  TextBox,
+  Play,
+  PositionAlign,
+  AlignHorizontalCenters,
+  Timer,
 } from 'iconoir-react';
 
 /**
@@ -257,6 +263,13 @@ const EXTRA = {
   'function': MathBook,
   'bell': Bell,
   'bell-dot': BellNotification,
+  // Presentations (@oel/slides)
+  shape: Square,
+  'text-box': TextBox,
+  play: Play,
+  arrange: PositionAlign,
+  'align-h-center': AlignHorizontalCenters,
+  timer: Timer,
 } as const;
 
 export type IconName = keyof typeof KIT | keyof typeof EXTRA;
