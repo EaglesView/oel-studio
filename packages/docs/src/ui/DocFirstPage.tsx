@@ -12,6 +12,8 @@ export interface DocFirstPageProps {
   session: DocSession;
   /** Called once the first page is laid out with its fonts and pictures: the element shows exactly that page (`fonts`: the document's). */
   onReady: (page: HTMLElement, size: { width: number; height: number }, fonts: DocFont[]) => void;
+  /** Laying out the page failed. */
+  onError?: (error: unknown) => void;
 }
 
 const noop = () => {};
@@ -43,13 +45,15 @@ function laidOut(editor: Editor, quiet = 350, max = 5000): Promise<void> {
  * (pagination, headers and footers, floating objects, the file's fonts), for
  * desk thumbnails. Mount it off screen (laid out, not `display: none`).
  */
-export function DocFirstPage({ session, onReady }: DocFirstPageProps) {
+export function DocFirstPage({ session, onReady, onError }: DocFirstPageProps) {
   const docMeta = useDocMeta(session);
   const editor = useDocEditor(session, docMeta, { editable: false, pagination: true });
   const ref = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState<PageInfo | null>(null);
   const ready = useRef(onReady);
   ready.current = onReady;
+  const failed = useRef(onError);
+  failed.current = onError;
 
   useEffect(() => {
     if (!editor) return;
@@ -58,7 +62,8 @@ export function DocFirstPage({ session, onReady }: DocFirstPageProps) {
       await loadDocumentFonts(docMeta.fonts, session.mediaUrl);
       await laidOut(editor);
       const first = editor.storage.pagination.pages[0] as PageInfo | undefined;
-      if (!alive || !first) return;
+      if (!alive) return;
+      if (!first) throw new Error('aucune page mise en page');
       setPage(first);
       await frame();
       await frame();
@@ -66,7 +71,7 @@ export function DocFirstPage({ session, onReady }: DocFirstPageProps) {
       if (!alive || !el) return;
       await Promise.all([...el.querySelectorAll('img')].map((img) => img.decode().catch(() => undefined)));
       if (alive) ready.current(el, { width: first.width, height: first.height }, docMeta.fonts);
-    })();
+    })().catch((e: unknown) => alive && failed.current?.(e));
     return () => void (alive = false);
     // Once per editor: the thumbnail is a snapshot.
     // eslint-disable-next-line react-hooks/exhaustive-deps

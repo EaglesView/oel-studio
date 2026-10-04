@@ -9,7 +9,7 @@
  */
 import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
-import { toBlob } from 'html-to-image';
+import { toSvg } from 'html-to-image';
 import { DocFirstPage } from '@oel/docs';
 import '@oel/docs/styles.css';
 import { ScaledSlide } from '@oel/slides';
@@ -43,12 +43,14 @@ export function queueThumbnail(store: Bureau, paperId: string) {
     await idle();
     const cur = store.node(paperId) as Paper | undefined;
     if (!cur?.data.docId) return;
+    const progress: Progress = { stage: 'session' };
     try {
-      const url = await withTimeout(draw(cur));
+      const url = await withTimeout(draw(cur, progress));
       const now = store.node(paperId) as Paper | undefined;
       if (url && now) store.update(paperId, { data: { ...now.data, thumbnail: url } }, { history: false });
+      else console.warn('Vignette non créée', cur.title, `(étape : ${progress.stage}, rien à dessiner)`);
     } catch (e) {
-      console.warn('Vignette non créée', cur.title, e);
+      console.warn('Vignette non créée', cur.title, `(étape : ${progress.stage})`, e);
     }
   });
 }
@@ -57,7 +59,10 @@ function withTimeout<T>(p: Promise<T>): Promise<T> {
   return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('délai dépassé')), TIMEOUT_MS))]);
 }
 
-async function draw(paper: Paper): Promise<string | null> {
+/** Where drawing is (for the console when it fails): session, mise en page, capture, image. */
+type Progress = { stage: string };
+
+async function draw(paper: Paper, progress: Progress): Promise<string | null> {
   const noop = () => {};
   switch (paper.kind) {
     case 'slides': {
@@ -67,6 +72,7 @@ async function draw(paper: Paper): Promise<string | null> {
       const slide = first ? s.slides.slide(first) : null;
       if (!slide) return null;
       await loadFonts(info.fonts, s.media.url);
+      progress.stage = 'mise en page';
       return offscreen(
         (done) => (
           <SnapshotWhenMounted onMounted={done}>
@@ -75,19 +81,25 @@ async function draw(paper: Paper): Promise<string | null> {
         ),
         info.fonts,
         s.media.url,
+        progress,
       );
     }
     case 'document': {
       const s = await sessionFor(paper, noop);
+      progress.stage = 'mise en page';
       return new Promise<string | null>((resolve, reject) => {
         const { host, root } = mount();
         root.render(
           <DocFirstPage
             session={s}
+            onError={(e) => {
+              unmount(host, root);
+              reject(e);
+            }}
             onReady={(el, size, fonts) => {
               // The page is drawn at its size in points; scale the picture to the paper.
               const k = (paper.w * SCALE) / size.width;
-              snapshot(el, size, k, fonts, s.mediaUrl)
+              snapshot(el, size, k, fonts, s.mediaUrl, progress)
                 .then(resolve, reject)
                 .finally(() => unmount(host, root));
             }}
@@ -97,6 +109,7 @@ async function draw(paper: Paper): Promise<string | null> {
     }
     case 'spreadsheet': {
       const s = await sheetSessionFor(paper, noop);
+      progress.stage = 'mise en page';
       // A bit more of the sheet than the paper (cells at about two thirds of their size).
       const canvas = await renderSheetThumbnail(s, createCalcWorker, { width: paper.w * 1.5, height: paper.h * 1.5, scale: SCALE / 1.5 });
       return blobUrl(await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/webp', 0.9)));
@@ -125,7 +138,7 @@ function unmount(host: HTMLElement, root: ReturnType<typeof createRoot>) {
 }
 
 /** Render `make` off screen, snapshot its first element once mounted and its pictures decoded. */
-function offscreen(make: (done: () => void) => React.ReactNode, fonts: FontSpec[], mediaUrl: (path: string) => string | null): Promise<string | null> {
+function offscreen(make: (done: () => void) => React.ReactNode, fonts: FontSpec[], mediaUrl: (path: string) => string | null, progress: Progress): Promise<string | null> {
   const { host, root } = mount();
   return new Promise<void>((resolve) => flushSync(() => root.render(make(resolve))))
     .then(async () => {
@@ -133,7 +146,7 @@ function offscreen(make: (done: () => void) => React.ReactNode, fonts: FontSpec[
       if (!el) return null;
       await Promise.all([...el.querySelectorAll('img')].map((img) => img.decode().catch(() => undefined)));
       const { width, height } = el.getBoundingClientRect();
-      return snapshot(el, { width, height }, SCALE, fonts, mediaUrl);
+      return snapshot(el, { width, height }, SCALE, fonts, mediaUrl, progress);
     })
     .finally(() => unmount(host, root));
 }
@@ -143,7 +156,8 @@ function SnapshotWhenMounted({ onMounted, children }: { onMounted: () => void; c
   return <div ref={(el) => void (el && requestAnimationFrame(() => onMounted()))}>{children}</div>;
 }
 
-async function snapshot(el: HTMLElement, size: { width: number; height: number }, pixelRatio: number, fonts: FontSpec[], mediaUrl: (path: string) => string | null): Promise<string | null> {
+async function snapshot(el: HTMLElement, size: { width: number; height: number }, pixelRatio: number, fonts: FontSpec[], mediaUrl: (path: string) => string | null, progress: Progress): Promise<string | null> {
+  progress.stage = 'capture';
   const fontEmbedCSS = await fontFaceCss(fonts, mediaUrl);
   // Only what shows: a document's editor holds every page, and copying the styles of all of them takes far too long.
   const box = el.getBoundingClientRect();
@@ -151,11 +165,37 @@ async function snapshot(el: HTMLElement, size: { width: number; height: number }
   const right = box.left + size.width;
   const filter = (node: HTMLElement) => {
     if (node === el || !(node instanceof Element)) return true;
+    // An <img> without a source would be fetched as the page itself (HTML), and fail.
+    if (node instanceof HTMLImageElement && !node.getAttribute('src')) return false;
     const r = node.getBoundingClientRect();
     return !(r.top > bottom || r.left > right);
   };
-  const blob = await toBlob(el, { width: Math.ceil(size.width), height: Math.ceil(size.height), pixelRatio, fontEmbedCSS, filter, type: 'image/webp', quality: 0.9, cacheBust: false });
-  return blobUrl(blob);
+  // A picture that cannot be drawn is left out rather than losing the whole thumbnail.
+  const onImageErrorHandler = (e: Event | string) => {
+    const src = typeof e === 'string' ? e : ((e.target as HTMLImageElement | null)?.src ?? '');
+    console.warn('Image absente de la vignette', src.slice(0, 120));
+  };
+  const svgUrl = await toSvg(el, { width: Math.ceil(size.width), height: Math.ceil(size.height), fontEmbedCSS, filter, onImageErrorHandler, cacheBust: false });
+  progress.stage = 'image';
+  return blobUrl(await rasterize(svgUrl, size, pixelRatio));
+}
+
+/**
+ * Draw the SVG picture of a page on a canvas, as WebP. Characters XML forbids
+ * (control characters pasted into a file's text) would make the whole
+ * picture fail to load: they become spaces first.
+ */
+async function rasterize(svgUrl: string, size: { width: number; height: number }, pixelRatio: number): Promise<Blob | null> {
+  const comma = svgUrl.indexOf(',');
+  const svg = decodeURIComponent(svgUrl.slice(comma + 1)).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, ' ');
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(size.width * pixelRatio);
+  canvas.height = Math.ceil(size.height * pixelRatio);
+  canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return new Promise((r) => canvas.toBlob(r, 'image/webp', 0.9));
 }
 
 const blobUrl = (b: Blob | null) => (b ? URL.createObjectURL(b) : null);
