@@ -10,28 +10,13 @@
     ".": "./src/index.ts",
     "./model": "./src/model/index.ts",
     "./schema": "./src/extensions/index.ts",
-    "./styles.css": "./src/ui/docs.css",
-    "./fonts": "./src/ui/fonts.ts"
+    "./styles.css": "./src/ui/docs.css"
   },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "dependencies": {
-    "@fontsource/arimo": "^5.3.0",
-    "@fontsource/caladea": "^5.3.0",
-    "@fontsource/carlito": "^5.3.0",
-    "@fontsource/cinzel": "^5.3.0",
-    "@fontsource/cousine": "^5.3.0",
-    "@fontsource/eb-garamond": "^5.3.0",
-    "@fontsource/fira-sans": "^5.3.0",
-    "@fontsource/gelasio": "^5.3.0",
-    "@fontsource/inconsolata": "^5.3.0",
-    "@fontsource/lato": "^5.3.0",
-    "@fontsource/libre-franklin": "^5.3.0",
-    "@fontsource/open-sans": "^5.3.0",
-    "@fontsource/questrial": "^5.3.0",
-    "@fontsource/tinos": "^5.3.0",
     "@hocuspocus/provider": "^4.7.0",
     "@oel/collab-client": "*",
     "@oel/emboss": "*",
@@ -52,7 +37,8 @@
     "react-aria-components": "^1.21.1",
     "y-indexeddb": "^9.0.12",
     "y-protocols": "^1.0.6",
-    "yjs": "^13.6.33"
+    "yjs": "^13.6.33",
+    "@oel/fonts": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

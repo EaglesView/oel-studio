@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Dialog } from 'react-aria-components';
 import { Badge, Button, DialogOverlay, Icon, Popover, SheetDialog, Checkbox, toast } from '@oel/emboss';
 import { IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, VersionPanel, useSessionStatus, type Identity, type MenuSpec } from '@oel/collab-client';
-import { isFontAvailable, loadWebFont } from '@oel/docs/fonts';
+import { loadFonts } from '@oel/fonts';
 import type * as Y from 'yjs';
 import type { SlideSession } from '../collab/session';
 import { SlidesDoc } from '../model/ydoc';
@@ -121,10 +121,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
 
   // Fonts the deck uses that this machine lacks: their open substitutes.
   useEffect(() => {
-    const missing = info.fonts.filter((f) => f.substitute && !isFontAvailable(f.name));
-    if (!missing.length) return;
-    void Promise.all(missing.map((f) => loadWebFont(f.substitute!))).then(() => setFontsReady((n) => n + 1));
-  }, [info.fonts]);
+    void loadFonts(info.fonts, session.media.url).then(() => setFontsReady((n) => n + 1));
+  }, [info.fonts, session]);
 
   // Desk thumbnail, debounced.
   const onPreview = props.onPreview;

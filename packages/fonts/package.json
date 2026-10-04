@@ -1,0 +1,25 @@
+{
+  "name": "@oel/fonts",
+  "version": "0.1.0",
+  "description": "Fonts of opened files in the browser: embedded faces as FontFaces, open substitutes (self-hosted Fontsource, SIL OFL) for missing fonts, loaded on demand. Shared by the editors.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@fontsource/arimo": "^5.3.0",
+    "@fontsource/caladea": "^5.3.0",
+    "@fontsource/carlito": "^5.3.0",
+    "@fontsource/cinzel": "^5.3.0",
+    "@fontsource/cousine": "^5.3.0",
+    "@fontsource/eb-garamond": "^5.3.0",
+    "@fontsource/fira-sans": "^5.3.0",
+    "@fontsource/gelasio": "^5.3.0",
+    "@fontsource/inconsolata": "^5.3.0",
+    "@fontsource/lato": "^5.3.0",
+    "@fontsource/libre-franklin": "^5.3.0",
+    "@fontsource/open-sans": "^5.3.0",
+    "@fontsource/questrial": "^5.3.0",
+    "@fontsource/tinos": "^5.3.0"
+  }
+}
