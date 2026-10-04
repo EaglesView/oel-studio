@@ -77,6 +77,43 @@ pub fn deobfuscate(data: &mut [u8], font_key: &str) -> bool {
     true
 }
 
+fn is_sfnt(b: &[u8]) -> bool {
+    b.len() > 12 && (b.starts_with(&[0, 1, 0, 0]) || b.starts_with(b"OTTO") || b.starts_with(b"true") || b.starts_with(b"ttcf"))
+}
+
+/// The OpenType/TrueType data of an embedded font part, as a browser loads it:
+/// a plain font file, or an Embedded OpenType wrapper (PowerPoint's `.fntdata`)
+/// when its data is not MicroType-Express compressed (XOR-encrypted data is
+/// decrypted). `None` for anything else: the editor then uses the substitute.
+pub fn sfnt_from_embedded(bytes: &[u8]) -> Option<Vec<u8>> {
+    if is_sfnt(bytes) {
+        return Some(bytes.to_vec());
+    }
+    let u32_at = |o: usize| bytes.get(o..o + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    let magic = bytes.get(34..36).map(|b| u16::from_le_bytes([b[0], b[1]]));
+    if magic != Some(0x504C) {
+        return None;
+    }
+    let (eot, size, flags) = (u32_at(0)?, u32_at(4)?, u32_at(12)?);
+    const COMPRESSED: usize = 0x4;
+    const XOR: usize = 0x1000_0000;
+    if flags & COMPRESSED != 0 || eot > bytes.len() || size > eot {
+        return None;
+    }
+    let mut data = bytes[eot - size..eot].to_vec();
+    if flags & XOR != 0 {
+        for b in &mut data {
+            *b ^= 0x50;
+        }
+    }
+    is_sfnt(&data).then_some(data)
+}
+
+/// File extension and mime of font data (`ttf` / `otf`).
+pub fn font_kind(data: &[u8]) -> (&'static str, &'static str) {
+    if data.starts_with(b"OTTO") { ("otf", "font/otf") } else { ("ttf", "font/ttf") }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,6 +127,31 @@ mod tests {
         assert_eq!(substitute_for("Gill Sans Nova Light").map(|s| s.open), Some("Lato"));
         assert_eq!(substitute_for("Times New Roman").map(|s| s.open), Some("Tinos"));
         assert!(substitute_for("Times Square Display").is_some_and(|s| s.open == "Tinos"));
+    }
+
+    /// An EOT wrapper around `font`: header (with the 0x504C magic at 34), then the data.
+    pub fn eot(font: &[u8], flags: u32) -> Vec<u8> {
+        let mut h = vec![0u8; 82];
+        let total = (h.len() + font.len()) as u32;
+        h[0..4].copy_from_slice(&total.to_le_bytes());
+        h[4..8].copy_from_slice(&(font.len() as u32).to_le_bytes());
+        h[8..12].copy_from_slice(&0x0002_0001u32.to_le_bytes());
+        h[12..16].copy_from_slice(&flags.to_le_bytes());
+        h[34..36].copy_from_slice(&0x504Cu16.to_le_bytes());
+        let body: Vec<u8> = if flags & 0x1000_0000 != 0 { font.iter().map(|b| b ^ 0x50).collect() } else { font.to_vec() };
+        [h, body].concat()
+    }
+
+    #[test]
+    fn embedded_fonts_are_unwrapped() {
+        let ttf: Vec<u8> = [&[0u8, 1, 0, 0][..], &[7u8; 40][..]].concat();
+        assert_eq!(sfnt_from_embedded(&ttf).as_deref(), Some(&ttf[..]));
+        assert_eq!(sfnt_from_embedded(&eot(&ttf, 0)).as_deref(), Some(&ttf[..]));
+        assert_eq!(sfnt_from_embedded(&eot(&ttf, 0x1000_0000)).as_deref(), Some(&ttf[..]));
+        // MicroType Express compression: not for browsers.
+        assert_eq!(sfnt_from_embedded(&eot(&ttf, 0x4)), None);
+        assert_eq!(sfnt_from_embedded(b"not a font at all, really"), None);
+        assert_eq!(font_kind(b"OTTO...."), ("otf", "font/otf"));
     }
 
     #[test]

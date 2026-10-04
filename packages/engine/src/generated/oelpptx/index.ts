@@ -8,6 +8,7 @@ export * from './Deck';
 export * from './DeckFont';
 export * from './Element';
 export * from './ElementKind';
+export * from './EmbeddedFace';
 export * from './Frame';
 export * from './GeomPath';
 export * from './Geometry';

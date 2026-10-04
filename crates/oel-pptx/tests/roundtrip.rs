@@ -221,3 +221,35 @@ fn pictures_added_in_the_editor_are_written() {
     assert_eq!(pic.image.as_ref().unwrap().media, "ppt/media/oel-abc.png");
     assert!(imp.media.iter().any(|m| m.path == "ppt/media/oel-abc.png" && m.mime == "image/png"));
 }
+
+#[test]
+fn embedded_fonts_reach_the_editor() {
+    // Presentation 3 with an embedded font (EOT-wrapped, XOR-encrypted, as PowerPoint's .fntdata).
+    let mut pkg = Package::read(&fixture(3)).unwrap();
+    let ttf: Vec<u8> = [&[0u8, 1, 0, 0][..], &[9u8; 64][..]].concat();
+    let mut eot = vec![0u8; 82];
+    eot[0..4].copy_from_slice(&((82 + ttf.len()) as u32).to_le_bytes());
+    eot[4..8].copy_from_slice(&(ttf.len() as u32).to_le_bytes());
+    eot[12..16].copy_from_slice(&0x1000_0000u32.to_le_bytes());
+    eot[34..36].copy_from_slice(&0x504Cu16.to_le_bytes());
+    eot.extend(ttf.iter().map(|b| b ^ 0x50));
+    pkg.set("ppt/fonts/font1.fntdata", eot);
+    pkg.ensure_default("fntdata", "application/x-fontdata");
+    let rid = pkg.add_rel("ppt/presentation.xml", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/font", "fonts/font1.fntdata", false);
+    let pres = pkg.get_str("ppt/presentation.xml").unwrap().replace("<p:defaultTextStyle>", &format!(r#"<p:embeddedFontLst><p:embeddedFont><p:font typeface="Brasserie"/><p:regular r:id="{rid}"/></p:embeddedFont></p:embeddedFontLst><p:defaultTextStyle>"#));
+    pkg.set("ppt/presentation.xml", pres.into_bytes());
+    let bytes = pkg.write().unwrap();
+
+    let imp = import_pptx(&bytes).unwrap();
+    let font = imp.deck.fonts.iter().find(|f| f.name == "Brasserie").expect("embedded font listed");
+    assert_eq!(font.embedded.len(), 1);
+    assert_eq!((font.embedded[0].weight, font.embedded[0].italic), (400, false));
+    let media = imp.media.iter().find(|m| m.path == font.embedded[0].path).expect("font among the media");
+    assert_eq!(media.bytes, ttf);
+    assert_eq!(media.mime, "font/ttf");
+    // The package keeps the original .fntdata through an edit.
+    let mut deck = imp.deck;
+    deck.slides[0].hidden = true;
+    let out = export_pptx(&deck, Some(&bytes), HashMap::new()).unwrap();
+    assert_eq!(part_map(&out).get("ppt/fonts/font1.fntdata"), part_map(&bytes).get("ppt/fonts/font1.fntdata"));
+}

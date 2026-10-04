@@ -300,13 +300,16 @@ impl<'p> Reader<'p> {
             f.insert(theme.major.clone());
             f.insert(theme.minor.clone());
         }
-        let fonts = self
-            .fonts
-            .borrow()
-            .iter()
-            .filter(|n| !n.is_empty() && !n.starts_with('+'))
-            .map(|n| DeckFont { name: n.clone(), substitute: substitute_for(n).map(|s| s.open.to_string()), css: css_font(n) })
-            .collect();
+        let (faces, mut font_media) = self.embedded_fonts();
+        let fonts = {
+            let mut names = self.fonts.borrow().clone();
+            names.extend(faces.keys().cloned());
+            names
+                .into_iter()
+                .filter(|n| !n.is_empty() && !n.starts_with('+'))
+                .map(|n| DeckFont { substitute: substitute_for(&n).map(|s| s.open.to_string()), css: css_font(&n), embedded: faces.get(&n).cloned().unwrap_or_default(), name: n })
+                .collect()
+        };
 
         if self.pkg.parts.iter().any(|(n, _)| n.ends_with("vbaProject.bin")) {
             self.keep("macros", "Macros", 1);
@@ -318,12 +321,13 @@ impl<'p> Reader<'p> {
         let title = self.pkg.get_xml("docProps/core.xml").and_then(|c| c.root.child_local("title").map(|t| t.text_content())).filter(|t| !t.trim().is_empty());
         let notes_master = root.child_local("notesMasterIdLst").is_some_and(|l| l.elements().next().is_some());
 
-        let media = self
+        let mut media: Vec<Media> = self
             .media
             .borrow()
             .iter()
             .filter_map(|(path, mime)| Some(Media { path: path.clone(), mime: mime.clone(), bytes: self.pkg.get(path)?.to_vec() }))
             .collect();
+        media.append(&mut font_media);
         let deck = Deck {
             format_version: FORMAT_VERSION,
             width,
@@ -339,6 +343,27 @@ impl<'p> Reader<'p> {
             notes_master,
         };
         Ok(Imported { deck, media })
+    }
+
+    /// Fonts embedded in the presentation (`p:embeddedFontLst`), unwrapped for the browser.
+    /// Faces the browser could not load (compressed EOT) are left out: the substitute shows.
+    fn embedded_fonts(&self) -> (BTreeMap<String, Vec<EmbeddedFace>>, Vec<Media>) {
+        let mut faces: BTreeMap<String, Vec<EmbeddedFace>> = BTreeMap::new();
+        let mut media = Vec::new();
+        let Some(list) = self.pres.doc.root.child_local("embeddedFontLst") else { return (faces, media) };
+        for f in list.children_local("embeddedFont") {
+            let Some(name) = f.child_local("font").and_then(|x| x.attr("typeface")).filter(|n| !n.is_empty()) else { continue };
+            for (slot, weight, italic) in [("regular", 400, false), ("bold", 700, false), ("italic", 400, true), ("boldItalic", 700, true)] {
+                let Some(part) = f.child_local(slot).and_then(|s| s.attr("r:id")).and_then(|rid| self.pres.target(rid)) else { continue };
+                let Some(data) = self.pkg.get(&part).and_then(oel_opc::fonts::sfnt_from_embedded) else { continue };
+                let (ext, mime) = oel_opc::fonts::font_kind(&data);
+                let stem = part.rsplit('/').next().unwrap_or("font").split('.').next().unwrap_or("font").to_string();
+                let path = format!("ppt/fonts/{stem}-{slot}.{ext}");
+                faces.entry(name.to_string()).or_default().push(EmbeddedFace { path: path.clone(), weight, italic });
+                media.push(Media { path, mime: mime.to_string(), bytes: data });
+            }
+        }
+        (faces, media)
     }
 
     fn background(&self, part: &Part, cc: &ColorCtx) -> Option<Paint> {

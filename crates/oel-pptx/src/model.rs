@@ -88,6 +88,19 @@ pub struct DeckFont {
     pub substitute: Option<String>,
     /// CSS `font-family` stack: the font, its local and web substitutes, a generic family.
     pub css: String,
+    /// Faces embedded in the file (`p:embeddedFontLst`), unwrapped, among the media.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
+    pub embedded: Vec<EmbeddedFace>,
+}
+
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelpptx/"))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct EmbeddedFace {
+    /// Media path of the unwrapped font (`ppt/fonts/font1-regular.ttf`); the package keeps its `.fntdata`.
+    pub path: String,
+    pub weight: u16,
+    pub italic: bool,
 }
 
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelpptx/"))]
