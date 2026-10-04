@@ -22,6 +22,7 @@ import { Paper } from './Paper';
 import { SEED_LINKS, SEED_PAPERS } from './seed';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { convertToEditable, importFiles } from './importFiles';
+import { seedFixtures } from './seedFixtures';
 import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
@@ -65,6 +66,9 @@ export function BureauApp() {
   const openId = useDeskState(store, (s) => s.openId);
   const showLinks = useDeskState(store, (s) => s.showLinks);
   const openPaper = useDeskState(store, (s) => (s.openId ? (s.nodes[s.openId] as PaperNode | undefined) : undefined));
+
+  // TEMPORARY: real fixture files in place of two sample papers (see seedFixtures.ts).
+  useEffect(() => seedFixtures(store), [store]);
 
   // Fit the seeded desk once the canvas knows its size.
   useEffect(() => {
