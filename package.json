@@ -13,7 +13,7 @@
     "build": "npm run build -w @oel/web",
     "preview": "npm run preview -w @oel/web",
     "pretypecheck": "node scripts/build-wasm.mjs --if-stale && node scripts/gen-types.mjs",
-    "typecheck": "tsc -p packages/emboss --noEmit && tsc -p packages/desk --noEmit && tsc -p packages/engine --noEmit && tsc -p packages/collab-client --noEmit && tsc -p packages/docs --noEmit && tsc -p packages/sheets --noEmit && tsc -p packages/forms --noEmit && tsc -p apps/collab --noEmit && npm run check -w @oel/web",
+    "typecheck": "tsc -p packages/emboss --noEmit && tsc -p packages/desk --noEmit && tsc -p packages/engine --noEmit && tsc -p packages/collab-client --noEmit && tsc -p packages/docs --noEmit && tsc -p packages/sheets --noEmit && tsc -p packages/slides --noEmit && tsc -p packages/forms --noEmit && tsc -p apps/collab --noEmit && npm run check -w @oel/web",
     "pretest": "node scripts/build-wasm.mjs --if-stale",
     "test": "cargo test --workspace && vitest run",
     "dev:web": "npm run dev -w @oel/web",

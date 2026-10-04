@@ -10,7 +10,15 @@ export interface PageSize {
 /** Lightweight, serialisable preview: what a paper shows on the desk. */
 export type Preview =
   | { kind: 'document'; blocks: Array<{ type: 'heading' | 'paragraph'; text: string }>; pageCount?: number; wordCount?: number; page?: PageSize; background?: string }
-  | { kind: 'slides'; slides: Array<{ title: string; body?: string }> }
+  | {
+      kind: 'slides';
+      slides: Array<{ title: string; body?: string }>;
+      /** Slide size in EMU (the desk paper takes its shape). */
+      size?: { width: number; height: number };
+      /** First slide's background colour and text colour, for the paper. */
+      background?: string;
+      ink?: string;
+    }
   | { kind: 'spreadsheet'; sheets: string[]; rows: string[][] }
   | { kind: 'pdf'; pageCount: number; scanned: boolean; title?: string }
   | { kind: 'image'; width: number; height: number; url?: string }
@@ -47,6 +55,14 @@ export interface WorkbookPayload {
   format: 'oelxlsx-workbook@1';
   json: string;
   /** The original .xlsx; null for CSV (its dialect is in the JSON). */
+  original: Uint8Array | null;
+}
+
+/** oelpptx-rs import result: the deck JSON (as text), its media, and the original .pptx for round trips. */
+export interface DeckPayload {
+  format: 'oelpptx-deck@1';
+  json: string;
+  media: Array<{ path: string; mime: string; bytes: Uint8Array }>;
   original: Uint8Array | null;
 }
 

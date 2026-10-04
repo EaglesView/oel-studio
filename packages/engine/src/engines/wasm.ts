@@ -1,5 +1,6 @@
-import type { DocumentEngine, DocxPayload, ExportRequest, FileKind, ImportResult, Preview, WorkbookPayload } from '../types';
+import type { DeckPayload, DocumentEngine, DocxPayload, ExportRequest, FileKind, ImportResult, Preview, WorkbookPayload } from '../types';
 import type { Workbook } from '../generated/oelxlsx';
+import type { Deck } from '../generated/oelpptx';
 import { PAYLOAD_FORMATS } from '../payload';
 
 /**
@@ -180,6 +181,63 @@ export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngin
       const json = mod.new_workbook_model();
       const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: null };
       return { kind: 'spreadsheet', title: title || 'Tableur sans titre', readOnly: false, preview: { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [] }, payload };
+    },
+  });
+}
+
+/** The parts of the oelpptx-rs wasm package this adapter uses (signatures from its wasm-bindgen `.d.ts`). */
+export type OelpptxModule = Pick<typeof import('oelpptx-rs'), 'pptx_to_deck' | 'new_deck' | 'deck_to_pptx'>;
+
+type DeckOut = { json: string; media: Array<{ path: string; mime: string; bytes: Uint8Array }> };
+
+const runsText = (paras: Deck['slides'][number]['elements'][number]['text'] | undefined) =>
+  (paras?.paras ?? []).map((p) => p.runs.map((r) => (r.kind === 'br' ? ' ' : r.text)).join('').trim()).filter(Boolean);
+
+/** Desk preview of a deck: titles and first lines, the slide shape, the first slide's colours. */
+export function deckPreview(deck: Deck): Preview {
+  const slides = deck.slides.slice(0, 40).map((s, i) => {
+    const title = s.elements.find((e) => e.ph && /title/i.test(e.ph.type));
+    const others = s.elements.filter((e) => e !== title && e.text).flatMap((e) => runsText(e.text));
+    return { title: runsText(title?.text)[0] ?? others[0] ?? `Diapositive ${i + 1}`, body: others.slice(title ? 0 : 1, 3).join(' · ') || undefined };
+  });
+  const first = deck.slides[0];
+  const layout = first && deck.layouts.find((l) => l.id === first.layout);
+  const bg = first?.background ?? layout?.background;
+  const background = bg?.type === 'solid' ? bg.color : bg?.type === 'gradient' ? bg.stops[0]?.color : undefined;
+  const titleEl = first?.elements.find((e) => e.ph && /title/i.test(e.ph.type));
+  const ink = titleEl?.text?.levels[0]?.color;
+  return { kind: 'slides', slides, size: { width: deck.width, height: deck.height }, ...(background ? { background } : {}), ...(ink ? { ink } : {}) };
+}
+
+/**
+ * oelpptx-rs: lossless .pptx ↔ deck JSON. Imports carry a `DeckPayload` (deck
+ * JSON + media + the original file) for `@oel/slides`; exports patch the
+ * edited JSON back into a copy of the original package.
+ */
+export function createOelpptxEngine(load: () => Promise<unknown>): DocumentEngine {
+  return createWasmEngine<OelpptxModule>({
+    id: 'oelpptx-rs',
+    kinds: ['slides'],
+    // .ppt, .odp and .key stay previews (read-only).
+    accepts: (name) => /\.(pptx|pptm|ppsx|potx)$/i.test(name),
+    load: load as WasmEngineSpec<OelpptxModule>['load'],
+    run(mod, bytes, name) {
+      if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error('Format non pris en charge par le moteur de présentations (.pptx)');
+      const out = mod.pptx_to_deck(bytes) as DeckOut;
+      const deck = JSON.parse(out.json) as Deck;
+      const payload: DeckPayload = { format: PAYLOAD_FORMATS.deck, json: out.json, media: out.media, original: bytes };
+      return { kind: 'slides', title: deck.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: deckPreview(deck), payload };
+    },
+    export(mod, req) {
+      if (req.format !== 'pptx') throw new Error(`Format d’export inconnu : ${req.format}`);
+      const d = req.data as { json: unknown; original: Uint8Array | null; media: Array<{ path: string; bytes: Uint8Array }> };
+      return mod.deck_to_pptx(typeof d.json === 'string' ? d.json : JSON.stringify(d.json), d.original ?? undefined, d.media ?? []);
+    },
+    create(mod, _kind, title) {
+      const out = mod.new_deck() as DeckOut;
+      const deck = JSON.parse(out.json) as Deck;
+      const payload: DeckPayload = { format: PAYLOAD_FORMATS.deck, json: out.json, media: out.media, original: null };
+      return { kind: 'slides', title: title || 'Présentation sans titre', readOnly: false, preview: deckPreview(deck), payload };
     },
   });
 }

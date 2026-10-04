@@ -7,13 +7,16 @@
     ".": "./src/index.ts",
     "./worker": "./src/worker/engine.worker.ts",
     "./generated/oelxlsx": "./src/generated/oelxlsx/index.ts",
-    "./generated/oeldocx": "./src/generated/oeldocx/index.ts"
+    "./generated/oeldocx": "./src/generated/oeldocx/index.ts",
+    "./generated/oelpptx": "./src/generated/oelpptx/index.ts"
   },
   "dependencies": {
     "oeldocx-rs": "file:../wasm/oel-docx/web",
-    "oelxlsx-rs": "file:../wasm/oel-xlsx/web"
+    "oelxlsx-rs": "file:../wasm/oel-xlsx/web",
+    "oelpptx-rs": "file:../wasm/oel-pptx/web"
   },
   "devDependencies": {
-    "oeldocx-node": "file:../wasm/oel-docx/node"
+    "oeldocx-node": "file:../wasm/oel-docx/node",
+    "oelpptx-node": "file:../wasm/oel-pptx/node"
   }
 }

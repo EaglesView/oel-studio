@@ -2,7 +2,7 @@ import type { FileKind } from './types';
 
 const BY_EXTENSION: Record<string, FileKind> = {
   docx: 'document', doc: 'document', odt: 'document', rtf: 'document', txt: 'document', md: 'document',
-  pptx: 'slides', ppt: 'slides', odp: 'slides', key: 'slides',
+  pptx: 'slides', pptm: 'slides', ppsx: 'slides', potx: 'slides', ppt: 'slides', odp: 'slides', key: 'slides',
   xlsx: 'spreadsheet', xlsm: 'spreadsheet', xls: 'spreadsheet', ods: 'spreadsheet', csv: 'spreadsheet', tsv: 'spreadsheet',
   pdf: 'pdf',
   png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', svg: 'image', avif: 'image', heic: 'image',

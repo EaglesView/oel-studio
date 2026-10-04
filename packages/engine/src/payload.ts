@@ -1,10 +1,11 @@
-import type { DocxPayload, WorkbookPayload } from './types';
+import type { DeckPayload, DocxPayload, WorkbookPayload } from './types';
 
 /** Payload formats this build understands. Bump with the codec when its JSON breaks. */
 export const PAYLOAD_FORMATS = {
   docx: 'oeldocx-pm@2',
   workbook: 'oelxlsx-workbook@1',
-} as const satisfies { docx: DocxPayload['format']; workbook: WorkbookPayload['format'] };
+  deck: 'oelpptx-deck@1',
+} as const satisfies { docx: DocxPayload['format']; workbook: WorkbookPayload['format']; deck: DeckPayload['format'] };
 
 /** Thrown when an engine payload has a format this build does not read. */
 export class PayloadFormatError extends Error {
@@ -32,3 +33,6 @@ export const asDocxPayload = (payload: unknown): DocxPayload => check<DocxPayloa
 
 /** The payload as a `WorkbookPayload`, or a fr-CA `PayloadFormatError`. */
 export const asWorkbookPayload = (payload: unknown): WorkbookPayload => check<WorkbookPayload>(payload, PAYLOAD_FORMATS.workbook);
+
+/** The payload as a `DeckPayload`, or a fr-CA `PayloadFormatError`. */
+export const asDeckPayload = (payload: unknown): DeckPayload => check<DeckPayload>(payload, PAYLOAD_FORMATS.deck);

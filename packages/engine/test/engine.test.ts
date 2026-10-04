@@ -105,3 +105,29 @@ describe('oeldocx engine', () => {
     expect(csv.engine).not.toBe('oeldocx-rs');
   });
 });
+
+describe('oelpptx engine', () => {
+  it('imports .pptx with a payload, exports, creates decks, and leaves .ppt to the preview engine', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { createOelpptxEngine, EngineRegistry, previewEngine, asDeckPayload } = await import('../src');
+    const mod = createRequire(import.meta.url)('oelpptx-node');
+    const registry = new EngineRegistry().register(previewEngine).register(createOelpptxEngine(async () => mod));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../fixtures/pptx/Presentation 3.pptx', import.meta.url))));
+    const res = await registry.import({ name: 'Presentation 3.pptx', type: '', bytes });
+    expect(res.engine).toBe('oelpptx-rs');
+    expect(res.kind).toBe('slides');
+    // Portrait 4:3 deck: the desk paper takes its shape.
+    expect(res.preview).toMatchObject({ kind: 'slides', size: { width: 6858000, height: 9144000 } });
+    const payload = asDeckPayload(res.payload);
+    const out = await registry.export({ kind: 'slides', format: 'pptx', data: { json: JSON.parse(payload.json), original: payload.original, media: [] } });
+    expect([out[0], out[1]]).toEqual([0x50, 0x4b]);
+    const blank = await registry.create('slides', 'Nouvelle');
+    expect(blank.title).toBe('Nouvelle');
+    expect(asDeckPayload(blank.payload).original).toBeNull();
+    expect(detectKind({ name: 'vieux.ppt' })).toBe('slides');
+    const old = await registry.import({ name: 'vieux.ppt', type: '', bytes: new Uint8Array([0xd0, 0xcf, 0x11, 0xe0]) }).catch((e: Error) => e);
+    expect(old instanceof Error ? old.message : (old as { engine: string }).engine).not.toBe('oelpptx-rs');
+  });
+});
