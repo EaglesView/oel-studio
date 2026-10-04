@@ -34,6 +34,14 @@ If the user gave a Figma link, read it with the Figma tools before coding.
 - Grid is canvas (`grid/render.ts`, `geometry.ts`, `selection.ts`); interaction in `ui/controller.ts`. Keep the a11y mirror in `Grid.tsx` in sync.
 - Tests: `test/{model,calc,fill}.test.ts`.
 
+### Slides (`packages/slides`)
+- The deck JSON (`model/types.ts`, generated from `crates/oel-pptx`) separates **explicit** values (`fill`, `line`, run/paragraph `props`: written back) from **inherited display** values (`look`, `text.levels`, a placeholder's box: resolved by the codec from layout → master → theme). Renderers merge them (`effectiveFill`, `resolveRun`, `resolvePara`); edits only ever set explicit values.
+- Y.Doc (`model/ydoc.ts`, `FORMAT_VERSION`): `order` + `slides` map; each element is a Y.Map of facets (`box`, `fill`, `line`, `geom`, `text`, `name`, `image`, `table`, `base`) so concurrent edits of different facets merge. `toDeck()` must give back exactly the codec's JSON for untouched elements — that is how the writer keeps them byte for byte (`test/model.test.ts` checks it through Yjs).
+- Geometry: `model/geometry.ts` evaluates DrawingML guides for presets (`PRESETS`, add shapes there from ECMA-376 `presetShapeDefinitions.xml`) and freeforms; unknown presets draw as rectangles.
+- UI: `ui/render.tsx` draws slides everywhere (canvas, filmstrip, slideshow, presenter, print, versions) in points; `ui/controller.ts` holds commands/selection/undo; `ui/Canvas.tsx` (move/resize/rotate/snap, marquee); `ui/TextEditor.tsx` (ProseMirror per text body, `run` mark carries raw `rPr`); `ui/Slideshow.tsx` (presenter window via portal).
+- Text is last-writer-wins per text body (not character-merged like docs). Group members and table structure are not editable yet (writer keeps them).
+- Tests: `test/{geometry,model}.test.ts`; codec round trips in `crates/oel-pptx/tests/roundtrip.rs`.
+
 ### Forms (`packages/forms`)
 - Model in `src/model` (types, creation, validation, linked-sheet mapping `applyResponses`/`syncLink`).
 - All server calls go through `FormsBackend` (`src/api/backend.ts`); never call `fetch` from UI. Server-side work → `oel-collab-backend`.

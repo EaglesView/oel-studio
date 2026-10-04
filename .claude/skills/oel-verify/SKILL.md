@@ -12,7 +12,7 @@ Run what applies, report actual results (paste failures, don't paraphrase them).
 ```bash
 cargo test --workspace           # from the oel-studio root
 cargo clippy --workspace --all-targets -- -D warnings   # needs the clippy component (Fedora: dnf install clippy)
-cargo check --workspace --target wasm32-unknown-unknown --features oel-docx/wasm,oel-xlsx/wasm
+cargo check --workspace --target wasm32-unknown-unknown --features oel-docx/wasm,oel-xlsx/wasm,oel-pptx/wasm
 npm run build:wasm               # web + node targets into packages/wasm/
 ```
 A stale `packages/wasm/` is the most common cause of "works in Rust, broken in the app"
@@ -36,6 +36,7 @@ Pick the rows your change touches; use the `run` skill or the browser tools to d
 | Levels | Double-click opens in place; Ctrl+Maj+Entrée full screen; Esc goes back one level at a time; URL per level |
 | Docs `/document` | Edit, export .docx, reopen; share link in a private window (editor/viewer roles); offline edit with collab stopped then resync |
 | Sheets `/tableur` | Formulas recalc, fill, copy/paste, export .xlsx/.csv and reopen |
+| Slides `/presentation` | Open the `fixtures/pptx` decks (look matches PowerPoint), move/resize/type, new slide from a layout, notes, F5 slideshow + presenter window, export .pptx and reopen it in PowerPoint/LibreOffice |
 | Forms | Create from sheet → publish → respond at `/f?s=…` → row appears in the sheet |
 | Themes | Light and dark (`ThemeToggle`), keyboard focus rings visible |
 

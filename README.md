@@ -195,7 +195,8 @@ Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock �
 | Contextual toolbar per type (B2), multi-selection actions (B7) | Working |
 | Comments | Removed from papers; planned as a canvas-wide feature |
 | Documents (.docx): full editor, lossless round trip, offline, sharing, versions | Working (`@oel/docs` + `apps/collab`) |
-| Open in place (B4): slides (filmstrip + notes), spreadsheet (editable grid, live sum), PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
+| Presentations (.pptx): editor (filmstrip, shapes, text, pictures, layouts, notes), slideshow + presenter window, lossless round trip, offline, sharing, versions, `/presentation` | Working (`@oel/slides` + `crates/oel-pptx` + `apps/collab`). Kept but not editable: animations, transitions, charts, SmartArt, group members, table structure |
+| Open in place (B4): PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
 | Import (B8): drop / file picker → worker → paper with progress, read-only states, toast | Working with the JS preview engine |
 | PDF → editable document (06) | **Simulated progress**; the new document says so |
 | Crop/OCR/cut-out, themes, export, "one PDF from selection" | Disabled tools that explain why (engines not wired) |

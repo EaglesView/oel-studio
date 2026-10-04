@@ -96,6 +96,6 @@ The big front-end scalability win (ARCHITECTURE §5).
 
 - [ ] `oelimg-rs` → `crates/oel-img` (bump `image` 0.24 → current; `wasm` feature); wire crop/resize/filters into the image kind (removes the disabled-with-reason tools). Keep publishing the npm package from the monorepo if the old site still needs it.
 - [ ] Tools site → `apps/tools` on `@oel/emboss`; retire its PixiJS editor and the legacy `DocxController`; archive `oeldocx_rs`.
-- [ ] Slides kind: `crates/oel-pptx` on `oel-opc`, same codec pattern; `@oel/slides` editor.
+- [x] Slides kind: `crates/oel-pptx` on `oel-opc`, same codec pattern; `@oel/slides` editor.
 - [ ] PDF: decide engine (pdfium via WASM vs pdf.js for view + Rust for edits) before building "convert to editable".
 - [ ] Remove the 2-line re-export shims in `packages/docs/src/collab/*` and `packages/docs/src/ui/{MenuBar,SyncStatus}.tsx` once nothing imports them.

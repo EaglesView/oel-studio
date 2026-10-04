@@ -20,7 +20,7 @@ description: Add a new file/paper kind to the OutilsEnLigne Bureau (e.g. slides/
 7. **Open in place / full screen (B4, levels 2–3)** — workspace component in `apps/web/src/bureau/workspaces/`, wired in `OpenSheet.tsx`. Respect Esc one level at a time (inner layers `stopPropagation`) and a URL per level.
 8. **Import glue** — `apps/web/src/bureau/importFiles.ts` (payload → collab doc → `docId` on the paper), plus a `bureau/<kind>.ts` helper like `docs.ts` / `sheets.ts`.
 9. **Standalone page** (optional) — `apps/web/src/pages/<route>.astro` mounting a page component (`document.astro` / `tableur.astro` are the patterns).
-10. **Collaboration** (optional) — editor package `packages/<kind>` with `model/` (pure, Yjs) + `ui/`, session built on `@oel/collab-client`; server kind in `apps/collab/src/db.ts` (`DocKind`) and the `kind === 'sheet' ? …` branches in `apps/collab/src/server.ts` (create, mime, export).
+10. **Collaboration** (optional) — editor package `packages/<kind>` with `model/` (pure, Yjs) + `ui/`, session built on `@oel/collab-client` (`MediaStore` for pictures); `DocKind` in `packages/collab-client/src/api.ts` (+ `SHARE_PATH`, IDB prefix and package mime in `session.ts`) and `apps/collab/src/db.ts`; the `KINDS` table and an `export.<ext>` route in `apps/collab/src/server.ts`. Slides (`bureau/slides.ts`, `SlidesWorkspace`, `/presentation`) is the most recent complete example.
 11. **Docs** — README "What's real and what's stubbed" table and the Figma ↔ code table.
 
 ## Checklist
