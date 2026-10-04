@@ -31,6 +31,7 @@ pub const SUBSTITUTES: &[Substitute] = &[
     Substitute { word: &["garamond", "adobe garamond pro"], local: None, open: "EB Garamond", generic: "serif", licence: "OFL-1.1" },
     Substitute { word: &["franklin gothic book", "franklin gothic medium", "franklin gothic demi"], local: None, open: "Libre Franklin", generic: "sans-serif", licence: "OFL-1.1" },
     Substitute { word: &["trebuchet ms"], local: None, open: "Fira Sans", generic: "sans-serif", licence: "OFL-1.1" },
+    Substitute { word: &["kunstler script", "edwardian script itc", "vivaldi"], local: None, open: "Great Vibes", generic: "cursive", licence: "OFL-1.1" },
 ];
 
 /// The substitute for a font, also for a family's variants (`Gill Sans Nova Light`
@@ -127,6 +128,7 @@ mod tests {
         assert_eq!(substitute_for("Gill Sans Nova Light").map(|s| s.open), Some("Lato"));
         assert_eq!(substitute_for("Times New Roman").map(|s| s.open), Some("Tinos"));
         assert!(substitute_for("Times Square Display").is_some_and(|s| s.open == "Tinos"));
+        assert_eq!(css_font("Kunstler Script"), "\"Kunstler Script\", \"Great Vibes\", cursive");
     }
 
     /// An EOT wrapper around `font`: header (with the 0x504C magic at 34), then the data.

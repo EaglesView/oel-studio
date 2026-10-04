@@ -10,6 +10,7 @@ import type { HeaderFooterKind } from '../model/types';
 import { pageKind, type PageInfo } from '../model/sections';
 import { sanitizeStylesheet } from '../model/format';
 import { useDocEditor, useDocMeta } from './useDocEditor';
+import { fontNoticeOnFirstOpen } from './fonts';
 import { DocsToolbar, TableBar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
 import { MenuBar, MoreMenu, type MenuSpec } from './MenuBar';
 import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
@@ -90,6 +91,7 @@ export function DocsEditor(props: DocsEditorProps) {
   const sheet = variant === 'sheet';
   const status = useSessionStatus(session);
   const docMeta = useDocMeta(session);
+  useEffect(() => fontNoticeOnFirstOpen(session.status.docId, docMeta.fonts, session.mediaUrl, (n) => toast({ ...n, tone: 'warning' })), [session, docMeta.fonts]);
   const [mode, setMode] = useState<'edit' | 'view'>('edit');
   const [paginated, setPaginated] = useState(true);
   const [zoom, setZoom] = useState(1);

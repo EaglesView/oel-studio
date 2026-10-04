@@ -78,6 +78,9 @@ const WEB_FONTS: Record<string, Array<[number, UrlModule, UrlModule]>> = {
     [400, () => import('@fontsource/libre-franklin/files/libre-franklin-latin-400-normal.woff2?url'), () => import('@fontsource/libre-franklin/files/libre-franklin-latin-ext-400-normal.woff2?url')],
     [700, () => import('@fontsource/libre-franklin/files/libre-franklin-latin-700-normal.woff2?url'), () => import('@fontsource/libre-franklin/files/libre-franklin-latin-ext-700-normal.woff2?url')],
   ],
+  'Great Vibes': [
+    [400, () => import('@fontsource/great-vibes/files/great-vibes-latin-400-normal.woff2?url'), () => import('@fontsource/great-vibes/files/great-vibes-latin-ext-400-normal.woff2?url')],
+  ],
   'Fira Sans': [
     [400, () => import('@fontsource/fira-sans/files/fira-sans-latin-400-normal.woff2?url'), () => import('@fontsource/fira-sans/files/fira-sans-latin-ext-400-normal.woff2?url')],
     [700, () => import('@fontsource/fira-sans/files/fira-sans-latin-700-normal.woff2?url'), () => import('@fontsource/fira-sans/files/fira-sans-latin-ext-700-normal.woff2?url')],
@@ -136,28 +139,86 @@ export function fontLabel(name: string, fonts: FontSpec[], available: (name: str
 
 const registered = new Set<string>();
 
+/** Fonts of a file that this machine cannot show as they are (neither embedded nor installed). */
+export interface FontReport {
+  /** Drawn with their open look-alike. */
+  substituted: Array<{ name: string; substitute: string }>;
+  /** No look-alike: drawn with the generic fallback. */
+  missing: string[];
+}
+
 /**
  * Make a file's fonts render: embedded faces as FontFaces (once per URL),
  * missing fonts' substitutes from the self-hosted web fonts. Resolves when
- * they are loaded; a face that fails to load is skipped (the substitute or
- * the CSS fallback shows instead).
+ * they are loaded, with the fonts that do not show as they are; a face that
+ * fails to load is skipped (the substitute or the CSS fallback shows instead).
  */
-export async function loadFonts(fonts: FontSpec[], mediaUrl: (path: string) => string | null): Promise<void> {
-  if (typeof document === 'undefined' || !document.fonts) return;
+export async function loadFonts(fonts: FontSpec[], mediaUrl: (path: string) => string | null): Promise<FontReport> {
+  const report: FontReport = { substituted: [], missing: [] };
+  if (typeof document === 'undefined' || !document.fonts) return report;
   const tasks: Array<Promise<unknown>> = [];
   for (const f of fonts) {
-    let embedded = false;
+    const faces: Array<Promise<boolean>> = [];
     for (const face of f.embedded ?? []) {
       const url = mediaUrl(face.path);
       if (!url) continue;
-      embedded = true;
       const key = `${f.name}|${url}`;
-      if (registered.has(key)) continue;
+      if (registered.has(key)) {
+        faces.push(Promise.resolve(true));
+        continue;
+      }
       registered.add(key);
       const ff = new FontFace(f.name, `url("${url}")`, { weight: String(face.weight), style: face.italic ? 'italic' : 'normal' });
-      tasks.push(ff.load().then((x) => document.fonts.add(x), () => registered.delete(key)));
+      faces.push(
+        ff.load().then(
+          (x) => (document.fonts.add(x), true),
+          () => (registered.delete(key), false),
+        ),
+      );
     }
-    if (!embedded && f.substitute && !isFontAvailable(f.name)) tasks.push(loadWebFont(f.substitute));
+    tasks.push(
+      Promise.all(faces).then(async (ok) => {
+        if (ok.some(Boolean) || isFontAvailable(f.name)) return;
+        if (f.substitute) {
+          report.substituted.push({ name: f.name, substitute: f.substitute });
+          await loadWebFont(f.substitute);
+        } else report.missing.push(f.name);
+      }),
+    );
   }
   await Promise.all(tasks);
+  return report;
+}
+
+const list = (names: string[]) => (names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`);
+
+/**
+ * What to tell someone opening a file whose fonts are not all here (null
+ * when they are). The file keeps its fonts: only the screen differs.
+ */
+export function fontNotice(report: FontReport): { title: string; description: string } | null {
+  const { substituted, missing } = report;
+  const n = substituted.length + missing.length;
+  if (!n) return null;
+  const parts = [
+    ...substituted.map((f) => `${f.name} est remplacée par ${f.substitute}`),
+    ...(missing.length ? [`${list(missing)} ${missing.length > 1 ? 's’affichent' : 's’affiche'} dans une police par défaut`] : []),
+  ];
+  const lead = n > 1 ? 'Elles ne sont ni intégrées au fichier ni installées sur cet appareil' : 'Elle n’est ni intégrée au fichier ni installée sur cet appareil';
+  return {
+    title: n > 1 ? `${n} polices ne sont pas dans ce fichier` : 'Une police n’est pas dans ce fichier',
+    description: `${lead} : ${parts.join(' ; ')}. Le fichier ${n > 1 ? 'les' : 'la'} garde à l’export.`,
+  };
+}
+
+/** Whether the font notice for a file still has to be shown in this browser (then remembers it was). */
+export function firstFontNotice(fileId: string): boolean {
+  const key = `oel:font-notice:${fileId}`;
+  try {
+    if (localStorage.getItem(key)) return false;
+    localStorage.setItem(key, '1');
+  } catch {
+    // No storage (private window…): show it on every open.
+  }
+  return true;
 }

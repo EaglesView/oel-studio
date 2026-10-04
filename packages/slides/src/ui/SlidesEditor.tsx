@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Dialog } from 'react-aria-components';
 import { Badge, Button, DialogOverlay, Icon, Popover, SheetDialog, Checkbox, toast } from '@oel/emboss';
 import { IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, VersionPanel, useSessionStatus, type Identity, type MenuSpec } from '@oel/collab-client';
-import { loadFonts } from '@oel/fonts';
+import { firstFontNotice, fontNotice, loadFonts } from '@oel/fonts';
 import type * as Y from 'yjs';
 import type { SlideSession } from '../collab/session';
 import { SlidesDoc } from '../model/ydoc';
@@ -120,9 +120,17 @@ export function SlidesEditor(props: SlidesEditorProps) {
   const [titleDraft, setTitleDraft] = useState(props.title);
   useEffect(() => setTitleDraft(props.title), [props.title]);
 
-  // The deck's embedded fonts, and open substitutes for the fonts this machine lacks.
+  // The deck's embedded fonts, and open substitutes for the fonts this machine lacks;
+  // the first time a deck opens here, say which fonts do not show as they are.
   useEffect(() => {
-    void loadFonts(info.fonts, session.media.url).then(() => setFontsReady((n) => n + 1));
+    let alive = true;
+    void loadFonts(info.fonts, session.media.url).then((report) => {
+      if (!alive) return;
+      setFontsReady((n) => n + 1);
+      const notice = fontNotice(report);
+      if (notice && firstFontNotice(session.status.docId)) toast({ ...notice, tone: 'warning' });
+    });
+    return () => void (alive = false);
   }, [info.fonts, session]);
 
   // Desk thumbnail, debounced.
