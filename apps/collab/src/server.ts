@@ -170,10 +170,16 @@ export function createCollabServer(o: CollabOptions) {
     const p = need(c, ['owner', 'editor']);
     if (p instanceof Response) return p;
     const path = c.req.query('path') ?? '';
-    if (!/^word\/media\/[\w.-]+\.(png|jpe?g|gif|bmp|svg|webp|tiff?|emf|wmf)$/i.test(path)) return c.json({ error: 'Chemin d’image invalide' }, 400);
     const mime = c.req.header('content-type') ?? 'application/octet-stream';
-    if (!mime.startsWith('image/')) return c.json({ error: 'Seules les images sont acceptées' }, 415);
-    const id = store.addMedia(p.d, path, mime, new Uint8Array(await c.req.arrayBuffer()));
+    // Pictures of documents and presentations, and the fonts they embed (unwrapped by the codecs).
+    const picturePath = /^(word|ppt)\/media\/[\w.-]+\.(png|jpe?g|gif|bmp|svg|webp|tiff?|emf|wmf)$/i.test(path);
+    const fontPath = /^(word|ppt)\/fonts\/[\w.-]+\.(ttf|otf)$/i.test(path);
+    if (!picturePath && !fontPath) return c.json({ error: 'Chemin de fichier invalide' }, 400);
+    if (picturePath ? !mime.startsWith('image/') : !mime.startsWith('font/')) return c.json({ error: 'Seules les images et les polices du document sont acceptées' }, 415);
+    const bytes = new Uint8Array(await c.req.arrayBuffer());
+    const sfnt = [[0, 1, 0, 0], [0x4f, 0x54, 0x54, 0x4f], [0x74, 0x72, 0x75, 0x65]].some((sig) => sig.every((v, i) => bytes[i] === v));
+    if (fontPath && !sfnt) return c.json({ error: 'Police illisible' }, 415);
+    const id = store.addMedia(p.d, path, mime, bytes);
     return c.json({ id, url: `${o.publicUrl}/media/${id}` }, 201);
   });
 

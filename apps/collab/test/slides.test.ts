@@ -71,6 +71,13 @@ describe('presentations on the collaboration server', () => {
     const back = JSON.parse(codec.pptx_to_deck(new Uint8Array(await x.arrayBuffer())).json) as Deck;
     expect(back.slides).toHaveLength(8);
     expect(plainText(back.slides[1]!.elements[0]!.text)).toBe('Hommage');
+    // Pictures and unwrapped fonts of a presentation upload; anything else does not.
+    const up = (path: string, type: string, body: Uint8Array) => fetch(`${base}/docs/${docId}/media?path=${encodeURIComponent(path)}`, { method: 'POST', body: body as Uint8Array<ArrayBuffer>, headers: { Authorization: `Bearer ${ownerToken}`, 'Content-Type': type } });
+    expect((await up('ppt/media/oel-a.png', 'image/png', new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).status).toBe(201);
+    expect((await up('ppt/fonts/font1-regular.ttf', 'font/ttf', new Uint8Array([0, 1, 0, 0, 9, 9]))).status).toBe(201);
+    expect((await up('ppt/fonts/font1-regular.ttf', 'font/ttf', new Uint8Array([1, 2, 3, 4]))).status).toBe(415);
+    expect((await up('ppt/slides/slide1.xml', 'image/png', new Uint8Array([1]))).status).toBe(400);
+    expect((await up('ppt/media/oel-b.png', 'font/ttf', new Uint8Array([0, 1, 0, 0]))).status).toBe(415);
     a.provider.destroy();
     b.provider.destroy();
   });
