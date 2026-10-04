@@ -17,7 +17,7 @@ import { Canvas, pickPicture } from './Canvas';
 import { Filmstrip } from './Filmstrip';
 import { ScaledSlide, type RenderCtx } from './render';
 import { SlidesToolbar } from './SlidesToolbar';
-import { Slideshow } from './Slideshow';
+import { Slideshow, openPresenterWindow } from './Slideshow';
 
 export interface ExportRequest {
   format: 'pptx';
@@ -112,6 +112,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   const [showVersions, setShowVersions] = useState(false);
   const [dialog, setDialog] = useState<'share' | 'identity' | 'background' | null>(null);
   const [show, setShow] = useState<number | null>(() => (props.autoPresent ? 0 : null));
+  const [presenterWin, setPresenterWin] = useState<Window | null>(null);
   const [printing, setPrinting] = useState(false);
   const [, setFontsReady] = useState(0);
   const stageBox = useRef<HTMLDivElement>(null);
@@ -119,7 +120,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   const [titleDraft, setTitleDraft] = useState(props.title);
   useEffect(() => setTitleDraft(props.title), [props.title]);
 
-  // Fonts the deck uses that this machine lacks: their open substitutes.
+  // The deck's embedded fonts, and open substitutes for the fonts this machine lacks.
   useEffect(() => {
     void loadFonts(info.fonts, session.media.url).then(() => setFontsReady((n) => n + 1));
   }, [info.fonts, session]);
@@ -200,6 +201,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       items: [
         { id: 'present', label: 'Diaporama depuis le début', icon: 'play', shortcut: 'F5' },
         { id: 'present-here', label: 'Diaporama depuis cette diapositive', shortcut: 'Maj+F5' },
+        { id: 'presenter', label: 'Vue présentateur', icon: 'laptop', shortcut: 'Alt+F5' },
         '-',
         { id: 'notes', label: 'Notes de l’orateur', checked: showNotes },
         { id: 'zoom-fit', label: 'Ajuster à la fenêtre', checked: zoom === 'fit' },
@@ -273,6 +275,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       'select-all': () => ctl.selectAll(),
       present: () => present(0),
       'present-here': () => present(ctl.index),
+      presenter: () => (setPresenterWin(openPresenterWindow()), present(ctl.index)),
       notes: () => setShowNotes((v) => !v),
       'zoom-fit': () => setZoom('fit'),
       'new-slide': () => void ctl.newSlide(),
@@ -288,6 +291,12 @@ export function SlidesEditor(props: SlidesEditorProps) {
 
   const onKeyDown = (e: RKeyboardEvent) => {
     const mod = e.ctrlKey || e.metaKey;
+    if (e.key === 'F5' && e.altKey) {
+      // Alt+F5: the « Présentateur » window on this screen, the show full screen (drag one to the other screen).
+      e.preventDefault();
+      setPresenterWin(openPresenterWindow());
+      return present(ctl.index);
+    }
     if (e.key === 'F5') {
       e.preventDefault();
       return present(e.shiftKey ? ctl.index : 0);
@@ -420,7 +429,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
         </footer>
       )}
 
-      {show != null && <Slideshow ctl={ctl} ctx={ctx} start={show} onExit={() => setShow(null)} />}
+      {show != null && <Slideshow ctl={ctl} ctx={ctx} start={show} presenterWindow={presenterWin} onExit={() => (setShow(null), setPresenterWin(null))} />}
       {printing && <PrintDeck ctl={ctl} ctx={ctx} onDone={() => setPrinting(false)} />}
       <BackgroundDialog ctl={ctl} isOpen={dialog === 'background'} onClose={() => setDialog(null)} />
       <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />

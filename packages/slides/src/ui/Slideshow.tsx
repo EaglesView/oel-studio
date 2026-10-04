@@ -24,12 +24,34 @@ function useWindowSize(win: Window | null) {
   return size;
 }
 
-const clock = (ms: number) => {
+/** Elapsed time: `12:48`, `1:02:03` past an hour. */
+const elapsed = (ms: number) => {
   const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 };
 
-export function Slideshow({ ctl, ctx, start, onExit }: { ctl: SlidesController; ctx: RenderCtx; start: number; onExit: () => void }) {
+/** Time of day the fr-CA way: « 14 h 32 ». */
+const timeOfDay = (d: Date) => `${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`;
+
+/**
+ * Open the « Présentateur » window (call it from the click or key that asks,
+ * or the browser blocks it). It gets this page's styles so slides draw alike.
+ */
+export function openPresenterWindow(): Window | null {
+  const w = window.open('', 'oel-presenter', 'width=1180,height=720');
+  if (!w) return null;
+  w.document.title = 'Présentateur · OutilsEnLigne';
+  w.document.head.replaceChildren(...[...document.querySelectorAll('style, link[rel="stylesheet"]')].map((n) => n.cloneNode(true)));
+  w.document.documentElement.lang = 'fr-CA';
+  w.document.body.className = 'oel-presenter-body';
+  w.document.body.replaceChildren();
+  return w;
+}
+
+export function Slideshow({ ctl, ctx, start, onExit, presenterWindow = null }: { ctl: SlidesController; ctx: RenderCtx; start: number; onExit: () => void; presenterWindow?: Window | null }) {
   const all = ctl.doc.slideIds();
   const startId = all[start];
   // Hidden slides are skipped, unless the show starts on one.
@@ -37,7 +59,7 @@ export function Slideshow({ ctl, ctx, start, onExit }: { ctl: SlidesController; 
   const [i, setI] = useState(() => Math.max(0, ids.indexOf(startId ?? '')));
   const [blank, setBlank] = useState<'black' | 'white' | null>(null);
   const [typed, setTyped] = useState('');
-  const [presenter, setPresenter] = useState<Window | null>(null);
+  const [presenter, setPresenter] = useState<Window | null>(presenterWindow);
   const [chrome, setChrome] = useState(false);
   const [started] = useState(() => Date.now());
   const root = useRef<HTMLDivElement>(null);
@@ -81,23 +103,27 @@ export function Slideshow({ ctl, ctx, start, onExit }: { ctl: SlidesController; 
     if (k === 'b' || k === 'B' || k === '.') return stop(), setBlank('black');
     if (k === 'w' || k === 'W' || k === ',') return stop(), setBlank('white');
     if (k === 'Escape') return stop(), exit();
+    if (k === 'F5' && e.altKey) return stop(), openPresenter();
   };
   const keyRef = useRef(onKey);
   keyRef.current = onKey;
 
   const openPresenter = () => {
     if (presenter && !presenter.closed) return presenter.focus();
-    const w = window.open('', 'oel-presenter', 'width=1100,height=680');
-    if (!w) return;
-    w.document.title = 'Mode présentateur · OutilsEnLigne';
-    // Same styles as here, so slides draw the same.
-    for (const n of document.querySelectorAll('style, link[rel="stylesheet"]')) w.document.head.appendChild(n.cloneNode(true));
-    w.document.documentElement.dataset.theme = document.documentElement.dataset.theme ?? '';
-    w.document.body.className = 'oel-presenter-body';
-    w.addEventListener('keydown', (e) => keyRef.current(e));
-    w.addEventListener('beforeunload', () => setPresenter(null));
-    setPresenter(w);
+    setPresenter(openPresenterWindow());
   };
+  // Keys pressed in the presenter window drive the show too; closing it just closes it.
+  useEffect(() => {
+    if (!presenter) return;
+    const onKey = (e: KeyboardEvent) => keyRef.current(e);
+    const onClose = () => setPresenter(null);
+    presenter.addEventListener('keydown', onKey);
+    presenter.addEventListener('beforeunload', onClose);
+    return () => {
+      presenter.removeEventListener('keydown', onKey);
+      presenter.removeEventListener('beforeunload', onClose);
+    };
+  }, [presenter]);
   useEffect(() => () => presenter?.close(), [presenter]);
 
   const slideW = Math.min(size.w, (size.h * info.width) / info.height);
@@ -135,8 +161,8 @@ export function Slideshow({ ctl, ctx, start, onExit }: { ctl: SlidesController; 
           {Math.min(i + 1, ids.length)} / {ids.length}
         </span>
         <Button size="icon-sm" variant="ghost" leadingIcon="chevron-right" aria-label="Diapositive suivante" onPress={() => go(i + 1)} />
-        <Button size="sm" variant="ghost" leadingIcon="laptop" onPress={openPresenter}>
-          Mode présentateur
+        <Button size="sm" variant="ghost" leadingIcon="laptop" aria-keyshortcuts="Alt+F5" onPress={openPresenter}>
+          Présentateur
         </Button>
         <Button size="sm" variant="ghost" leadingIcon="close" onPress={exit}>
           Terminer
@@ -152,6 +178,7 @@ export function Slideshow({ ctl, ctx, start, onExit }: { ctl: SlidesController; 
   );
 }
 
+/** The « Présentateur » window (Editor — Behaviors · vue présentateur). */
 function Presenter({ ctl, ids, i, ctx, started, win, onGo, onExit }: { ctl: SlidesController; ids: string[]; i: number; ctx: (n: number) => RenderCtx; started: number; win: Window; onGo: (n: number) => void; onExit: () => void }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -160,44 +187,57 @@ function Presenter({ ctl, ids, i, ctx, started, win, onGo, onExit }: { ctl: Slid
   }, []);
   const size = useWindowSize(win);
   const info = ctl.info;
+  const n = ids.length;
   const cur = ids[i] ? ctl.doc.slide(ids[i]!) : null;
   const next = ids[i + 1] ? ctl.doc.slide(ids[i + 1]!) : null;
   const notes = ids[i] ? (ctl.doc.notes(ids[i]!)?.toString() ?? '') : '';
-  const big = Math.max(240, size.w * 0.58);
-  const small = Math.max(160, size.w * 0.3);
+  // Current slide on the left (~60 %), the rest of the width for the next slide and notes.
+  const pad = 32;
+  const gap = 40;
+  const ratio = info.height / info.width;
+  const big = Math.max(240, Math.min((size.w - pad * 2 - gap) * 0.62, (size.h - 150) / ratio));
+  const small = Math.max(160, size.w - pad * 2 - gap - big);
+  const end = <div className="oel-presenter__end" style={{ width: small, height: small * ratio }}>Fin du diaporama</div>;
   return (
-    <div className="oel-presenter">
-      <header className="oel-presenter__top">
-        <span className="oel-presenter__clock" aria-label="Temps écoulé">
-          <Icon name="clock" size={18} /> {clock(now - started)}
+    <div className="oel-presenter" style={{ gridTemplateColumns: `${big}px minmax(0, 1fr)`, columnGap: gap, padding: pad }}>
+      <section className="oel-presenter__current" aria-label={`Diapositive ${Math.min(i + 1, n)} sur ${n}`}>
+        <p className="oel-presenter__label">
+          Diapo {Math.min(i + 1, n)} sur {n}
+        </p>
+        {cur ? (
+          <ScaledSlide slide={cur} info={info} ctx={ctx(i)} width={big} className="oel-presenter__slide" />
+        ) : (
+          <div className="oel-presenter__end oel-presenter__slide" style={{ width: big, height: big * ratio }}>
+            Fin du diaporama
+          </div>
+        )}
+      </section>
+      <aside className="oel-presenter__side">
+        <p className="oel-presenter__label">Suivante</p>
+        {next ? <ScaledSlide slide={next} info={info} ctx={ctx(i + 1)} width={small} className="oel-presenter__next" /> : end}
+        <p className="oel-presenter__label oel-presenter__label--notes">Notes de l’orateur</p>
+        <div className="oel-presenter__notes" tabIndex={0} aria-label="Notes de l’orateur">
+          {notes || <span className="oel-presenter__muted">Aucune note pour cette diapositive.</span>}
+        </div>
+        <div className="oel-presenter__time" role="timer" aria-live="off">
+          <span className="oel-presenter__clock">{elapsed(now - started)}</span>
+          <span className="oel-presenter__muted">Écoulé · il est {timeOfDay(new Date(now))}</span>
+        </div>
+      </aside>
+      <nav className="oel-presenter__pill" aria-label="Commandes du diaporama">
+        <button type="button" className="oel-presenter__step" aria-label="Diapositive précédente" disabled={i <= 0} onClick={() => onGo(i - 1)}>
+          <Icon name="chevron-left" size={16} />
+        </button>
+        <span className="oel-presenter__count">
+          {Math.min(i + 1, n)} / {n}
         </span>
-        <span>
-          Diapositive {Math.min(i + 1, ids.length)} sur {ids.length}
-        </span>
-        <span>{new Date(now).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}</span>
-      </header>
-      <div className="oel-presenter__main">
-        <section aria-label="Diapositive actuelle">
-          {cur ? <ScaledSlide slide={cur} info={info} ctx={ctx(i)} width={big} /> : <p className="oel-presenter__end">Fin du diaporama</p>}
-        </section>
-        <aside>
-          <h2>Suivante</h2>
-          {next ? <ScaledSlide slide={next} info={info} ctx={ctx(i + 1)} width={small} /> : <p className="oel-presenter__end">Fin du diaporama</p>}
-          <h2>Notes</h2>
-          <div className="oel-presenter__notes">{notes || <em>Aucune note pour cette diapositive.</em>}</div>
-        </aside>
-      </div>
-      <footer className="oel-presenter__bar">
-        <Button size="sm" variant="secondary" leadingIcon="chevron-left" onPress={() => onGo(i - 1)}>
-          Précédente
-        </Button>
-        <Button size="sm" variant="primary" leadingIcon="chevron-right" onPress={() => onGo(i + 1)}>
-          Suivante
-        </Button>
-        <Button size="sm" variant="ghost" leadingIcon="close" onPress={onExit}>
-          Terminer le diaporama
-        </Button>
-      </footer>
+        <button type="button" className="oel-presenter__step" aria-label="Diapositive suivante" disabled={i >= n} onClick={() => onGo(i + 1)}>
+          <Icon name="chevron-right" size={16} />
+        </button>
+        <button type="button" className="oel-presenter__stop" onClick={onExit}>
+          Terminer
+        </button>
+      </nav>
     </div>
   );
 }
