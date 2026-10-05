@@ -119,19 +119,24 @@ export function AdaptiveToolbar({ label, groups, trailing, storageKey, docked = 
     write(storageKey, { expanded: v });
   };
 
+  // Groups are rebuilt on every render by the host (tool states): read them from a ref, so the
+  // observer is only rebuilt when what is shown changes.
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
+  const ids = groups.map((g) => `${g.id}:${g.priority}`).join('|');
   const measure = useCallback(() => {
     const el = row.current;
     if (!el) return;
     for (const g of el.querySelectorAll<HTMLElement>('[data-group]')) widths.current.set(g.dataset.group!, g.offsetWidth);
     const available = el.clientWidth - (tail.current?.offsetWidth ?? 0) - CONTROLS;
     const next = foldGroups(
-      groups.map((g) => ({ id: g.id, priority: g.priority, width: widths.current.get(g.id) ?? 120 })),
+      groupsRef.current.map((g) => ({ id: g.id, priority: g.priority, width: widths.current.get(g.id) ?? 120 })),
       available,
       GAP,
     );
     setFolded((cur) => (cur.join('|') === next.join('|') ? cur : next));
     setCols(el.clientWidth >= 560 ? 3 : 1);
-  }, [groups]);
+  }, []);
 
   useLayoutEffect(() => {
     measure();
@@ -141,7 +146,7 @@ export function AdaptiveToolbar({ label, groups, trailing, storageKey, docked = 
     ro.observe(el);
     for (const g of el.querySelectorAll('[data-group]')) ro.observe(g);
     return () => ro.disconnect();
-  }, [measure, folded]);
+  }, [measure, folded, ids]);
 
   const open = folded.length > 0 && (expanded || docked);
   // Alt+Maj+↓ unfolds/folds, Alt+Maj+B docks/undocks — while focus is in this editor.
