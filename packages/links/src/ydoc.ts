@@ -1,7 +1,8 @@
 /**
  * Links inside a file's Y.Doc.
  *
- *   oel-links       Y.Map  link id → Y.Map { source, target, carries, mode, snapshot, broken }
+ *   oel-links       Y.Map  link id → Y.Map { source, target, carries, mode, snapshot, broken,
+ *                                              theme, view, edits }
  *                   (in the target file: the links its copies follow)
  *   oel-backlinks   Y.Map  link id → Backlink
  *                   (in the source file: where its content is used)
@@ -16,7 +17,7 @@ import type { Backlink, LinkDef } from './types';
 /** Origin of writes made by link resolution (not by a person): never undone with Ctrl+Z. */
 export const LINK_ORIGIN = Symbol('oel-link');
 
-const FIELDS = ['source', 'target', 'carries', 'mode', 'snapshot', 'broken'] as const;
+const FIELDS = ['source', 'target', 'carries', 'mode', 'snapshot', 'broken', 'theme', 'view', 'edits'] as const;
 
 export class LinksDoc {
   readonly links: Y.Map<Y.Map<unknown>>;

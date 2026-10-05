@@ -2,6 +2,11 @@ export type * from './types';
 export { LINK_ORIGIN, LinksDoc, linksOf } from './ydoc';
 export {
   CARRIES_LABEL,
+  OVERFLOW_LABEL,
+  THEME_LABEL,
+  defaultCarries,
+  withEdit,
+  withoutEdit,
   MODE_HINT,
   MODE_LABEL,
   STATE_LABEL,

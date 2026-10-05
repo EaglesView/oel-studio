@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, chipLabel, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
+import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, chipLabel, defaultCarries, withEdit, withoutEdit, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
 
 const def = (over: Partial<LinkDef> = {}): LinkDef => ({
   id: 'l1',
@@ -143,5 +143,53 @@ describe('copying a linked copy', () => {
     expect(linksOf(b).byObject('x-1')?.id).toBe(other!.id);
     // An object with no link pastes as a plain copy.
     expect(adoptCopy(linksOf(b), 'nothing', 'x-2', '')).toBeNull();
+  });
+});
+
+describe('generalised links (Figma I)', () => {
+  it('stores the new fields and reads old links unchanged', () => {
+    const doc = new Y.Doc();
+    const links = linksOf(doc);
+    links.put(def());
+    expect(links.get('l1')).toEqual(def());
+    const table = def({
+      id: 'l2',
+      source: { docId: 'budget', kind: 'spreadsheet', ref: { kind: 'range', sheetId: 's1', ids: { r0: 'a', c0: 'b', r1: 'c', c1: 'd' } }, title: 'Budget 2027', label: 'B2:F7' },
+      carries: 'table',
+      theme: 'target',
+      view: { overflow: 'all' },
+      edits: [{ id: 'e1', label: 'Ligne Total en gras', at: 1, by: 'JB', patch: { row: 5, bold: true } }],
+    });
+    links.put(table);
+    expect(links.get('l2')).toEqual(table);
+    links.patch('l2', { theme: null, view: { overflow: 'truncate' } }, 'person');
+    expect(links.get('l2')?.theme).toBeUndefined();
+    expect(links.get('l2')?.view).toEqual({ overflow: 'truncate' });
+  });
+
+  it('defaults what each source kind carries', () => {
+    expect(defaultCarries({ kind: 'chart', sheetId: 's', chartId: 'c' })).toBe('chart');
+    expect(defaultCarries({ kind: 'image', objectId: 'p1' })).toBe('picture');
+    expect(defaultCarries({ kind: 'cell', sheetId: 's', ids: { r: 'r', c: 'c' } })).toBe('value');
+    expect(defaultCarries({ kind: 'range', sheetId: 's', ids: { r0: 'a', c0: 'b', r1: 'c', c1: 'd' } })).toBe('table');
+  });
+
+  it('keeps one entry per local edit id', () => {
+    const a = { id: 'crop', label: 'Recadrage', at: 1, by: 'JB', patch: { l: 0.1 } };
+    const b = { ...a, at: 2, patch: { l: 0.2 } };
+    const list = withEdit(withEdit(undefined, a), b);
+    expect(list).toEqual([b]);
+    expect(withoutEdit(list, 'crop')).toEqual([]);
+  });
+
+  it('gives each linked value kind its own revision', () => {
+    const pic = { kind: 'picture', media: { hash: 'h1', mime: 'image/png', width: 10, height: 10 } };
+    expect(revOf(pic)).not.toBe(revOf({ ...pic, media: { ...pic.media, hash: 'h2' } }));
+    expect(revOf({ kind: 'value', text: '2,4 M$' })).not.toBe(revOf({ kind: 'value', text: '2,5 M$' }));
+  });
+
+  it('labels threads of the new kinds', () => {
+    const img = def({ source: { docId: 'img', kind: 'image', ref: { kind: 'image', objectId: 'p1' }, title: 'photo.jpg', label: 'photo.jpg' }, carries: 'picture' });
+    expect(chipLabel(img, 'fresh')).toBe('À jour · image');
   });
 });

@@ -1,5 +1,5 @@
 /** Revisions, states, cycles and the words for them (Figma G1, G3, G6, G7). */
-import type { Carries, LinkDef, LinkMode, LinkState, SourceRef } from './types';
+import type { Carries, LinkDef, LinkMode, LinkState, LinkTheme, LocalEdit, Overflow, SourceRef } from './types';
 
 // ---------------------------------------------------------------------------
 // Revision: a hash of the source content a copy shows
@@ -94,7 +94,16 @@ export const MODE_HINT: Record<LinkMode, string> = {
   frozen: 'Ne change plus jamais (une photo de la source).',
 };
 
-export const CARRIES_LABEL: Record<Carries, string> = { chart: 'Graphique et style', 'chart-data': 'Données seulement' };
+export const CARRIES_LABEL: Record<Carries, string> = { chart: 'Graphique et style', 'chart-data': 'Données seulement', picture: 'Image', table: 'Tableau', value: 'Valeur' };
+
+export const THEME_LABEL: Record<LinkTheme, string> = { source: 'Thème du tableur', target: 'Thème du document' };
+
+export const OVERFLOW_LABEL: Record<Overflow, string> = { truncate: 'Tronquer', all: 'Tout afficher', rows: 'Choisir les lignes…' };
+
+/** What a source kind carries when nothing else is said. */
+export function defaultCarries(ref: SourceRef): Carries {
+  return ref.kind === 'chart' ? 'chart' : ref.kind === 'image' ? 'picture' : ref.kind === 'cell' ? 'value' : 'table';
+}
 
 export const STATE_LABEL: Record<LinkState, string> = {
   fresh: 'À jour',
@@ -105,7 +114,7 @@ export const STATE_LABEL: Record<LinkState, string> = {
   waiting: 'En attente',
 };
 
-const WHAT: Record<SourceRef['kind'], string> = { chart: 'graphique', range: 'tableau' };
+const WHAT: Record<SourceRef['kind'], string> = { chart: 'graphique', range: 'tableau', cell: 'valeur', image: 'image' };
 
 export const shortDate = (at: number) => new Date(at).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' });
 
@@ -132,4 +141,18 @@ export function ago(at: number, now = Date.now()): string {
   const h = Math.round(m / 60);
   if (h < 24) return `il y a ${h} h`;
   return `le ${shortDate(at)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Local edits (Figma I6 §1)
+// ---------------------------------------------------------------------------
+
+/** The link's edits with one more (an edit with the same id replaces the old one: dragging a crop is one edit). */
+export function withEdit(edits: LocalEdit[] | undefined, edit: LocalEdit): LocalEdit[] {
+  return [...(edits ?? []).filter((e) => e.id !== edit.id), edit];
+}
+
+/** The link's edits without this one (undone, or applied to the source). */
+export function withoutEdit(edits: LocalEdit[] | undefined, id: string): LocalEdit[] {
+  return (edits ?? []).filter((e) => e.id !== id);
 }
