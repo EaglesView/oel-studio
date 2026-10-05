@@ -2,6 +2,7 @@
  * Series data: read through the host's resolver (live cells of a sheet) when
  * it knows the reference, otherwise from the values cached in the file.
  */
+import { applyType, chartFamily } from './catalog';
 import { formatValue, isDateFormat } from './format';
 import type { ChartSpec, DataRef, RefValues, ResolvedChart, Resolver, SeriesData } from './types';
 
@@ -110,10 +111,19 @@ export function chartName(spec: ChartSpec): string {
 /**
  * The source chart with the look of `target` kept: what a copy linked with
  * « Données seulement » shows (Figma G3 « Transporte »). Series, values and
- * the type follow the source; colours, fonts, legend and title style stay.
+ * the kind of chart follow the source; colours, fonts, legend, title style
+ * and the variant within the same family (stacked, with markers, 3-D…) stay.
  */
 export function keepLook(target: ChartSpec | null, source: ChartSpec): ChartSpec {
   if (!target) return source;
+  const look = withLook(target, source);
+  const mine = chartFamily(target);
+  const theirs = chartFamily(source);
+  if (!mine || !theirs || mine.id === theirs.id || mine.family !== theirs.family || mine.ex || theirs.ex) return look;
+  return { ...applyType(look, mine.id), view3d: target.view3d };
+}
+
+function withLook(target: ChartSpec, source: ChartSpec): ChartSpec {
   return {
     ...source,
     palette: target.palette,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellResolver, chartName, keepLook, withCaches, type ChartSpec } from '../src';
+import { applyType, cellResolver, chartFamily, chartName, keepLook, withCaches, type ChartSpec } from '../src';
 
 const cells: Record<string, string | number> = { A2: 'Jan', A3: 'Fév', B1: 'Montant', B2: 1200, B3: 4500 };
 const resolve = cellResolver({
@@ -39,5 +39,14 @@ describe('keepLook', () => {
     expect(out.groups[0]!.series[0]!.val?.num).toEqual([1200, 4500]);
     expect(out.groups[0]!.series[0]!.shape).toEqual(copy.groups[0]!.series[0]!.shape);
     expect(keepLook(null, source)).toBe(source);
+  });
+
+  it('keeps the copy’s variant within the same family, not across families', () => {
+    const source = applyType(withCaches(spec, resolve), 'col-clustered');
+    const stacked = keepLook(applyType(source, 'col-stacked'), source);
+    expect(chartFamily(stacked)?.id).toBe('col-stacked');
+    expect(stacked.groups[0]!.series[0]!.val?.num).toEqual([1200, 4500]);
+    const asLine = keepLook(applyType(source, 'line-markers'), source);
+    expect(chartFamily(asLine)?.id).toBe('col-clustered');
   });
 });

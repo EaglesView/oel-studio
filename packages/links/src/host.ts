@@ -4,7 +4,7 @@
  * know about the desk or other files; the app installs a host, and without one
  * copies show their mode only.
  */
-import type { LinkState } from './types';
+import type { Carries, LinkState } from './types';
 
 export interface LinkHost {
   /** State of a link by id (`waiting` when unknown). */
@@ -15,10 +15,14 @@ export interface LinkHost {
   update(linkId: string): void;
   /** « Délier »: the copy stays as it is, with no link. */
   unlink(linkId: string): void;
+  /** « Voir la source »: open the source file with the linked object shown; false when it is not on the desk. */
+  openSource(linkId: string): boolean;
+  /** « Graphique et style » / « Données seulement » (a copy restyled here keeps its own look). */
+  setCarries(linkId: string, carries: Carries): void;
   /** Called on any state change. */
   subscribe(fn: () => void): () => void;
   /** The link whose copy is this object (ids are unique across files), with its state; for editors without the Y.Doc at hand. */
-  copyOf(objectId: string): { linkId: string; source: string; state: LinkState; frozen: boolean } | null;
+  copyOf(objectId: string): { linkId: string; source: string; state: LinkState; frozen: boolean; carries: Carries } | null;
 }
 
 const NONE: LinkHost = {
@@ -26,6 +30,8 @@ const NONE: LinkHost = {
   manage: () => {},
   update: () => {},
   unlink: () => {},
+  openSource: () => false,
+  setCarries: () => {},
   copyOf: () => null,
   subscribe: () => () => {},
 };

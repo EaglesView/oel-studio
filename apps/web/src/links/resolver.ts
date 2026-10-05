@@ -406,7 +406,7 @@ export class LinkResolver implements LinkHost {
   }
 
   copyOf(objectId: string) {
-    for (const l of this.resolved()) if (l.def.target.objectId === objectId) return { linkId: l.def.id, source: l.def.source.title, state: l.state, frozen: l.def.mode === 'frozen' };
+    for (const l of this.resolved()) if (l.def.target.objectId === objectId) return { linkId: l.def.id, source: l.def.source.title, state: l.state, frozen: l.def.mode === 'frozen', carries: l.def.carries };
     return null;
   }
 
@@ -461,9 +461,10 @@ export class LinkResolver implements LinkHost {
     this.queueRefresh();
   }
 
-  openSource(linkId: string) {
+  openSource(linkId: string): boolean {
     const p = this.find(linkId)?.sourcePaper;
     if (p) this.open.paper(p.id);
+    return !!p;
   }
 
   openPaper(paperId: string) {
