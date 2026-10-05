@@ -562,7 +562,6 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                     aria-label={`Fil : ${l.title ?? l.label}. ${l.label}.`}
                     aria-describedby={chipHintId}
                     aria-expanded={activeLinkId === l.id}
-                    title={l.title}
                     onClick={(e) => {
                       const root = rootRef.current!.getBoundingClientRect();
                       const r = e.currentTarget.getBoundingClientRect();
@@ -578,8 +577,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                       }
                     }}
                   >
-                    <span className="desk__chip-short">{l.label}</span>
-                    {l.title && <span className="desk__chip-full">{l.title}</span>}
+                    {l.label}
                   </button>
                 );
               })}

@@ -5,6 +5,7 @@
 .oel-links__dialog { display: grid; gap: 12px; padding: 16px; outline: none; }
 .oel-links__head { display: flex; align-items: center; gap: 8px; color: var(--emboss-ink); }
 .oel-links__eyebrow { flex: 1; margin: 0; font: 600 11px/16px var(--font-sans, system-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--emboss-text); }
+.oel-links__flow { margin: 0; font: 600 14px/20px var(--font-sans, system-ui); color: var(--emboss-ink); overflow-wrap: anywhere; }
 .oel-links__route { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
 .oel-links__file { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--emboss-well); color: var(--emboss-ink); min-width: 0; }
 .oel-links__file div { display: grid; min-width: 0; }

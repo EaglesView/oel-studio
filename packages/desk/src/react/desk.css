@@ -105,7 +105,7 @@
 .desk__link--broken .desk__link-line { stroke-dasharray: 4 4 4 18; }
 @keyframes desk-thread-flow { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
 
-/* Thread chips (Figma G1): same size on screen whatever the zoom; the full name on hover and focus. */
+/* Thread chips (Figma G1): same size on screen whatever the zoom; the full route is in the thread's popover. */
 .desk__chips { position: absolute; left: 0; top: 0; width: 0; height: 0; }
 .desk__chip {
   --link: var(--emboss-ink, #7759c5);
@@ -129,13 +129,6 @@
 .desk__chip--frozen,
 .desk__chip--waiting { --link: var(--emboss-ink-muted, #6b6375); }
 .desk__chip--broken { --link: var(--emboss-danger, #e5484d); background: var(--emboss-danger-soft, #fde8e8); }
-.desk__chip-full { display: none; }
-.desk__chip:hover .desk__chip-short,
-.desk__chip:focus-visible .desk__chip-short,
-.desk__chip[data-active] .desk__chip-short { display: none; }
-.desk__chip:hover .desk__chip-full,
-.desk__chip:focus-visible .desk__chip-full,
-.desk__chip[data-active] .desk__chip-full { display: inline; }
 .desk__chip:focus-visible,
 .desk__chip[data-active] { outline: 2px solid var(--emboss-focus, #7759c5); outline-offset: 2px; z-index: 1; }
 .desk[data-open] .desk__chips,

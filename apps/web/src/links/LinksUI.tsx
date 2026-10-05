@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Dialog, Heading } from 'react-aria-components';
 import { Badge, Button, DialogOverlay, Icon, Popover, Radio, RadioGroup, Select, SelectItem, SheetDialog, Switch, Tab, TabList, Tabs, TextField, toast, type IconName, type Tone } from '@oel/emboss';
-import { CARRIES_LABEL, MODE_HINT, MODE_LABEL, STATE_LABEL, ago, shortDate, type Carries, type LinkMode, type LinkState } from '@oel/links';
+import { CARRIES_LABEL, MODE_HINT, MODE_LABEL, STATE_LABEL, ago, fullLabel, shortDate, type Carries, type LinkMode, type LinkState } from '@oel/links';
 import { useDeskState } from '@oel/desk/react';
 import { KIND_ICON, kindLabel, type Bureau, type Paper } from '../bureau/model';
 import { TARGET_KINDS, type LinkResolver, type Placement } from './resolver';
@@ -117,6 +117,7 @@ function ThreadPopover({ resolver, linkId, anchor, onCut }: { resolver: LinkReso
               </Heading>
               <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label="Fermer" onPress={close} />
             </header>
+            <p className="oel-links__flow">{fullLabel(def, l.targetPaper?.title ?? 'Copie')}</p>
             <div className="oel-links__route">
               <FileCard paper={l.sourcePaper} fallback={def.source.title} sub={`${def.source.label} · graphique`} />
               <Icon name="arrow-right" size={16} aria-label="vers" />

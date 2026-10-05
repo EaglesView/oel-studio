@@ -38,7 +38,7 @@ export interface DeskLink {
   to: string;
   /** Chip text (« À jour · graphique »). Without one, the thread has no chip and can't be focused. */
   label?: string;
-  /** Full name, shown when the chip is hovered or focused and read by screen readers. */
+  /** Full name, read by screen readers (the app shows it in the thread's popover). */
   title?: string;
   state: LinkState;
 }
