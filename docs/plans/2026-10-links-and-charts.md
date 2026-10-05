@@ -294,6 +294,7 @@ interface LinkDef {
   - UI: « Lier dans… » from the sheet chart bar (G2 step 2: file list with refusals, placement, style), popover (G3), « Fils du bureau » panel (G6, Ctrl+Maj+L, dock « Fils »), badges on copies in slides and documents (G4), « Utilisé dans N fichiers » on the source chart (G5).
   - Model changes: sheet drawings get an editor-only `oid` (stripped before the codec), docx `ooxmlInline` gets `oid` (contract + reader emit `null`), `@oel/charts` `withCaches`/`chartName`/`keepLook`, slides `chartFrame`/`chartSlide`, docs `insertChartParagraph`/`setChart`.
   - Not yet: export of copies to .pptx/.docx (new charts aren't written by those codecs — Phase 6 + 9), paste / drag / insert-from-target routes (G2b), range and single-value links, delete-source dialog with three choices (G5), slideshow deferral (G7), « Changer la source… », history, read-only viewers, the source range outline in the grid.
+- 2026-10-05 (`fix/editor-ux`): chart copies in slides and documents get a floating bar (variant within the family, colours, elements, « Voir la source », « Mettre à jour », link); restyling a copy switches it to « Données seulement », and `keepLook` keeps the copy's variant. Generalised links (images, tables, ranges) and the toolbar redesign are listed in `docs/plans/2026-10-editor-ux-issues.md` (Figma first).
 - Phases 9–10 not started. Fixtures from Office still to come.
 
 ## Phasing (each phase ends with `oel-verify` and a commit)
