@@ -1047,7 +1047,14 @@ function rememberPictureCopy(sel: Selection, editor: Editor, session: DocSession
   void fetch(url)
     .then((r) => r.blob())
     .then(pictureValue)
-    .then((value) => setLinkClip({ source: { docId, kind: 'document', ref, title: linkHost().fileTitle(docId) ?? 'Document', label }, value, at: Date.now() }))
+    .then((value) =>
+      setLinkClip({
+        // A linked copy pastes as another copy of its own source, never as a copy of a copy.
+        source: linksOf(session.ydoc).byObject(oid!)?.source ?? { docId, kind: 'document', ref, title: linkHost().fileTitle(docId) ?? 'Document', label },
+        value,
+        at: Date.now(),
+      }),
+    )
     .catch(() => {});
 }
 

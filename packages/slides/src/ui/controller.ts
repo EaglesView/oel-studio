@@ -310,7 +310,12 @@ export class SlidesController {
         .then((r) => r.blob())
         .then(pictureValue)
         .then((value) =>
-          setLinkClip({ source: { docId, kind: 'slides', ref: { kind: 'image', objectId: pic.id }, title: linkHost().fileTitle(docId) ?? 'Présentation', label: pic.name || 'Image' }, value, at: Date.now() }),
+          setLinkClip({
+            // A linked copy pastes as another copy of its own source, never as a copy of a copy.
+            source: links.byObject(pic.id)?.source ?? { docId, kind: 'slides', ref: { kind: 'image', objectId: pic.id }, title: linkHost().fileTitle(docId) ?? 'Présentation', label: pic.name || 'Image' },
+            value,
+            at: Date.now(),
+          }),
         )
         .catch(() => {});
     }
