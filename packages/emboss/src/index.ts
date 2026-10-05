@@ -10,6 +10,7 @@ export {
   type ToolbarToggleProps,
   type ToolButtonProps,
 } from './components/Toolbar';
+export { AdaptiveToolbar, foldGroups, useToolbarDock, type AdaptiveToolbarProps, type ToolGroup } from './components/AdaptiveToolbar';
 export { Tooltip, ToolTipContent, WithTooltip, type ToolTipInfo } from './components/Tooltip';
 export { TextField, NumberField, Select, SelectItem } from './components/Fields';
 export { Checkbox, Radio, RadioGroup, Switch, Slider, Tabs, TabList, Tab, TabPanel } from './components/Controls';

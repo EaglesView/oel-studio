@@ -1,0 +1,75 @@
+/* AdaptiveToolbar (Figma J0–J3): groups fold into « Plus », a grid of sections opens under the row. */
+
+.emb-adaptive {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+}
+.emb-adaptive__row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+.emb-adaptive__group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex: none;
+}
+.emb-adaptive__spacer { flex: 1; min-width: 0; }
+.emb-adaptive__trailing { display: flex; align-items: center; flex: none; padding-left: var(--spacing-3); }
+.emb-adaptive__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--emboss-accent-soft);
+  color: var(--emboss-ink);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+.emb-adaptive__more[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
+
+/* The drawer animates its height (0fr → 1fr): 200 ms ease-out, nothing with reduced motion. */
+.emb-adaptive__drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.emb-adaptive__drawer[data-open] { grid-template-rows: 1fr; }
+.emb-adaptive__grid {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(var(--emb-adaptive-cols, 3), minmax(0, 1fr));
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1), transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.emb-adaptive__drawer[data-open] .emb-adaptive__grid { padding-top: 8px; opacity: 1; transform: none; }
+.emb-adaptive__section {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--emboss-well);
+}
+.emb-adaptive__section[data-wide] { grid-column: span 2; }
+.emb-adaptive__label { font: 600 9px/1 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--emboss-ink-muted); }
+.emb-adaptive__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-1); }
+.emb-adaptive__live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* Docked at the bottom of the editor: a raised strip, shadow upwards. */
+.emb-adaptive.is-docked { box-shadow: var(--shadow-raised), 0 -6px 18px rgb(0 0 0 / 0.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  .emb-adaptive__drawer, .emb-adaptive__grid { transition: none; }
+}

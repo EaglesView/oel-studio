@@ -274,6 +274,8 @@ const EXTRA = {
   shape: Square,
   'text-box': TextBox,
   play: Play,
+  'dock-bottom': AlignBottomBox,
+  presenter: Presentation,
   arrange: PositionAlign,
   'align-h-center': AlignHorizontalCenters,
   timer: Timer,
