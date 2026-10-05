@@ -330,15 +330,16 @@ export class SlidesController {
     if (this.readOnly) return null;
     const c = linkClip(this.session.status.docId);
     // The deck's own clipboard is newer: that is what the person means to paste.
-    if (!c || (clipboard && clipboard.at > c.at)) return null;
+    if (!c || c.value.kind !== 'picture' || (clipboard && clipboard.at > c.at)) return null;
     const blob = pictureBytes(c.value.media.hash);
     if (!blob) return null;
     const path = await this.session.addPicture(blob);
-    const { width, height } = c.value.media;
+    const media = c.value.media;
+    const { width, height } = media;
     const k = Math.min((this.info.width * 0.6) / emu(width * 0.75), (this.info.height * 0.6) / emu(height * 0.75), 1);
     const cx = Math.round(emu(width * 0.75) * k);
     const cy = Math.round(emu(height * 0.75) * k);
-    const el = picture(path, c.value.media.mime, this.center(cx, cy), c.source.label);
+    const el = picture(path, media.mime, this.center(cx, cy), c.source.label);
     const linkId = newLinkId();
     const where = `diapo ${this.index + 1}`;
     this.edit(() => {

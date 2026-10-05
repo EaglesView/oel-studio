@@ -586,6 +586,29 @@ export const OoxmlInline = Node.create({
   addNodeView() {
     return ({ node }) => {
       const a = node.attrs;
+      if (!a.chart && a.oid && !a.xml) {
+        // A value linked from a sheet (Figma I4): written like the sentence's text, underlined
+        // in dots for editors only, in the state's colour; a click opens the link.
+        const span = document.createElement('span');
+        span.className = 'oel-linked-value';
+        span.contentEditable = 'false';
+        span.textContent = a.label ?? '';
+        const paint = () => {
+          const c = linkHost().copyOf(a.oid as string);
+          span.dataset.state = !c ? 'plain' : c.frozen ? 'frozen' : c.state;
+          span.title = c ? `Lié à ${c.source} · ${c.frozen ? MODE_LABEL.frozen : STATE_LABEL[c.state]}` : '';
+        };
+        span.addEventListener('mousedown', (e) => e.preventDefault());
+        span.addEventListener('click', () => {
+          const c = linkHost().copyOf(a.oid as string);
+          const r = span.getBoundingClientRect();
+          if (c) linkHost().manage(c.linkId, { x: r.x, y: r.y, width: r.width, height: r.height });
+        });
+        paint();
+        let unsub = linkHost().subscribe(paint);
+        const unhost = onLinkHost(() => (unsub(), (unsub = linkHost().subscribe(paint)), paint()));
+        return { dom: span, destroy: () => (unsub(), unhost()) };
+      }
       if (!a.chart) {
         const [, attrs, text] = ooxmlSpan(a);
         const span = document.createElement('span');

@@ -97,3 +97,20 @@ fn embedded_fonts_are_deobfuscated() {
     assert_eq!(Package::read(&out).unwrap().get("word/fonts/font1.odttf"), Package::read(&bytes).unwrap().get("word/fonts/font1.odttf"));
     assert!(!Package::read(&out).unwrap().has(path));
 }
+
+#[test]
+fn linked_values_are_written_as_plain_text() {
+    // A value linked from a sheet (plan I-6): an editor-made ooxmlInline with no XML.
+    let bytes = fixture("complex_template.docx");
+    let mut j = import_docx(&bytes).unwrap().json;
+    j["doc"]["content"].as_array_mut().unwrap().push(json!({
+        "type": "paragraph",
+        "content": [
+            { "type": "text", "text": "Le budget total atteint " },
+            { "type": "ooxmlInline", "attrs": { "xml": "", "label": "2,4 M$", "hidden": false, "field": null, "chart": null, "cx": null, "cy": null, "floating": null, "oid": "v1" }, "marks": [{ "type": "bold" }] }
+        ]
+    }));
+    let out = Package::read(&export_docx(&j, Some(&bytes), HashMap::new()).unwrap()).unwrap();
+    let doc = out.get_str("word/document.xml").unwrap();
+    assert!(doc.contains(">2,4 M$</w:t>"), "linked value missing from the document");
+}

@@ -1,14 +1,15 @@
 /**
- * The desk clipboard for links (Figma I1 d, I6 §5): a picture copied in a
- * desk file remembers where it comes from, so pasting it in another file
- * makes a linked copy. Pictures from outside (system clipboard files) are
+ * The desk clipboard for links (Figma I1 d, I4, I6 §5): a picture or a single
+ * cell copied in a desk file remembers where it comes from, so pasting it in
+ * another file makes a linked copy. Pictures from outside (system clipboard files) are
  * inserted as before. One entry; copying anything else clears it.
  */
 import type { LinkDef, LinkedValue } from './types';
 
 export interface LinkClip {
   source: LinkDef['source'];
-  value: Extract<LinkedValue, { kind: 'picture' }>;
+  /** A picture, or one cell's value (Figma I4: pasted as a linked value in a document). */
+  value: Extract<LinkedValue, { kind: 'picture' } | { kind: 'value' }>;
   at: number;
 }
 

@@ -292,6 +292,16 @@ tr.oel-pgap td { padding: 0 !important; border: none !important; background: tra
 .oel-doc .oel-img-wrap.is-selected .oel-img-handle { display: block; }
 .oel-doc .oel-img-wrap.is-floating { outline: 1px dashed #a0a0a0; outline-offset: 2px; }
 
+/* A value linked from a sheet (Figma I4): text like the sentence, dotted underline for editors. */
+.oel-doc .oel-linked-value { cursor: pointer; text-decoration: underline dotted 1.5px; text-underline-offset: 3px; text-decoration-color: var(--emboss-ink, #7759c5); border-radius: 2px; }
+.oel-doc .oel-linked-value:hover { background: var(--emboss-accent-soft, #efe9fb); }
+.oel-doc .oel-linked-value[data-state='stale'] { text-decoration-color: var(--emboss-warning-ink, #8a5a00); }
+.oel-doc .oel-linked-value[data-state='broken'] { color: var(--emboss-danger, #c4372c); text-decoration-color: currentColor; }
+.oel-doc .oel-linked-value[data-state='frozen']::after { content: ' ❄'; font-size: 0.7em; color: var(--emboss-ink-muted, #6b6375); }
+.oel-doc .oel-linked-value[data-state='plain'] { text-decoration: none; cursor: text; }
+.oel-print .oel-linked-value { text-decoration: none !important; background: none !important; }
+.oel-print .oel-linked-value::after { content: none !important; }
+
 /* Kept-as-is Word content */
 .oel-doc .oel-ooxml { padding: 0 3px; border-radius: 3px; background: #eef1f5; color: #3c4043; font-size: 0.9em; }
 .oel-doc .oel-ooxml[data-hidden] { display: none; }

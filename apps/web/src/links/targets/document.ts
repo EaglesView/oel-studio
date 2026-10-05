@@ -2,7 +2,7 @@
 import * as Y from 'yjs';
 import type { ChartSpec } from '@oel/charts';
 import { LINK_ORIGIN, pictureBytes, type LinkedValue } from '@oel/links';
-import { chartOf, findChart, findLinkedTable, findPicture, pictureOf, setChart, setLinkedTable, setPicture, type DocSession } from '@oel/docs';
+import { chartOf, findChart, findLinkedTable, findPicture, pictureOf, setChart, setLinkedTable, setPicture, setValue, valueOf, type DocSession } from '@oel/docs';
 import { linkMedia, preparePicture, type LinkTarget } from '../kinds';
 
 export function documentTarget(s: DocSession): LinkTarget {
@@ -10,13 +10,14 @@ export function documentTarget(s: DocSession): LinkTarget {
   return {
     kind: 'document',
     ydoc,
-    exists: (objectId) => !!chartOf(ydoc, objectId) || !!pictureOf(ydoc, objectId) || !!findLinkedTable(ydoc, objectId),
+    exists: (objectId) => !!chartOf(ydoc, objectId) || !!pictureOf(ydoc, objectId) || !!findLinkedTable(ydoc, objectId) || valueOf(ydoc, objectId) != null,
     current(objectId): LinkedValue | null {
       const spec = chartOf(ydoc, objectId);
       return spec ? { kind: 'chart', spec } : null;
     },
     prepare: (value) => preparePicture(ydoc, value, (blob) => s.addImage(blob), pictureBytes),
     write(objectId, value, link) {
+      if (value.kind === 'value') return setValue(ydoc, objectId, value.text, LINK_ORIGIN);
       if (value.kind === 'table') return setLinkedTable(ydoc, objectId, value.table, link.theme ?? 'source', LINK_ORIGIN, link.edits);
       if (value.kind === 'chart') return setChart(ydoc, objectId, value.spec as ChartSpec, LINK_ORIGIN);
       if (value.kind === 'picture') {

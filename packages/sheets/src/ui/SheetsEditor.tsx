@@ -117,6 +117,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
   ctl.onNotice = (title, description) => toast({ title, description, tone: 'warning' });
   ctl.onLinkChart = props.onLinkChart ?? null;
   ctl.onLinkRange = props.onLinkRange ?? null;
+  ctl.docId = status.docId;
 
   const [zoom, setZoom] = useState(1);
   const [find, setFind] = useState<{ replace: boolean } | null>(null);

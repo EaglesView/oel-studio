@@ -285,6 +285,12 @@ export function DocsEditor(props: DocsEditorProps) {
           const clip = linkClip(session.status.docId);
           const html = event.clipboardData?.getData('text/html') ?? '';
           const text = event.clipboardData?.getData('text/plain') ?? '';
+          // One cell copied in a desk workbook: a linked value in the text (Figma I4).
+          if (clip?.value.kind === 'value') {
+            if (text.trim() !== clip.value.text.trim()) return false;
+            pasteLinkedValue(editor, session, clip);
+            return true;
+          }
           if (!clip || (text.trim() && !html.includes('<img'))) return false;
           void pasteLinkedPicture(editor, session, clip, contentWidth);
           return true;
@@ -1077,6 +1083,7 @@ function rememberPictureCopy(sel: Selection, editor: Editor, session: DocSession
 
 /** Insert the clipboard's picture at the selection as a linked copy, with a way back to a plain copy. */
 async function pasteLinkedPicture(editor: Editor, session: DocSession, clip: LinkClip, maxWidthPx: number) {
+  if (clip.value.kind !== 'picture') return;
   const blob = pictureBytes(clip.value.media.hash);
   if (!blob) return;
   const path = await session.addImage(blob);
@@ -1119,4 +1126,36 @@ export function sendTableToSheet(editor: Editor, session: DocSession) {
   }
   if (!linkHost().sendTableToSheet({ docId: session.status.docId, kind: 'document', objectId: oid, table, lossy }))
     toast({ title: 'Ouvrez ce document depuis le bureau', description: 'Le tableau peut alors partir vers un tableur du bureau.', tone: 'info' });
+}
+
+/**
+ * Paste one copied cell as a linked value (Figma I4): the number is written
+ * like text in the sentence, follows the cell, and prints as plain text. The
+ * toast offers to keep plain text instead.
+ */
+function pasteLinkedValue(editor: Editor, session: DocSession, clip: LinkClip) {
+  if (clip.value.kind !== 'value') return;
+  const oid = `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const linkId = newLinkId();
+  const text = clip.value.text;
+  editor.chain().focus().insertContent({ type: 'ooxmlInline', attrs: { xml: '', label: text, hidden: false, oid } }).run();
+  linksOf(session.ydoc).put(
+    { id: linkId, source: clip.source, target: { objectId: oid, label: 'dans le texte' }, carries: 'value', mode: 'live', snapshot: { rev: revOf(clip.value), at: Date.now(), by: session.author } },
+    'person',
+  );
+  toast({
+    title: `Valeur liée à ${clip.source.label}`,
+    description: `Elle suivra la cellule de « ${clip.source.title} ».`,
+    tone: 'success',
+    action: {
+      label: 'Coller comme texte simple',
+      onAction: () => {
+        linksOf(session.ydoc).remove(linkId, 'person');
+        // Replace the value by the same plain text.
+        let at = -1;
+        editor.state.doc.descendants((n, pos) => void (n.type.name === 'ooxmlInline' && n.attrs.oid === oid && (at = pos)));
+        if (at >= 0) editor.chain().focus().insertContentAt({ from: at, to: at + 1 }, text).run();
+      },
+    },
+  });
 }

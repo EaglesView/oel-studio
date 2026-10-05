@@ -15,6 +15,7 @@ import type { ChartSpec } from '@oel/charts';
 import type { CalcClient } from '../calc/client';
 import { Axis, colWidthPx, rowHeightPx } from '../grid/geometry';
 import type { IdRange } from '../model/ydoc';
+import { linkHost, setLinkClip } from '@oel/links';
 import { clampPos, current, cycleInside, extendTo, jump, movingCorner, single, type Pos, type Selection } from '../grid/selection';
 
 export interface EditState {
@@ -392,6 +393,8 @@ export class SheetController {
   onLinkChart: ((chart: { sheetId: string; chartId: string; name: string; spec: ChartSpec }) => void) | null = null;
   /** « Lier dans… » on a range (Figma G2b d, I2): the host offers a linked table in a deck or a document. */
   onLinkRange: ((range: { sheetId: string; ids: IdRange; label: string }) => void) | null = null;
+  /** The workbook's doc id (what links made from here point at); set by the editor. */
+  docId = '';
 
   commitEdit(move: 'down' | 'up' | 'right' | 'left' | null, opts: { all?: boolean; array?: boolean } = {}) {
     const e = this.edit;
@@ -734,6 +737,22 @@ export class SheetController {
     }
     const text = toTSV(texts);
     this.clip = { sheet: this.sheetId, range: { r0: rg.r0, c0: rg.c0, r1, c1 }, cells, text, cut };
+    // One cell copied here pastes as a linked value in a document of the desk (Figma I4).
+    setLinkClip(null);
+    if (!cut && this.docId && rg.r0 === r1 && rg.c0 === c1 && texts[0]![0]) {
+      const out = this.calc.get(this.doc.sheetIds().indexOf(this.sheetId), rg.r0, rg.c0);
+      setLinkClip({
+        source: {
+          docId: this.docId,
+          kind: 'spreadsheet',
+          ref: { kind: 'cell', sheetId: this.sheetId, ids: { r: this.doc.rowKey(this.sheetId, rg.r0), c: this.doc.colKey(this.sheetId, rg.c0) } },
+          title: linkHost().fileTitle(this.docId) ?? 'Classeur',
+          label: `${this.doc.sheetName(this.sheetId) ?? ''}!${rangeA1({ r0: rg.r0, c0: rg.c0, r1: rg.r0, c1: rg.c0 })}`,
+        },
+        value: { kind: 'value', text: texts[0]![0]!, ...(out?.t === 'n' && typeof out.v === 'number' ? { num: out.v } : {}) },
+        at: Date.now(),
+      });
+    }
     this.copyMark = { sheet: this.sheetId, range: { r0: rg.r0, c0: rg.c0, r1, c1 }, cut };
     this.bump();
     return { text, html: toHTML(html) };

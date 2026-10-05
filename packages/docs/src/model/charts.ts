@@ -59,3 +59,23 @@ export function setChart(ydoc: Y.Doc, oid: string, chart: ChartSpec, origin: unk
   ydoc.transact(() => el.setAttribute('chart', chart as unknown as string), origin);
   return true;
 }
+
+/** A linked value (Figma I4): an editor-made `ooxmlInline` with an `oid`, no XML and no chart; its text is its label. */
+export function findValue(ydoc: Y.Doc, oid: string): Y.XmlElement | null {
+  const el = findChart(ydoc, oid);
+  return el && !el.getAttribute('chart') && !el.getAttribute('xml') ? el : null;
+}
+
+/** The text a linked value shows, or null when it is gone. */
+export function valueOf(ydoc: Y.Doc, oid: string): string | null {
+  const el = findValue(ydoc, oid);
+  return el ? ((el.getAttribute('label') as string | undefined) ?? '') : null;
+}
+
+/** Show a new value. Returns false when the node is gone. */
+export function setValue(ydoc: Y.Doc, oid: string, text: string, origin: unknown): boolean {
+  const el = findValue(ydoc, oid);
+  if (!el) return false;
+  ydoc.transact(() => el.setAttribute('label', text), origin);
+  return true;
+}

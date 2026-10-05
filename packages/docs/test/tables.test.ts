@@ -162,3 +162,25 @@ describe('a document table read for « Envoyer vers un tableur… » (Figma I3)'
     expect(t.widths).toEqual([80, 60, 60]);
   });
 });
+
+describe('linked values in the text (Figma I4)', () => {
+  it('finds a value by oid apart from charts and kept Word content, and updates its text', async () => {
+    const { findValue, setValue, valueOf } = await import('../src/model/charts');
+    const { BODY } = await import('../src/model/ydoc');
+    const ydoc = new Y.Doc();
+    const p = new Y.XmlElement('paragraph');
+    const v = new Y.XmlElement('ooxmlInline');
+    v.setAttribute('xml', '');
+    v.setAttribute('label', '2,4 M$');
+    v.setAttribute('oid', 'v1');
+    const kept = new Y.XmlElement('ooxmlInline');
+    kept.setAttribute('xml', '<w:bookmarkStart/>');
+    kept.setAttribute('oid', 'k1');
+    p.insert(0, [v, kept]);
+    ydoc.getXmlFragment(BODY).insert(0, [p]);
+    expect(valueOf(ydoc, 'v1')).toBe('2,4 M$');
+    expect(findValue(ydoc, 'k1')).toBeNull();
+    expect(setValue(ydoc, 'v1', '2,5 M$', 'link')).toBe(true);
+    expect(valueOf(ydoc, 'v1')).toBe('2,5 M$');
+  });
+});

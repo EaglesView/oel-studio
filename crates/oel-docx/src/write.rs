@@ -436,7 +436,21 @@ impl Writer<'_> {
             }
             "image" => self.image(n, &marks, in_link, out),
             "anchor" => self.anchor(n, out),
-            "ooxmlInline" => out.push_str(s(&n["attrs"]["xml"]).unwrap_or("")),
+            "ooxmlInline" => {
+                let a = &n["attrs"];
+                let xml = s(&a["xml"]).unwrap_or("");
+                let label = s(&a["label"]).unwrap_or("");
+                // Made in the editor with no XML (a linked value, plan I-6): Word gets its text as a plain run.
+                if xml.is_empty() && a["chart"].is_null() && !a["hidden"].as_bool().unwrap_or(false) && !label.is_empty() {
+                    let rpr = self.rpr(&marks, in_link);
+                    out.push_str("<w:r>");
+                    out.push_str(&rpr);
+                    write_text(label, out);
+                    out.push_str("</w:r>");
+                } else {
+                    out.push_str(xml);
+                }
+            }
             _ => {}
         }
     }
