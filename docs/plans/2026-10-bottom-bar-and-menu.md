@@ -92,5 +92,5 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
   on Projets; theme and shortcuts buttons left the share pill. Desk background context menu has « Nouveau ▸ ».
   Kit: `RailNav`/`RailItem`/`RailSeparator`, `ChoiceCard` (also used by the empty desk), `SubmenuTrigger`, icon
   `gallery` (Iconoir MediaImageList), with a `/composants` demo.
-- M-2 empty desk confirmed in the browser by hand (5 Oct). M-5 not checked in a browser yet (test browser can't
-  capture the page). Not yet: the rest of the browser checklist (bar widths, keyboard only, reduced motion).
+- M-2 empty desk and M-5 menu confirmed in the browser by hand (5 Oct). Still to check: bar at 1440/1024/720,
+  keyboard only, reduced motion.
