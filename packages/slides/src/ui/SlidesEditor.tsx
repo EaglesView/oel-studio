@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import type { KeyboardEvent as RKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Dialog } from 'react-aria-components';
-import { Badge, Button, DialogOverlay, Icon, Popover, SheetDialog, Checkbox, toast } from '@oel/emboss';
+import { Badge, Button, DialogOverlay, Icon, Popover, SheetDialog, Checkbox, toast, useToolbarDock } from '@oel/emboss';
 import { FontsDialog, IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, VersionPanel, useSessionStatus, type Identity, type MenuSpec } from '@oel/collab-client';
 import { firstFontNotice, fontNotice, loadFonts, type FontReport } from '@oel/fonts';
 import type * as Y from 'yjs';
@@ -109,6 +109,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
   const info = ctl.info;
   const ro = status.readOnly;
   const [zoom, setZoom] = useState('fit');
+  // The bar folds into « Plus » and can dock at the bottom (Figma J3), remembered per editor.
+  const dock = useToolbarDock(variant === 'sheet' ? 'slides-sheet' : 'slides');
   const [showNotes, setShowNotes] = useState(!compact);
   const [showVersions, setShowVersions] = useState(false);
   const [dialog, setDialog] = useState<'share' | 'identity' | 'background' | null>(null);
@@ -349,6 +351,10 @@ export function SlidesEditor(props: SlidesEditorProps) {
   const notes = slide ? ctl.doc.notes(slide.id) : null;
   const layoutName = info.layouts.find((l) => l.id === slide?.layout)?.name;
 
+  const toolbarEl = (
+    <SlidesToolbar ctl={ctl} ctx={ctx} zoom={zoom} setZoom={setZoom} compact={compact} onPresent={(m) => (m === 'presenter' ? act('presenter') : present(0))} more={compact ? <MoreMenu spec={spec} onAction={act} /> : undefined} dock={dock} storageKey={compact ? 'slides-sheet' : 'slides'} />
+  );
+
   return (
     <div className={`oel-slides oel-slides--${variant}`} data-slides={status.docId} onKeyDown={onKeyDown}>
       {!compact && (
@@ -396,7 +402,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       )}
 
       <div className="oel-slides__toolbar" onMouseDown={(e) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault()}>
-        <SlidesToolbar ctl={ctl} ctx={ctx} zoom={zoom} setZoom={setZoom} compact={compact} onPresent={() => present(0)} more={compact ? <MoreMenu spec={spec} onAction={act} /> : undefined} />
+        {!dock.docked && toolbarEl}
         {compact && (
           <div className="oel-slides__sheet-actions">
             {preservedChip}
@@ -428,6 +434,11 @@ export function SlidesEditor(props: SlidesEditorProps) {
         )}
       </div>
 
+      {dock.docked && (
+        <div className="oel-slides__dock" onMouseDown={(e) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault()}>
+          {toolbarEl}
+        </div>
+      )}
       {!compact && (
         <footer className="oel-slides__status">
           <span>

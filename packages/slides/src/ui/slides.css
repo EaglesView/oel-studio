@@ -63,7 +63,18 @@
 /* Toolbar */
 .oel-slides__toolbar { display: flex; align-items: center; gap: 8px; padding: 4px 16px 6px; min-width: 0; flex: none; }
 .oel-slides--sheet .oel-slides__toolbar { padding-top: 10px; }
-.oel-slides__toolbar > .emb-toolbar { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.oel-slides__toolbar > .emb-toolbar { flex: 1; min-width: 0; }
+/* Docked at the bottom (Figma J3): the whole bar under the slide, above the status bar. */
+.oel-slides__dock { flex: none; padding: 6px 16px; }
+.oel-slides__dock > .emb-toolbar { width: 100%; }
+/* « Texte » stays in place, greyed, until a text box is selected (J6 §3); its tools still explain why on focus. */
+.oel-slides-text { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-1); }
+.oel-slides-text.is-idle { opacity: 0.45; }
+/* « Présenter » split button (J4): main part + arrow, filled like a primary action. */
+.oel-present { display: inline-flex; align-items: center; border-radius: 10px; background: var(--emboss-fill-primary); color: var(--emboss-on-fill); }
+.oel-present .emb-tool { color: inherit; }
+.oel-present__main { padding-right: 10px; }
+.oel-present__more { border-left: 1px solid color-mix(in srgb, var(--emboss-on-fill) 30%, transparent); border-radius: 0 10px 10px 0; }
 .oel-toolbar__select--font { width: 150px; }
 .oel-toolbar__select--size { width: 68px; }
 .oel-swatches__label { margin: 4px 0 -4px; color: var(--emboss-ink-muted); font: 500 11px/14px var(--font-sans); text-transform: uppercase; letter-spacing: 0.04em; }

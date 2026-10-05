@@ -5,7 +5,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { Dialog, DialogTrigger, MenuTrigger } from 'react-aria-components';
-import { Menu, MenuItem, MenuPopover, MenuSeparator, Popover, Select, SelectItem, Toolbar, ToolbarSeparator, ToolbarToggle, ToolButton, type IconName } from '@oel/emboss';
+import { AdaptiveToolbar, Menu, MenuItem, MenuPopover, MenuSeparator, Popover, Select, SelectItem, ToolbarToggle, ToolButton, type IconName, type ToolGroup } from '@oel/emboss';
 import { SHAPE_CHOICES } from '../model/geometry';
 import { commonRun, levelOf, resolvePara, typeface, type TextCtx } from '../model/text';
 import { effectiveFill, effectiveLine } from './render';
@@ -107,12 +107,12 @@ function useTextState(ctl: SlidesController, ctx: TextCtx) {
   return { bold: !!all('bold'), italic: !!all('italic'), underline: (all('underline') ?? 'none') !== 'none', strike: (all('strike') ?? 'noStrike') !== 'noStrike', size: all('size') ?? NaN, font: all('font') ?? '', color: all('color') ?? '#000000', align: p.align, bullet: p.bullet.kind };
 }
 
-export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresent }: { ctl: SlidesController; ctx: TextCtx; zoom: string; setZoom: (z: string) => void; compact?: boolean; more?: ReactNode; onPresent: () => void }) {
+export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresent, dock, storageKey }: { ctl: SlidesController; ctx: TextCtx; zoom: string; setZoom: (z: string) => void; compact?: boolean; more?: ReactNode; onPresent: (mode: PresentMode) => void; dock: { docked: boolean; forced: boolean; setDocked: (d: boolean) => void }; storageKey: string }) {
   const ro = ctl.readOnly ? 'Lecture seule' : undefined;
   const info = ctl.info;
   const sel = ctl.selected;
   const t = useTextState(ctl, ctx);
-  const noText = ro ?? (t ? undefined : 'Sélectionnez une forme ou une zone de texte.');
+  const noText = ro ?? (t ? undefined : 'Sélectionnez une zone de texte pour changer la police.');
   const noShape = ro ?? (sel.some((e) => e.kind === 'shape' || e.kind === 'connector') ? undefined : 'Sélectionnez une forme.');
   const noSel = ro ?? (sel.length ? undefined : 'Sélectionnez un élément de la diapositive.');
   const fonts = [...new Set([`${info.theme.major}`, `${info.theme.minor}`, ...info.fonts.map((f) => f.name), ...COMMON_FONTS])];
@@ -122,18 +122,35 @@ export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresen
   const layouts = info.layouts.map((l) => ({ id: l.id, label: l.name || 'Disposition' }));
   const currentLayout = ctl.slide?.layout;
 
-  return (
-    <Toolbar aria-label="Mise en forme de la présentation">
-      <ToolButton icon="undo" label="Annuler" shortcut={['Ctrl', 'Z']} unavailableReason={ro ?? (ctl.undo.canUndo() ? undefined : 'Rien à annuler.')} onPress={() => ctl.undo.undo()} />
-      <ToolButton icon="redo" label="Rétablir" shortcut={['Ctrl', 'Y']} unavailableReason={ro ?? (ctl.undo.canRedo() ? undefined : 'Rien à rétablir.')} onPress={() => ctl.undo.redo()} />
-      <ToolbarSeparator />
+  // Groups and priorities from Figma J4. « Texte » stays in place, greyed, until a text box is selected (J6 §3).
+  const groups: ToolGroup[] = [
+    {
+      id: 'history',
+      label: 'Historique',
+      priority: 1,
+      content: (
+        <>
+          <ToolButton icon="undo" label="Annuler" shortcut={['Ctrl', 'Z']} unavailableReason={ro ?? (ctl.undo.canUndo() ? undefined : 'Rien à annuler.')} onPress={() => ctl.undo.undo()} />
+          <ToolButton icon="redo" label="Rétablir" shortcut={['Ctrl', 'Y']} unavailableReason={ro ?? (ctl.undo.canRedo() ? undefined : 'Rien à rétablir.')} onPress={() => ctl.undo.redo()} />
+        </>
+      ),
+    },
+    { id: 'slide', label: 'Diapo', priority: 2, content: <>
       <MenuTool icon="new-page" label="Nouvelle diapositive" description="Après la diapositive actuelle, sur la disposition choisie (Ctrl+M)." ro={ro} items={layouts} onAction={(id) => ctl.newSlide(id)} />
       <MenuTool icon="layout" label="Disposition" description="Change la disposition de la diapositive." ro={ro} items={layouts.map((l) => ({ ...l, label: `${l.id === currentLayout ? '✓ ' : ''}${l.label}` }))} onAction={(id) => ctl.setLayout(id)} />
-      <ToolbarSeparator />
+    </> },
+    { id: 'insert', label: 'Insertion', priority: 1, content: <>
       <ToolButton icon="text-box" label="Zone de texte" description="Ajoute une zone de texte au centre." unavailableReason={ro} onPress={() => ctl.insertTextBox()} />
       <MenuTool icon="shape" label="Formes" ro={ro} items={SHAPE_CHOICES.map((s) => ({ id: s.prst, label: s.label }))} onAction={(p) => ctl.insertShape(p)} />
       <ToolButton icon="image" label="Image" description="Insère une image (ou glissez-la sur la diapositive)." unavailableReason={ro} onPress={() => pickPicture(ctl)} />
-      <ToolbarSeparator />
+    </> },
+    {
+      id: 'text',
+      label: 'Texte',
+      priority: 3,
+      wide: true,
+      content: (
+        <div className={`oel-slides-text${t ? '' : ' is-idle'}`}>
       {!compact && (
         <div className="oel-toolbar__select oel-toolbar__select--font">
           <Select aria-label="Police" isDisabled={!!noText} selectedKey={font || null} placeholder="Police" onSelectionChange={(k) => k && ctl.setRun({ font: String(k) })}>
@@ -161,7 +178,6 @@ export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresen
       <ToolbarToggle icon="underline" label="Souligné" shortcut={['Ctrl', 'U']} isSelected={!!t?.underline} unavailableReason={noText} onChange={() => ctl.setRun({ underline: t?.underline ? 'none' : 'sng' })} />
       {!compact && <ToolbarToggle icon="strikethrough" label="Barré" isSelected={!!t?.strike} unavailableReason={noText} onChange={() => ctl.setRun({ strike: t?.strike ? 'noStrike' : 'sngStrike' })} />}
       <ColorTool ctl={ctl} icon="text-color" label="Couleur du texte" current={t?.color} ro={noText} onPick={(c) => ctl.setRun({ color: c ?? undefined })} none="Automatique" />
-      <ToolbarSeparator />
       <MenuTool
         icon={t?.align === 'ctr' ? 'align-center' : t?.align === 'r' ? 'align-right' : t?.align === 'just' ? 'align-justify' : 'align-left'}
         label="Alignement"
@@ -186,7 +202,10 @@ export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresen
           <ToolButton icon="indent-more" label="Augmenter le niveau" shortcut={['Tab']} unavailableReason={noText} onPress={() => ctl.indent(1)} />
         </>
       )}
-      <ToolbarSeparator />
+        </div>
+      ),
+    },
+    { id: 'shape', label: 'Forme', priority: 4, content: <>
       <ColorTool ctl={ctl} icon="fill-color" label="Remplissage" description="Couleur de fond de la forme." current={paintColor(shapeFill ? effectiveFill(shapeFill) : undefined)} ro={ro ?? (shapeFill ? undefined : 'Sélectionnez une forme.')} none="Aucun remplissage" onPick={(c) => ctl.setFill(c ? { type: 'solid', color: c } : { type: 'none' })} />
       <ColorTool ctl={ctl} icon="pen" label="Contour" description="Couleur du contour." current={paintColor(shapeLine ? effectiveLine(shapeLine)?.paint : undefined)} ro={noShape} none="Aucun contour" onPick={(c) => ctl.setLine(c ? { paint: { type: 'solid', color: c }, width: effectiveLine(shapeLine!)?.width ?? 12700 } : null)} />
       {!compact && (
@@ -198,6 +217,8 @@ export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresen
           onAction={(w) => ctl.setLine({ width: Math.round(Number(w) * 12700), paint: effectiveLine(shapeLine!)?.paint ?? { type: 'solid', color: '#000000' } })}
         />
       )}
+    </> },
+    { id: 'arrange', label: 'Organiser', priority: 4, content: <>
       <MenuTool
         icon="arrange"
         label="Organiser"
@@ -217,7 +238,8 @@ export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresen
         ]}
         onAction={(id) => (['front', 'forward', 'backward', 'back'].includes(id) ? ctl.arrange(id as 'front') : ctl.align(id as 'left'))}
       />
-      <ToolbarSeparator />
+    </> },
+    ...(compact ? [] : [{ id: 'view', label: 'Affichage', priority: 5 as const, content: <>
       {!compact && (
         <div className="oel-toolbar__select oel-toolbar__select--zoom">
           <Select aria-label="Zoom" selectedKey={zoom} onSelectionChange={(k) => setZoom(String(k))}>
@@ -229,8 +251,75 @@ export function SlidesToolbar({ ctl, ctx, zoom, setZoom, compact, more, onPresen
           </Select>
         </div>
       )}
-      <ToolButton icon="play" label="Présenter" showLabel shortcut={['F5']} description="Plein écran à partir du début (Maj+F5 : diapositive actuelle)." onPress={onPresent} />
-      {more}
-    </Toolbar>
+    </> }]),
+  ];
+  return (
+    <AdaptiveToolbar
+      label="Mise en forme de la présentation"
+      groups={groups}
+      trailing={
+        <>
+          <PresentButton onPresent={onPresent} />
+          {more}
+        </>
+      }
+      storageKey={storageKey}
+      docked={dock.docked}
+      forced={dock.forced}
+      onDockedChange={dock.setDocked}
+    />
+  );
+}
+
+export type PresentMode = 'present' | 'presenter';
+
+const readMode = (): PresentMode => {
+  try {
+    return localStorage.getItem('oel-present-mode') === 'presenter' ? 'presenter' : 'present';
+  } catch {
+    return 'present';
+  }
+};
+
+/**
+ * « Présenter » (Figma J4): the main part starts the last mode used; the arrow
+ * offers Présenter / Mode présentateur, and the choice becomes the default.
+ */
+function PresentButton({ onPresent }: { onPresent: (mode: PresentMode) => void }) {
+  const [mode, setMode] = useState<PresentMode>(readMode);
+  const start = (m: PresentMode) => {
+    setMode(m);
+    try {
+      localStorage.setItem('oel-present-mode', m);
+    } catch {
+      // Not remembered; fine.
+    }
+    onPresent(m);
+  };
+  return (
+    <span className="oel-present" role="group" aria-label="Présenter">
+      <ToolButton
+        icon={mode === 'presenter' ? 'presenter' : 'play'}
+        label={mode === 'presenter' ? 'Mode présentateur' : 'Présenter'}
+        showLabel
+        shortcut={mode === 'presenter' ? ['Alt', 'F5'] : ['F5']}
+        description="Lance le dernier mode utilisé ; la flèche propose l’autre."
+        className="oel-present__main"
+        onPress={() => start(mode)}
+      />
+      <MenuTrigger>
+        <ToolButton icon="chevron-down" label="Choisir le mode de présentation" className="oel-present__more" />
+        <MenuPopover placement="bottom end">
+          <Menu aria-label="Mode de présentation" onAction={(k) => start(k as PresentMode)}>
+            <MenuItem id="present" icon="play" shortcut="F5" textValue="Présenter">
+              {mode === 'present' ? '✓ ' : ''}Présenter
+            </MenuItem>
+            <MenuItem id="presenter" icon="presenter" shortcut="Alt+F5" textValue="Mode présentateur">
+              {mode === 'presenter' ? '✓ ' : ''}Mode présentateur
+            </MenuItem>
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>
+    </span>
   );
 }
