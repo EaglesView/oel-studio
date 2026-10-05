@@ -9,6 +9,7 @@ import {
   center,
   type Direction,
   nearestInDirection,
+  overlapArea,
   readingOrder,
 } from './geometry';
 import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, Vec, Viewport, ZoomLimits } from './types';
@@ -51,6 +52,8 @@ export class DeskStore<D = unknown> {
       openId: null,
       showLinks: true,
     };
+    this.state.nodes = settle(this.state.nodes);
+    this.state.order = withChildrenAbove(this.state.order, this.state.nodes);
     this.historyLimit = opts.historyLimit ?? 100;
     this.zoomLimits = { ...DEFAULT_ZOOM_LIMITS, ...opts.zoom };
     const v = this.state.viewport;
@@ -90,9 +93,83 @@ export class DeskStore<D = unknown> {
     return union(list.map(rectOf));
   }
 
-  /** Nodes in keyboard reading order. */
+  /** Nodes in keyboard reading order; attached nodes come right after their target. */
   ordered(): DeskNode<D>[] {
-    return readingOrder(this.nodes);
+    const all = this.nodes;
+    const out: DeskNode<D>[] = [];
+    for (const n of readingOrder(all.filter((n) => !n.attach))) out.push(n, ...this.attachedTo(n.id));
+    return out;
+  }
+
+  /* ── attachments (Figma K) ────────────────────────────────────── */
+
+  /** Nodes stuck to `id`, in paint order. */
+  attachedTo(id: string): DeskNode<D>[] {
+    return this.nodes.filter((n) => n.attach?.to === id);
+  }
+
+  /** Whether `id` may be stuck to `to`: both exist, differ, and neither breaks the one-level rule. */
+  canAttach(id: string, to: string): boolean {
+    const { nodes } = this.state;
+    const n = nodes[id];
+    const t = nodes[to];
+    if (!n || !t || id === to || t.attach) return false;
+    return !Object.values(nodes).some((c) => c.attach?.to === id);
+  }
+
+  /**
+   * The node that `id` overlaps most (the target of « Coller »), or null.
+   * Attached nodes and `id`'s own children are never targets.
+   */
+  overlapping(id: string, filter: (n: DeskNode<D>) => boolean = () => true): DeskNode<D> | null {
+    const n = this.state.nodes[id];
+    if (!n) return null;
+    let best: DeskNode<D> | null = null;
+    let area = 0;
+    for (const c of this.nodes) {
+      if (!this.canAttach(id, c.id) || !filter(c)) continue;
+      const a = overlapArea(rectOf(n), rectOf(c));
+      if (a > area) {
+        area = a;
+        best = c;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Stick `id` to `to`, at `at` (world top-left; default: where it is). Drawn
+   * just above its target. Returns false when not allowed (see `canAttach`).
+   */
+  attach(id: string, to: string, at?: Vec, { label = 'Collage' } = {}): boolean {
+    if (!this.canAttach(id, to)) return false;
+    this.commit(label, () => {
+      const n = this.state.nodes[id]!;
+      const t = this.state.nodes[to]!;
+      const p = at ?? { x: n.x, y: n.y };
+      const nodes = { ...this.state.nodes, [id]: { ...n, x: p.x, y: p.y, attach: { to, dx: p.x - t.x, dy: p.y - t.y } } };
+      // Newest note on top of its siblings.
+      const order = withChildrenAbove([...this.state.order.filter((x) => x !== id), id], nodes);
+      this.set({ nodes, order });
+    });
+    return true;
+  }
+
+  /** Unstick nodes where they are. Returns the ids that were attached. */
+  detach(ids: string[], { label = 'Décollage', history = true } = {}): string[] {
+    const hit = ids.filter((id) => this.state.nodes[id]?.attach);
+    if (!hit.length) return [];
+    const run = () => {
+      const nodes = { ...this.state.nodes };
+      for (const id of hit) {
+        const { attach: _, ...rest } = nodes[id]!;
+        nodes[id] = rest as DeskNode<D>;
+      }
+      this.set({ nodes });
+    };
+    if (history) this.commit(label, run);
+    else run();
+    return hit;
   }
 
   /* ── history ──────────────────────────────────────────────────── */
@@ -162,11 +239,12 @@ export class DeskStore<D = unknown> {
 
   add(nodes: DeskNode<D>[], { select = true } = {}) {
     this.commit(nodes.length > 1 ? `Ajout de ${nodes.length} fichiers` : `Ajout de ${nodes[0]?.title}`, () => {
-      const map = { ...this.state.nodes };
+      let map = { ...this.state.nodes };
       for (const n of nodes) map[n.id] = n;
+      map = settle(map);
       this.set({
         nodes: map,
-        order: [...this.state.order.filter((id) => !nodes.some((n) => n.id === id)), ...nodes.map((n) => n.id)],
+        order: withChildrenAbove([...this.state.order.filter((id) => !nodes.some((n) => n.id === id)), ...nodes.map((n) => n.id)], map),
         ...(select ? { selection: nodes.map((n) => n.id), focusedId: nodes[0]?.id ?? null } : {}),
       });
     });
@@ -177,17 +255,34 @@ export class DeskStore<D = unknown> {
     const run = () => {
       const n = this.state.nodes[id];
       if (!n) return;
-      this.set({ nodes: { ...this.state.nodes, [id]: { ...n, ...patch } } });
+      let next = { ...n, ...patch };
+      // Moving an attached node moves it along its target.
+      const t = next.attach && this.state.nodes[next.attach.to];
+      if (t && !('attach' in patch) && (next.x !== n.x || next.y !== n.y)) next = { ...next, attach: { to: t.id, dx: next.x - t.x, dy: next.y - t.y } };
+      const nodes = settle({ ...this.state.nodes, [id]: next });
+      this.set({ nodes, ...('attach' in patch ? { order: withChildrenAbove(this.state.order, nodes) } : {}) });
     };
     if (history) this.commit(label, run);
     else run();
   }
 
-  remove(ids: string[]) {
-    if (ids.length === 0) return;
+  /**
+   * Delete nodes. Nodes stuck to a deleted one stay where they are, unstuck;
+   * their ids are returned (« 2 notes décollées »). Same undo step.
+   */
+  remove(ids: string[]): string[] {
+    if (ids.length === 0) return [];
+    const freed: string[] = [];
     this.commit(ids.length > 1 ? `Suppression de ${ids.length} fichiers` : 'Suppression', () => {
       const map = { ...this.state.nodes };
       for (const id of ids) delete map[id];
+      for (const [id, n] of Object.entries(map)) {
+        if (n.attach && !map[n.attach.to]) {
+          const { attach: _, ...rest } = n;
+          map[id] = rest as DeskNode<D>;
+          freed.push(id);
+        }
+      }
       const remaining = this.state.order.filter((id) => map[id]);
       this.set({
         nodes: map,
@@ -197,17 +292,24 @@ export class DeskStore<D = unknown> {
         focusedId: remaining.find((id) => !ids.includes(id)) ?? null,
       });
     });
+    return freed;
   }
 
-  /** Live move (no history); wrap in begin/end for drags. */
+  /**
+   * Live move (no history); wrap in begin/end for drags. Nodes stuck to a
+   * moving node come along; a stuck node moved without its target slides
+   * along it (its offset changes, it stays stuck).
+   */
   moveBy(ids: string[], d: Vec) {
     if (ids.length === 0 || (d.x === 0 && d.y === 0)) return;
     const map = { ...this.state.nodes };
-    for (const id of ids) {
-      const n = map[id];
-      if (n && !n.locked) map[id] = { ...n, x: n.x + d.x, y: n.y + d.y };
+    const moving = new Set(ids.filter((id) => map[id] && !map[id]!.locked));
+    for (const id of moving) {
+      const n = map[id]!;
+      const a = n.attach && !moving.has(n.attach.to) ? { ...n.attach, dx: n.attach.dx + d.x, dy: n.attach.dy + d.y } : n.attach;
+      map[id] = { ...n, x: n.x + d.x, y: n.y + d.y, ...(a ? { attach: a } : {}) };
     }
-    this.set({ nodes: map });
+    this.set({ nodes: settle(map) });
   }
 
   /** Keyboard nudge — one undo step per press. */
@@ -215,13 +317,15 @@ export class DeskStore<D = unknown> {
     this.commit('Déplacement', () => this.moveBy(ids, d));
   }
 
+  /** Raise nodes (with what is stuck to them) above the rest. */
   bringToFront(ids: string[]) {
     const rest = this.state.order.filter((id) => !ids.includes(id));
-    this.set({ order: [...rest, ...this.state.order.filter((id) => ids.includes(id))] });
+    this.set({ order: withChildrenAbove([...rest, ...this.state.order.filter((id) => ids.includes(id))], this.state.nodes) });
   }
 
   /** Align selected nodes (B7 "arrange"). */
   align(ids: string[], edge: 'left' | 'top' | 'hcenter' | 'vcenter') {
+    ids = this.free(ids);
     const b = this.bounds(ids);
     if (!b || ids.length < 2) return;
     this.commit('Alignement', () => {
@@ -234,13 +338,13 @@ export class DeskStore<D = unknown> {
         if (edge === 'hcenter') map[id] = { ...n, x: b.x + b.w / 2 - n.w / 2 };
         if (edge === 'vcenter') map[id] = { ...n, y: b.y + b.h / 2 - n.h / 2 };
       }
-      this.set({ nodes: map });
+      this.set({ nodes: settle(map) });
     });
   }
 
   /** Lay nodes out in a row with a gap (B7 "stack"/"tidy"). */
   distribute(ids: string[], gap = 48) {
-    const list = readingOrder(ids.map((id) => this.state.nodes[id]).filter((n): n is DeskNode<D> => !!n));
+    const list = readingOrder(this.free(ids).map((id) => this.state.nodes[id]).filter((n): n is DeskNode<D> => !!n));
     const first = list[0];
     if (!first || list.length < 2) return;
     this.commit('Rangement', () => {
@@ -250,8 +354,13 @@ export class DeskStore<D = unknown> {
         map[n.id] = { ...n, x, y: first.y, rotation: 0 };
         x += n.w + gap;
       }
-      this.set({ nodes: map });
+      this.set({ nodes: settle(map) });
     });
+  }
+
+  /** Arrange and align move items, not what is stuck to them (it follows). */
+  private free(ids: string[]): string[] {
+    return ids.filter((id) => !this.state.nodes[id]?.attach);
   }
 
   /* ── links ────────────────────────────────────────────────────── */
@@ -387,6 +496,43 @@ export class DeskStore<D = unknown> {
     const n = this.state.nodes[id];
     return n ? center(rectOf(n)) : null;
   }
+}
+
+/** Put every attached node at its target + offset; drop attachments whose target is gone. */
+function settle<D>(nodes: Record<string, DeskNode<D>>): Record<string, DeskNode<D>> {
+  let out = nodes;
+  for (const [id, n] of Object.entries(nodes)) {
+    if (!n.attach) continue;
+    const t = nodes[n.attach.to];
+    let next: DeskNode<D> = n;
+    if (!t || t.attach) {
+      const { attach: _, ...rest } = n;
+      next = rest as DeskNode<D>;
+    } else if (t.x + n.attach.dx !== n.x || t.y + n.attach.dy !== n.y) {
+      next = { ...n, x: t.x + n.attach.dx, y: t.y + n.attach.dy };
+    }
+    if (next === n) continue;
+    if (out === nodes) out = { ...nodes };
+    out[id] = next;
+  }
+  return out;
+}
+
+/** Paint order with each attached node drawn just above its target (children keep their relative order). */
+function withChildrenAbove<D>(order: string[], nodes: Record<string, DeskNode<D>>): string[] {
+  const children = new Map<string, string[]>();
+  for (const id of order) {
+    const to = nodes[id]?.attach?.to;
+    if (to && nodes[to]) children.set(to, [...(children.get(to) ?? []), id]);
+  }
+  if (!children.size) return order;
+  const out: string[] = [];
+  for (const id of order) {
+    const to = nodes[id]?.attach?.to;
+    if (to && nodes[to]) continue;
+    out.push(id, ...(children.get(id) ?? []));
+  }
+  return out;
 }
 
 export function createDesk<D>(opts?: DeskStoreOptions<D>) {

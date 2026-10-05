@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  center,
   intersects,
   lodForZoom,
   normalizeRect,
@@ -42,6 +43,14 @@ export interface DeskMessages {
   multiSelection: (count: number) => string;
   /** Description of a thread chip for screen readers. */
   linkHint: string;
+  /** Pick mode started (`pickTarget`). */
+  pickStart: string;
+  /** Pick mode: the highlighted candidate. */
+  pickCandidate: (title: string) => string;
+  pickNone: string;
+  pickCancelled: string;
+  /** A stuck node was dragged off its target. */
+  detached: (count: number) => string;
 }
 
 export const defaultMessages: DeskMessages = {
@@ -61,7 +70,29 @@ export const defaultMessages: DeskMessages = {
   nothingToUndo: 'Rien à annuler',
   multiSelection: (n) => `${n} fichiers`,
   linkHint: 'Entrée : ouvrir le fil. Suppr : couper le lien. Échap : revenir au bureau.',
+  pickStart: 'Choisissez un fichier. Tab : fichier suivant. Entrée : choisir. Échap : annuler.',
+  pickCandidate: (t) => t,
+  pickNone: 'Aucun fichier à choisir',
+  pickCancelled: 'Annulé',
+  detached: (n) => (n === 1 ? 'Décollé' : `${n} décollés`),
 };
+
+/**
+ * Pick mode (Figma K « Coller à… »): the person points at a node, or Tabs
+ * through the candidates nearest `from` first, and Entrée or a click picks it.
+ */
+export interface PickTarget<D = unknown> {
+  /** The node the choice is for (dashed guide starts there; never a candidate). */
+  from: string;
+  /** Which nodes may be picked. Attached nodes never can. */
+  filter?: (node: DeskNode<D>) => boolean;
+  onPick: (id: string) => void;
+  onCancel: () => void;
+}
+
+/** Screen pixels a stuck node must be dragged before it comes unstuck; it lags behind until then. */
+const DETACH_DISTANCE = 24;
+const DETACH_RESISTANCE = 0.35;
 
 export interface NodeRenderContext {
   lod: Lod;
@@ -95,6 +126,10 @@ export interface DeskCanvasProps<D> {
   onLinkDelete?: (id: string) => void;
   /** The thread shown as selected (its popover is open). */
   activeLinkId?: string | null;
+  /** While set, the desk is in pick mode (see `PickTarget`). */
+  pickTarget?: PickTarget<D> | null;
+  /** A stuck node was dragged off its target (`store.detach` already ran inside the drag's undo step). */
+  onDetach?: (ids: string[]) => void;
   /** Wheel zoom speed (Ctrl/⌘ + wheel or pinch). Lower is gentler. Default 0.002. */
   wheelZoomSpeed?: number;
   /** Extra keys (return true when handled). Runs before the built-in map. */
@@ -106,7 +141,21 @@ export interface DeskCanvasProps<D> {
 }
 
 type Gesture =
-  | { kind: 'drag'; pointerId: number; last: Vec; start: Vec; ids: string[]; moved: boolean; wasSelected: boolean; hitId: string }
+  | {
+      kind: 'drag';
+      pointerId: number;
+      last: Vec;
+      start: Vec;
+      /** Nodes that follow the pointer exactly. */
+      ids: string[];
+      /** Stuck nodes dragged without their target: they lag until DETACH_DISTANCE, then come unstuck. */
+      stuck: string[];
+      /** World offset already applied to `stuck`. */
+      stuckApplied: Vec;
+      moved: boolean;
+      wasSelected: boolean;
+      hitId: string;
+    }
   | { kind: 'pan'; pointerId: number; last: Vec }
   | { kind: 'lasso'; pointerId: number; origin: Vec; base: string[]; rect: Rect };
 
@@ -136,6 +185,8 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     onLinkOpen,
     onLinkDelete,
     activeLinkId = null,
+    pickTarget = null,
+    onDetach,
     wheelZoomSpeed = 0.002,
     onKeyDown,
     children,
@@ -154,6 +205,9 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   const hintId = useId();
   const chipHintId = useId();
   const listId = useId();
+
+  const [pickHover, setPickHover] = useState<string | null>(null);
+  const [pickPointer, setPickPointer] = useState<Vec | null>(null);
 
   const nodesMap = useDeskState(store, (s) => s.nodes);
   const order = useDeskState(store, (s) => s.order);
@@ -253,6 +307,50 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  /* ── pick mode (« Coller à… ») ─────────────────────────────────── */
+  const isCandidate = useCallback(
+    (id: string) => !!pickTarget && store.canAttach(pickTarget.from, id) && (pickTarget.filter?.(store.node(id)!) ?? true),
+    [pickTarget, store],
+  );
+  /** Candidates nearest the `from` node first (Tab order). */
+  const pickCandidates = useCallback((): DeskNode<D>[] => {
+    if (!pickTarget) return [];
+    const from = store.node(pickTarget.from);
+    if (!from) return [];
+    const c = center(rectOf(from));
+    const dist = (n: DeskNode<D>) => Math.hypot(center(rectOf(n)).x - c.x, center(rectOf(n)).y - c.y);
+    return store.nodes.filter((n) => isCandidate(n.id)).sort((a, b) => dist(a) - dist(b));
+  }, [pickTarget, store, isCandidate]);
+
+  useEffect(() => {
+    setPickHover(null);
+    setPickPointer(null);
+    if (!pickTarget) return;
+    rootRef.current?.focus({ preventScroll: true });
+    announce(pickCandidates().length ? m.pickStart : m.pickNone);
+  }, [pickTarget]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pickKey = (e: ReactKeyboardEvent): boolean => {
+    if (!pickTarget) return false;
+    if (e.key === 'Escape') {
+      announce(m.pickCancelled);
+      pickTarget.onCancel();
+    } else if (e.key === 'Tab') {
+      const list = pickCandidates();
+      if (!list.length) return true;
+      const i = list.findIndex((n) => n.id === pickHover);
+      const next = list[(i + (e.shiftKey ? -1 : 1) + list.length + (i < 0 && e.shiftKey ? 1 : 0)) % list.length]!;
+      setPickHover(next.id);
+      store.reveal(next.id);
+      announce(m.pickCandidate(describeNode(next)));
+    } else if (e.key === 'Enter') {
+      if (pickHover && isCandidate(pickHover)) pickTarget.onPick(pickHover);
+    } else if (!(e.key === '+' || e.key === '-' || e.key === '=' || e.key === '_' || e.key === '0' || (e.shiftKey && e.key.startsWith('Arrow')))) {
+      return true; // swallow everything else while picking; zoom and pan keys still work
+    } else return false;
+    return true;
+  };
+
   /* ── pointer gestures ──────────────────────────────────────────── */
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -261,6 +359,16 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     const p = localPoint(e);
     const nodeEl = target.closest<HTMLElement>('[data-node-id]');
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+
+    if (pickTarget && e.button === 0 && !spaceHeld.current) {
+      const id = nodeEl?.dataset.nodeId;
+      if (id && isCandidate(id)) pickTarget.onPick(id);
+      else if (!id) {
+        announce(m.pickCancelled);
+        pickTarget.onCancel();
+      }
+      return;
+    }
 
     if (e.button === 1 || spaceHeld.current) {
       gesture.current = { kind: 'pan', pointerId: e.pointerId, last: p };
@@ -274,7 +382,23 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       const ids = store.getState().selection;
       if (!ids.includes(id)) return; // toggled off: no drag
       store.begin('Déplacement');
-      gesture.current = { kind: 'drag', pointerId: e.pointerId, last: p, start: p, ids, moved: false, wasSelected, hitId: id };
+      const all = new Set(ids);
+      const stuck = ids.filter((x) => {
+        const to = store.node(x)?.attach?.to;
+        return to && !all.has(to);
+      });
+      gesture.current = {
+        kind: 'drag',
+        pointerId: e.pointerId,
+        last: p,
+        start: p,
+        ids: ids.filter((x) => !stuck.includes(x)),
+        stuck,
+        stuckApplied: { x: 0, y: 0 },
+        moved: false,
+        wasSelected,
+        hitId: id,
+      };
       return; // capture lazily once the drag starts, so click/dblclick keep their target
     } else {
       const base = additive ? selection : [];
@@ -286,6 +410,13 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pickTarget && !gesture.current) {
+      const id = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]')?.dataset.nodeId ?? null;
+      const hover = id && isCandidate(id) ? id : null;
+      if (hover !== pickHover) setPickHover(hover);
+      setPickPointer(localPoint(e));
+      return;
+    }
     const g = gesture.current;
     if (!g || g.pointerId !== e.pointerId) return;
     const p = localPoint(e);
@@ -299,6 +430,24 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       }
       const z = store.getState().viewport.zoom;
       store.moveBy(g.ids, { x: (p.x - g.last.x) / z, y: (p.y - g.last.y) / z });
+      if (g.stuck.length) {
+        const total = { x: (p.x - g.start.x) / z, y: (p.y - g.start.y) / z };
+        const applied = g.stuckApplied;
+        if (Math.hypot(p.x - g.start.x, p.y - g.start.y) >= DETACH_DISTANCE) {
+          const freed = g.stuck;
+          store.detach(freed); // inside the drag's begin/end: same undo step as the move
+          store.moveBy(freed, { x: total.x - applied.x, y: total.y - applied.y });
+          g.ids = [...g.ids, ...freed];
+          g.stuck = [];
+          onDetach?.(freed);
+          announce(m.detached(freed.length));
+        } else {
+          // Rubber band: the stuck node lags behind the pointer and slides back if let go.
+          const want = { x: total.x * DETACH_RESISTANCE, y: total.y * DETACH_RESISTANCE };
+          store.moveBy(g.stuck, { x: want.x - applied.x, y: want.y - applied.y });
+          g.stuckApplied = want;
+        }
+      }
       g.last = p;
       g.moved = true;
     } else {
@@ -316,8 +465,9 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     gesture.current = null;
     if (g.kind === 'pan') setPanning(spaceHeld.current);
     if (g.kind === 'drag') {
+      if (g.stuck.length) store.moveBy(g.stuck, { x: -g.stuckApplied.x, y: -g.stuckApplied.y });
       store.end();
-      if (g.moved) announce(m.moved(g.ids.length));
+      if (g.moved && g.ids.length) announce(m.moved(g.ids.length));
       else if (g.wasSelected && !(e.shiftKey || e.metaKey || e.ctrlKey)) store.select([g.hitId]);
     }
     if (g.kind === 'lasso') {
@@ -328,13 +478,17 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   };
 
   const onDoubleClick = (e: ReactMouseEvent) => {
-    if ((e.target as HTMLElement).closest('[data-desk-ui]')) return;
+    if (pickTarget || (e.target as HTMLElement).closest('[data-desk-ui]')) return;
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]');
     const id = nodeEl?.dataset.nodeId;
     if (id && onOpen && nodesMap[id]) onOpen(id);
   };
 
   const onContext = (e: ReactMouseEvent) => {
+    if (pickTarget) {
+      e.preventDefault();
+      return;
+    }
     if (!onContextMenu || (e.target as HTMLElement).closest('[data-desk-ui]')) return;
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]');
     e.preventDefault();
@@ -354,6 +508,10 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   };
 
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (pickKey(e)) {
+      e.preventDefault();
+      return;
+    }
     const t = e.target as HTMLElement;
     if (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName) || t.closest('[data-desk-ui]')) return;
     if (onKeyDown?.(e, store)) {
@@ -456,6 +614,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
         data-panning={panning || undefined}
         data-open={openId ? '' : undefined}
         data-drop-active={dropCount > 0 || undefined}
+        data-picking={pickTarget ? '' : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -531,6 +690,8 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                       data-selected={isSelected || undefined}
                       data-dimmed={openId && openId !== n.id ? '' : undefined}
                       data-opened={openId === n.id || undefined}
+                      data-attached={n.attach ? '' : undefined}
+                      data-pick={pickTarget ? (n.id === pickTarget.from ? 'from' : isCandidate(n.id) ? 'candidate' : 'no') : undefined}
                       onFocus={() => store.getState().focusedId !== n.id && store.focus(n.id)}
                       style={{
                         left: n.x,
@@ -610,6 +771,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                 : m.multiSelection(selection.length)}
             </GroupFrame>
           )}
+          {pickTarget && <PickGuide store={store} pick={pickTarget} hover={pickHover} pointer={pickPointer} />}
           {lasso && (() => {
             const r = rectToScreen(lasso, viewport);
             return <div className="desk__lasso" style={{ left: r.x, top: r.y, width: r.w, height: r.h }} />;
@@ -640,6 +802,28 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
         </div>
       </div>
     </DeskContext.Provider>
+  );
+}
+
+/** Pick mode: accent ring on the hovered candidate, dashed line from the `from` node to it (or to the pointer). */
+function PickGuide<D>({ store, pick, hover, pointer }: { store: DeskStore<D>; pick: PickTarget<D>; hover: string | null; pointer: Vec | null }) {
+  const viewport = useDeskState(store, (s) => s.viewport);
+  const nodes = useDeskState(store, (s) => s.nodes);
+  const from = nodes[pick.from];
+  if (!from) return null;
+  const a = center(rectToScreen(rectOf(from), viewport));
+  const target = hover ? nodes[hover] : undefined;
+  const ring = target ? rectToScreen(rectOf(target), viewport) : null;
+  const b = ring ? center(ring) : pointer;
+  return (
+    <>
+      {b && (
+        <svg className="desk__pick-guide">
+          <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+        </svg>
+      )}
+      {ring && <div className="desk__pick-ring" style={{ left: ring.x - 6, top: ring.y - 6, width: ring.w + 12, height: ring.h + 12 }} />}
+    </>
   );
 }
 

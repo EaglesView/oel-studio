@@ -26,6 +26,13 @@ export interface DeskNode<D = unknown> {
   rotation: number;
   data: D;
   locked?: boolean;
+  /**
+   * Stuck to another node (Figma K: a note on a paper). `dx`/`dy` is the offset
+   * of this node's top-left from the target's, in the target's unrotated frame;
+   * the node follows its target wherever it goes. One level only: a target is
+   * never itself attached.
+   */
+  attach?: { to: string; dx: number; dy: number };
 }
 
 /** Figma G1: live and up to date, being updated, late (manual), frozen, broken, or not known yet (grey). */

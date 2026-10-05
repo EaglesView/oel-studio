@@ -172,6 +172,29 @@
   background: var(--emboss-accent-soft, #7759c51a);
 }
 
+/* Pick mode (« Coller à… »): the app may set a pin cursor via --desk-pick-cursor. */
+.desk[data-picking] { cursor: var(--desk-pick-cursor, crosshair); }
+.desk[data-picking] .desk__node[data-pick='no'] { opacity: 0.55; }
+.desk__pick-ring {
+  position: absolute;
+  border: 2.5px solid var(--emboss-focus, #7759c5);
+  border-radius: 10px;
+  background: var(--emboss-accent-soft, #7759c51a);
+}
+.desk__pick-guide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.desk__pick-guide line {
+  stroke: var(--emboss-focus, #7759c5);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  stroke-linecap: round;
+}
+
 .desk__empty {
   position: absolute;
   top: 50%;
@@ -244,7 +267,8 @@
 @keyframes desk-fade { from { opacity: 0; } }
 
 @media (forced-colors: active) {
-  .desk__selection, .desk__group, .desk-minimap__view { border-color: Highlight; }
+  .desk__selection, .desk__group, .desk-minimap__view, .desk__pick-ring { border-color: Highlight; }
+  .desk__pick-guide line { stroke: Highlight; }
   .desk__chip { border-color: ButtonText; }
   .desk__node:focus-visible::after { border-color: Highlight; }
 }

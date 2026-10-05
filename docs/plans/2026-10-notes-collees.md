@@ -75,4 +75,8 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
   item; move the item; drag the note away; delete the item + Annuler; `@Ma` → notification in a second tab.
 
 ## Status
-- Not started.
+- K-1 done (2026-10-05): `DeskNode.attach`, store `attach`/`detach`/`attachedTo`/`canAttach`/`overlapping`, carry on
+  `moveBy`/`nudge`/`update`/`align`/`distribute`/`bringToFront`, `remove` frees stuck nodes in place and returns their ids;
+  `DeskCanvas` `pickTarget` (ring, dashed guide, Tab/Maj+Tab nearest first, Entrée, Échap or click on empty to cancel)
+  and drag-off with 24 px rubber band (`onDetach`). One level only (a target is never itself stuck; a node with notes
+  can't be stuck). Nothing uses it in the Bureau yet: K-3 wires « Coller », K-5 the delete toast.
