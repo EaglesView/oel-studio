@@ -5,3 +5,4 @@ export { SheetDoc, rowMeta, colMeta, parseInput, dateSerial, editText, isDateFor
 export { toPreview } from './preview';
 export { fillLine, type FillSource } from './fill';
 export { toTSV, parseTSV, toHTML, parseHTML, cssHex, type ClipCell } from './clipboard';
+export { rangeAsTable, type CellShown } from './linkedTable';
