@@ -24,6 +24,7 @@ export {
   MenuSeparator,
   MenuPopover,
   MenuTrigger,
+  SubmenuTrigger,
 } from './components/Overlays';
 export {
   ToastRegion,
@@ -42,10 +43,17 @@ export {
   AvatarStack,
   Sidebar,
   NavItem,
+  RailNav,
+  RailItem,
+  RailSeparator,
+  ChoiceCard,
   ProgressBar,
   Kbd,
   type Person,
   type Tone,
+  type RailNavProps,
+  type RailItemProps,
+  type ChoiceCardProps,
 } from './components/Display';
 export { Pagination } from './components/Pagination';
 export { cx } from './utils';

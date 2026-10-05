@@ -238,3 +238,97 @@
   box-shadow: var(--shadow-ink-pressed);
 }
 .emb-page-key[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 3px; }
+
+/* Rail (full-screen menu, Figma M2): a sheet down the left edge. */
+.emb-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 260px;
+  height: 100%;
+  padding: 20px 16px;
+  border-right: 1px solid var(--emboss-edge);
+  background-color: var(--emboss-sheet);
+  background-image: var(--emboss-noise);
+}
+.emb-rail__brand { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; }
+.emb-rail__logo {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--emboss-accent-soft);
+}
+.emb-rail__brand-button { padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; outline: none; }
+.emb-rail__brand-button[data-hovered] .emb-rail__logo { box-shadow: var(--shadow-raised-soft); }
+.emb-rail__brand-button[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
+.emb-rail__name { font: 600 14px/20px var(--font-sans); color: var(--emboss-text); }
+.emb-rail__list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.emb-rail__footer { margin-top: auto; }
+.emb-rail__separator { height: 1px; margin: 2px 0; background: var(--emboss-edge); }
+
+.emb-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--emboss-text);
+  font: 500 12px/18px var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--dur-hover) var(--ease-paper);
+}
+.emb-rail-item svg { flex: none; color: var(--emboss-ink); }
+.emb-rail-item[data-hovered] { background: var(--emboss-surface); }
+.emb-rail-item[data-pressed] { background: var(--emboss-well); }
+.emb-rail-item.is-current { background: var(--emboss-accent-soft); color: var(--emboss-fill-primary); font-weight: 600; }
+.emb-rail-item[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: -2px; }
+.emb-rail-item__label { white-space: nowrap; }
+.emb-rail-item__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--emboss-fill-primary); }
+.emb-rail-item__shortcut { font: 500 10px/14px var(--font-sans); color: var(--emboss-ink-muted); white-space: nowrap; }
+
+/* Choice card: big icon over its name (empty desk), or a picture with icon + name below (menu « Nouveau »). */
+.emb-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 172px;
+  padding: 24px 20px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: 20px;
+  background-color: var(--emboss-sheet);
+  background-image: var(--emboss-noise);
+  box-shadow: var(--shadow-raised-soft);
+  color: var(--emboss-text);
+  font: 600 14px/20px var(--font-sans);
+  cursor: pointer;
+  outline: none;
+  transition: box-shadow var(--dur-hover) var(--ease-paper), translate var(--dur-hover) var(--ease-paper);
+}
+.emb-choice svg { flex: none; color: var(--emb-choice-icon, var(--emboss-ink)); }
+.emb-choice[data-hovered]:not(.is-unavailable) { box-shadow: var(--shadow-raised); translate: 0 -1px; }
+.emb-choice[data-pressed]:not(.is-unavailable) { background-color: var(--emboss-well); box-shadow: var(--shadow-pressed); translate: none; }
+.emb-choice[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
+.emb-choice.is-unavailable { cursor: default; opacity: 0.55; }
+.emb-choice--media {
+  justify-content: space-between;
+  gap: 10px;
+  width: 150px;
+  padding: 18px 14px;
+  border-radius: 14px;
+  font-size: 11px;
+  line-height: 16px;
+}
+.emb-choice__media { display: grid; place-items: center; min-height: 96px; }
+.emb-choice__name { display: inline-flex; align-items: center; gap: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .emb-choice { transition: none; }
+  .emb-choice[data-hovered]:not(.is-unavailable) { translate: none; }
+}

@@ -12,6 +12,7 @@ import {
   OverlayArrow,
   Popover as RACPopover,
   Separator,
+  SubmenuTrigger,
   type DialogProps,
   type MenuItemProps,
   type MenuProps,
@@ -22,7 +23,7 @@ import {
 import { Icon, type IconName } from '../icons/Icon';
 import { cx } from '../utils';
 
-export { DialogTrigger, MenuTrigger };
+export { DialogTrigger, MenuTrigger, SubmenuTrigger };
 
 /* ── Popover (kit 66:609) ──────────────────────────────────────────── */
 
@@ -127,11 +128,12 @@ export function MenuItem({
       textValue={textValue}
       className={composeRenderProps(props.className, (cls) => cx('emb-menu-item', cls))}
     >
-      {composeRenderProps(children, (content) => (
+      {composeRenderProps(children, (content, { hasSubmenu }) => (
         <>
           {icon && <Icon name={icon} size={18} />}
           <span className="emb-menu-item__label">{content}</span>
           {shortcut && <kbd>{shortcut}</kbd>}
+          {hasSubmenu && <Icon name="chevron-right" size={16} className="emb-menu-item__submenu" />}
         </>
       ))}
     </RACMenuItem>

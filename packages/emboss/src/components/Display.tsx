@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import {
   Button as RACButton,
   Link,
@@ -9,6 +9,7 @@ import {
 } from 'react-aria-components';
 import { Icon, type IconName } from '../icons/Icon';
 import { Logo } from '../icons/Logo';
+import { WithTooltip } from './Tooltip';
 import { cx } from '../utils';
 
 /* ── Badge (kit 68:864) ────────────────────────────────────────────── */
@@ -178,6 +179,137 @@ export function NavItem({ icon, label, count, current, collapsed, className, ...
         )}
       </Link>
     </li>
+  );
+}
+
+/* ── Rail (full-screen menu, Figma M2) ─────────────────────────────── */
+
+export interface RailNavProps {
+  /** Accessible name of the navigation. */
+  label: string;
+  /** Product name next to the logo. */
+  brand?: ReactNode;
+  /** Makes the logo a button (e.g. « Fermer le menu »). */
+  onBrandPress?: () => void;
+  brandLabel?: string;
+  children: ReactNode;
+  /** Pinned to the bottom of the rail. */
+  footer?: ReactNode;
+  className?: string;
+}
+
+/** The left rail of a full-screen menu: logo, sections in groups, a footer action. Items are buttons that switch panes. */
+export function RailNav({ label, brand = 'OutilsEnLigne', onBrandPress, brandLabel, children, footer, className }: RailNavProps) {
+  const logo = (
+    <span className="emb-rail__logo">
+      <Logo size={22} aria-hidden />
+    </span>
+  );
+  return (
+    <nav className={cx('emb-rail', className)} aria-label={label}>
+      <div className="emb-rail__brand">
+        {onBrandPress ? (
+          <RACButton className="emb-rail__brand-button" onPress={onBrandPress} aria-label={brandLabel}>
+            {logo}
+          </RACButton>
+        ) : (
+          logo
+        )}
+        <span className="emb-rail__name">{brand}</span>
+      </div>
+      <ul className="emb-rail__list">{children}</ul>
+      {footer && <ul className="emb-rail__list emb-rail__footer">{footer}</ul>}
+    </nav>
+  );
+}
+
+export interface RailItemProps {
+  icon: IconName;
+  label: string;
+  /** Shown after the label, e.g. « Ctrl+Maj+L ». */
+  shortcut?: string;
+  /** The pane on show. */
+  current?: boolean;
+  /** A small ink dot (something needs attention), with its spoken meaning. */
+  dot?: string;
+  onPress?: () => void;
+  autoFocus?: boolean;
+}
+
+export function RailItem({ icon, label, shortcut, current, dot, onPress, autoFocus }: RailItemProps) {
+  return (
+    <li>
+      <RACButton
+        className={cx('emb-rail-item', current && 'is-current')}
+        aria-current={current ? 'page' : undefined}
+        onPress={onPress}
+        autoFocus={autoFocus}
+      >
+        <Icon name={icon} size={16} />
+        <span className="emb-rail-item__label">{label}</span>
+        {dot && (
+          <span className="emb-rail-item__dot">
+            <span className="emb-visually-hidden">{dot}</span>
+          </span>
+        )}
+        {shortcut && <kbd className="emb-rail-item__shortcut">{shortcut}</kbd>}
+      </RACButton>
+    </li>
+  );
+}
+
+export function RailSeparator() {
+  return <li className="emb-rail__separator" aria-hidden />;
+}
+
+/* ── Choice card (large creation choices: empty desk, menu « Nouveau ») ─ */
+
+export interface ChoiceCardProps {
+  icon: IconName;
+  label: string;
+  /** A picture above the label (e.g. a blank page); the icon then sits small beside the label. */
+  media?: ReactNode;
+  /** Icon colour, e.g. the file kind's colour. Default: ink. */
+  iconColor?: string;
+  onPress?: () => void;
+  /** Greyed out; the tooltip says why (Figma B3). */
+  unavailableReason?: string;
+  className?: string;
+}
+
+/** A raised sheet you pick: a big icon over its name, or a picture with the icon and name below. */
+export function ChoiceCard({ icon, label, media, iconColor, onPress, unavailableReason, className }: ChoiceCardProps) {
+  const card = (
+    <RACButton
+      className={cx('emb-choice', media !== undefined && 'emb-choice--media', unavailableReason && 'is-unavailable', className)}
+      style={iconColor ? ({ '--emb-choice-icon': iconColor } as CSSProperties) : undefined}
+      onPress={unavailableReason ? undefined : onPress}
+      aria-disabled={unavailableReason ? true : undefined}
+    >
+      {media !== undefined ? (
+        <>
+          <span className="emb-choice__media" aria-hidden>
+            {media}
+          </span>
+          <span className="emb-choice__name">
+            <Icon name={icon} size={12} />
+            {label}
+          </span>
+        </>
+      ) : (
+        <>
+          <Icon name={icon} size={32} />
+          {label}
+        </>
+      )}
+    </RACButton>
+  );
+  return unavailableReason ? (
+    <WithTooltip label={label} unavailableReason={unavailableReason}>
+      {card}
+    </WithTooltip>
+  ) : (
+    card
   );
 }
 

@@ -40,6 +40,7 @@ import {
   List,
   Lock,
   MediaImage,
+  MediaImageList,
   MoreHoriz,
   MultiplePages,
   NavArrowLeft,
@@ -244,6 +245,8 @@ const EXTRA = {
   'input': InputField,
   'laptop': Laptop,
   'media': MediaImage,
+  /** Galerie (Figma L, M2 « Galerie vide »): Iconoir MediaImageList. */
+  gallery: MediaImageList,
   'palette': Palette,
   'qr': QrCode,
   'send': Send,

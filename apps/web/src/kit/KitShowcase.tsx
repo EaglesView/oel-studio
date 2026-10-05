@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Checkbox,
+  ChoiceCard,
   DialogOverlay,
   DialogTrigger,
   Icon,
@@ -14,6 +15,9 @@ import {
   ProgressBar,
   Radio,
   RadioGroup,
+  RailItem,
+  RailNav,
+  RailSeparator,
   Select,
   SelectItem,
   SheetDialog,
@@ -41,6 +45,7 @@ const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'destructive
 export function KitShowcase() {
   const [page, setPage] = useState(3);
   const [bold, setBold] = useState(true);
+  const [rail, setRail] = useState(0);
 
   return (
     <div className="kit">
@@ -203,6 +208,37 @@ export function KitShowcase() {
             Empiler 4 toasts
           </Button>
           <NotificationsButton />
+        </div>
+      </section>
+
+      <section aria-labelledby="k-rail">
+        <h2 id="k-rail">Menu plein écran</h2>
+        <p className="kit__note">
+          Rail (Figma M2) : des boutons qui changent de volet ; le volet affiché est marqué. Cartes de choix : grande icône sur
+          son nom, ou une image avec l’icône et le nom dessous ; « Bientôt » les grise et l’infobulle dit pourquoi.
+        </p>
+        <div className="kit__row kit__row--top">
+          <div className="kit__rail">
+            <RailNav label="Exemple de menu" footer={<RailItem icon="close" label="Retour" shortcut="Échap" />}>
+              {(['home', 'folder', 'settings'] as const).map((icon, i) => (
+                <RailItem
+                  key={icon}
+                  icon={icon}
+                  label={['Accueil', 'Projets', 'Paramètres'][i]!}
+                  current={rail === i}
+                  onPress={() => setRail(i)}
+                />
+              ))}
+              <RailSeparator />
+              <RailItem icon="link" label="Fils" shortcut="Ctrl+Maj+L" dot="1 fil en retard" />
+            </RailNav>
+          </div>
+          <div className="kit__row">
+            <ChoiceCard icon="file" label="Document" onPress={() => toast({ title: 'Document' })} />
+            <ChoiceCard icon="upload" label="Importer" onPress={() => toast({ title: 'Importer' })} />
+            <ChoiceCard icon="table" label="Tableur" media={<span className="kit__page" />} onPress={() => toast({ title: 'Tableur' })} />
+            <ChoiceCard icon="gallery" label="Galerie vide" media={<span className="kit__page" />} unavailableReason="Bientôt." />
+          </div>
         </div>
       </section>
 
