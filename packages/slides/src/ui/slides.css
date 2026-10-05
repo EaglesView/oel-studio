@@ -3,6 +3,7 @@
    tokens. Layout mirrors @oel/sheets and @oel/docs. */
 
 @import '@oel/collab-client/styles.css';
+@import '@oel/charts/ui.css';
 
 .oel-slides {
   --oel-desk: var(--emboss-surface);

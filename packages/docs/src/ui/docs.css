@@ -4,6 +4,7 @@
 
 /* Sync chip, presence, share and version panels, identity, swatches. */
 @import '@oel/collab-client/styles.css';
+@import '@oel/charts/ui.css';
 
 .oel-docs {
   --oel-paper: #fff;
