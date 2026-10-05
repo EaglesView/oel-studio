@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react';
 import { Dialog, MenuTrigger } from 'react-aria-components';
-import { Badge, Button, DialogOverlay, Icon, Menu, MenuItem, MenuPopover, MenuSeparator, NumberField, Popover, SheetDialog, TextField, toast } from '@oel/emboss';
+import { Badge, Button, DialogOverlay, Icon, Menu, MenuItem, MenuPopover, MenuSeparator, NumberField, Popover, SheetDialog, TextField, toast, useToolbarDock } from '@oel/emboss';
 import { IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, VersionPanel, useSessionStatus, type Identity, type MenuSpec } from '@oel/collab-client';
 import type * as Y from 'yjs';
 import { SheetDoc } from '../model/ydoc';
@@ -120,6 +120,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
   ctl.docId = status.docId;
 
   const [zoom, setZoom] = useState(1);
+  // The bar folds into « Plus » and can dock at the bottom (Figma J3), remembered per editor.
+  const dock = useToolbarDock(variant === 'sheet' ? 'sheets-sheet' : 'sheets');
   const [find, setFind] = useState<{ replace: boolean } | null>(null);
   const [dialog, setDialog] = useState<DialogName>(null);
   const [showVersions, setShowVersions] = useState(false);
@@ -598,6 +600,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
   );
   const hasList = !!listChoices(ctl, ctl.sel.active.r, ctl.sel.active.c);
 
+  const toolbarEl = <SheetsToolbar ctl={ctl} onCommand={act} more={compact ? <MoreMenu spec={spec} onAction={act} /> : undefined} dock={dock} storageKey={compact ? 'sheets-sheet' : 'sheets'} />;
+
   return (
     <div className={`oel-sheets oel-sheets--${variant}`} data-sheets={status.docId} onKeyDown={onKeyDown}>
       {!compact && (
@@ -646,7 +650,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       )}
 
       <div className="oel-sheets__toolbar" onMouseDown={(e) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault()}>
-        <SheetsToolbar ctl={ctl} zoom={zoom} setZoom={setZoom} onCommand={act} more={compact ? <MoreMenu spec={spec} onAction={act} /> : undefined} />
+        {!dock.docked && toolbarEl}
         {compact && (
           <div className="oel-sheets__sheet-actions">
             {preservedChip}
@@ -697,6 +701,11 @@ export function SheetsEditor(props: SheetsEditorProps) {
         )}
       </div>
 
+      {dock.docked && (
+        <div className="oel-sheets__dock" onMouseDown={(e) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault()}>
+          {toolbarEl}
+        </div>
+      )}
       <SheetTabs ctl={ctl} zoom={zoom} setZoom={setZoom} />
 
       {filterMenu && <FilterMenu ctl={ctl} col={filterMenu.col} at={filterMenu.at} onClose={() => (setFilterMenu(null), gridFocus())} />}

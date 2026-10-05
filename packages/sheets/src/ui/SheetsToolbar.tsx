@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Dialog, DialogTrigger, MenuTrigger } from 'react-aria-components';
-import { Menu, MenuItem, MenuPopover, MenuSeparator, Popover, Select, SelectItem, Toolbar, ToolbarSeparator, ToolbarToggle, ToolButton } from '@oel/emboss';
+import { AdaptiveToolbar, Menu, MenuItem, MenuPopover, MenuSeparator, Popover, Select, SelectItem, ToolbarToggle, ToolButton, type ToolGroup } from '@oel/emboss';
 import { NUMBER_FORMATS, type SheetController } from './controller';
 
 export const ZOOMS = [0.5, 0.75, 0.9, 1, 1.25, 1.5, 2];
@@ -54,30 +54,29 @@ function MenuTool({ icon, label, items, onAction, ro, description }: { icon: Par
   );
 }
 
-export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: SheetController; zoom: number; setZoom: (z: number) => void; onCommand: (id: string) => void; more?: ReactNode }) {
+export function SheetsToolbar({ ctl, onCommand, more, dock, storageKey }: { ctl: SheetController; onCommand: (id: string) => void; more?: ReactNode; dock: { docked: boolean; forced: boolean; setDocked: (d: boolean) => void }; storageKey: string }) {
   const st = ctl.activeStyle;
   const ro = ctl.readOnlyFlag ? 'Lecture seule' : undefined;
   const fmtId = NUMBER_FORMATS.find((f) => f.code === st.numFmt)?.id ?? 'custom';
-  return (
-    <Toolbar aria-label="Mise en forme">
-      <ToolButton icon="undo" label="Annuler" shortcut={['Ctrl', 'Z']} unavailableReason={ro} onPress={() => ctl.undo.undo()} />
-      <ToolButton icon="redo" label="Rétablir" shortcut={['Ctrl', 'Y']} unavailableReason={ro} onPress={() => ctl.undo.redo()} />
-      <ToolButton icon="print" label="Imprimer" shortcut={['Ctrl', 'P']} onPress={() => onCommand('print')} />
-      <ToolbarToggle icon="format-painter" label="Reproduire la mise en forme" description="Copie la mise en forme de la cellule active vers la prochaine sélection." isSelected={!!ctl.painter} unavailableReason={ro} onChange={() => ctl.togglePainter()} />
-      <div className="oel-toolbar__select oel-toolbar__select--zoom">
-        <Select aria-label="Zoom" selectedKey={String(zoom)} onSelectionChange={(k) => setZoom(Number(k))}>
-          {ZOOMS.map((z) => (
-            <SelectItem key={z} id={String(z)}>
-              {`${Math.round(z * 100)} %`}
-            </SelectItem>
-          ))}
-        </Select>
-      </div>
-      <ToolbarSeparator />
-      <ToolButton icon="currency" label="Format monétaire" description="1 234,50 $" unavailableReason={ro} onPress={() => ctl.setNumFmt('#,##0.00 "$"')} />
-      <ToolButton icon="percent" label="Pourcentage" unavailableReason={ro} onPress={() => ctl.setNumFmt('0%')} />
-      <ToolButton icon="minus" label="Réduire les décimales" unavailableReason={ro} onPress={() => ctl.stepDecimals(-1)} />
-      <ToolButton icon="plus" label="Ajouter une décimale" unavailableReason={ro} onPress={() => ctl.stepDecimals(1)} />
+  // Groups and priorities from Figma J4: 1 never folds, 5 folds first. Zoom is in the sheet bar, printing in Fichier.
+  const groups: ToolGroup[] = [
+    {
+      id: 'history',
+      label: 'Historique',
+      priority: 1,
+      content: (
+        <>
+          <ToolButton icon="undo" label="Annuler" shortcut={['Ctrl', 'Z']} unavailableReason={ro} onPress={() => ctl.undo.undo()} />
+          <ToolButton icon="redo" label="Rétablir" shortcut={['Ctrl', 'Y']} unavailableReason={ro} onPress={() => ctl.undo.redo()} />
+        </>
+      ),
+    },
+    {
+      id: 'number',
+      label: 'Nombre',
+      priority: 2,
+      content: (
+        <>
       <div className="oel-toolbar__select oel-toolbar__select--numfmt">
         <Select aria-label="Format des nombres" isDisabled={!!ro} selectedKey={fmtId} onSelectionChange={(k) => (k === 'custom' ? onCommand('format-cells') : ctl.setNumFmt(NUMBER_FORMATS.find((f) => f.id === k)!.code))}>
           {[
@@ -95,7 +94,14 @@ export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: Sh
           ]}
         </Select>
       </div>
-      <ToolbarSeparator />
+          <ToolButton icon="currency" label="Format monétaire" description="1 234,50 $" unavailableReason={ro} onPress={() => ctl.setNumFmt('#,##0.00 "$"')} />
+          <ToolButton icon="percent" label="Pourcentage" unavailableReason={ro} onPress={() => ctl.setNumFmt('0%')} />
+          <ToolButton icon="minus" label="Réduire les décimales" unavailableReason={ro} onPress={() => ctl.stepDecimals(-1)} />
+          <ToolButton icon="plus" label="Ajouter une décimale" unavailableReason={ro} onPress={() => ctl.stepDecimals(1)} />
+        </>
+      ),
+    },
+    { id: 'font', label: 'Police', priority: 3, content: <>
       <div className="oel-toolbar__select oel-toolbar__select--font">
         <Select aria-label="Police" isDisabled={!!ro} selectedKey={st.font.name ?? 'Calibri'} onSelectionChange={(k) => ctl.setFont({ name: String(k) })}>
           {[...new Set([...(st.font.name ? [st.font.name] : []), ...FONTS])].map((f) => (
@@ -114,13 +120,16 @@ export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: Sh
           ))}
         </Select>
       </div>
-      <ToolbarSeparator />
+    </> },
+    { id: 'text', label: 'Texte', priority: 1, content: <>
       <ToolbarToggle icon="bold" label="Gras" shortcut={['Ctrl', 'B']} isSelected={!!st.font.bold} unavailableReason={ro} onChange={() => ctl.toggleFont('bold')} />
       <ToolbarToggle icon="italic" label="Italique" shortcut={['Ctrl', 'I']} isSelected={!!st.font.italic} unavailableReason={ro} onChange={() => ctl.toggleFont('italic')} />
       <ToolbarToggle icon="strikethrough" label="Barré" shortcut={['Ctrl', '5']} isSelected={!!st.font.strike} unavailableReason={ro} onChange={() => ctl.toggleFont('strike')} />
       <ToolbarToggle icon="underline" label="Souligné" shortcut={['Ctrl', 'U']} isSelected={!!st.font.underline} unavailableReason={ro} onChange={() => ctl.toggleUnderline()} />
       <ColorTool icon="text-color" label="Couleur du texte" colors={TEXT_COLORS} none="Automatique" current={st.font.color?.css} onPick={(c) => ctl.setTextColor(c)} ro={ro} />
       <ColorTool icon="fill-color" label="Couleur de remplissage" colors={FILL_COLORS} none="Aucun remplissage" current={st.fill?.css} onPick={(c) => ctl.setFill(c)} ro={ro} />
+    </> },
+    { id: 'cells', label: 'Cellules', priority: 2, wide: true, content: <>
       <MenuTool
         icon="borders"
         label="Bordures"
@@ -148,7 +157,6 @@ export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: Sh
           { id: 'unmerge', label: 'Annuler la fusion' },
         ]}
       />
-      <ToolbarSeparator />
       <MenuTool
         icon={st.align.h === 'center' ? 'align-center' : st.align.h === 'right' ? 'align-right' : 'align-left'}
         label="Alignement horizontal"
@@ -174,10 +182,25 @@ export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: Sh
         ]}
       />
       <ToolbarToggle icon="wrap-text" label="Renvoyer à la ligne" description="Le texte passe à la ligne dans la cellule." isSelected={!!st.align.wrap} unavailableReason={ro} onChange={() => ctl.setAlign({ wrap: !st.align.wrap || undefined })} />
-      <ToolbarSeparator />
-      <ToolButton icon="link" label="Insérer un lien" shortcut={['Ctrl', 'K']} unavailableReason={ro} onPress={() => onCommand('link')} />
-      <ToolButton icon="comment" label="Insérer une note" unavailableReason="Les notes du fichier sont affichées et conservées ; leur création arrive bientôt." />
-      <ToolButton icon="chart" label="Graphique" shortcut={['Alt', 'F1']} description="Graphique recommandé à partir de la sélection" unavailableReason={ro} onPress={() => onCommand('chart')} />
+    </> },
+    {
+      id: 'data',
+      label: 'Données',
+      priority: 3,
+      content: (
+        <>
+          <MenuTool
+            icon="sort-asc"
+            label="Trier"
+            ro={ro}
+            onAction={(id) => onCommand(id)}
+            items={[
+              { id: 'sort-asc', label: 'Trier de A à Z' },
+              { id: 'sort-desc', label: 'Trier de Z à A' },
+              '-',
+              { id: 'sort', label: 'Tri personnalisé…' },
+            ]}
+          />
       <ToolbarToggle icon="filter" label="Filtrer" shortcut={['Ctrl', 'Maj', 'L']} isSelected={!!ctl.doc.filter(ctl.sheetId)} unavailableReason={ro} onChange={() => ctl.toggleFilter()} />
       <MenuTool
         icon="sum"
@@ -193,7 +216,29 @@ export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: Sh
           { id: 'MIN', label: 'MIN — Minimum' },
         ]}
       />
-      {more}
-    </Toolbar>
-  );
+        </>
+      ),
+    },
+    {
+      id: 'insert',
+      label: 'Insertion',
+      priority: 4,
+      content: (
+        <>
+          <ToolButton icon="chart" label="Graphique" shortcut={['Alt', 'F1']} description="Graphique recommandé à partir de la sélection" unavailableReason={ro} onPress={() => onCommand('chart')} />
+          <ToolButton icon="link" label="Insérer un lien" shortcut={['Ctrl', 'K']} unavailableReason={ro} onPress={() => onCommand('link')} />
+          <ToolButton icon="comment" label="Insérer une note" unavailableReason="Les notes du fichier sont affichées et conservées ; leur création arrive bientôt." />
+        </>
+      ),
+    },
+    {
+      id: 'tools',
+      label: 'Outils',
+      priority: 5,
+      content: (
+        <ToolbarToggle icon="format-painter" label="Reproduire la mise en forme" description="Copie la mise en forme de la cellule active vers la prochaine sélection." isSelected={!!ctl.painter} unavailableReason={ro} onChange={() => ctl.togglePainter()} />
+      ),
+    },
+  ];
+  return <AdaptiveToolbar label="Mise en forme" groups={groups} trailing={more} storageKey={storageKey} docked={dock.docked} forced={dock.forced} onDockedChange={dock.setDocked} />;
 }

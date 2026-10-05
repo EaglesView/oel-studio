@@ -61,7 +61,10 @@
 /* Toolbar */
 .oel-sheets__toolbar { display: flex; align-items: center; gap: 8px; padding: 4px 16px 6px; min-width: 0; flex: none; }
 .oel-sheets--sheet .oel-sheets__toolbar { padding-top: 10px; }
-.oel-sheets__toolbar > .emb-toolbar { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.oel-sheets__toolbar > .emb-toolbar { flex: 1; min-width: 0; }
+/* Docked at the bottom (Figma J3): the whole bar above the sheet tabs. */
+.oel-sheets__dock { flex: none; padding: 6px 16px; }
+.oel-sheets__dock > .emb-toolbar { width: 100%; }
 .oel-toolbar__select--numfmt { width: 128px; }
 .oel-toolbar__select--font { width: 130px; }
 .oel-toolbar__select--size { width: 64px; }
@@ -285,7 +288,7 @@
 }
 
 @media print {
-  .oel-sheets__top, .oel-sheets__toolbar, .oel-formulabar, .oel-sheetbar, .oel-findbar { display: none; }
+  .oel-sheets__top, .oel-sheets__toolbar, .oel-sheets__dock, .oel-formulabar, .oel-sheetbar, .oel-findbar { display: none; }
 }
 
 /* ── Charts (Figma H1–H5) ─────────────────────────────────────────────── */
