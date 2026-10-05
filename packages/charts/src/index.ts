@@ -20,7 +20,7 @@ import { Ctx } from './style';
 import type { ChartSpec, RenderOptions, ResolvedChart, Scene } from './types';
 
 export type * from './types';
-export { resolveChart } from './data';
+export { chartName, keepLook, resolveChart, withCaches } from './data';
 export { formatValue, isDateFormat } from './format';
 export { valueScale } from './scale';
 export { cellResolver, parseRef, type CellReader, type RefArea } from './refs';

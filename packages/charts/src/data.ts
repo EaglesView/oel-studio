@@ -63,3 +63,73 @@ export function resolveChart(spec: ChartSpec, resolve?: Resolver): ResolvedChart
 export function categoryCount(list: SeriesData[]): number {
   return list.reduce((m, s) => Math.max(m, s.values.length, s.cats.length), 0);
 }
+
+/**
+ * The chart with its caches filled from live values: what a copy of it shows
+ * without the cells (a chart linked into a slide or a document, Figma G2).
+ * References stay as they are; values, texts and formats come from `resolve`.
+ */
+export function withCaches(spec: ChartSpec, resolve: Resolver): ChartSpec {
+  const fill = (ref: DataRef | undefined | null): DataRef | undefined => {
+    if (!ref?.f) return ref ?? undefined;
+    const v = resolve(ref.f);
+    if (!v) return ref;
+    const hasNum = v.num.some((x) => x != null);
+    return {
+      ...ref,
+      format: v.format ?? ref.format,
+      num: hasNum ? v.num : undefined,
+      str: hasNum ? undefined : v.text,
+      count: Math.max(v.num.length, v.text.length),
+    };
+  };
+  return {
+    ...spec,
+    title: spec.title?.f ? { ...spec.title, text: readText(spec.title.f, spec.title.text, resolve) } : spec.title,
+    groups: spec.groups.map((g) => ({
+      ...g,
+      series: g.series.map((s) => ({
+        ...s,
+        name: s.nameRef ? readText(s.nameRef, s.name, resolve) : s.name,
+        cat: fill(s.cat),
+        val: fill(s.val),
+        size: fill(s.size),
+      })),
+    })),
+  };
+}
+
+/** A short name for a chart: its title, else its only series, else « Graphique ». */
+export function chartName(spec: ChartSpec): string {
+  const t = spec.title?.text?.trim();
+  if (t) return t;
+  const series = spec.groups.flatMap((g) => g.series);
+  return (series.length === 1 && series[0]!.name?.trim()) || 'Graphique';
+}
+
+/**
+ * The source chart with the look of `target` kept: what a copy linked with
+ * « Données seulement » shows (Figma G3 « Transporte »). Series, values and
+ * the type follow the source; colours, fonts, legend and title style stay.
+ */
+export function keepLook(target: ChartSpec | null, source: ChartSpec): ChartSpec {
+  if (!target) return source;
+  return {
+    ...source,
+    palette: target.palette,
+    style: target.style,
+    space: target.space,
+    plot: target.plot,
+    text: target.text,
+    font: target.font,
+    legend: target.legend,
+    title: target.title ? { ...target.title, text: source.title?.text ?? target.title.text } : source.title,
+    groups: source.groups.map((g, gi) => ({
+      ...g,
+      series: g.series.map((s, si) => {
+        const t = target.groups[gi]?.series[si];
+        return t ? { ...s, shape: t.shape, marker: t.marker, labels: t.labels } : s;
+      }),
+    })),
+  };
+}
