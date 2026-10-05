@@ -9,6 +9,8 @@ import type { Workbook } from '../src/model/types';
 const require = createRequire(import.meta.url);
 const codec = require('oelxlsx-node') as {
   xlsx_to_model(b: Uint8Array): string;
+  model_to_xlsx(json: string, original?: Uint8Array): Uint8Array;
+  XlsxParts: new (b: Uint8Array) => { part(p: string): Uint8Array | undefined };
   WasmCalc: new (json: string) => { values(s: number, r0: number, c0: number, r1: number, c1: number): string; structural(op: string): void; evaluate(): string; free(): void };
 };
 const FIXTURE = new URL('../../../fixtures/xlsx/rich-lo.xlsx', import.meta.url);
@@ -155,5 +157,53 @@ describe('SheetDoc', () => {
     expect(wb.styles.length).toBe(n + 1);
     expect(wb.sheets[0]!.cells.filter((c) => c.r >= 20 && c.s === n).length).toBe(4);
     expect(wb.baseStyles).toBe(n);
+  });
+});
+
+describe('charts in the model', () => {
+  const richDoc = () => {
+    const wb: Workbook = JSON.parse(codec.xlsx_to_model(new Uint8Array(readFileSync(new URL('../../../fixtures/xlsx/rich.xlsx', import.meta.url)))));
+    const d = new SheetDoc(new Y.Doc());
+    d.seed(wb);
+    return d;
+  };
+  it('chart references follow inserted and deleted rows', () => {
+    const d = richDoc();
+    const id = d.sheetIds()[0]!;
+    const chart = () => d.drawings(id).find((x) => x.chart)!.chart!;
+    // Untouched: the reference reads exactly as in the file.
+    expect(chart().groups[0]!.series[0]!.val!.f).toBe("'Budget'!$B$2:$B$5");
+    d.insertRows(id, 0, 2);
+    expect(chart().groups[0]!.series[0]!.val!.f).toBe("Budget!$B$4:$B$7");
+    expect(chart().groups[0]!.series[0]!.nameRef).toBe("Budget!B3");
+    d.deleteRows(id, 0, 2);
+    expect(chart().groups[0]!.series[0]!.cat!.f).toBe("'Budget'!$A$2:$A$5");
+  });
+  it('setDrawings round-trips through toWorkbook', () => {
+    const d = richDoc();
+    const id = d.sheetIds()[0]!;
+    const list = d.drawings(id);
+    const i = list.findIndex((x) => x.chart);
+    d.updateDrawing(id, i, (x) => ({ ...x, chart: { ...x.chart!, title: { text: 'Nouveau titre' } } }));
+    const wb = d.toWorkbook();
+    expect(wb.sheets[0]!.drawings![i]!.chart!.title!.text).toBe('Nouveau titre');
+    expect(wb.sheets[0]!.drawings![i]!.chart!.groups[0]!.series[0]!.val!.f).toBe("'Budget'!$B$2:$B$5");
+  });
+});
+
+describe('charts through the Y.Doc and back to .xlsx', () => {
+  it('an untouched chart part is written back byte for byte; an edited one is rewritten', () => {
+    const bytes = new Uint8Array(readFileSync(new URL('../../../fixtures/xlsx/rich.xlsx', import.meta.url)));
+    const d = new SheetDoc(new Y.Doc());
+    d.seed(JSON.parse(codec.xlsx_to_model(bytes)));
+    const part = (b: Uint8Array) => Buffer.from(new codec.XlsxParts(b).part('xl/charts/chart1.xml') ?? []).toString();
+    const out = codec.model_to_xlsx(JSON.stringify(d.toWorkbook()), bytes);
+    expect(part(out)).toBe(part(bytes));
+    const id = d.sheetIds()[0]!;
+    const i = d.drawings(id).findIndex((x) => x.chart);
+    d.updateDrawing(id, i, (x) => ({ ...x, chart: { ...x.chart!, title: { text: 'Dépenses 2027' } } }));
+    const out2 = codec.model_to_xlsx(JSON.stringify(d.toWorkbook()), bytes);
+    expect(part(out2)).toContain('Dépenses 2027');
+    expect(part(out2)).toContain('<c:numCache>');
   });
 });

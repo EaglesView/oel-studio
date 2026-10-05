@@ -1,6 +1,7 @@
 import { CalcClient, type CalcPort } from '../calc/client';
 import type { SheetSession } from '../collab/session';
 import { Layout, conditionalFormats, paint, readTheme, rowHeaderWidth } from '../grid/render';
+import { chartPainter } from '../grid/charts';
 import { parseRange } from '../model/a1';
 import { SheetController } from './controller';
 import { drawingImagePaths, drawingImageUrls } from './media';
@@ -42,6 +43,9 @@ export async function renderSheetThumbnail(
         if (r) calc.prefetch(ctl.sheetIndex, r);
       }
     const drawings = ctl.doc.drawings(ctl.sheetId);
+    // Charts read their ranges: a dry run asks the engine for them before the paint.
+    const charts = chartPainter(ctl);
+    for (const d of drawings) if (d.chart) charts(d, 10, 10);
     const [, media] = await Promise.all([calc.settled(), drawings.length ? drawingImageUrls(session, calc, drawingImagePaths(ctl.doc)) : new Map<string, string>()]);
     media.forEach((u, p) => urls.set(p, u));
     const images = new Map<string, HTMLImageElement>();
@@ -57,7 +61,7 @@ export async function renderSheetThumbnail(
     const cf = conditionalFormats(ctl.doc.condFormats(ctl.sheetId), ctl.doc.toWorkbook().dxfs ?? [], (r, c) => ctl.numberAt(r, c), (r, c) => calc.get(si, r, c)?.text ?? '');
     // A detached element has no tokens: the thumbnail keeps the light look whatever the theme.
     const theme = readTheme(document.createElement('div'));
-    paint({ ctx: canvas.getContext('2d')!, ctl, layout, theme, dpr: scale, zoom: 1, drawings, images, editing: null, cf, refHighlights: [], focused: false, selection: false });
+    paint({ ctx: canvas.getContext('2d')!, ctl, layout, theme, dpr: scale, zoom: 1, drawings, images, charts, editing: null, cf, refHighlights: [], focused: false, selection: false });
     return canvas;
   } finally {
     ctl.dispose();

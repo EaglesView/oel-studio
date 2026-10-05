@@ -22,7 +22,8 @@
     "@tiptap/pm": "^3.31.4",
     "react-aria-components": "^1.21.1",
     "yjs": "^13.6.33",
-    "@oel/fonts": "*"
+    "@oel/fonts": "*",
+    "@oel/charts": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

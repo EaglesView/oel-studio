@@ -11,6 +11,8 @@ import type { SheetSession } from '../collab/session';
 import { current } from '../grid/selection';
 import { SheetController, NUMBER_FORMATS } from './controller';
 import { Grid } from './Grid';
+import { chartBlock, insertChart } from './charts';
+import { InsertChartDialog } from './ChartTools';
 import { drawingImagePaths, drawingImageUrls } from './media';
 import { FormulaBar } from './FormulaBar';
 import { SheetTabs } from './SheetTabs';
@@ -48,7 +50,7 @@ export interface SheetsEditorProps {
   onExpand?: () => void;
 }
 
-type DialogName = 'format-cells' | 'sort' | 'validation' | 'cf' | 'names' | 'link' | 'csv' | 'share' | 'identity' | 'col-width' | 'row-height' | 'split' | null;
+type DialogName = 'format-cells' | 'sort' | 'validation' | 'cf' | 'names' | 'link' | 'csv' | 'share' | 'identity' | 'col-width' | 'row-height' | 'split' | 'chart' | null;
 
 const MIME: Record<ExportRequest['format'], string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -297,6 +299,16 @@ export function SheetsEditor(props: SheetsEditorProps) {
         });
         return;
       }
+      case 'chart':
+      case 'chart-gallery': {
+        if (source === 'csv') return toast({ title: 'Graphiques non enregistrés en CSV', description: 'Un fichier CSV ne garde que les valeurs. Enregistrez en .xlsx (Fichier) pour garder vos graphiques.', tone: 'warning' });
+        if (!chartBlock(ctl)) return act('chart-empty');
+        if (id === 'chart-gallery') return setDialog('chart');
+        insertChart(ctl);
+        return;
+      }
+      case 'chart-empty':
+        return toast({ title: 'Sélectionnez des données', description: 'Placez-vous dans un tableau (ou sélectionnez une plage) avant d’insérer un graphique.', tone: 'info' });
       case 'link':
         return setDialog('link');
       case 'format-cells':
@@ -449,6 +461,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
           disabled: ro,
           children: ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'XLOOKUP', 'SUMIF', 'COUNTIF', 'ROUND', 'CONCAT', 'TODAY'].map((f) => ({ id: `fn:${f}`, label: f })),
         },
+        { id: 'chart-gallery', label: 'Graphique…', icon: 'chart', shortcut: 'Alt+F1', disabled: ro },
         { id: 'link', label: 'Lien', icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
         { id: 'ins-checkbox', label: 'Case à cocher (VRAI/FAUX)', icon: 'checklist', disabled: ro },
         { id: 'ins-date', label: 'Date du jour', icon: 'calendar', shortcut: 'Ctrl+;', disabled: ro },
@@ -684,6 +697,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       <CondFormatDialog ctl={ctl} isOpen={dialog === 'cf'} onClose={() => setDialog(null)} />
       <NamesDialog ctl={ctl} isOpen={dialog === 'names'} onClose={() => setDialog(null)} />
       <LinkDialog ctl={ctl} isOpen={dialog === 'link'} onClose={() => setDialog(null)} />
+      <InsertChartDialog ctl={ctl} isOpen={dialog === 'chart'} onClose={() => setDialog(null)} />
       <CsvDialog ctl={ctl} isOpen={dialog === 'csv'} onClose={() => setDialog(null)} />
       <SizeDialog
         isOpen={dialog === 'col-width' || dialog === 'row-height'}

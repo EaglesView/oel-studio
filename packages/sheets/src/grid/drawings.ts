@@ -1,8 +1,9 @@
 /**
- * Pictures, shapes and chart frames painted on the grid canvas, in the same
- * pass as the cells: they stay locked to their cells while scrolling and
- * zooming. Read-only (the file's drawing part is written back as it came).
+ * Pictures, shapes and charts painted on the grid canvas, in the same pass
+ * as the cells: they stay locked to their cells while scrolling and zooming.
+ * Charts are drawn by @oel/charts (see `charts.ts`).
  */
+import { paintCanvas, type Scene } from '@oel/charts';
 import type { Drawing, DrawingMarker } from '../model/types';
 import type { Layout } from './render';
 
@@ -32,6 +33,7 @@ export function paintDrawings(
   images: ReadonlyMap<string, CanvasImageSource>,
   pane: { frozenRows: boolean; frozenCols: boolean },
   font: string,
+  chart?: (d: Drawing, w: number, h: number) => Scene | null,
 ) {
   for (const d of drawings) {
     if (d.from.r < L.fr !== pane.frozenRows || d.from.c < L.fc !== pane.frozenCols) continue;
@@ -49,7 +51,9 @@ export function paintDrawings(
     } else if (d.kind === 'shape') {
       paintShape(ctx, d, f.w, f.h);
     } else if (d.kind === 'chart') {
-      paintChartFrame(ctx, d, f.w, f.h, font);
+      const scene = chart?.(d, f.w, f.h);
+      if (scene) paintCanvas(ctx, scene, 0, 0, 1, images as Map<string, CanvasImageSource>);
+      else paintChartFrame(ctx, d, f.w, f.h, font);
     }
     ctx.restore();
   }
@@ -86,7 +90,7 @@ function paintShape(ctx: CanvasRenderingContext2D, d: Drawing, w: number, h: num
   }
 }
 
-/** Charts are not drawn yet: a labelled frame keeps their place. */
+/** A chart we could not read: a labelled frame keeps its place. */
 function paintChartFrame(ctx: CanvasRenderingContext2D, d: Drawing, w: number, h: number, font: string) {
   ctx.fillStyle = '#fafafa';
   ctx.fillRect(0, 0, w, h);
@@ -118,7 +122,7 @@ function paintChartFrame(ctx: CanvasRenderingContext2D, d: Drawing, w: number, h
   ctx.fillText(d.name || 'Graphique', cx, cy);
   ctx.fillStyle = '#777';
   ctx.font = `400 12px ${font}`;
-  ctx.fillText('Graphique conservé dans le fichier —', cx, cy + 20);
-  ctx.fillText('l’affichage arrive bientôt.', cx, cy + 36);
+  ctx.fillText('Graphique conservé dans le fichier,', cx, cy + 20);
+  ctx.fillText('mais illisible ici.', cx, cy + 36);
   ctx.restore();
 }

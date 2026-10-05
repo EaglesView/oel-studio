@@ -1,17 +1,20 @@
 /**
- * TEMPORARY: the sample papers « Communiqué » and « Lancement » are replaced
+ * TEMPORARY: the sample papers « Communiqué », « Lancement » and « Budget » are replaced
  * by real files from `fixtures/` at startup, so every visit exercises the
  * import → editor → thumbnail path on genuine Word and PowerPoint files.
  * Remove (with the call in BureauApp) when the desk is persisted.
  */
 import complexTemplate from '../../../../fixtures/docx/complex_template.docx?url';
 import presentation1 from '../../../../fixtures/pptx/Presentation 1.pptx?url';
+import charts from '../../../../fixtures/charts/generated-charts.xlsx?url';
 import type { Bureau, Paper } from './model';
 import { importInto } from './importFiles';
 
 const FIXTURES: Array<{ paperId: string; url: string; name: string }> = [
   { paperId: 'communique', url: complexTemplate, name: 'complex_template.docx' },
   { paperId: 'lancement', url: presentation1, name: 'Presentation 1.pptx' },
+  // Every chart type openpyxl writes, one per sheet (until the Office-made samples arrive).
+  { paperId: 'budget', url: charts, name: 'Graphiques (exemples).xlsx' },
 ];
 
 const seeded = new WeakSet<Bureau>();

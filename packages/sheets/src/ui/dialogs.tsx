@@ -648,7 +648,7 @@ export function PreservedNote({ items }: { items: Array<{ kind: string; label: s
           <li key={p.kind}>{p.label}</li>
         ))}
       </ul>
-      <p className="oel-preserved__note">Les graphiques et tableaux croisés gardent leurs plages d’origine : si vous insérez des lignes au-dessus de leurs données, vérifiez-les dans Excel.</p>
+      <p className="oel-preserved__note">Les graphiques suivent les lignes et colonnes insérées ; les tableaux croisés gardent leurs plages d’origine : si vous insérez des lignes au-dessus de leurs données, vérifiez-les dans Excel.</p>
     </div>
   );
 }

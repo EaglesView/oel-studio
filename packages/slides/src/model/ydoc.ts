@@ -9,7 +9,7 @@
  *                           notes: Y.Text, els: Y.Array<id>, map: Y.Map<id, Y.Map> }
  *
  * An element is a Y.Map of *facets* (`box`, `fill`, `line`, `geom`, `text`,
- * `name`, `image`, `table`, and `base` for the rest), so two people editing
+ * `name`, `image`, `table`, `chart`, and `base` for the rest), so two people editing
  * different facets of one shape (one moves it, one types in it) both win.
  * `toDeck()` rebuilds exactly the JSON the codec gave for anything untouched,
  * which is how the writer knows what to leave byte for byte.
@@ -38,6 +38,7 @@ const FACETS = {
   name: ['name', 'descr', 'hidden'],
   image: ['image'],
   table: ['table'],
+  chart: ['chart'],
 } as const satisfies Record<string, ReadonlyArray<keyof Element>>;
 
 type Facet = keyof typeof FACETS | 'base';

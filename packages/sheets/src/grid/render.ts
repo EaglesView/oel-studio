@@ -10,6 +10,7 @@ import type { CellStyle, CondFormat, Drawing } from '../model/types';
 import type { CellView, SheetController } from '../ui/controller';
 import { current, isWholeCols, isWholeRows } from './selection';
 import type { Axis } from './geometry';
+import type { Scene } from '@oel/charts';
 import { paintDrawings } from './drawings';
 
 export const HEADER_H = 22;
@@ -277,6 +278,8 @@ export interface PaintArgs {
   /** Pictures and shapes over the cells, and the decoded images by package path. */
   drawings?: Drawing[];
   images?: ReadonlyMap<string, CanvasImageSource>;
+  /** Charts as scenes (live values); without it charts show as frames. */
+  charts?: (d: Drawing, w: number, h: number) => Scene | null;
 }
 
 export function paint(a: PaintArgs) {
@@ -309,7 +312,7 @@ export function paint(a: PaintArgs) {
     ctx.rect(...pane.clip);
     ctx.clip();
     paintCells(a, pane.rows, pane.cols, merges, notes, filterRange, filter?.columns.map((c) => c.col) ?? [], props.showGrid);
-    if (a.drawings?.length) paintDrawings(ctx, L, a.drawings, a.images ?? new Map(), { frozenRows: !!pane.frozenRows, frozenCols: !!pane.frozenCols }, theme.font);
+    if (a.drawings?.length) paintDrawings(ctx, L, a.drawings, a.images ?? new Map(), { frozenRows: !!pane.frozenRows, frozenCols: !!pane.frozenCols }, theme.font, a.charts);
     if (a.selection !== false) paintSelection(a, merges);
     ctx.restore();
   }

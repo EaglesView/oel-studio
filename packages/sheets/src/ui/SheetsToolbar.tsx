@@ -177,7 +177,7 @@ export function SheetsToolbar({ ctl, zoom, setZoom, onCommand, more }: { ctl: Sh
       <ToolbarSeparator />
       <ToolButton icon="link" label="Insérer un lien" shortcut={['Ctrl', 'K']} unavailableReason={ro} onPress={() => onCommand('link')} />
       <ToolButton icon="comment" label="Insérer une note" unavailableReason="Les notes du fichier sont affichées et conservées ; leur création arrive bientôt." />
-      <ToolButton icon="chart" label="Graphique" shortcut={['Alt', 'F1']} unavailableReason="Les graphiques du fichier sont conservés à l’export ; leur création arrive bientôt." />
+      <ToolButton icon="chart" label="Graphique" shortcut={['Alt', 'F1']} description="Graphique recommandé à partir de la sélection" unavailableReason={ro} onPress={() => onCommand('chart')} />
       <ToolbarToggle icon="filter" label="Filtrer" shortcut={['Ctrl', 'Maj', 'L']} isSelected={!!ctl.doc.filter(ctl.sheetId)} unavailableReason={ro} onChange={() => ctl.toggleFilter()} />
       <MenuTool
         icon="sum"

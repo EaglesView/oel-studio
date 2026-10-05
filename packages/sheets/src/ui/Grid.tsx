@@ -2,6 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { MAX_COLS, MAX_ROWS, a1, colName, parseRange, rangeA1, type Range } from '../model/a1';
 import { ERROR_HELP, formulaContext, functionInfo, matchFunctions } from '../model/functions';
 import { HEADER_H, Layout, conditionalFormats, formulaRefs, paint, readTheme, rowHeaderWidth } from '../grid/render';
+import { chartPainter, chartRanges } from '../grid/charts';
+import { drawingFrame } from '../grid/drawings';
+import { deleteDrawing, duplicateDrawing, frameOf, insertChart, moveDrawing } from './charts';
+import { ChartBar } from './ChartTools';
 import { pxToColWidth } from '../grid/geometry';
 import { current, extendTo, single, type Pos } from '../grid/selection';
 import type { SheetController } from './controller';
@@ -31,7 +35,27 @@ type Drag =
   | { kind: 'fill'; target: Range | null }
   | { kind: 'resize-col'; index: number; start: number; size: number }
   | { kind: 'resize-row'; index: number; start: number; size: number }
-  | { kind: 'point'; anchor: Pos };
+  | { kind: 'point'; anchor: Pos }
+  /** Moving (`handle` = move) or resizing a drawing; frames in grid (layout) pixels. */
+  | { kind: 'drawing'; index: number; handle: Handle; start: { x: number; y: number }; frame: Box; preview: Box | null };
+
+type Box = { x: number; y: number; w: number; h: number };
+type Handle = 'move' | 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+const HANDLES: Array<[Handle, number, number]> = [['nw', 0, 0], ['n', 0.5, 0], ['ne', 1, 0], ['e', 1, 0.5], ['se', 1, 1], ['s', 0.5, 1], ['sw', 0, 1], ['w', 0, 0.5]];
+const HANDLE_CURSOR: Record<Handle, string> = { move: 'move', nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize', n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize' };
+
+/** A frame dragged by one of its handles. */
+function dragged(f: Box, h: Handle, dx: number, dy: number): Box {
+  if (h === 'move') return { ...f, x: f.x + dx, y: f.y + dy };
+  let { x, y, w, h: hh } = f;
+  if (h.includes('w')) [x, w] = [x + dx, w - dx];
+  if (h.includes('e')) w += dx;
+  if (h.includes('n')) [y, hh] = [y + dy, hh - dy];
+  if (h.includes('s')) hh += dy;
+  if (w < 24) [x, w] = [h.includes('w') ? x - (24 - w) : x, 24];
+  if (hh < 24) [y, hh] = [h.includes('n') ? y - (24 - hh) : y, 24];
+  return { x, y, w, h: hh };
+}
 
 const NO_MEDIA: ReadonlyMap<string, string> = new Map();
 
@@ -70,6 +94,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
   );
 
   const drawings = useMemo(() => ctl.doc.drawings(ctl.sheetId), [ctl, ctl.sheetId, ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const charts = useMemo(() => chartPainter(ctl), [ctl, ctl.sheetId]); // eslint-disable-line react-hooks/exhaustive-deps
   // Decoded images for the canvas; each one repaints the grid when it is ready.
   const images = useMemo(() => {
     const out = new Map<string, HTMLImageElement>();
@@ -89,9 +114,15 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
 
   const theme = useRef<ReturnType<typeof readTheme> | null>(null);
   const editSheetName = ctl.editSheet ? ctl.doc.props(ctl.editSheet).name : props.name;
+  const selectedSpec = ctl.selectedDrawing != null ? drawings[ctl.selectedDrawing]?.chart : undefined;
   const refHighlights = useMemo(
-    () => (edit?.text.startsWith('=') && (!ctl.editSheet || ctl.editSheet === ctl.sheetId || ctl.pointSheet === ctl.sheetId) ? formulaRefs(edit.text, editSheetName, (n) => ctl.doc.sheetIdByName(n), ctl.sheetId) : []),
-    [edit?.text, ctl, editSheetName],
+    () =>
+      edit?.text.startsWith('=') && (!ctl.editSheet || ctl.editSheet === ctl.sheetId || ctl.pointSheet === ctl.sheetId)
+        ? formulaRefs(edit.text, editSheetName, (n) => ctl.doc.sheetIdByName(n), ctl.sheetId)
+        : selectedSpec
+          ? chartRanges(selectedSpec, props.name)
+          : [],
+    [edit?.text, ctl, editSheetName, selectedSpec, props.name],
   );
   const cf = useMemo(() => {
     const si = ctl.sheetIndex;
@@ -119,7 +150,32 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
       }
       theme.current ??= readTheme(rootRef.current!);
       const ctx = canvas.getContext('2d')!;
-      paint({ ctx, ctl, layout, theme: theme.current, dpr, zoom, drawings, images, editing: edit && edit.where === 'cell' && ctl.editSheet === ctl.sheetId ? ctl.sel.active : null, cf, refHighlights, focused: true });
+      paint({ ctx, ctl, layout, theme: theme.current, dpr, zoom, drawings, images, charts, editing: edit && edit.where === 'cell' && ctl.editSheet === ctl.sheetId ? ctl.sel.active : null, cf, refHighlights, focused: true });
+      // The selected drawing: outline and handles (or the frame being dragged).
+      const dd = dragRef.current?.kind === 'drawing' ? dragRef.current : null;
+      const selD = ctl.selectedDrawing != null ? drawings[ctl.selectedDrawing] : undefined;
+      const box = dd?.preview ?? (selD ? drawingFrame(selD, layout) : null);
+      if (box) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(layout.headerW, HEADER_H, layout.w - layout.headerW, layout.h - HEADER_H);
+        ctx.clip();
+        ctx.strokeStyle = theme.current.accent;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash(dd?.preview ? [5, 3] : []);
+        ctx.strokeRect(box.x, box.y, box.w, box.h);
+        ctx.setLineDash([]);
+        if (!dd?.preview) {
+          for (const [, fx, fy] of HANDLES) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(box.x + fx * box.w, box.y + fy * box.h, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
       if (dragRef.current?.kind === 'fill' && dragRef.current.target) {
         const r = layout.rect(dragRef.current.target);
         ctx.strokeStyle = theme.current.accent;
@@ -243,6 +299,21 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
     return { r: Math.max(0, h.r), c: Math.max(0, h.c) };
   };
 
+  /** The drawing (and handle) under a grid point, top-most first. */
+  const drawingAt = (p: { x: number; y: number }): { index: number; handle: Handle; frame: Box } | null => {
+    if (p.x < headerW || p.y < HEADER_H) return null;
+    const sel = ctl.selectedDrawing;
+    if (sel != null && drawings[sel]) {
+      const f = drawingFrame(drawings[sel], layout);
+      if (f) for (const [h, fx, fy] of HANDLES) if (Math.abs(p.x - (f.x + fx * f.w)) <= 6 && Math.abs(p.y - (f.y + fy * f.h)) <= 6) return { index: sel, handle: h, frame: f };
+    }
+    for (let i = drawings.length - 1; i >= 0; i--) {
+      const f = drawingFrame(drawings[i]!, layout);
+      if (f && p.x >= f.x && p.x <= f.x + f.w && p.y >= f.y && p.y <= f.y + f.h) return { index: i, handle: 'move', frame: f };
+    }
+    return null;
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button === 2) return;
     if ((e.target as HTMLElement).closest('.oel-sheet-editor, .oel-sheet-suggest')) return;
@@ -263,6 +334,14 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
       return;
     }
     if (p.x < headerW && p.y < HEADER_H) return ctl.selectAll();
+    // Charts, pictures and shapes sit over the cells.
+    const hitD = !(edit && ctl.canPoint()) ? drawingAt(p) : null;
+    if (hitD) {
+      if (edit) ctl.commitEdit(null);
+      ctl.selectDrawing(hitD.index);
+      if (!ctl.readOnlyFlag) setDrag({ kind: 'drawing', index: hitD.index, handle: hitD.handle, start: p, frame: hitD.frame, preview: null });
+      return;
+    }
     if (nearFillHandle(p)) return setDrag({ kind: 'fill', target: null });
     // Filter buttons.
     const f = ctl.doc.filter(ctl.sheetId);
@@ -323,7 +402,9 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
     const root = rootRef.current!;
     if (!d) {
       const b = borderNear(p);
-      root.style.cursor = b ? (b.kind === 'col' ? 'col-resize' : 'row-resize') : nearFillHandle(p) ? 'crosshair' : p.x > headerW && p.y > HEADER_H ? 'cell' : 'default';
+      const over = b ? null : drawingAt(p);
+      root.style.cursor = b ? (b.kind === 'col' ? 'col-resize' : 'row-resize') : over ? (ctl.selectedDrawing === over.index || over.handle !== 'move' ? HANDLE_CURSOR[over.handle] : 'pointer') : nearFillHandle(p) ? 'crosshair' : p.x > headerW && p.y > HEADER_H ? 'cell' : 'default';
+      if (over) return setTip(null);
       // Error explanations on hover.
       if (p.x > headerW && p.y > HEADER_H) {
         const at = cellAt(p);
@@ -332,6 +413,13 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
         const text = out?.t === 'e' ? ERROR_HELP[String(out.v)] : note ? `${note.author ? `${note.author} : ` : ''}${note.text}` : null;
         setTip(text ? { x: layout.x(at.c + 1) * zoom + 4, y: layout.y(at.r) * zoom, text } : null);
       } else setTip(null);
+      return;
+    }
+    if (d.kind === 'drawing') {
+      const dx = p.x - d.start.x;
+      const dy = p.y - d.start.y;
+      if (!d.preview && Math.abs(dx) + Math.abs(dy) < 3) return;
+      setDrag({ ...d, preview: dragged(d.frame, d.handle, dx, dy) });
       return;
     }
     const at = cellAt(p);
@@ -370,6 +458,15 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
 
   const onPointerUp = () => {
     const d = dragRef.current;
+    if (d?.kind === 'drawing' && d.preview) {
+      // Grid pixels → sheet pixels: the same offset as the frame had when the drag began.
+      const drawing = drawings[d.index];
+      if (drawing) {
+        const s0 = frameOf(ctl, drawing);
+        moveDrawing(ctl, d.index, { x: d.preview.x - d.frame.x + s0.x, y: d.preview.y - d.frame.y + s0.y, w: d.preview.w, h: d.preview.h });
+        ctl.selectDrawing(d.index);
+      }
+    }
     if (d?.kind === 'fill' && d.target) ctl.fillTo(d.target);
     if (d?.kind === 'select' || d?.kind === 'rows' || d?.kind === 'cols') ctl.applyPainter();
     setDrag(null);
@@ -405,7 +502,24 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
       fn();
     };
     const arrows: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+    // A selected chart or picture: Suppr deletes, Échap goes back to the cells, arrows nudge, Ctrl+D duplicates.
+    const di = ctl.selectedDrawing;
+    if (di != null && drawings[di]) {
+      if (k === 'Delete' || k === 'Backspace') return run(() => deleteDrawing(ctl, di));
+      if (k === 'Escape') {
+        e.stopPropagation();
+        return run(() => ctl.selectDrawing(null));
+      }
+      if (mod && k.toLowerCase() === 'd') return run(() => duplicateDrawing(ctl, di));
+      if (arrows[k] && !ctl.readOnlyFlag) {
+        const f = frameOf(ctl, drawings[di]);
+        const step = e.shiftKey ? 10 : 1;
+        return run(() => moveDrawing(ctl, di, { ...f, x: f.x + arrows[k]![1] * step, y: f.y + arrows[k]![0] * step }));
+      }
+      if (k === 'Tab') return run(() => ctl.selectDrawing((di + (e.shiftKey ? drawings.length - 1 : 1)) % drawings.length));
+    }
     if (arrows[k]) return run(() => ctl.move(arrows[k]![0], arrows[k]![1], { extend: e.shiftKey, jump: mod }));
+    if (k === 'F1' && e.altKey) return run(() => void (insertChart(ctl) || onCommand?.('chart-empty')));
     if (k === 'Enter') return run(() => ctl.advance(e.shiftKey ? 'up' : 'down'));
     if (k === 'Tab') return run(() => ctl.advance(e.shiftKey ? 'left' : 'right'));
     // Échap: the editor around the grid ends what is in progress (copy marquee,
@@ -738,6 +852,16 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
           ▾
         </button>
       )}
+      {(() => {
+        const di = ctl.selectedDrawing;
+        const d = di != null ? drawings[di] : undefined;
+        if (!d?.chart || drag?.kind === 'drawing') return null;
+        const f = drawingFrame(d, layout);
+        if (!f) return null;
+        const top = Math.max(HEADER_H * zoom + 4, f.y * zoom - 50);
+        const right = Math.max(8, size.w - (f.x + f.w) * zoom);
+        return <ChartBar ctl={ctl} index={di!} spec={d.chart} style={{ top, right: Math.min(right, size.w - 560) }} />;
+      })()}
       {tip && (
         <div className="oel-grid__tip" role="tooltip" style={{ left: tip.x, top: tip.y }}>
           {tip.text}

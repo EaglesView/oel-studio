@@ -106,6 +106,9 @@ import {
   PositionAlign,
   AlignHorizontalCenters,
   Timer,
+  Axes,
+  DataTransferBoth,
+  RotateCameraRight,
 } from 'iconoir-react';
 
 /**
@@ -159,6 +162,10 @@ const KIT = {
 
 /** Iconoir (https://iconoir.com, MIT), mapped to our names. Drawn at the kit's 1.75 stroke. */
 const EXTRA = {
+  axes: Axes,
+  'switch-rows': DataTransferBoth,
+  'rotate-3d': RotateCameraRight,
+  'snow-flake': SnowFlake,
   slide: Presentation,
   table: Table2Columns,
   note: Notes,

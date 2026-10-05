@@ -139,6 +139,7 @@ export class SheetController {
     this.commitEdit(null);
     this.selections.set(this.sheetId, this.sel);
     this.sheetId = id;
+    this.selectedDrawing = null;
     this.sel = this.selections.get(id) ?? single({ r: 0, c: 0 });
     this.bump();
   }
@@ -207,6 +208,15 @@ export class SheetController {
 
   select(sel: Selection) {
     this.sel = sel;
+    this.selectedDrawing = null;
+    this.bump();
+  }
+
+  /** A picture, shape or chart selected over the grid (index in `doc.drawings`), or null. */
+  selectedDrawing: number | null = null;
+
+  selectDrawing(index: number | null) {
+    this.selectedDrawing = index;
     this.bump();
   }
 

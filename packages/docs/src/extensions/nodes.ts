@@ -7,11 +7,13 @@ import { Node, mergeAttributes, type Attributes } from '@tiptap/core';
 import { Table, TableCell, TableHeader, TableRow, TableView } from '@tiptap/extension-table';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
+import { canvasMeasure, renderChart, toSVG, type ChartSpec } from '@oel/charts';
 import { paragraphCss } from '../model/format';
 import type { AnchorAttrs, ParagraphAttrs } from '../model/types';
 import { EMU_PER_PX } from '../model/types';
 
 const raw = (def: unknown = null) => ({ default: def, rendered: false });
+const chartMeasure = typeof document !== 'undefined' ? canvasMeasure() : undefined;
 
 /** Style ids of the document, by Docs role; set by the editor from the codec styles. */
 export interface StyleRegistry {
@@ -502,7 +504,24 @@ export const NoteRef = Node.create({
   renderHTML: ({ node }) => ['sup', { class: 'oel-noteref', 'data-kind': node.attrs.kind, 'data-id': node.attrs.id, contenteditable: 'false' }],
 });
 
-/** Anything the editor does not model, kept verbatim (bookmarks, fields, equations…). */
+function ooxmlSpan(a: Record<string, any>): [string, Record<string, string | undefined>, string] { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const field = a.field as string | null;
+  const text = a.hidden || field === 'NOTENUM' ? '' : field === 'PAGE' || field === 'NUMPAGES' ? (a.label || '#') : a.label;
+  return [
+    'span',
+    {
+      class: 'oel-ooxml',
+      'data-ooxml': a.xml,
+      'data-hidden': a.hidden ? '' : undefined,
+      'data-field': field ?? undefined,
+      title: a.hidden || !a.label ? undefined : `${a.label} (conservé tel quel)`,
+      contenteditable: 'false',
+    },
+    text,
+  ];
+}
+
+/** Anything the editor does not model, kept verbatim (bookmarks, fields, equations…); charts are drawn. */
 export const OoxmlInline = Node.create({
   name: 'ooxmlInline',
   group: 'inline',
@@ -510,26 +529,34 @@ export const OoxmlInline = Node.create({
   atom: true,
   selectable: true,
   addAttributes() {
-    return { xml: raw(''), label: raw(''), hidden: raw(false), field: raw() };
+    return { xml: raw(''), label: raw(''), hidden: raw(false), field: raw(), chart: raw(), cx: raw(), cy: raw(), floating: raw() };
   },
   parseHTML: () => [{ tag: 'span[data-ooxml]', getAttrs: (el: HTMLElement) => ({ xml: el.dataset.ooxml, label: el.textContent ?? '' }) }],
-  renderHTML: ({ node }) => {
-    const a = node.attrs;
-    const field = a.field as string | null;
-    const text = a.hidden || field === 'NOTENUM' ? '' : field === 'PAGE' || field === 'NUMPAGES' ? (a.label || '#') : a.label;
-    return [
-      'span',
-      {
-        class: 'oel-ooxml',
-        'data-ooxml': a.xml,
-        'data-hidden': a.hidden ? '' : undefined,
-        'data-field': field ?? undefined,
-        title: a.hidden || !a.label ? undefined : `${a.label} (conservé tel quel)`,
-        contenteditable: 'false',
-      },
-      text,
-    ];
+  addNodeView() {
+    return ({ node }) => {
+      const a = node.attrs;
+      if (!a.chart) {
+        const [, attrs, text] = ooxmlSpan(a);
+        const span = document.createElement('span');
+        for (const [k, v] of Object.entries(attrs)) if (v != null) span.setAttribute(k, String(v));
+        span.textContent = text;
+        return { dom: span };
+      }
+      // A chart (kept as is in the file): drawn from the values cached in its part.
+      const dom = document.createElement('span');
+      dom.className = 'oel-chart-inline';
+      dom.contentEditable = 'false';
+      const w = a.cx ? a.cx / EMU_PER_PX : 480;
+      const h = a.cy ? a.cy / EMU_PER_PX : 288;
+      dom.style.width = `${w}px`;
+      dom.style.height = `${h}px`;
+      dom.title = a.floating ? 'Graphique flottant (position conservée à l’export)' : 'Graphique';
+      const scene = renderChart(a.chart as ChartSpec, { width: w, height: h, background: '#FFFFFF', measure: chartMeasure });
+      dom.innerHTML = toSVG(scene).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ');
+      return { dom };
+    };
   },
+  renderHTML: ({ node }) => ooxmlSpan(node.attrs),
   renderText: ({ node }) => (node.attrs.hidden ? '' : node.attrs.label ?? ''),
 });
 

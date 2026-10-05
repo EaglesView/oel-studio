@@ -5,6 +5,7 @@
  * the deck's resolved levels — the same code draws the canvas, the
  * filmstrip, the slideshow and the presenter view.
  */
+import { ChartView } from '@oel/charts/react';
 import { createContext, memo, useContext, useId, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { geometryPaths, isLinePreset } from '../model/geometry';
 import {
@@ -375,7 +376,12 @@ export const ElementView = memo(function ElementView({ el, offset }: { el: Eleme
             <span>{el.label ?? PROMPTS.pic}</span>
           </div>
         )}
-        {el.kind === 'graphic' && !el.image?.media && (
+        {el.kind === 'graphic' && el.chart && (
+          <div className="oel-el__chart">
+            <ChartView spec={el.chart} width={(w * 96) / 72} height={(h * 96) / 72} fontFamily={(f) => fontStack(f, ctx)} />
+          </div>
+        )}
+        {el.kind === 'graphic' && !el.image?.media && !el.chart && (
           <div className="oel-el__graphic">
             <span>{el.label ?? 'Objet'}</span>
             <small>Conservé tel quel</small>

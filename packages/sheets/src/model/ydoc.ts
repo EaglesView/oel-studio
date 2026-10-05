@@ -18,6 +18,7 @@
  * (no DOM): used by the editor, the server export and the tests.
  */
 import * as Y from 'yjs';
+import type { ChartSpec } from '@oel/engine/generated/oelchart';
 import { MAX_COLS, MAX_ROWS, normalize, parseRange, parseSqref, rangeA1, type Range } from './a1';
 import { decodeFormula, encodeFormula, shiftFormula, stripFuturePrefixes, type IdPart, type Key, type RefResolver, type StoredFormula } from './formula';
 import {
@@ -123,6 +124,30 @@ export const rowMeta = (d: Y.Doc, id: string) => d.getMap<LineMeta>(`rowMeta:${i
 export const colMeta = (d: Y.Doc, id: string) => d.getMap<LineMeta>(`colMeta:${id}`);
 export const cellMap = (d: Y.Doc, id: string) => d.getMap<YCell>(`cells:${id}`);
 export const extras = (d: Y.Doc, id: string) => d.getMap<unknown>(`x:${id}`);
+
+/** Marks a chart reference stored id-based (JSON of a `StoredFormula` follows). */
+const STORED_REF = '\u0001';
+
+/** Apply `fn` to every cell reference of a chart (series names, values, categories, titles, error amounts). */
+export function mapChartRefs(spec: ChartSpec, fn: (ref: string) => string): ChartSpec {
+  const ref = <T extends { f?: string | null } | null | undefined>(d: T): T => (d && d.f ? { ...d, f: fn(d.f) } : d);
+  return {
+    ...spec,
+    title: ref(spec.title),
+    axes: spec.axes?.map((a) => ({ ...a, title: ref(a.title) })),
+    groups: spec.groups.map((g) => ({
+      ...g,
+      series: g.series.map((s) => ({
+        ...s,
+        nameRef: s.nameRef ? fn(s.nameRef) : s.nameRef,
+        cat: ref(s.cat),
+        val: ref(s.val),
+        size: ref(s.size),
+        errBars: s.errBars?.map((e) => ({ ...e, plus: ref(e.plus), minus: ref(e.minus) })),
+      })),
+    })),
+  };
+}
 export const stylesArr = (d: Y.Doc) => d.getArray<CellStyle>('styles');
 export const dxfsArr = (d: Y.Doc) => d.getArray<CellStyle>('dxfs');
 export const namesMap = (d: Y.Doc) => d.getMap<YName>('names');
@@ -818,7 +843,11 @@ export class SheetDoc implements RefResolver {
     });
   }
 
-  /** Pictures, shapes and charts over the grid (read-only), anchored to row and column ids. */
+  /**
+   * Pictures, shapes and charts over the grid, anchored to row and column ids.
+   * Chart references are stored like formulas (id based), so inserting or
+   * deleting rows moves the ranges a chart reads, as in Excel.
+   */
   drawings(sheet: string): Drawing[] {
     const list = (extras(this.doc, sheet).get('drawings') as YDrawing[] | undefined) ?? [];
     const marker = (m: YMarker): DrawingMarker | null => {
@@ -829,8 +858,46 @@ export class SheetDoc implements RefResolver {
     return list.flatMap(({ from: f, to: t, ...rest }) => {
       const from = marker(f);
       const to = t ? marker(t) : undefined;
-      return from && to !== null ? [{ ...rest, from, ...(to ? { to } : {}) }] : [];
+      const chart = rest.chart ? mapChartRefs(rest.chart, (ref) => this.decodeChartRef(sheet, ref)) : undefined;
+      return from && to !== null ? [{ ...rest, ...(chart ? { chart } : {}), from, ...(to ? { to } : {}) }] : [];
     });
+  }
+
+  private toYDrawing(sheet: string, d: Drawing): YDrawing {
+    const marker = (m: DrawingMarker): YMarker => ({ ...m, r: this.rowKey(sheet, m.r), c: this.colKey(sheet, m.c) });
+    const chart = d.chart ? mapChartRefs(d.chart, (ref) => this.encodeChartRef(sheet, ref)) : undefined;
+    return clean({ ...d, chart, from: marker(d.from), ...(d.to ? { to: marker(d.to) } : {}) }) as YDrawing;
+  }
+
+  /** A chart reference → stored form; the text as written is kept for as long as the reference does not move. */
+  private encodeChartRef(sheet: string, ref: string): string {
+    const sf = encodeFormula(ref.replace(/^=/, ''), sheet, this);
+    return STORED_REF + JSON.stringify({ sf, t: ref, sig: decodeFormula(sf, sheet, this) });
+  }
+
+  private decodeChartRef(sheet: string, ref: string): string {
+    if (!ref.startsWith(STORED_REF)) return ref;
+    const o = JSON.parse(ref.slice(1)) as { sf: StoredFormula; t: string; sig: string };
+    const now = decodeFormula(o.sf, sheet, this);
+    return now === o.sig ? o.t : now;
+  }
+
+  /** Replace the drawings of a sheet (one undo step). */
+  setDrawings(sheet: string, list: Drawing[]) {
+    this.doc.transact(() => {
+      const x = extras(this.doc, sheet);
+      if (list.length) x.set('drawings', list.map((d) => this.toYDrawing(sheet, d)));
+      else x.delete('drawings');
+    });
+  }
+
+  /** Change one drawing (by its position in `drawings()`). */
+  updateDrawing(sheet: string, index: number, patch: (d: Drawing) => Drawing) {
+    const list = this.drawings(sheet);
+    const d = list[index];
+    if (!d) return;
+    list[index] = patch(d);
+    this.setDrawings(sheet, list);
   }
 
   // ----- names ------------------------------------------------------------
@@ -1102,8 +1169,7 @@ export class SheetDoc implements RefResolver {
           return r ? [{ ...t, range: this.idRange(id, r) }] : [];
         });
         if (tables.length) x.set('tables', tables);
-        const marker = (m: DrawingMarker): YMarker => ({ ...m, r: this.rowKey(id, m.r), c: this.colKey(id, m.c) });
-        if (s.drawings?.length) x.set('drawings', s.drawings.map((d) => ({ ...d, from: marker(d.from), ...(d.to ? { to: marker(d.to) } : {}) })));
+        if (s.drawings?.length) x.set('drawings', s.drawings.map((d) => this.toYDrawing(id, d)));
       }
       m.set('source', wb.source ?? 'new');
       if (wb.csv) m.set('csv', wb.csv);
