@@ -1,0 +1,23 @@
+{
+  "name": "@oel/charts",
+  "version": "0.1.0",
+  "description": "Office-compatible chart renderer: ChartSpec (from the oel-chart codec) \u2192 scene of marks \u2192 SVG or Canvas. Every Office chart type, 2-D, 3-D and chartEx.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react/ChartView.tsx"
+  },
+  "dependencies": {
+    "@oel/engine": "*"
+  },
+  "devDependencies": {
+    "oelxlsx-node": "file:../wasm/oel-xlsx/node",
+    "oelpptx-node": "file:../wasm/oel-pptx/node",
+    "oeldocx-node": "file:../wasm/oel-docx/node",
+    "@types/react": "^19.3.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
