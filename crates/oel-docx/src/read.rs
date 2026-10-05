@@ -399,7 +399,7 @@ fn read_inline_children(ctx: &mut ReadCtx, parent: &XElement, marks: &[Value], o
 
 fn ooxml_inline(xml: String, label: &str, hidden: bool, field: Option<String>, marks: &[Value]) -> Value {
     let mut n = node("ooxmlInline");
-    n.insert("attrs".into(), json!({ "xml": xml, "label": label, "hidden": hidden, "field": field, "chart": null, "cx": null, "cy": null, "floating": null }));
+    n.insert("attrs".into(), json!({ "xml": xml, "label": label, "hidden": hidden, "field": field, "chart": null, "cx": null, "cy": null, "floating": null, "oid": null }));
     if !marks.is_empty() {
         n.insert("marks".into(), Value::Array(marks.to_vec()));
     }

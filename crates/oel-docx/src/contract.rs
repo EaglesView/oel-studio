@@ -696,6 +696,11 @@ pub struct OoxmlInlineAttrs {
     #[serde(default)]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub floating: Option<bool>,
+    /// Editor-only id of a chart made in the editor (a linked copy, `@oel/links`): what a link points at.
+    /// Always null from the reader; the writer ignores it.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub oid: Option<String>,
 }
 
 /// Block content the editor does not model, kept as XML.

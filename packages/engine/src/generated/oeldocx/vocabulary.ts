@@ -70,6 +70,7 @@ export const CODEC_VOCABULARY: { nodes: Record<string, string[]>; marks: Record<
       "floating",
       "hidden",
       "label",
+      "oid",
       "xml"
     ],
     "pageBreak": [],

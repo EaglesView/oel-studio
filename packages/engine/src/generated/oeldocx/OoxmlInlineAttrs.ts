@@ -16,4 +16,9 @@ chart?: ChartSpec,
 /**
  * Chart size, EMU.
  */
-cx?: number, cy?: number, floating?: boolean, };
+cx?: number, cy?: number, floating?: boolean, 
+/**
+ * Editor-only id of a chart made in the editor (a linked copy, `@oel/links`): what a link points at.
+ * Always null from the reader; the writer ignores it.
+ */
+oid?: string, };

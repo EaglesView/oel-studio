@@ -529,7 +529,7 @@ export const OoxmlInline = Node.create({
   atom: true,
   selectable: true,
   addAttributes() {
-    return { xml: raw(''), label: raw(''), hidden: raw(false), field: raw(), chart: raw(), cx: raw(), cy: raw(), floating: raw() };
+    return { xml: raw(''), label: raw(''), hidden: raw(false), field: raw(), chart: raw(), cx: raw(), cy: raw(), floating: raw(), oid: raw() };
   },
   parseHTML: () => [{ tag: 'span[data-ooxml]', getAttrs: (el: HTMLElement) => ({ xml: el.dataset.ooxml, label: el.textContent ?? '' }) }],
   addNodeView() {
