@@ -185,6 +185,14 @@
   pointer-events: none;
 }
 
+.desk__empty-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  max-width: calc(100% - 32px);
+}
+
 .desk__dropzone {
   position: absolute;
   inset: 24px;

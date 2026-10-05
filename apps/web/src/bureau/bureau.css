@@ -224,6 +224,67 @@
 .bottom-bar__kind--spreadsheet svg { color: var(--kind-spreadsheet); }
 .bottom-bar__kind--form svg { color: var(--kind-form); }
 
+/* ── M1 · 4 Bureau vide ──────────────────────────────────────────────── */
+
+.empty-desk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  text-align: center;
+}
+.empty-desk__title { margin: 0; font: 300 32px/40px var(--font-sans); color: var(--emboss-text); }
+.empty-desk__lead { margin: -12px 0 0; font: 400 16px/24px var(--font-sans); color: var(--emboss-ink-muted); }
+.empty-desk__cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  max-width: 1132px;
+}
+.empty-desk__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 172px;
+  padding: 24px 20px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: 20px;
+  background-color: var(--emboss-sheet);
+  background-image: var(--emboss-noise);
+  box-shadow: var(--shadow-raised-soft);
+  color: var(--emboss-text);
+  font: 600 14px/20px var(--font-sans);
+  cursor: pointer;
+  transition: box-shadow 160ms ease, translate 160ms ease;
+}
+.empty-desk__card svg { color: var(--emboss-ink); }
+.empty-desk__card[data-kind] svg { color: var(--kind); }
+.empty-desk__card[data-hovered] { box-shadow: var(--shadow-raised); translate: 0 -1px; }
+.empty-desk__card[data-pressed] { background-color: var(--emboss-well); box-shadow: var(--shadow-pressed); translate: none; }
+.empty-desk__card[data-focus-visible],
+.empty-desk__templates[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
+.empty-desk__templates {
+  border: 0;
+  border-radius: var(--radius-lg);
+  padding: 4px 8px;
+  background: none;
+  color: var(--emboss-fill-primary);
+  font: 600 14px/20px var(--font-sans);
+  cursor: default;
+  opacity: 0.6;
+}
+@media (max-width: 720px) {
+  .empty-desk { gap: 20px; }
+  .empty-desk__cards { gap: 12px; }
+  .empty-desk__card { width: 140px; padding: 18px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .empty-desk__card { transition: none; }
+  .empty-desk__card[data-hovered] { translate: none; }
+}
+
 .paper {
   position: relative;
   width: 100%;

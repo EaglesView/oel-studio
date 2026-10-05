@@ -233,6 +233,45 @@ export function BottomBar({
   );
 }
 
+/* ── M1 · 4 Bureau vide ──────────────────────────────────────────────── */
+
+/**
+ * Figma M1 · 4: while the project has no file, six big cards in the centre of
+ * the desk (the four kinds, Note, Importer). They go with the first file;
+ * dropping files on the desk still works.
+ */
+export function EmptyDesk({ onCreate, onImport }: { onCreate: (kind: PaperKind) => void; onImport: (files: File[]) => void }) {
+  return (
+    <section className="empty-desk" aria-labelledby="empty-desk-title">
+      <h2 id="empty-desk-title" className="empty-desk__title">Ce bureau est vide</h2>
+      <p className="empty-desk__lead">Créez un premier fichier ou déposez-en ici.</p>
+      <div className="empty-desk__cards">
+        {NEW_KINDS.map((k) => (
+          <RACButton key={k.kind} className="empty-desk__card" data-kind={k.kind} onPress={() => onCreate(k.kind)}>
+            <Icon name={k.icon} size={32} />
+            {k.label}
+          </RACButton>
+        ))}
+        <RACButton className="empty-desk__card" onPress={() => onCreate('note')}>
+          <Icon name="note" size={32} />
+          Note
+        </RACButton>
+        <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
+          <RACButton className="empty-desk__card">
+            <Icon name="upload" size={32} />
+            Importer
+          </RACButton>
+        </FileTrigger>
+      </div>
+      <WithTooltip label="Modèles" unavailableReason={SOON}>
+        <RACButton className="empty-desk__templates" aria-disabled="true">
+          Ou partir d’un modèle →
+        </RACButton>
+      </WithTooltip>
+    </section>
+  );
+}
+
 /* ── Zoom ───────────────────────────────────────────────────────────── */
 
 /** Zoom out / level / zoom in. The level resets to 100 %; zooming out stops at the store's limit. */

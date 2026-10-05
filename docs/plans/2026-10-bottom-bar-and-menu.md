@@ -75,4 +75,9 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
   sphere (radial light + the toast seal's inner relief) with the Nouveau menu, `Alt + N` opens it; Ranger and Étaler
   are in the bar, greyed « Bientôt » until M-3/M-4. Until M-5 the logo opens a short menu: Accueil, Fils du bureau,
   À l’arrivée… (the old rules popover), Raccourcis clavier. Icon `sort` (Iconoir Sort) added to `@oel/emboss`.
-- Not yet: browser check (test browser couldn't reach the page this session).
+- **M-2 done** — `DeskCanvas` has a generic `renderEmpty` slot (centred, `data-desk-ui`, replaces the « vide » line);
+  the app renders `EmptyDesk` (`Chrome.tsx`): « Ce bureau est vide », six raised sheet cards (Document, Présentation,
+  Tableur, Formulaire with their kind colours, Note, Importer) and « Ou partir d’un modèle → », greyed « Bientôt »
+  until templates exist. Sizes are Figma M1 · 4 at 2× (the mockup is 960 wide). Formulaire uses the `form` icon like
+  the « + » menu, not the File icon of the mockup.
+- Not yet: browser check for M-1 and M-2 (test browser couldn't reach or capture the page in either session).

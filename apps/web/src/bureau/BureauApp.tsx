@@ -12,7 +12,7 @@ import {
   toast,
 } from '@oel/emboss';
 import { ContextToolbar } from './ContextToolbar';
-import { BottomBar, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
+import { BottomBar, EmptyDesk, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
@@ -256,6 +256,7 @@ export function BureauApp() {
             onLinkOpen={(id, anchor) => links.manage(id.replace(THREAD_PREFIX, ''), deskToViewport(anchor))}
             onLinkDelete={(id) => links.setUi({ cut: id.replace(THREAD_PREFIX, '') })}
             activeLinkId={linksUi.popover ? THREAD_PREFIX + linksUi.popover.linkId : null}
+            renderEmpty={() => <EmptyDesk onCreate={create} onImport={(files) => doImport(files)} />}
             renderDropZone={(n) => (
               <div className="dropzone">
                 <Badge tone="accent" dot={false}>{n}</Badge>

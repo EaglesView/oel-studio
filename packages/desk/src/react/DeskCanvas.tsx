@@ -51,7 +51,7 @@ export const defaultMessages: DeskMessages = {
     'Flèches : passer d’un fichier à l’autre. Espace : ajouter ou retirer de la sélection. Entrée : ouvrir. ' +
     'Alt + flèches : déplacer la sélection. Maj + flèches : faire défiler le bureau. ' +
     '+ et − : zoom, 0 : zoom 100 %. Échap : désélectionner.',
-  empty: 'Le bureau est vide. Déposez des fichiers ou créez-en un depuis le dock.',
+  empty: 'Le bureau est vide. Déposez des fichiers ou créez-en un depuis la barre du bas.',
   zoom: (p) => `Zoom ${p} %`,
   maxZoomOut: 'Zoom arrière maximal',
   selection: (n) => (n === 0 ? 'Aucune sélection' : n === 1 ? '1 fichier sélectionné' : `${n} fichiers sélectionnés`),
@@ -87,6 +87,8 @@ export interface DeskCanvasProps<D> {
   onContextMenu?: (ids: string[], at: Vec) => void;
   onDropFiles?: (files: File[], at: Vec) => void;
   renderDropZone?: (count: number) => ReactNode;
+  /** Shown centred while the desk has no node, in place of `messages.empty` (e.g. creation cards). Interactive. */
+  renderEmpty?: () => ReactNode;
   /** A thread's chip was clicked, or Entrée pressed on it (Figma G1/G3). `anchor` is the chip, in desk-element pixels. */
   onLinkOpen?: (id: string, anchor: Rect) => void;
   /** Suppr on a focused thread chip (« Couper le lien ? »). */
@@ -130,6 +132,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     onContextMenu,
     onDropFiles,
     renderDropZone,
+    renderEmpty,
     onLinkOpen,
     onLinkDelete,
     activeLinkId = null,
@@ -613,7 +616,14 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
           })()}
         </div>
 
-        {nodes.length === 0 && <p className="desk__empty">{m.empty}</p>}
+        {nodes.length === 0 &&
+          (renderEmpty ? (
+            <div className="desk__empty-slot" data-desk-ui>
+              {renderEmpty()}
+            </div>
+          ) : (
+            <p className="desk__empty">{m.empty}</p>
+          ))}
 
         {children}
 
