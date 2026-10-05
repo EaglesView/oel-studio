@@ -1,0 +1,13 @@
+{
+  "name": "@oel/links",
+  "version": "0.1.0",
+  "description": "Linked copies between files (« fils de liaison »): link model stored in the target's Y.Doc, backlinks in the source's, states, cycle check, desk threads.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "yjs": "^13.6.33"
+  }
+}
