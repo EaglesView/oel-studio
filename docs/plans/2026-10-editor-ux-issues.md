@@ -33,7 +33,18 @@ Still to do around these:
 
 **Drawn 2026-10-05:** section **I · Liens généralisés** → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=167-10452
 (I0 matrix of sources × targets, I1 image liée, I2 plage → tableau lié, I3 tableau → tableur, I4 valeur dans le texte,
-I5 cas particuliers, I6 five decisions to take). Next: discuss I6, then write the implementation plan.
+I5 cas particuliers, I6 decisions). Next: write the implementation plan.
+
+**Decided with the user (2026-10-05, recorded in I6):**
+1. Source edits flow to the copies; edits made in a copy stay local and never touch the source. The link keeps the
+   list of local edits: view them, undo them, or « Appliquer à la source » (writes the edit to the source, so every
+   copy gets it).
+2. A linked table takes the theme of the sheet or of the destination document (user's choice). Its style is really
+   editable in place, and each style change is a local edit (rule 1). Custom table styles in docs/slides later.
+3. A table too big for a slide: the table's floating bar has « Affichage ▾ » with Tronquer / Tout afficher /
+   Choisir les lignes…, so people can experiment.
+4. Table → sheet: a copy of the data; the sheet then owns the values, the table keeps only style and font (rule 2).
+5. Pasting an image copied from a desk file links it; an image from the outside clipboard is inserted.
 
 Links v1 carries a sheet chart into slides and documents. Next, extend them to most objects:
 
@@ -56,17 +67,29 @@ extLst link markers (plan B4).
 ## 2. Toolbar overflow and redesign — **Figma first**
 
 **Drawn 2026-10-05:** section **J · Barres d'outils** → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=173-10495
-(J0 five rules, J1 groups and fold priorities, J2 three widths, J3 « Plus » push vs overlay with the motion spec,
-J4 new Document / Tableur / Présentation bars, J5 keyboard and accessibility, J6 four decisions). Next: discuss J6,
-add the missing Iconoir icons to the Figma Icons frame, then plan the `@oel/emboss` Toolbar overflow.
+(J0 five rules, J1 groups and fold priorities, J2 three widths, J3 « Plus » and docking, J4 new Document / Tableur /
+Présentation bars, J5 keyboard and accessibility, J6 decisions). Next: plan the `@oel/emboss` Toolbar overflow.
+
+**Decided with the user (2026-10-05, recorded in J3/J4/J6):**
+- « Plus » **pushes** the page by default, and the hidden groups open as a **grid of named sections** (three columns,
+  wide groups span two; one column under 560 px), not as extra one-line rows.
+- The overlay mode is dropped. Instead an « Ancrer en bas » button docks the **whole toolbar at the bottom** of the
+  window (better for touch); a ✕ at its end puts it back at the top. Under 600 px or on touch-only screens the bar is
+  docked at the bottom by default. Shortcuts: Alt+Maj+↓ (expand), Alt+Maj+B (dock).
+- Slides: « Présenter » is a split button outside the overflow; the main part starts the last used mode, the arrow
+  offers Présenter / Mode présentateur.
+- The Texte group in slides stays greyed when no text box is selected; clicking it shows « Sélectionnez une zone de
+  texte pour changer la police ».
+- Imprimer and zoom leave the document bar; Barré and Liste de contrôle go to « Plus ».
+- Nine Iconoir icons added to the Figma Icons frame: Borders, Wrap Text, Sort, Shape, Play, Currency, Percent,
+  Dock Bottom (AlignBottomBox), Presenter (Presentation).
 
 Today each editor's toolbar is one line; when it overflows it scrolls horizontally
 (`.oel-docs__toolbar > .emb-toolbar { overflow-x: auto }`, same idea in sheets and slides).
 
 Wanted:
 - A « Plus » / show-more button that expands the toolbar to as many rows as it needs, with a smooth animation.
-  Two behaviours to choose between in Figma, possibly a user setting: **push** (the document moves down) or
-  **overlay** (the rows layer over the document, with a shadow).
+  Decided: push with a grid of sections, plus docking the whole bar at the bottom (see above).
 - New layouts for the docs, sheets and slides toolbars (they were built quickly): grouping, which tools are always
   visible at each width, which go into the overflow, contextual groups (table, image, chart) and how they relate to
   the floating bars above.
