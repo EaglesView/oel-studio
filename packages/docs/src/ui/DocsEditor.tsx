@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import { useEditorState, type Editor } from '@tiptap/react';
 import { NodeSelection, type Selection, type Transaction } from '@tiptap/pm/state';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
-import { linkedTableStyleChanges } from '../extensions/linkedTables';
+import { linkedTableStyleChanges, tableAsLinked } from '../extensions/linkedTables';
 import { linkClip, linkHost, linksOf, newLinkId, pictureBytes, pictureValue, revOf, setLinkClip, type LinkClip } from '@oel/links';
 import { MenuTrigger } from 'react-aria-components';
 import { Badge, Button, Icon, Kbd, Menu, MenuItem, MenuPopover, toast } from '@oel/emboss';
@@ -480,6 +480,7 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'tbl-del-row': return void chain().deleteRow().run();
       case 'tbl-del-col': return void chain().deleteColumn().run();
       case 'tbl-del': return void chain().deleteTable().run();
+      case 'tbl-send': return sendTableToSheet(e, session);
       case 'img-options': return setDialog('image');
       case 'words': return setDialog('words');
       case 'french': return setFrench((v) => !v);
@@ -658,6 +659,7 @@ export function DocsEditor(props: DocsEditorProps) {
               { id: 'tbl-col-after', label: 'Insérer une colonne à droite' },
               { id: 'tbl-merge', label: 'Fusionner ou scinder les cellules' },
               { id: 'tbl-header', label: 'Ligne d’en-tête' },
+              { id: 'tbl-send', label: 'Envoyer vers un tableur…', icon: 'table', disabled: ro || !inTable },
               { id: 'tbl-del-row', label: 'Supprimer la ligne' },
               { id: 'tbl-del-col', label: 'Supprimer la colonne' },
               { id: 'tbl-del', label: 'Supprimer le tableau' },
@@ -840,7 +842,7 @@ export function DocsEditor(props: DocsEditorProps) {
           </div>
         )}
       </div>
-      {inTable && editable && target && <TableFloat editor={target} scroller={canvasRef.current} />}
+      {inTable && editable && target && <TableFloat editor={target} scroller={canvasRef.current} onSend={() => sendTableToSheet(target, session)} />}
       {toolbar?.chartAt != null && target && <ChartFloat key={toolbar.chartAt} editor={target} scroller={canvasRef.current} editable={editable} />}
       {toolbar?.pictureAt != null && target && <PictureFloat key={toolbar.pictureAt} editor={target} scroller={canvasRef.current} />}
       {editor && <LinkedEditNotice editor={editor} root={canvasRef.current} />}
@@ -1013,6 +1015,7 @@ function contextItems(ed: Editor, ro: boolean): Array<MenuEntry | '-'> {
       { id: 'tbl-col-after', label: 'Insérer une colonne à droite', icon: 'insert-col' },
       { id: 'tbl-merge', label: 'Fusionner / scinder les cellules', icon: 'merge' },
       { id: 'tbl-header', label: 'Ligne d’en-tête' },
+      { id: 'tbl-send', label: 'Envoyer vers un tableur…', icon: 'table' },
       {
         id: 'tbl-delete',
         label: 'Supprimer',
@@ -1092,4 +1095,28 @@ async function pasteLinkedPicture(editor: Editor, session: DocSession, clip: Lin
     tone: 'success',
     action: { label: 'Incorporer (sans lien)', onAction: () => linksOf(session.ydoc).remove(linkId, 'person') },
   });
+}
+
+/**
+ * « Envoyer vers un tableur… » (Figma I3): the table around the caret goes to
+ * the app, which asks where and, by default, links it back to the new range.
+ * Refused, with the reason, for linked or nested tables.
+ */
+export function sendTableToSheet(editor: Editor, session: DocSession) {
+  const $from = editor.state.selection.$from;
+  let depth = -1;
+  for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === 'table') depth = d;
+  if (depth < 0) return;
+  const node = $from.node(depth);
+  const pos = $from.before(depth);
+  if (node.attrs.oid && linkHost().copyOf(node.attrs.oid as string)) return void toast({ title: 'Ce tableau est déjà lié', description: 'Ses valeurs viennent déjà d’un tableur.', tone: 'info' });
+  const { table, lossy, nested } = tableAsLinked(node);
+  if (nested) return void toast({ title: 'Tableau imbriqué', description: 'Ce tableau contient un autre tableau : aplatissez-le d’abord.', tone: 'warning' });
+  let oid = node.attrs.oid as string | null;
+  if (!oid) {
+    oid = `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, oid }).setMeta('addToHistory', false));
+  }
+  if (!linkHost().sendTableToSheet({ docId: session.status.docId, kind: 'document', objectId: oid, table, lossy }))
+    toast({ title: 'Ouvrez ce document depuis le bureau', description: 'Le tableau peut alors partir vers un tableur du bureau.', tone: 'info' });
 }

@@ -4,7 +4,7 @@
  * know about the desk or other files; the app installs a host, and without one
  * copies show their mode only.
  */
-import type { Carries, LinkState, LinkTheme, Overflow } from './types';
+import type { Carries, LinkedTable, LinkState, LinkTheme, Overflow } from './types';
 
 export interface LinkHost {
   /** State of a link by id (`waiting` when unknown). */
@@ -26,6 +26,12 @@ export interface LinkHost {
    * record it as a local edit (or drop the edit when it matches the source again).
    */
   recordTableEdit(linkId: string, change: { r: number; c: number; prop: 'fill' | 'bold' | 'italic' | 'color'; value: string | boolean | null }): void;
+  /**
+   * « Envoyer vers un tableur… » on a table (Figma I3): the app asks where,
+   * writes the cells into a workbook and, by default, makes the table a linked
+   * copy of them. False when the app can't (no desk).
+   */
+  sendTableToSheet(req: { docId: string; kind: 'document' | 'slides'; objectId: string; table: LinkedTable; lossy: number }): boolean;
   /** Title of a desk file by its doc id (« Lancement automne »), for links made from inside an editor. */
   fileTitle(docId: string): string | null;
   /** Called on any state change. */
@@ -44,6 +50,7 @@ const NONE: LinkHost = {
   fileTitle: () => null,
   setLinkOptions: () => {},
   recordTableEdit: () => {},
+  sendTableToSheet: () => false,
   copyOf: () => null,
   subscribe: () => () => {},
 };

@@ -62,3 +62,6 @@
   .oel-links__panel { left: 16px; right: 16px; width: auto; }
   .oel-links__route { grid-template-columns: 1fr; }
 }
+
+/* I3: what won't survive the trip to the sheet. */
+.oel-links__warn { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--emboss-warning-soft); color: var(--emboss-warning-ink); font: 500 12px/1.4 var(--font-sans); }

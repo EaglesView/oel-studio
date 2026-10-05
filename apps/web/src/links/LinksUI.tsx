@@ -9,7 +9,7 @@ import { Badge, Button, DialogOverlay, Icon, Popover, Radio, RadioGroup, Select,
 import { CARRIES_LABEL, MODE_HINT, MODE_LABEL, STATE_LABEL, THEME_LABEL, ago, fullLabel, shortDate, type Carries, type LinkMode, type LinkState, type LinkTheme } from '@oel/links';
 import { useDeskState } from '@oel/desk/react';
 import { KIND_ICON, kindLabel, type Bureau, type Paper } from '../bureau/model';
-import { TARGET_KINDS, type LinkResolver, type Placement } from './resolver';
+import { TARGET_KINDS, type LinkResolver, type Placement, type SendChoice } from './resolver';
 import './links.css';
 
 const TONE: Record<LinkState, Tone> = { fresh: 'success', updating: 'accent', stale: 'warning', frozen: 'neutral', broken: 'danger', waiting: 'neutral' };
@@ -29,6 +29,7 @@ export function LinksUI({ resolver, store }: { resolver: LinkResolver; store: Bu
     <>
       {ui.popover && <ThreadPopover resolver={resolver} linkId={ui.popover.linkId} anchor={ui.popover.anchor} onCut={setConfirm} />}
       {ui.dialog && <LinkDialog resolver={resolver} store={store} />}
+      {ui.send && <SendDialog resolver={resolver} store={store} />}
       {ui.panel && <LinksPanel resolver={resolver} store={store} onCut={setConfirm} />}
       <DialogOverlay isOpen={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <SheetDialog
@@ -449,5 +450,90 @@ function LinksPanel({ resolver, store, onCut }: { resolver: LinkResolver; store:
       </Switch>
       <p className="oel-links__foot">Clavier : ↑↓ parcourt, Entrée ouvre le fil, Ctrl + Entrée « Mettre à jour », Suppr « Couper le lien ». Ctrl + Maj + L ouvre ou ferme ce panneau.</p>
     </aside>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// I3 · « Envoyer vers un tableur… »
+// ---------------------------------------------------------------------------
+
+function SendDialog({ resolver, store }: { resolver: LinkResolver; store: Bureau }) {
+  const req = resolver.ui.send!;
+  const order = useDeskState(store, (s) => s.order);
+  const nodeMap = useDeskState(store, (s) => s.nodes);
+  const workbooks = useMemo(() => order.map((id) => nodeMap[id] as Paper | undefined).filter((p): p is Paper => p?.kind === 'spreadsheet'), [order, nodeMap]);
+  const [where, setWhere] = useState<'new' | 'existing'>('new');
+  const [paperId, setPaperId] = useState<string | null>(workbooks[0]?.id ?? null);
+  const [linked, setLinked] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const close = () => resolver.setUi({ send: null });
+  const from = useMemo(() => order.map((id) => nodeMap[id] as Paper | undefined).find((p) => p?.data.docId === req.docId), [order, nodeMap, req.docId]);
+  const rows = req.table.rows.length;
+  const cols = req.table.rows[0]?.length ?? 0;
+  const submit = async () => {
+    if (busy) return;
+    const choice: SendChoice = { workbook: where === 'existing' && paperId ? { kind: 'existing', paperId } : { kind: 'new' }, linked };
+    setBusy(true);
+    try {
+      const done = await resolver.sendTable(req, choice);
+      close();
+      toast({
+        title: `Tableau envoyé vers « ${done.title} »`,
+        description: linked ? 'Le document suit maintenant le tableur.' : 'Copie simple : le tableau et la plage vivent chacun de leur côté.',
+        tone: 'success',
+        action: { label: 'Annuler', onAction: done.undo },
+      });
+    } catch (e) {
+      toast({ title: 'Envoi impossible', description: (e as Error).message, tone: 'warning' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <DialogOverlay isOpen onOpenChange={(o) => !o && close()}>
+      <SheetDialog
+        title="Envoyer le tableau vers un tableur"
+        width={480}
+        actions={(c) => (
+          <>
+            <Button variant="ghost" onPress={c}>
+              Annuler
+            </Button>
+            <Button leadingIcon="table" isDisabled={busy || (where === 'existing' && !paperId)} onPress={() => void submit()}>
+              Envoyer
+            </Button>
+          </>
+        )}
+      >
+        <p className="oel-links__hint">
+          {rows} ligne{rows > 1 ? 's' : ''} × {cols} colonne{cols > 1 ? 's' : ''}
+          {from ? ` depuis « ${from.title} »` : ''}. Les nombres écrits à la québécoise (« 1 240 000 $ ») deviennent de vrais nombres.
+        </p>
+        <RadioGroup label="Classeur" value={where} onChange={(v) => setWhere(v as typeof where)}>
+          <Radio value="new">Nouveau classeur, posé sur le bureau à côté du fichier</Radio>
+          <Radio value="existing" isDisabled={!workbooks.length}>
+            Nouvelle feuille dans un classeur du bureau
+          </Radio>
+        </RadioGroup>
+        {where === 'existing' && (
+          <Select label="Classeur" selectedKey={paperId} onSelectionChange={(k) => setPaperId(String(k))}>
+            {workbooks.map((w) => (
+              <SelectItem key={w.id} id={w.id}>
+                {w.title}
+              </SelectItem>
+            ))}
+          </Select>
+        )}
+        <RadioGroup label="Ensuite" value={linked ? 'linked' : 'copy'} onChange={(v) => setLinked(v === 'linked')}>
+          <Radio value="linked">Le tableur commande (recommandé) : ce tableau devient une copie liée de la plage</Radio>
+          <Radio value="copy">Copie simple : aucun lien</Radio>
+        </RadioGroup>
+        {req.lossy > 0 && (
+          <p className="oel-links__warn" role="note">
+            <Icon name="alert" size={14} aria-hidden /> {req.lossy} cellule{req.lossy > 1 ? 's contiennent' : ' contient'} une image ou une liste : seul leur texte partira.
+          </p>
+        )}
+      </SheetDialog>
+    </DialogOverlay>
   );
 }

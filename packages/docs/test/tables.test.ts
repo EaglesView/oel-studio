@@ -65,7 +65,7 @@ describe('values in a linked table are read-only, style is not (I6 §2)', () => 
     const { EditorState, TextSelection } = await import('@tiptap/pm/state');
     const { setLinkHost } = await import('@oel/links');
     setLinkHost({
-      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {}, recordTableEdit: () => {},
+      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {}, recordTableEdit: () => {}, sendTableToSheet: () => false,
       subscribe: () => () => {},
       copyOf: (oid) => (oid === 't1' ? { linkId: 'l1', source: 'Budget 2027', state: 'fresh', frozen: false, carries: 'table' } : null),
     });
@@ -109,7 +109,7 @@ describe('style changes on a linked table become local edits (I6 §1)', () => {
     const { EditorState } = await import('@tiptap/pm/state');
     const { setLinkHost } = await import('@oel/links');
     setLinkHost({
-      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {}, recordTableEdit: () => {},
+      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {}, recordTableEdit: () => {}, sendTableToSheet: () => false,
       subscribe: () => () => {},
       copyOf: (oid) => (oid === 't1' ? { linkId: 'l1', source: 'Budget 2027', state: 'fresh', frozen: false, carries: 'table' } : null),
     });
@@ -137,5 +137,28 @@ describe('style changes on a linked table become local edits (I6 §1)', () => {
     setLinkedTable(ydoc, 't1', withIds, 'target', 'link', [{ id: 'c:y:fill', label: '', at: 1, by: 'JB', patch: { kind: 'cell-style', row: 'c', col: 'y', prop: 'fill', value: '#FFEEAA' } }]);
     const td = ((findLinkedTable(ydoc, 't1')!.toArray()[2] as Y.XmlElement).toArray()[1] as Y.XmlElement).getAttribute('background');
     expect(td).toBe('#FFEEAA');
+  });
+});
+
+describe('a document table read for « Envoyer vers un tableur… » (Figma I3)', () => {
+  it('keeps text, styles and spans, and counts what won’t survive', async () => {
+    const { yXmlFragmentToProseMirrorRootNode } = await import('@tiptap/y-tiptap');
+    const { docsSchema, tableAsLinked } = await import('../src/extensions');
+    const { BODY } = await import('../src/model/ydoc');
+    const ydoc = new Y.Doc();
+    insertLinkedTable(ydoc, 't1', table('366 500'), 'source', 'end', 'person');
+    const doc = yXmlFragmentToProseMirrorRootNode(ydoc.getXmlFragment(BODY), docsSchema());
+    let node = doc.firstChild!;
+    doc.descendants((n) => void (n.type.name === 'table' && (node = n)));
+    const { table: t, lossy, nested } = tableAsLinked(node);
+    expect(nested).toBe(false);
+    expect(lossy).toBe(0);
+    expect(t.rows.map((r) => r.map((c) => c.text))).toEqual([['Poste', 'T1', 'T2'], ['Salaires', '182 000', '184 500'], ['Total', '366 500', '']]);
+    expect(t.rows[2]![1]!.colSpan).toBe(2);
+    expect(t.rows[2]![2]!.merged).toBe(true);
+    expect(t.rows[0]![0]!.bold).toBe(true);
+    expect(t.rows[1]![1]).toMatchObject({ fill: '#FFF4D6', align: 'right' });
+    expect(t.header).toBe(1);
+    expect(t.widths).toEqual([80, 60, 60]);
   });
 });

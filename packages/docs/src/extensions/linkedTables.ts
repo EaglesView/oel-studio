@@ -11,7 +11,7 @@ import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/p
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { ReplaceStep } from '@tiptap/pm/transform';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
-import { linkHost } from '@oel/links';
+import { linkHost, type LinkedCell, type LinkedTable } from '@oel/links';
 
 /** Fired on the editor's DOM when a value edit in a linked table was refused. */
 export const LINKED_EDIT_EVENT = 'oel-linked-edit';
@@ -119,4 +119,66 @@ export function linkedTableStyleChanges(before: PMNode, after: PMNode): TableSty
     });
   }
   return out;
+}
+
+/**
+ * A document table as a `LinkedTable` (« Envoyer vers un tableur… », Figma
+ * I3): each cell's text, bold/italic/colour, fill, alignment and spans.
+ * `lossy` counts cells whose content won't survive (pictures, lists, nested
+ * tables keep only their text); `nested` refuses the whole table.
+ */
+export function tableAsLinked(table: PMNode): { table: LinkedTable; lossy: number; nested: boolean } {
+  let lossy = 0;
+  let nested = false;
+  const PX_TO_PT = 72 / 96;
+  const widths: number[] = [];
+  const rows: LinkedCell[][] = [];
+  const covered = new Set<string>();
+  table.forEach((row, _o, r) => {
+    const out: LinkedCell[] = [];
+    let c = 0;
+    const take = () => {
+      while (covered.has(`${r}:${c}`)) {
+        out.push({ text: '', merged: true });
+        c++;
+      }
+    };
+    take();
+    row.forEach((cell) => {
+      take();
+      let rich = false;
+      cell.descendants((n) => {
+        if (n.type.name === 'table') nested = true;
+        if (n.type.name === 'image' || n.type.name === 'ooxmlInline' || (n.type.name === 'paragraph' && n.attrs.numId != null)) rich = true;
+      });
+      if (rich) lossy++;
+      const look = cellLook(cell);
+      const lines: string[] = [];
+      cell.forEach((p) => lines.push(p.textContent));
+      const align = cell.firstChild?.attrs.align as string | null | undefined;
+      const colspan = (cell.attrs.colspan as number) || 1;
+      const rowspan = (cell.attrs.rowspan as number) || 1;
+      const lc: LinkedCell = { text: lines.join('\n') };
+      if (look.bold) lc.bold = true;
+      if (look.italic) lc.italic = true;
+      if (look.color) lc.color = look.color;
+      if (look.fill) lc.fill = look.fill;
+      if (align === 'center' || align === 'right') lc.align = align;
+      if (colspan > 1) lc.colSpan = colspan;
+      if (rowspan > 1) lc.rowSpan = rowspan;
+      out.push(lc);
+      const cw = (cell.attrs.colwidth as number[] | null) ?? [];
+      for (let i = 0; i < colspan; i++) {
+        if (widths[c + i] == null && cw[i]) widths[c + i] = Math.round(cw[i]! * PX_TO_PT);
+        for (let j = 0; j < rowspan; j++) if (i || j) (j ? covered.add(`${r + j}:${c + i}`) : out.push({ text: '', merged: true }));
+      }
+      c += colspan;
+    });
+    take();
+    rows.push(out);
+  });
+  const width = Math.max(0, ...rows.map((r) => r.length));
+  for (const r of rows) while (r.length < width) r.push({ text: '' });
+  const header = table.firstChild?.attrs.header ? 1 : 0;
+  return { table: { rows, widths: Array.from({ length: width }, (_, i) => widths[i] ?? 72), header }, lossy, nested };
 }

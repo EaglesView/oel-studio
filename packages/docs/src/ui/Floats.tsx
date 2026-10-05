@@ -65,7 +65,7 @@ const placed = (at: { left: number; top: number } | null) => (at ? { left: at.le
  * edge when there is no room) so the page never moves; the same actions are
  * in the right-click menu.
  */
-export function TableFloat({ editor, scroller }: { editor: Editor; scroller: HTMLElement | null }) {
+export function TableFloat({ editor, scroller, onSend }: { editor: Editor; scroller: HTMLElement | null; onSend?: () => void }) {
   const bar = useRef<HTMLDivElement>(null);
   const at = useFloatAbove(editor, scroller, bar, () => {
     if (!editor.isActive('table')) return null;
@@ -141,6 +141,7 @@ export function TableFloat({ editor, scroller }: { editor: Editor; scroller: HTM
             </Dialog>
           </Popover>
         </DialogTrigger>
+        <ToolButton icon="table" label="Envoyer vers un tableur…" description="Le tableur commandera les valeurs ; ce tableau en deviendra une copie liée." onPress={() => onSend?.()} />
         <ToolbarSeparator />
         <MenuTrigger>
           <ToolButton icon="trash" label="Supprimer…" />

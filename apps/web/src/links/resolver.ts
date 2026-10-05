@@ -32,6 +32,8 @@ import {
   type LinkMode,
   type LinkState,
   type LinkedValue,
+  type LinkedTable,
+  newLinkId,
   type CellStyleEdit,
   cellEditLabel,
   withEdit,
@@ -44,7 +46,8 @@ import {
   type SourceRef,
 } from '@oel/links';
 import type { DeskLink } from '@oel/desk';
-import type { Bureau, Paper } from '../bureau/model';
+import { blankPaper, type Bureau, type Paper } from '../bureau/model';
+import { rangeA1, writeTable } from '@oel/sheets';
 import { identity, sessionFor } from '../bureau/docs';
 import { sheetSessionFor } from '../bureau/sheets';
 import { slideSessionFor } from '../bureau/slides';
@@ -97,6 +100,24 @@ export interface UiState {
   panel: boolean;
   /** « Couper le lien ? » for this link. */
   cut: string | null;
+  /** I3 « Envoyer vers un tableur… ». */
+  send: SendRequest | null;
+}
+
+/** A table on its way to a workbook (Figma I3). */
+export interface SendRequest {
+  docId: string;
+  kind: 'document' | 'slides';
+  objectId: string;
+  table: LinkedTable;
+  lossy: number;
+}
+
+export interface SendChoice {
+  /** A new workbook next to the file, or a new sheet in this desk workbook. */
+  workbook: { kind: 'new' } | { kind: 'existing'; paperId: string };
+  /** « Le tableur commande » (the table becomes a linked copy) or « Copie simple ». */
+  linked: boolean;
 }
 
 interface Target {
@@ -140,7 +161,7 @@ export class LinkResolver implements LinkHost {
   private papersSig = '';
   private refreshQueued = false;
   private disposed = false;
-  ui: UiState = { popover: null, dialog: null, panel: false, cut: null };
+  ui: UiState = { popover: null, dialog: null, panel: false, cut: null, send: null };
   /** Version bumped on every change (for React). */
   version = 0;
   private unsubStore: () => void;
@@ -505,6 +526,74 @@ export class LinkResolver implements LinkHost {
     l.target.links.patch(linkId, { edits: withoutEdit(l.def.edits, editId) }, 'person');
     this.open.announce('Modification appliquée à la source : toutes les copies la recevront.');
     return true;
+  }
+
+  sendTableToSheet(req: SendRequest): boolean {
+    if (!this.paperOfDoc(req.docId)) return false;
+    this.setUi({ send: req });
+    return true;
+  }
+
+  /**
+   * Write the table into a workbook (Figma I3) and, when the sheet is to
+   * command, make the table a linked copy of the new range. Returns what to
+   * undo with « Annuler ».
+   */
+  async sendTable(req: SendRequest, choice: SendChoice): Promise<{ title: string; undo: () => void }> {
+    const from = this.paperOfDoc(req.docId);
+    if (!from) throw new Error('Le fichier n’est plus sur le bureau.');
+    let paper: Paper;
+    let created = false;
+    if (choice.workbook.kind === 'new') {
+      paper = { ...blankPaper('spreadsheet', { x: from.x + from.w + 48, y: from.y }), title: `Tableau — ${from.title}` } as Paper;
+      this.store.add([paper], { select: false });
+      created = true;
+    } else {
+      const p = this.store.node(choice.workbook.paperId) as Paper | undefined;
+      if (!p || p.kind !== 'spreadsheet') throw new Error('Ce classeur n’est plus sur le bureau.');
+      paper = p;
+    }
+    const session = await sheetSessionFor(paper, (docId) => this.patchDocId(paper.id, docId));
+    const docId = session.status.docId;
+    const sd = session.sheet;
+    let sheetId = sd.sheetIds()[0]!;
+    let addedSheet: string | null = null;
+    if (!created) {
+      const base = `Tableau ${sd.sheetIds().length + 1}`;
+      sheetId = addedSheet = sd.addSheet(sd.validSheetName(base) ? base : undefined);
+    }
+    const range = writeTable(sd, sheetId, { r: 0, c: 0 }, req.table);
+    const title = (this.store.node(paper.id) as Paper | undefined)?.title ?? paper.title;
+    let linkId: string | null = null;
+    let target: Target | undefined;
+    if (choice.linked) {
+      const t = this.targets.get(req.docId) ?? (await this.ensureTarget(from), this.targets.get(req.docId));
+      if (t) {
+        target = t;
+        linkId = newLinkId();
+        const ref: SourceRef = { kind: 'range', sheetId, ids: sd.idRange(sheetId, range) };
+        const label = `${sd.sheetName(sheetId) ?? ''}!${rangeA1(range)}`;
+        // The table keeps the document's look; its values now come from the sheet (the first update brings them back identical).
+        t.links.put(
+          { id: linkId, source: { docId, kind: 'spreadsheet', ref, title, label }, target: { objectId: req.objectId, label: 'tableau' }, carries: 'table', mode: 'live', snapshot: { rev: '', at: Date.now(), by: identity().name }, theme: 'target', ...(req.kind === 'slides' ? { view: { overflow: 'truncate' as const } } : {}) },
+          'person',
+        );
+        linksOf(session.ydoc).putBacklink({ linkId, ref, docId: req.docId, kind: req.kind, objectId: req.objectId, title: from.title, label: 'tableau' }, 'person');
+      }
+    }
+    this.queueRefresh();
+    return {
+      title,
+      undo: () => {
+        if (linkId && target) {
+          target.links.remove(linkId, 'person');
+          linksOf(session.ydoc).removeBacklink(linkId, 'person');
+        }
+        if (created) this.store.remove([paper.id]);
+        else if (addedSheet) sd.deleteSheet(addedSheet);
+        this.queueRefresh();
+      },
+    };
   }
 
   setLinkOptions(linkId: string, patch: { theme?: LinkTheme; overflow?: Overflow }) {
