@@ -87,6 +87,7 @@ import {
   BorderInner,
   WrapText,
   Filter,
+  Sort,
   SortUp,
   SortDown,
   SnowFlake,
@@ -257,6 +258,8 @@ const EXTRA = {
   'border-inner': BorderInner,
   'wrap-text': WrapText,
   'filter': Filter,
+  /** Bureau « Ranger » (Figma M1). */
+  sort: Sort,
   'sort-asc': SortUp,
   'sort-desc': SortDown,
   'freeze': SnowFlake,
