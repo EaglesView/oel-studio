@@ -1,6 +1,6 @@
 import type { DeskNode, DeskStore } from '@oel/desk';
 import { KIND_LABEL, type FileKind, type Preview } from '@oel/engine';
-import type { IconName, Person, Tone } from '@oel/emboss';
+import type { IconName, Tone } from '@oel/emboss';
 import type { FormDef } from '@oel/forms/model';
 
 /**
@@ -48,12 +48,6 @@ export interface PaperData {
 
 export type Paper = DeskNode<PaperData> & { kind: PaperKind };
 export type Bureau = DeskStore<PaperData>;
-
-export const PEOPLE: Person[] = [
-  { id: 'jb', name: 'J. Bouchard (vous)', initials: 'JB', color: 'var(--emboss-fill-primary)' },
-  { id: 'mc', name: 'Marie-Claude', initials: 'MC', color: 'var(--emboss-success)' },
-  { id: 'al', name: 'Alex', initials: 'AL', color: 'var(--emboss-warning)' },
-];
 
 export const KIND_ICON: Record<PaperKind, IconName> = {
   document: 'file',

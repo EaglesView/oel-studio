@@ -21,7 +21,8 @@ import {
   toast,
   type IconName,
 } from '@oel/emboss';
-import { PEOPLE, type Bureau, type PaperKind } from './model';
+import { useProject } from '../project/ProjectContext';
+import { type Bureau, type PaperKind } from './model';
 
 /* ── B1 · 1 Projet ──────────────────────────────────────────────────── */
 
@@ -68,9 +69,12 @@ export function ProjectPill({
 
 /** Theme and shortcuts moved to the menu (Affichage, Raccourcis clavier); `?` still opens the shortcuts. */
 export function SharePill() {
+  const { me, members } = useProject();
+  const names = members.map((m) => (m.id === me.id ? 'vous' : m.name));
+  const label = `${members.length} personne${members.length > 1 ? 's' : ''} sur le bureau : ${new Intl.ListFormat('fr-CA').format(names)}`;
   return (
     <div className="chrome-pill share-pill" data-desk-ui>
-      <AvatarStack people={PEOPLE} label="3 personnes sur le bureau : vous, Marie-Claude et Alex" />
+      <AvatarStack people={members} label={label} />
       <Button
         size="sm"
         leadingIcon="mail"

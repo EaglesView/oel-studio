@@ -18,8 +18,11 @@ import {
   type IconName,
 } from '@oel/emboss';
 import { NEW_KINDS, SOON, type ArrivalRules } from './Chrome';
-import { KIND_ICON, PEOPLE, kindLabel, type Bureau, type Paper, type PaperKind } from './model';
+import { KIND_ICON, kindLabel, type Bureau, type Paper, type PaperKind } from './model';
 import { ShortcutsList } from './ShortcutsDialog';
+import { useProject } from '../project/ProjectContext';
+import { can, firstName, type ProjectContextValue } from '../project/model';
+import { ROLE_LABEL } from '../project/settings';
 import { useThemeChoice, type ThemeChoice } from './ThemeToggle';
 
 /** Panes of the full-screen menu (Figma M2). */
@@ -40,8 +43,6 @@ const RAIL: Array<Array<{ pane: MenuPane; icon: IconName; label: string } | 'lin
     { pane: 'account', icon: 'user', label: 'Compte' },
   ],
 ];
-
-const ME = PEOPLE[0]!;
 
 export interface AppMenuProps {
   isOpen: boolean;
@@ -126,12 +127,14 @@ export function AppMenu(props: AppMenuProps) {
 }
 
 function Pane(props: AppMenuProps) {
+  const { me, members, role } = useProject();
+  const canSet = can(role, 'settings');
   switch (props.pane) {
     case 'home':
       return (
         <>
           <Heading slot="title" level={2} className="app-menu__hello">
-            Bonjour, {ME.name.split(' ')[0]}
+            Bonjour, {firstName(me)}
           </Heading>
           <NewRow {...props} title={`Nouveau dans « ${props.project} »`} />
           <div className="app-menu__columns">
@@ -188,10 +191,11 @@ function Pane(props: AppMenuProps) {
           <section className="app-menu__section app-menu__section--narrow" aria-labelledby="menu-members">
             <h3 id="menu-members" className="app-menu__h3">Personnes du projet</h3>
             <ul className="app-menu__list">
-              {PEOPLE.map((p) => (
+              {members.map((p) => (
                 <li key={p.id} className="app-menu__row app-menu__row--static">
                   <Avatar person={p} size={24} />
                   <span className="app-menu__row-title">{p.name}</span>
+                  <span className="app-menu__row-meta">{ROLE_LABEL[p.role]}</span>
                 </li>
               ))}
             </ul>
@@ -218,19 +222,20 @@ function Pane(props: AppMenuProps) {
           <section className="app-menu__section app-menu__section--narrow" aria-labelledby="menu-import">
             <h3 id="menu-import" className="app-menu__h3">Import</h3>
             <div className="app-menu__switches">
-              <Switch isSelected={props.rules.sortByType} onChange={(v) => props.onRulesChange({ ...props.rules, sortByType: v })}>
+              <Switch isDisabled={!canSet} isSelected={props.rules.sortByType} onChange={(v) => props.onRulesChange({ ...props.rules, sortByType: v })}>
                 Ranger aussi les fichiers qui arrivent (par type)
               </Switch>
-              <Switch isSelected={props.rules.ocr} onChange={(v) => props.onRulesChange({ ...props.rules, ocr: v })}>
+              <Switch isDisabled={!canSet} isSelected={props.rules.ocr} onChange={(v) => props.onRulesChange({ ...props.rules, ocr: v })}>
                 Convertir les PDF numérisés (OCR)
               </Switch>
-              <Switch isSelected={props.rules.linkTables} onChange={(v) => props.onRulesChange({ ...props.rules, linkTables: v })}>
+              <Switch isDisabled={!canSet} isSelected={props.rules.linkTables} onChange={(v) => props.onRulesChange({ ...props.rules, linkTables: v })}>
                 Lier les tableaux importés
               </Switch>
             </div>
             <p className="app-menu__note">
               Les fichiers se posent là où on les lâche, en éventail, puis glissent vers leur pile si le rangement est actif.
             </p>
+            {!canSet && <p className="app-menu__note">Seuls les propriétaires du projet modifient ces réglages.</p>}
           </section>
         </>
       );
@@ -271,8 +276,8 @@ function Pane(props: AppMenuProps) {
         <>
           <PaneTitle>Compte</PaneTitle>
           <div className="app-menu__account">
-            <Avatar person={ME} size={48} />
-            <span className="app-menu__row-title">{ME.name}</span>
+            <Avatar person={me} size={48} />
+            <span className="app-menu__row-title">{me.name}</span>
           </div>
           <div className="app-menu__actions">
             <a className="emb-button emb-button--secondary emb-button--md" href="/connexion">
@@ -340,16 +345,17 @@ function ago(t: number): string {
   return relative.format(Math.round(h / 24), 'day');
 }
 
-function byWhom(initials: string | undefined): string | null {
+function byWhom(initials: string | undefined, { me, members }: Pick<ProjectContextValue, 'me' | 'members'>): string | null {
   if (!initials) return null;
-  if (initials === ME.initials) return 'vous';
-  return PEOPLE.find((p) => p.initials === initials)?.name ?? initials;
+  if (initials === me.initials) return 'vous';
+  return members.find((p) => p.initials === initials)?.name ?? initials;
 }
 
 /** Project files, latest change first (`limit`), or all by name. */
 function FileList({ store, onReveal, onOpenChange, limit }: AppMenuProps & { limit?: number }) {
   const nodes = useDeskState(store, (s) => s.nodes);
   const order = useDeskState(store, (s) => s.order);
+  const project = useProject();
   const papers = order.map((id) => nodes[id] as Paper | undefined).filter((p): p is Paper => !!p);
   const list = limit
     ? [...papers].sort((a, b) => (b.data.updatedAt ?? 0) - (a.data.updatedAt ?? 0)).slice(0, limit)
@@ -358,7 +364,7 @@ function FileList({ store, onReveal, onOpenChange, limit }: AppMenuProps & { lim
   return (
     <ul className="app-menu__list">
       {list.map((p) => {
-        const who = byWhom(p.data.editor);
+        const who = byWhom(p.data.editor, project);
         const meta = p.data.updatedAt
           ? `Modifié${who ? ` par ${who}` : ''} · ${ago(p.data.updatedAt)}`
           : kindLabel(p.kind);

@@ -30,9 +30,9 @@ import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
 import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms';
+import { ProjectProvider, useProject, useSetting } from '../project/ProjectContext';
 import './bureau.css';
 
-const PROJECT = 'Lancement automne 2026';
 /** Furthest you can zoom out: papers are small thumbnails, never piles or a full overview. */
 const MAX_ZOOM_OUT = 0.25;
 
@@ -42,6 +42,15 @@ const MAX_ZOOM_OUT = 0.25;
  * toolbar; double-click / Enter opens the paper in place (B4).
  */
 export function BureauApp() {
+  return (
+    <ProjectProvider>
+      <BureauDesk />
+    </ProjectProvider>
+  );
+}
+
+function BureauDesk() {
+  const project = useProject();
   const store = useMemo<Bureau>(() => {
     const desk = createDesk<PaperData>({
       nodes: SEED_PAPERS,
@@ -54,7 +63,16 @@ export function BureauApp() {
   /** The bottom bar's « + » menu (M1), opened by Alt + N too. */
   const [newMenu, setNewMenu] = useState(false);
   const [help, setHelp] = useState(false);
-  const [rules, setRules] = useState<ArrivalRules>({ sortByType: false, ocr: true, linkTables: true });
+  const sortByType = useSetting('import.sortByType');
+  const ocr = useSetting('import.ocr');
+  const linkTables = useSetting('import.linkTables');
+  const rules: ArrivalRules = { sortByType: sortByType.value, ocr: ocr.value, linkTables: linkTables.value };
+  const setRules = (r: ArrivalRules) => {
+    const failed = (e: unknown) => toast({ title: 'Réglage non appliqué', description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+    if (r.sortByType !== rules.sortByType) sortByType.set(r.sortByType).catch(failed);
+    if (r.ocr !== rules.ocr) ocr.set(r.ocr).catch(failed);
+    if (r.linkTables !== rules.linkTables) linkTables.set(r.linkTables).catch(failed);
+  };
   /** M2 · the logo's full-screen menu: open, on which pane, growing from where. */
   const [appMenu, setAppMenu] = useState<{ open: boolean; pane: MenuPane; origin: { x: number; y: number } | null }>({
     open: false,
@@ -261,7 +279,7 @@ export function BureauApp() {
         {view === 'desk' ? (
           <DeskCanvas<PaperData>
             store={store}
-            label={`Bureau du projet ${PROJECT}`}
+            label={`Bureau du projet ${project.name}`}
             describeNode={(n) => describePaper(n as PaperNode)}
             renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} />}
             selectionOverhang={(n, zoom) => (KIND_TAB[n.kind as PaperKind] ? tabHeightOnScreen(zoom) - 4 : 0)}
@@ -330,7 +348,7 @@ export function BureauApp() {
         )}
 
         <ProjectPill
-          title={PROJECT}
+          title={project.name}
           count={count}
           view={view}
           onToggleView={() => setView((v) => (v === 'desk' ? 'list' : 'desk'))}
@@ -386,7 +404,7 @@ export function BureauApp() {
         pane={appMenu.pane}
         onPaneChange={(pane) => setAppMenu((m) => ({ ...m, pane }))}
         origin={appMenu.origin}
-        project={PROJECT}
+        project={project.name}
         store={store}
         onCreate={create}
         onImport={(files) => doImport(files)}

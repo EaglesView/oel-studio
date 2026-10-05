@@ -62,4 +62,7 @@ Phase 5 (`domains/accounts`, `storage/Store`).
   can't edit settings.
 
 ## Status
-- Not started.
+- N-1 done (2026-10-05): `apps/web/src/project/` (`settings.ts` schema + `resolveSetting`, `model.ts` roles + `can()`,
+  `backend.ts` `ProjectsBackend` + local stub, `ProjectContext.tsx` `ProjectProvider`/`useProject`/`useSetting`).
+  `PROJECT`/`PEOPLE` replaced in the Bureau; « Import » switches read and write project settings and are read-only for
+  non-owners. Papers still record their editor as `'JB'` and the presence cursors are still demo data.
