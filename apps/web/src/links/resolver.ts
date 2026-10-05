@@ -15,8 +15,8 @@
  */
 import * as Y from 'yjs';
 import { chartName, keepLook, type ChartSpec } from '@oel/charts';
-import { chartBoxOn, chartFrame, chartSlide, type SlideSession } from '@oel/slides';
-import { insertChartParagraph, type DocSession } from '@oel/docs';
+import { chartBoxOn, chartFrame, chartSlide, picture, type SlideSession } from '@oel/slides';
+import { insertChartParagraph, insertPictureParagraph, type DocSession } from '@oel/docs';
 import {
   LINK_ORIGIN,
   THREAD_PREFIX,
@@ -41,7 +41,9 @@ import type { Bureau, Paper } from '../bureau/model';
 import { identity, sessionFor } from '../bureau/docs';
 import { sheetSessionFor } from '../bureau/sheets';
 import { slideSessionFor } from '../bureau/slides';
-import { valueRev, type LinkSource, type LinkTarget } from './kinds';
+import { linkMedia, preparePicture, valueRev, type LinkSource, type LinkTarget } from './kinds';
+import { pictureBytes } from './pictures';
+import { imageDocId, openImageSource } from './sources/image';
 import { openSheetSource } from './sources/sheet';
 import { slidesTarget } from './targets/slides';
 import { documentTarget } from './targets/document';
@@ -50,6 +52,7 @@ import { documentTarget } from './targets/document';
 export const TARGET_KINDS = new Set(['slides', 'document']);
 
 export interface ChartRequest {
+  kind?: 'chart';
   sourcePaperId: string;
   sheetId: string;
   chartId: string;
@@ -57,13 +60,22 @@ export interface ChartRequest {
   spec: ChartSpec;
 }
 
+/** « Lier dans… » on a desk image paper (Figma I1). */
+export interface ImageRequest {
+  kind: 'image';
+  sourcePaperId: string;
+  name: string;
+}
+
+export type LinkRequest = ChartRequest | ImageRequest;
+
 export type Placement = { kind: 'slides'; where: 'new-slide' | 'last-slide' } | { kind: 'document'; where: 'end' | 'start' };
 
 export interface UiState {
   /** G3 popover: which link, next to what (viewport pixels). */
   popover: { linkId: string; anchor: { x: number; y: number; width: number; height: number } } | null;
-  /** G2 « Lier dans… ». */
-  dialog: ChartRequest | null;
+  /** G2 / I1 « Lier dans… ». */
+  dialog: LinkRequest | null;
   /** G6 « Fils » panel. */
   panel: boolean;
   /** « Couper le lien ? » for this link. */
@@ -103,6 +115,8 @@ export class LinkResolver implements LinkHost {
   private sources = new Map<string, Source>();
   private opening = new Set<string>();
   private updatingUntil = new Map<string, number>();
+  /** Links whose copy is being written (bytes on their way): don't start a second write. */
+  private applying = new Set<string>();
   private listeners = new Set<() => void>();
   private uiListeners = new Set<() => void>();
   private threadsJson = '';
@@ -193,10 +207,10 @@ export class LinkResolver implements LinkHost {
   private async ensureSource(docId: string) {
     if (this.sources.has(docId) || this.opening.has(docId)) return;
     const p = this.paperOfDoc(docId);
-    if (!p || p.kind !== 'spreadsheet') return;
+    if (!p || (p.kind !== 'spreadsheet' && p.kind !== 'image')) return;
     this.opening.add(docId);
     try {
-      const opened = await openSheetSource(p);
+      const opened = p.kind === 'image' ? openImageSource(this.store, p) : await openSheetSource(p);
       if (this.disposed) return opened.dispose();
       const src: Source = { docId, src: opened, values: new Map(), timer: null, running: null, again: false, off: () => {} };
       // Any change in the source → read the linked objects again.
@@ -263,13 +277,22 @@ export class LinkResolver implements LinkHost {
       for (const l of t.links.list()) {
         if (l.mode !== 'live' || !this.copyExists(t, l.target.objectId)) continue;
         const v = this.sourceValue(l);
-        if (v && v.rev !== l.snapshot.rev) this.apply(t, l, v.value, v.rev);
+        if (v && v.rev !== l.snapshot.rev) void this.apply(t, l, v.value, v.rev);
       }
   }
 
-  private apply(t: Target, l: LinkDef, value: LinkedValue, rev: string) {
+  private async apply(t: Target, l: LinkDef, value: LinkedValue, rev: string) {
+    if (this.applying.has(l.id)) return;
     const by = identity().name;
     const oid = l.target.objectId;
+    if (t.adapter.prepare) {
+      this.applying.add(l.id);
+      try {
+        if (!(await t.adapter.prepare(value))) return;
+      } finally {
+        this.applying.delete(l.id);
+      }
+    }
     // « Données seulement »: the copy keeps its own look (and variant) around the source's data.
     if (value.kind === 'chart' && l.carries === 'chart-data') {
       const current = t.adapter.current(oid);
@@ -391,7 +414,7 @@ export class LinkResolver implements LinkHost {
     const l = this.find(linkId);
     if (!l || l.def.mode === 'frozen') return;
     const v = this.sourceValue(l.def);
-    if (v) this.apply(l.target, l.def, v.value, v.rev);
+    if (v) void this.apply(l.target, l.def, v.value, v.rev);
     this.queueRefresh();
   }
 
@@ -479,11 +502,12 @@ export class LinkResolver implements LinkHost {
   // ===== creating links (G2) ===============================================
 
   /** Why a paper can't take a copy of this chart, or null when it can (G2 step 2, G7 cycles). */
-  refusal(req: ChartRequest, target: Paper): string | null {
-    if (target.id === req.sourcePaperId) return 'Un graphique ne peut pas dépendre de lui-même.';
+  refusal(req: LinkRequest, target: Paper): string | null {
+    const what = req.kind === 'image' ? 'une image liée' : 'un graphique lié';
+    if (target.id === req.sourcePaperId) return req.kind === 'image' ? 'Une image ne peut pas se lier à elle-même.' : 'Un graphique ne peut pas dépendre de lui-même.';
     if (!TARGET_KINDS.has(target.kind)) {
-      if (target.kind === 'spreadsheet') return 'Lier entre tableurs arrive plus tard.';
-      return `${target.kind === 'image' ? 'Une image' : target.kind === 'pdf' ? 'Un PDF' : 'Ce fichier'} ne peut pas accueillir un graphique lié.`;
+      if (target.kind === 'spreadsheet') return req.kind === 'image' ? 'Les images dans un tableur arrivent plus tard.' : 'Lier entre tableurs arrive plus tard.';
+      return `${target.kind === 'image' ? 'Une image' : target.kind === 'pdf' ? 'Un PDF' : 'Ce fichier'} ne peut pas accueillir ${what}.`;
     }
     const from = (this.store.node(req.sourcePaperId) as Paper | undefined)?.data.docId;
     const to = target.data.docId;
@@ -494,7 +518,8 @@ export class LinkResolver implements LinkHost {
     return null;
   }
 
-  async createLink(req: ChartRequest, targetPaperId: string, placement: Placement, carries: Carries): Promise<{ linkId: string; where: string } | null> {
+  async createLink(req: LinkRequest, targetPaperId: string, placement: Placement, carries: Carries): Promise<{ linkId: string; where: string } | null> {
+    if (req.kind === 'image') return this.createImageLink(req, targetPaperId, placement);
     const sourcePaper = this.store.node(req.sourcePaperId) as Paper | undefined;
     const targetPaper = this.store.node(targetPaperId) as Paper | undefined;
     if (!sourcePaper?.data.docId || !targetPaper) return null;
@@ -571,6 +596,85 @@ export class LinkResolver implements LinkHost {
     // The source learns where it is used (« Utilisé dans… »).
     const srcDoc = src?.src.ydoc ?? (await sheetSessionFor(sourcePaper, () => {})).ydoc;
     linksOf(srcDoc).putBacklink({ linkId: id, ref, docId: targetDocId, kind: targetPaper.kind as 'slides' | 'document', objectId, title: targetPaper.title, label: where }, 'person');
+    if (targetPaper.data.docId) void this.ensureTarget(this.store.node(targetPaperId) as Paper);
+    this.queueRefresh();
+    return { linkId: id, where };
+  }
+
+  /** « Lier dans… » on a desk image (Figma I1): a picture copy in a slide or a document. */
+  private async createImageLink(req: ImageRequest, targetPaperId: string, placement: Placement): Promise<{ linkId: string; where: string } | null> {
+    const sourcePaper = this.store.node(req.sourcePaperId) as Paper | undefined;
+    const targetPaper = this.store.node(targetPaperId) as Paper | undefined;
+    if (!sourcePaper || !targetPaper) return null;
+    const reason = this.refusal(req, targetPaper);
+    if (reason) throw new Error(reason);
+    const docId = sourcePaper.data.docId ?? imageDocId(sourcePaper.id);
+    if (!sourcePaper.data.docId) this.patchDocId(sourcePaper.id, docId);
+    const ref: SourceRef = { kind: 'image', objectId: sourcePaper.id };
+    await this.ensureSource(docId);
+    const value = await this.sources.get(docId)?.src.read(ref);
+    if (!value || value.kind !== 'picture') throw new Error('Cette image ne peut pas être lue pour l’instant.');
+    const rev = valueRev(value);
+    const id = `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    const aspect = value.media.width / Math.max(1, value.media.height);
+    const def = (objectId: string, label: string): LinkDef => ({
+      id,
+      source: { docId, kind: 'image', ref, title: sourcePaper.title, label: req.name },
+      target: { objectId, label },
+      carries: 'picture',
+      mode: 'live',
+      snapshot: { rev, at: Date.now(), by: identity().name },
+    });
+    let objectId = '';
+    let where = '';
+    if (targetPaper.kind === 'slides') {
+      const s = await slideSessionFor(targetPaper, (d) => this.patchDocId(targetPaperId, d));
+      if (!(await preparePicture(s.ydoc, value, (b) => s.addPicture(b), pictureBytes))) throw new Error('Cette image ne peut pas être copiée.');
+      const path = linkMedia(s.ydoc).get(value.media.hash)!;
+      const sd = s.slides;
+      const info = sd.info();
+      const ids = sd.slideIds();
+      const last = ids[ids.length - 1];
+      // The picture fits the area a chart would take, keeping its proportions.
+      const fit = (box: { x: number; y: number; cx: number; cy: number }) => {
+        const cx = Math.round(Math.min(box.cx, box.cy * aspect));
+        const cy = Math.round(cx / aspect);
+        return { x: box.x + Math.round((box.cx - cx) / 2), y: box.y, cx, cy };
+      };
+      if (placement.kind === 'slides' && placement.where === 'last-slide' && last) {
+        const el = picture(path, value.media.mime, fit(chartBoxOn(info, sd.slide(last)?.elements ?? [])), req.name);
+        objectId = el.id;
+        where = `diapo ${ids.length}`;
+        s.ydoc.transact(() => {
+          sd.addElement(last, el);
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      } else {
+        const { slide, chartId } = chartSlide(info, { groups: [] } as unknown as ChartSpec, req.name, last ? sd.slide(last)?.layout : undefined);
+        const i = slide.elements.findIndex((e) => e.id === chartId);
+        const frame = slide.elements[i]!;
+        slide.elements[i] = { ...picture(path, value.media.mime, fit(frame), req.name), id: chartId };
+        objectId = chartId;
+        where = `diapo ${ids.length + 1}`;
+        s.ydoc.transact(() => {
+          sd.insertSlide(ids.length, slide);
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      }
+    } else {
+      const s = await sessionFor(targetPaper, (d) => this.patchDocId(targetPaperId, d));
+      if (!(await preparePicture(s.ydoc, value, (b) => s.addImage(b), pictureBytes))) throw new Error('Cette image ne peut pas être copiée.');
+      const path = linkMedia(s.ydoc).get(value.media.hash)!;
+      objectId = `p${id}`;
+      const atStart = placement.kind === 'document' && placement.where === 'start';
+      where = atStart ? 'début' : `§ ${s.fragment.length + 1}`;
+      // 15 cm wide at most, keeping the picture's proportions.
+      const cx = Math.min(5_400_000, Math.round(value.media.width * 9525));
+      s.ydoc.transact(() => {
+        insertPictureParagraph(s.ydoc, objectId, { path, cx, cy: Math.round(cx / aspect), alt: req.name }, atStart ? 'start' : 'end', 'person');
+        linksOf(s.ydoc).put(def(objectId, where), 'person');
+      }, 'person');
+    }
     if (targetPaper.data.docId) void this.ensureTarget(this.store.node(targetPaperId) as Paper);
     this.queueRefresh();
     return { linkId: id, where };

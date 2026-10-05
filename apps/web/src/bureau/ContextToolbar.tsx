@@ -14,6 +14,7 @@ import { copyLink } from '@oel/forms';
 import { kindLabel, uid, type Bureau, type Paper } from './model';
 import { sheetTotal } from './Paper';
 import { downloadSlides, requestPresent } from './slides';
+import { activeLinks } from '../links/resolver';
 
 const nf = new Intl.NumberFormat('fr-CA');
 const ENGINE_LATER = 'Arrive avec le moteur de documents (WASM).';
@@ -197,6 +198,14 @@ function TypeTools({
     case 'image':
       return (
         <>
+          <ToolButton
+            icon="link"
+            label="Lier dans…"
+            showLabel
+            description="Mettre une copie liée dans une présentation ou un document du bureau"
+            unavailableReason={node.data.imageUrl ? undefined : 'Cette image n’a pas encore de fichier (exemple du bureau).'}
+            onPress={() => activeLinks()?.setUi({ dialog: { kind: 'image', sourcePaperId: node.id, name: node.data.fileName ?? node.title } })}
+          />
           <ToolButton icon="crop" label="Rogner" unavailableReason={IMAGE_ENGINE_LATER} />
           <ToolButton icon="sparkle" label="Détourer" unavailableReason={IMAGE_ENGINE_LATER} />
           <ToolButton icon="search" label="Reconnaître le texte (OCR)" unavailableReason={IMAGE_ENGINE_LATER} />

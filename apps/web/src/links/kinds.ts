@@ -28,6 +28,12 @@ export interface LinkTarget {
   exists(objectId: string): boolean;
   /** The copy's current value, as the link carries it. */
   current(objectId: string): LinkedValue | null;
+  /**
+   * Get ready to write `value` (async work that can't happen inside a
+   * transaction: copying a picture's bytes into the file's media). False when
+   * the value can't be written yet.
+   */
+  prepare?(value: LinkedValue): Promise<boolean>;
   /** Write a new value into the copy (inside the caller's transaction). False when the copy is gone. */
   write(objectId: string, value: LinkedValue): boolean;
   /** Remove the copy (« Annuler » right after « Lier »). */
@@ -40,4 +46,22 @@ export interface LinkTarget {
  */
 export function valueRev(v: LinkedValue): string {
   return v.kind === 'chart' ? revOf(v.spec) : revOf(v);
+}
+
+/**
+ * Pictures already copied into a target file, by hash → package path, so
+ * each picture's bytes are added to a file's media once.
+ */
+export const linkMedia = (ydoc: Y.Doc): Y.Map<string> => ydoc.getMap('oel-link-media');
+
+/** Copy a picture's bytes into a file's media (once). */
+export async function preparePicture(ydoc: Y.Doc, value: LinkedValue, add: (blob: Blob) => Promise<string>, bytes: (hash: string) => Blob | undefined): Promise<boolean> {
+  if (value.kind !== 'picture') return true;
+  const media = linkMedia(ydoc);
+  if (media.has(value.media.hash)) return true;
+  const blob = bytes(value.media.hash);
+  if (!blob) return false;
+  const path = await add(blob);
+  media.set(value.media.hash, path);
+  return true;
 }

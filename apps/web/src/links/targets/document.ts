@@ -2,22 +2,31 @@
 import * as Y from 'yjs';
 import type { ChartSpec } from '@oel/charts';
 import { LINK_ORIGIN, type LinkedValue } from '@oel/links';
-import { chartOf, findChart, setChart, type DocSession } from '@oel/docs';
-import type { LinkTarget } from '../kinds';
+import { chartOf, findChart, findPicture, pictureOf, setChart, setPicture, type DocSession } from '@oel/docs';
+import { linkMedia, preparePicture, type LinkTarget } from '../kinds';
+import { pictureBytes } from '../pictures';
 
 export function documentTarget(s: DocSession): LinkTarget {
   const ydoc = s.ydoc;
   return {
     kind: 'document',
     ydoc,
-    exists: (objectId) => !!chartOf(ydoc, objectId),
+    exists: (objectId) => !!chartOf(ydoc, objectId) || !!pictureOf(ydoc, objectId),
     current(objectId): LinkedValue | null {
       const spec = chartOf(ydoc, objectId);
       return spec ? { kind: 'chart', spec } : null;
     },
-    write: (objectId, value) => value.kind === 'chart' && setChart(ydoc, objectId, value.spec as ChartSpec, LINK_ORIGIN),
+    prepare: (value) => preparePicture(ydoc, value, (blob) => s.addImage(blob), pictureBytes),
+    write(objectId, value) {
+      if (value.kind === 'chart') return setChart(ydoc, objectId, value.spec as ChartSpec, LINK_ORIGIN);
+      if (value.kind === 'picture') {
+        const path = linkMedia(ydoc).get(value.media.hash);
+        return !!path && setPicture(ydoc, objectId, path, value.media.width / Math.max(1, value.media.height), LINK_ORIGIN);
+      }
+      return false;
+    },
     remove(objectId) {
-      const el = findChart(ydoc, objectId);
+      const el = findChart(ydoc, objectId) ?? findPicture(ydoc, objectId);
       const para = el?.parent;
       // A paragraph made for the copy goes with it.
       if (para instanceof Y.XmlElement && para.length === 1 && para.parent) (para.parent as Y.XmlFragment).delete((para.parent as Y.XmlFragment).toArray().indexOf(para), 1);

@@ -402,7 +402,7 @@ export const ElementView = memo(function ElementView({ el, offset }: { el: Eleme
   return (
     <div className={`oel-el oel-el--${el.kind}`} style={style} data-el={el.id}>
       {body}
-      {ctx.editing && ctx.links && el.kind === 'graphic' && <LinkBadge links={ctx.links} objectId={el.id} />}
+      {ctx.editing && ctx.links && (el.kind === 'graphic' || el.kind === 'picture') && <LinkBadge links={ctx.links} objectId={el.id} />}
     </div>
   );
 });

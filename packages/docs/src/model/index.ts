@@ -7,3 +7,4 @@ export * from './preview';
 export * from './blank';
 export * from './sections';
 export * from './charts';
+export * from './pictures';

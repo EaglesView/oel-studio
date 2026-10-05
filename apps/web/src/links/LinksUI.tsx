@@ -201,7 +201,7 @@ function LinkDialog({ resolver, store }: { resolver: LinkResolver; store: Bureau
   const [carries, setCarries] = useState<Carries>('chart');
   const [busy, setBusy] = useState(false);
   const close = () => resolver.setUi({ dialog: null });
-  const sourceTitle = (store.node(req.sourcePaperId) as Paper | undefined)?.title ?? 'le tableur';
+  const sourceTitle = (store.node(req.sourcePaperId) as Paper | undefined)?.title ?? (req.kind === 'image' ? 'l’image' : 'le tableur');
 
   const submit = async () => {
     if (!target || busy) return;
@@ -213,7 +213,7 @@ function LinkDialog({ resolver, store }: { resolver: LinkResolver; store: Bureau
       if (made)
         toast({
           title: `« ${req.name} » lié dans « ${target.title} » · ${made.where}`,
-          description: 'La copie suit le tableur. Vous pourrez la figer ensuite.',
+          description: req.kind === 'image' ? 'La copie suit l’image du bureau. Vous pourrez la figer ensuite.' : 'La copie suit le tableur. Vous pourrez la figer ensuite.',
           tone: 'success',
           action: { label: 'Annuler', onAction: () => resolver.undoCreate(made.linkId) },
         });
@@ -288,10 +288,12 @@ function LinkDialog({ resolver, store }: { resolver: LinkResolver; store: Bureau
                 <Radio value="start">Au début</Radio>
               </RadioGroup>
             )}
-            <RadioGroup label="Style" value={carries} onChange={(v) => setCarries(v as Carries)}>
-              <Radio value="chart">Garder le style du tableur (suit la source)</Radio>
-              <Radio value="chart-data">Garder le style de la copie (seules les données suivent)</Radio>
-            </RadioGroup>
+            {req.kind !== 'image' && (
+              <RadioGroup label="Style" value={carries} onChange={(v) => setCarries(v as Carries)}>
+                <Radio value="chart">Garder le style du tableur (suit la source)</Radio>
+                <Radio value="chart-data">Garder le style de la copie (seules les données suivent)</Radio>
+              </RadioGroup>
+            )}
           </>
         )}
       </SheetDialog>
