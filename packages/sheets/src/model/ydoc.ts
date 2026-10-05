@@ -127,6 +127,8 @@ export const extras = (d: Y.Doc, id: string) => d.getMap<unknown>(`x:${id}`);
 
 /** Marks a chart reference stored id-based (JSON of a `StoredFormula` follows). */
 const STORED_REF = '\u0001';
+/** Origin of giving a drawing its stable id: not an edit, so not undone. */
+const DRAWING_ID = Symbol('oel-sheets-drawing-id');
 
 /** Apply `fn` to every cell reference of a chart (series names, values, categories, titles, error amounts). */
 export function mapChartRefs(spec: ChartSpec, fn: (ref: string) => string): ChartSpec {
@@ -891,6 +893,28 @@ export class SheetDoc implements RefResolver {
     });
   }
 
+  /** The stable id of a drawing (given one, in its own undo-less transaction, when it has none yet). */
+  drawingId(sheet: string, index: number): string | null {
+    const d = this.drawings(sheet)[index];
+    if (!d) return null;
+    if (d.oid) return d.oid;
+    const oid = `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    const x = extras(this.doc, sheet);
+    const list = (x.get('drawings') as YDrawing[] | undefined) ?? [];
+    this.doc.transact(() => x.set('drawings', list.map((y, i) => (i === index ? { ...y, oid } : y))), DRAWING_ID);
+    return oid;
+  }
+
+  /** A drawing by its stable id, with its sheet and position. */
+  drawingById(oid: string): { sheet: string; index: number; drawing: Drawing } | null {
+    for (const sheet of this.sheetIds()) {
+      const list = this.drawings(sheet);
+      const index = list.findIndex((d) => d.oid === oid);
+      if (index >= 0) return { sheet, index, drawing: list[index]! };
+    }
+    return null;
+  }
+
   /** Change one drawing (by its position in `drawings()`). */
   updateDrawing(sheet: string, index: number, patch: (d: Drawing) => Drawing) {
     const list = this.drawings(sheet);
@@ -1277,7 +1301,7 @@ export class SheetDoc implements RefResolver {
       hyperlinks: this.hyperlinks(id),
       notes: this.notes(id),
       tables: this.tables(id),
-      drawings: this.drawings(id),
+      drawings: this.drawings(id).map(({ oid: _oid, ...d }) => d),
     };
   }
 }

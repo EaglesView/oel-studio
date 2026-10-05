@@ -121,7 +121,7 @@ export function duplicateDrawing(ctl: SheetController, index: number) {
   const d = list[index];
   if (!d || ctl.readOnlyFlag) return;
   const f = frameOf(ctl, d);
-  const copy = placed(ctl, { ...d, src: undefined, name: `${d.name} (copie)`, chart: d.chart ? { ...d.chart, part: '' } : undefined }, { ...f, x: f.x + 20, y: f.y + 20 });
+  const copy = placed(ctl, { ...d, src: undefined, oid: undefined, name: `${d.name} (copie)`, chart: d.chart ? { ...d.chart, part: '' } : undefined }, { ...f, x: f.x + 20, y: f.y + 20 });
   ctl.doc.setDrawings(ctl.sheetId, [...list, copy]);
   ctl.selectDrawing(list.length);
 }

@@ -11,6 +11,7 @@ import { fillLine, type FillSource } from '../model/fill';
 import { cycleAbsolute, shiftFormula } from '../model/formula';
 import { DEFAULT_STYLE, type CellOut, type CellStyle, type Color } from '../model/types';
 import { SheetDoc, colMeta, parseInput, rowMeta, type CellEdit, type YCell } from '../model/ydoc';
+import type { ChartSpec } from '@oel/charts';
 import type { CalcClient } from '../calc/client';
 import { Axis, colWidthPx, rowHeightPx } from '../grid/geometry';
 import { clampPos, current, cycleInside, extendTo, jump, movingCorner, single, type Pos, type Selection } from '../grid/selection';
@@ -386,6 +387,8 @@ export class SheetController {
   validator: ((r: number, c: number, text: string) => string | null) | null = null;
   /** Messages for the person (refused values…), shown by the editor as toasts. */
   onNotice: ((title: string, description?: string) => void) | null = null;
+  /** « Lier dans… » on a chart (Figma G2): the host lists the files that can take a linked copy. Null hides nothing, it disables the button. */
+  onLinkChart: ((chart: { sheetId: string; chartId: string; name: string; spec: ChartSpec }) => void) | null = null;
 
   commitEdit(move: 'down' | 'up' | 'right' | 'left' | null, opts: { all?: boolean; array?: boolean } = {}) {
     const e = this.edit;

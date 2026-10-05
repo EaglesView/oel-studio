@@ -40,6 +40,8 @@ export class CalcClient {
   loading = true;
   error: string | null = null;
   lastLoadMs = 0;
+  /** Number of times the engine was (re)built: values fetched before a rebuild are gone. */
+  loads = 0;
 
   constructor(
     readonly sheet: SheetDoc,
@@ -189,6 +191,7 @@ export class CalcClient {
     this.waiting.delete(m.seq);
     switch (m.op) {
       case 'loaded':
+        this.loads++;
         this.loading = false;
         this.error = null;
         this.lastLoadMs = m.ms;

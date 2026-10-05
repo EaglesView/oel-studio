@@ -7,8 +7,9 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { Dialog } from 'react-aria-components';
 import { Button, Checkbox, DialogOverlay, Menu, MenuItem, MenuPopover, MenuSeparator, MenuTrigger, NumberField, Popover, Radio, RadioGroup, SheetDialog, Slider, TextField, Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
-import { CHART_TYPES, FAMILIES, applyType, chartFamily, newChart, parseRef, recommend, type Axis, type ChartSpec, type Group, type Series } from '@oel/charts';
+import { CHART_TYPES, FAMILIES, applyType, chartFamily, chartName, newChart, parseRef, recommend, type Axis, type ChartSpec, type Group, type Series } from '@oel/charts';
 import { ChartView } from '@oel/charts/react';
+import { STATE_LABEL, linkHost, linksOf } from '@oel/links';
 import { chartFont, sheetResolver } from '../grid/charts';
 import { chartBlock, deleteDrawing, duplicateDrawing, insertChart, updateChart } from './charts';
 import type { SheetController } from './controller';
@@ -383,6 +384,35 @@ export function switchRowsCols(ctl: SheetController, spec: ChartSpec): ChartSpec
   return { ...spec, groups: fresh.groups.map((g, i) => ({ ...(spec.groups[i] ?? spec.groups[0]!), series: g.series })), legend: spec.legend, palette: spec.palette };
 }
 
+/** « Utilisé dans 2 fichiers » (Figma G5): the copies made from this chart, each opening its thread. */
+function ChartUses({ ctl, index }: { ctl: SheetController; index: number }) {
+  const oid = ctl.doc.drawings(ctl.sheetId)[index]?.oid;
+  const uses = oid ? linksOf(ctl.doc.doc).usesOf((b) => b.ref.kind === 'chart' && b.ref.chartId === oid) : [];
+  if (!uses.length) return null;
+  const host = linkHost();
+  return (
+    <MenuTrigger>
+      <ToolButton icon="link" label={uses.length === 1 ? 'Utilisé dans 1 fichier' : `Utilisé dans ${uses.length} fichiers`} showLabel />
+      <MenuPopover placement="bottom start">
+        <Menu
+          aria-label="Copies liées"
+          onAction={(k) => {
+            const el = document.querySelector('.oel-chart-bar');
+            const r = el?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0 };
+            host.manage(String(k), { x: r.x, y: r.y, width: r.width, height: r.height });
+          }}
+        >
+          {uses.map((u) => (
+            <MenuItem key={u.linkId} id={u.linkId} icon={u.kind === 'slides' ? 'slide' : 'file'} textValue={`${u.title} · ${u.label}`}>
+              {u.title} · {u.label} — {STATE_LABEL[host.state(u.linkId)]}
+            </MenuItem>
+          ))}
+        </Menu>
+      </MenuPopover>
+    </MenuTrigger>
+  );
+}
+
 export function ChartBar({ ctl, index, spec, style }: { ctl: SheetController; index: number; spec: ChartSpec; style: CSSProperties }) {
   const [open, setOpen] = useState<null | 'type' | 'data' | 'format'>(null);
   const apply = (fn: (s: ChartSpec) => ChartSpec) => updateChart(ctl, index, fn);
@@ -432,7 +462,18 @@ export function ChartBar({ ctl, index, spec, style }: { ctl: SheetController; in
           }}
         />
         <ToolbarSeparator />
-        <ToolButton icon="link" label="Lier dans…" showLabel unavailableReason="Les fils de liaison entre fichiers arrivent bientôt (Figma G)." />
+        <ToolButton
+          icon="link"
+          label="Lier dans…"
+          showLabel
+          description="Mettre une copie liée dans une présentation ou un document du bureau"
+          unavailableReason={!ctl.onLinkChart ? 'Ouvrez ce classeur depuis le bureau pour lier ses graphiques.' : exNote}
+          onPress={() => {
+            const chartId = ctl.doc.drawingId(ctl.sheetId, index);
+            if (chartId) ctl.onLinkChart?.({ sheetId: ctl.sheetId, chartId, name: chartName(spec), spec });
+          }}
+        />
+        <ChartUses ctl={ctl} index={index} />
         <MenuTrigger>
           <ToolButton icon="more" label="Plus" />
           <MenuPopover placement="bottom end">

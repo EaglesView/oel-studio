@@ -8,6 +8,7 @@ import { firstFontNotice, fontNotice, loadFonts, type FontReport } from '@oel/fo
 import type * as Y from 'yjs';
 import type { SlideSession } from '../collab/session';
 import { SlidesDoc } from '../model/ydoc';
+import { linksOf } from '@oel/links';
 import { toPreview } from '../model/preview';
 import { SHAPE_CHOICES } from '../model/geometry';
 import { paintColor } from '../model/ops';
@@ -147,7 +148,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   }, [ctl.version, ctl.doc, onPreview]);
 
   const ctx: RenderCtx = useMemo(
-    () => ({ theme: info.theme, fonts: info.fonts, media: session.media.url, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1 }),
+    () => ({ theme: info.theme, fonts: info.fonts, media: session.media.url, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [info, session, ctl.editing, ctl.index, ctl.version],
   );

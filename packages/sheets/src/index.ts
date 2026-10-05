@@ -5,3 +5,4 @@ export { renderSheetThumbnail } from './ui/thumbnail';
 export { CalcClient, type CalcPort } from './calc/client';
 export { createCalcHandler } from './calc/handler';
 export * from './model';
+export { sheetResolver } from './grid/charts';

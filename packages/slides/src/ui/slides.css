@@ -153,6 +153,18 @@
 .oel-el__graphic small { font-weight: 400; font-size: 12px; }
 /* A chart frame: drawn by @oel/charts, scaled with the slide. */
 .oel-el__chart { position: absolute; inset: 0; pointer-events: none; }
+/* Linked copy (Figma G4): a chip at the bottom left, in the state's colour. */
+.oel-link-badge {
+  position: absolute; left: 8px; bottom: 8px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 4px; max-width: calc(100% - 16px);
+  padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px;
+  font: 500 10px/1.4 var(--emboss-font, system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--emboss-ink, #7759c5); background: var(--emboss-surface, #fff); cursor: pointer;
+}
+.oel-link-badge[data-state='stale'] { color: var(--emboss-warning-ink, #8a5a00); background: var(--emboss-warning-soft, #fff4d6); }
+.oel-link-badge[data-state='frozen'], .oel-link-badge[data-state='waiting'] { color: var(--emboss-ink-muted, #6b6375); }
+.oel-link-badge[data-state='broken'] { color: var(--emboss-danger, #e5484d); }
+.oel-link-badge:focus-visible { outline: 2px solid var(--emboss-focus, #7759c5); outline-offset: 2px; }
 .oel-table { position: absolute; left: 0; top: 0; border-collapse: collapse; table-layout: fixed; }
 .oel-table td { box-sizing: border-box; overflow: hidden; }
 .oel-table .oel-para { white-space: pre-wrap; }

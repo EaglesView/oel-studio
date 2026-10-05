@@ -48,6 +48,8 @@ export interface SheetsEditorProps {
   onBureau?: () => void;
   onReduce?: () => void;
   onExpand?: () => void;
+  /** « Lier dans… » on a chart (Figma G2): the host offers the files that can take a linked copy. */
+  onLinkChart?: SheetController['onLinkChart'];
 }
 
 type DialogName = 'format-cells' | 'sort' | 'validation' | 'cf' | 'names' | 'link' | 'csv' | 'share' | 'identity' | 'col-width' | 'row-height' | 'split' | 'chart' | null;
@@ -111,6 +113,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
   ctl.readOnlyFlag = status.readOnly;
   ctl.validator = (r, c, t) => validate(ctl, r, c, t);
   ctl.onNotice = (title, description) => toast({ title, description, tone: 'warning' });
+  ctl.onLinkChart = props.onLinkChart ?? null;
 
   const [zoom, setZoom] = useState(1);
   const [find, setFind] = useState<{ replace: boolean } | null>(null);

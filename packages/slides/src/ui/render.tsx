@@ -6,7 +6,9 @@
  * filmstrip, the slideshow and the presenter view.
  */
 import { ChartView } from '@oel/charts/react';
-import { createContext, memo, useContext, useId, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { createContext, memo, useContext, useId, useMemo, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+import { Icon } from '@oel/emboss';
+import { MODE_LABEL, STATE_LABEL, linkHost, onLinkHost, type LinkDef, type LinkState, type LinksDoc } from '@oel/links';
 import { geometryPaths, isLinePreset } from '../model/geometry';
 import {
   fieldText,
@@ -32,6 +34,8 @@ export interface RenderCtx extends TextCtx {
   editing: boolean;
   /** Element whose text is being edited (drawn without it). */
   editingText?: string | null;
+  /** Links of the deck: linked copies show their badge while editing (Figma G4). */
+  links?: LinksDoc | null;
 }
 
 const Ctx = createContext<RenderCtx | null>(null);
@@ -398,9 +402,43 @@ export const ElementView = memo(function ElementView({ el, offset }: { el: Eleme
   return (
     <div className={`oel-el oel-el--${el.kind}`} style={style} data-el={el.id}>
       {body}
+      {ctx.editing && ctx.links && el.kind === 'graphic' && <LinkBadge links={ctx.links} objectId={el.id} />}
     </div>
   );
 });
+
+/** « Lié · Budget 2027 · À jour » on a linked copy; opens the link's popover. */
+function LinkBadge({ links, objectId }: { links: LinksDoc; objectId: string }) {
+  const host = useSyncExternalStore(onLinkHost, linkHost, linkHost);
+  // Snapshots must be stable: compare the link as text.
+  const json = useSyncExternalStore(
+    (fn) => links.observe(fn),
+    () => JSON.stringify(links.byObject(objectId)),
+    () => 'null',
+  );
+  const link = useMemo(() => JSON.parse(json) as LinkDef | null, [json]);
+  // Re-render on state changes too (the link object above only changes with the Y.Doc).
+  const state = useSyncExternalStore<LinkState>(host.subscribe, () => (link ? host.state(link.id) : 'waiting'), () => 'waiting');
+  if (!link) return null;
+  const label = link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state];
+  return (
+    <button
+      type="button"
+      className="oel-link-badge"
+      data-state={link.mode === 'frozen' ? 'frozen' : state}
+      aria-label={`Copie liée de ${link.source.title} › ${link.source.label}, ${label}. Gérer le lien`}
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        const r = e.currentTarget.getBoundingClientRect();
+        host.manage(link.id, { x: r.x, y: r.y, width: r.width, height: r.height });
+      }}
+    >
+      <Icon name="link" size={12} aria-hidden /> Lié · {link.source.title} · {label}
+    </button>
+  );
+}
 
 /** A slide at its natural size in points; wrap it in a scaled box to zoom. */
 export const SlideView = memo(function SlideView({ slide, info, ctx, children }: { slide: SlideData; info: DeckInfo; ctx: RenderCtx; children?: ReactNode }) {

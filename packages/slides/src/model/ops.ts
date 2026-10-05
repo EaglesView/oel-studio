@@ -5,6 +5,7 @@
  */
 import { DEFAULT_LEVEL } from './text';
 import type { SlideData, DeckInfo } from './ydoc';
+import type { ChartSpec } from '@oel/charts';
 import type { Element, Layout, Level, Paint, Placeholder, Slide, TextBody } from './types';
 
 let counter = 0;
@@ -113,6 +114,38 @@ export function shape(info: DeckInfo, prst: string, box: { x: number; y: number;
 
 export function picture(media: string, mime: string, box: { x: number; y: number; cx: number; cy: number }, descr = ''): Element {
   return { id: newId('i'), kind: 'picture', name: 'Image', descr, ...box, geom: { type: 'preset', prst: 'rect' }, image: { media, mime } };
+}
+
+/** A chart frame (a linked copy, Figma G2), drawn by @oel/charts from the values cached in the spec. */
+export function chartFrame(spec: ChartSpec, box: { x: number; y: number; cx: number; cy: number }, name = 'Graphique'): Element {
+  return { id: newId('c'), kind: 'graphic', name, ...box, chart: { ...spec, part: '' } };
+}
+
+/**
+ * A new slide holding a chart (« Lier dans… › Nouvelle diapositive », Figma G2):
+ * a « Titre seul » layout when the deck has one, the title filled, the chart
+ * below it. Returns the slide and the chart element's id.
+ */
+export function chartSlide(info: DeckInfo, spec: ChartSpec, title: string, fallbackLayout?: string): { slide: Slide; chartId: string } {
+  const layout =
+    info.layouts.find((l) => /title only|titre seul/i.test(l.name)) ?? info.layouts.find((l) => l.id === fallbackLayout) ?? info.layouts[0];
+  const slide: Slide = layout ? slideFromLayout(layout) : { id: newId('s'), layout: '', elements: [], notes: '' };
+  const isTitle = (e: Element) => !!e.ph && /title/i.test(e.ph.type);
+  slide.elements = slide.elements
+    .filter((e) => isTitle(e))
+    .map((e) => (e.text ? { ...e, text: { ...e.text, paras: [{ lvl: 0, props: {}, runs: [{ kind: 'text', text: title, props: {} }], end: {} }] } as TextBody } : e));
+  const chart = chartFrame(spec, chartBoxOn(info, slide.elements), title);
+  slide.elements.push(chart);
+  return { slide, chartId: chart.id };
+}
+
+/** Where a chart goes on a slide: under its title (if any), across 80 % of the width. */
+export function chartBoxOn(info: DeckInfo, elements: Element[]): { x: number; y: number; cx: number; cy: number } {
+  const title = elements.find((e) => !!e.ph && /title/i.test(e.ph.type));
+  const top = title ? Math.min(title.y + title.cy + info.height * 0.03, info.height * 0.4) : info.height * 0.12;
+  const cx = Math.round(info.width * 0.8);
+  const cy = Math.round(Math.min(info.height - top - info.height * 0.06, cx * 0.6));
+  return { x: Math.round((info.width - cx) / 2), y: Math.round(top), cx, cy };
 }
 
 /** A colour darkened by a factor (outline of new shapes). */

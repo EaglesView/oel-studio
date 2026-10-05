@@ -14,7 +14,7 @@ const SUBSTITUTE: Record<string, string> = { Calibri: 'Carlito', 'Calibri Light'
 export const chartFont = (name: string) => `"${name}", "${SUBSTITUTE[name] ?? name}", Carlito, "Segoe UI", Arial, sans-serif`;
 
 /** Values of chart references, read from the calc cache (and fetched when missing). */
-export function sheetResolver(ctl: SheetController, ownSheet: string): Resolver {
+export function sheetResolver(ctl: Pick<SheetController, 'doc' | 'calc'>, ownSheet: string): Resolver {
   const asked = new Set<string>();
   const indexOf = (name: string | null) => {
     const id = name ? ctl.doc.sheetIdByName(name) : ownSheet;

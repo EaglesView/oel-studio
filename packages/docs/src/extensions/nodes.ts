@@ -8,6 +8,7 @@ import { Table, TableCell, TableHeader, TableRow, TableView } from '@tiptap/exte
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
 import { canvasMeasure, renderChart, toSVG, type ChartSpec } from '@oel/charts';
+import { MODE_LABEL, STATE_LABEL, linkHost, onLinkHost } from '@oel/links';
 import { paragraphCss } from '../model/format';
 import type { AnchorAttrs, ParagraphAttrs } from '../model/types';
 import { EMU_PER_PX } from '../model/types';
@@ -553,7 +554,32 @@ export const OoxmlInline = Node.create({
       dom.title = a.floating ? 'Graphique flottant (position conservée à l’export)' : 'Graphique';
       const scene = renderChart(a.chart as ChartSpec, { width: w, height: h, background: '#FFFFFF', measure: chartMeasure });
       dom.innerHTML = toSVG(scene).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ');
-      return { dom };
+      if (!a.oid) return { dom };
+      // A linked copy (Figma G4): its badge says where it comes from and opens the link.
+      const badge = document.createElement('button');
+      badge.type = 'button';
+      badge.className = 'oel-link-badge';
+      const paint = () => {
+        const c = linkHost().copyOf(a.oid as string);
+        badge.hidden = !c;
+        if (!c) return;
+        const word = c.frozen ? MODE_LABEL.frozen : STATE_LABEL[c.state];
+        badge.dataset.state = c.frozen ? 'frozen' : c.state;
+        badge.textContent = `Lié · ${c.source} · ${word}`;
+        badge.setAttribute('aria-label', `Copie liée de ${c.source}, ${word}. Gérer le lien`);
+      };
+      badge.addEventListener('mousedown', (e) => e.stopPropagation());
+      badge.addEventListener('click', (e) => {
+        e.preventDefault();
+        const c = linkHost().copyOf(a.oid as string);
+        const r = badge.getBoundingClientRect();
+        if (c) linkHost().manage(c.linkId, { x: r.x, y: r.y, width: r.width, height: r.height });
+      });
+      paint();
+      let unsub = linkHost().subscribe(paint);
+      const unhost = onLinkHost(() => (unsub(), (unsub = linkHost().subscribe(paint)), paint()));
+      dom.appendChild(badge);
+      return { dom, stopEvent: (e: Event) => badge.contains(e.target as globalThis.Node), destroy: () => (unsub(), unhost()) };
     };
   },
   renderHTML: ({ node }) => ooxmlSpan(node.attrs),

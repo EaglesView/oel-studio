@@ -6,3 +6,4 @@ export * from './ydoc';
 export * from './preview';
 export * from './blank';
 export * from './sections';
+export * from './charts';
