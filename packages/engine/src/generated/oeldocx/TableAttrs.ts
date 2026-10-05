@@ -8,4 +8,9 @@ grid: Array<number>, styleId: string | null,
 /**
  * Display-only CSS (width, alignment, indent) resolved from the table and its style.
  */
-css: string | null, };
+css: string | null, 
+/**
+ * Editor-only id of a linked table (`@oel/links`, plan I-4): what a link points at.
+ * Always null from the reader; the writer ignores it.
+ */
+oid?: string, };

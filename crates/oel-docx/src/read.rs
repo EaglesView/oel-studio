@@ -350,6 +350,7 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
             "grid": grid,
             "styleId": style_id,
             "css": table_css(ctx.styles, t.child("w:tblPr"), look.style_id()),
+            "oid": null,
         }),
     );
     n.insert("content".into(), Value::Array(out_rows));

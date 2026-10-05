@@ -98,6 +98,7 @@ export const CODEC_VOCABULARY: { nodes: Record<string, string[]>; marks: Record<
     "table": [
       "css",
       "grid",
+      "oid",
       "styleId",
       "tblPr"
     ],

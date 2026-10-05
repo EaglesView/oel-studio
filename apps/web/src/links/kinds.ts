@@ -6,7 +6,7 @@
  * Phase-3 `KindModule` registry.
  */
 import type * as Y from 'yjs';
-import { revOf, type LinkedValue, type SourceRef } from '@oel/links';
+import { revOf, type LinkDef, type LinkedValue, type SourceRef } from '@oel/links';
 
 /** A file some copies read from, opened and watched. */
 export interface LinkSource {
@@ -34,8 +34,8 @@ export interface LinkTarget {
    * the value can't be written yet.
    */
   prepare?(value: LinkedValue): Promise<boolean>;
-  /** Write a new value into the copy (inside the caller's transaction). False when the copy is gone. */
-  write(objectId: string, value: LinkedValue): boolean;
+  /** Write a new value into the copy (inside the caller's transaction), as `link` says (theme…). False when the copy is gone. */
+  write(objectId: string, value: LinkedValue, link: LinkDef): boolean;
   /** Remove the copy (« Annuler » right after « Lier »). */
   remove(objectId: string): void;
 }

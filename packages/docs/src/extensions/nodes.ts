@@ -688,6 +688,8 @@ export const DocTable = Table.extend({
       grid: raw(),
       styleId: { default: null, rendered: false },
       css: raw(),
+      /** Editor-only id of a linked table (@oel/links, plan I-4): what a link points at. */
+      oid: raw(),
     };
   },
   renderHTML({ node, HTMLAttributes }) {

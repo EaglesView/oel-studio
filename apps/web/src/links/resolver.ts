@@ -301,7 +301,7 @@ export class LinkResolver implements LinkHost {
       value = { kind: 'chart', spec: keepLook(current?.kind === 'chart' ? (current.spec as ChartSpec) : null, value.spec as ChartSpec) };
     }
     t.ydoc.transact(() => {
-      if (t.adapter.write(oid, value)) t.links.patch(l.id, { snapshot: { rev, at: Date.now(), by } });
+      if (t.adapter.write(oid, value, l)) t.links.patch(l.id, { snapshot: { rev, at: Date.now(), by } });
     }, LINK_ORIGIN);
     this.updatingUntil.set(l.id, Date.now() + UPDATING_MS);
     setTimeout(() => this.queueRefresh(), UPDATING_MS + 20);
