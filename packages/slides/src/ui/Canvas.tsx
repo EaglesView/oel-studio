@@ -8,6 +8,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { MenuItem, MenuPopover, Menu, MenuSeparator, toast } from '@oel/emboss';
 import type { ChartSpec } from '@oel/charts';
 import { CopyChartBar } from '@oel/charts/ui';
+import { LinkedCopyBar } from '@oel/collab-client';
 import { MODE_LABEL, STATE_LABEL, linkHost, linksOf, onLinkHost, type LinkDef, type LinkState } from '@oel/links';
 import type { RefObject } from 'react';
 import { SlideView, textFrameStyle, type RenderCtx } from './render';
@@ -340,6 +341,7 @@ export function Canvas({ ctl, ctx, zoom, onContext, label }: { ctl: SlidesContro
           </div>
         </div>
         {single?.kind === 'graphic' && single.chart && !ctl.editing && !drag && <ChartBar ctl={ctl} el={single} k={k} />}
+        {single?.kind === 'picture' && !ctl.editing && !drag && <PictureBar ctl={ctl} el={single} k={k} />}
       </div>
       {menu && <ContextMenu ctl={ctl} at={menu} onClose={() => (setMenu(null), stage.current?.focus())} />}
     </div>
@@ -365,6 +367,44 @@ function Selection({ el, k, handles, onResize, onRotate, editing }: { el: Elemen
         <span className="oel-sel__rotate" style={{ width: hs * 1.4, height: hs * 1.4, top: -24 / k, left: `calc(50% - ${(hs * 1.4) / 2}px)`, borderWidth: 1 / k }} onPointerDown={(e) => onRotate(e, el)} />
       )}
     </div>
+  );
+}
+
+/** The link of a copy on this slide, kept current (null when the element is not a linked copy). */
+function useCopyLink(ctl: SlidesController, el: Element) {
+  const host = useSyncExternalStore(onLinkHost, linkHost, linkHost);
+  const links = linksOf(ctl.session.ydoc);
+  const json = useSyncExternalStore(
+    (fn) => links.observe(fn),
+    () => JSON.stringify(links.byObject(el.id)),
+    () => 'null',
+  );
+  const link = useMemo(() => JSON.parse(json) as LinkDef | null, [json]);
+  const state = useSyncExternalStore<LinkState>(host.subscribe, () => (link ? host.state(link.id) : 'waiting'), () => 'waiting');
+  return { host, link, state };
+}
+
+/** The bar over a selected linked picture (Figma I1), above it in the frame. */
+function PictureBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: number }) {
+  const { host, link, state } = useCopyLink(ctl, el);
+  if (!link) return null;
+  const b = boxOf(el);
+  const above = b.y * k > 52;
+  return (
+    <LinkedCopyBar
+      className="oel-slide-chartbar"
+      style={{ left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' }}
+      label="Image liée"
+      link={{
+        source: link.source.title,
+        stateLabel: link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state],
+        stale: state === 'stale',
+        frozen: link.mode === 'frozen',
+        onSource: () => void (host.openSource(link.id) || toast({ title: 'Source introuvable', description: 'L’image source n’est pas sur ce bureau.', tone: 'warning' })),
+        onUpdate: () => host.update(link.id),
+        onManage: (r) => host.manage(link.id, r),
+      }}
+    />
   );
 }
 

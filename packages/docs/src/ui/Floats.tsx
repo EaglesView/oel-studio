@@ -11,6 +11,7 @@ import { Dialog, DialogTrigger } from 'react-aria-components';
 import { Menu, MenuItem, MenuPopover, MenuTrigger, Popover, toast, Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
 import type { ChartSpec } from '@oel/charts';
 import { CopyChartBar } from '@oel/charts/ui';
+import { LinkedCopyBar } from '@oel/collab-client';
 import { STATE_LABEL, linkHost, onLinkHost } from '@oel/links';
 import { TEXT_COLORS } from '../model/format';
 import { Swatches } from './DocsToolbar';
@@ -165,6 +166,47 @@ export function ChartFloat({ editor, scroller, editable }: { editor: Editor; scr
             onManage: (r) => host.manage(copy.linkId, r),
           }
         }
+      />
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * The bar over a selected linked picture (Figma I1): where it comes from,
+ * « Mettre à jour » when it's behind, the link popover. Its size stays its
+ * own (the corner handle), so nothing else is needed here yet.
+ */
+export function PictureFloat({ editor, scroller }: { editor: Editor; scroller: HTMLElement | null }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const oid = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      const s = e.state.selection;
+      return s instanceof NodeSelection && s.node.type.name === 'image' ? ((s.node.attrs.oid as string | null) ?? null) : null;
+    },
+  });
+  const host = useSyncExternalStore(onLinkHost, linkHost, linkHost);
+  const copyJson = useSyncExternalStore(host.subscribe, () => JSON.stringify(oid ? host.copyOf(oid) : null), () => 'null');
+  const copy = JSON.parse(copyJson) as ReturnType<typeof host.copyOf>;
+  const at = useFloatAbove(editor, scroller, bar, () => {
+    const s = editor.state.selection;
+    return s instanceof NodeSelection && s.node.type.name === 'image' ? (editor.view.nodeDOM(s.from) as Element | null) : null;
+  });
+  if (!copy) return null;
+  return createPortal(
+    <div ref={bar} className="oel-docfloat" style={placed(at)}>
+      <LinkedCopyBar
+        label="Image liée"
+        link={{
+          source: copy.source,
+          stateLabel: copy.frozen ? 'Figé' : STATE_LABEL[copy.state],
+          stale: copy.state === 'stale',
+          frozen: copy.frozen,
+          onSource: () => void (host.openSource(copy.linkId) || toast({ title: 'Source introuvable', description: 'L’image source n’est pas sur ce bureau.', tone: 'warning' })),
+          onUpdate: () => host.update(copy.linkId),
+          onManage: (r) => host.manage(copy.linkId, r),
+        }}
       />
     </div>,
     document.body,
