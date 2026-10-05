@@ -66,3 +66,62 @@ export function rangeAsTable(doc: SheetDoc, sheet: string, range: Range, shown: 
     colIds: cols.map((c) => String(doc.colKey(sheet, c))),
   };
 }
+
+/**
+ * Text typed the fr-CA way, as the sheet's input and number format (plan I-5,
+ * Figma I3: « 1 240 000 $ » becomes 1240000 in a currency format). Text that
+ * isn't a number comes back as it was.
+ */
+export function frInput(text: string): { input: string; fmt?: string } {
+  const s = text.replace(/[  ]/g, ' ').trim();
+  const num = (body: string) => {
+    if (!/^[+-]?\d{1,3}( \d{3})*(,\d+)?$|^[+-]?\d+(,\d+)?$/.test(body)) return null;
+    // A leading zero stays text (codes, postal boxes), as in parseInput.
+    if (/^[+-]?0\d/.test(body)) return null;
+    const v = Number(body.replace(/ /g, '').replace(',', '.'));
+    return Number.isFinite(v) ? { v, decimals: body.split(',')[1]?.length ?? 0 } : null;
+  };
+  let m = /^(.+?)\s?\$$/.exec(s);
+  if (m) {
+    const n = num(m[1]!.trim());
+    if (n) return { input: String(n.v), fmt: n.decimals ? '#,##0.00 $' : '#,##0 $' };
+  }
+  m = /^(.+?)\s?%$/.exec(s);
+  if (m) {
+    const n = num(m[1]!.trim());
+    if (n) return { input: String(n.v / 100), fmt: n.decimals ? `0.${'0'.repeat(n.decimals)}%` : '0%' };
+  }
+  const n = num(s);
+  if (n && (s.includes(' ') || s.includes(','))) return { input: String(n.v), fmt: n.decimals ? `#,##0.${'0'.repeat(n.decimals)}` : '#,##0' };
+  return { input: text };
+}
+
+/**
+ * Write a table's cells into a sheet from `at` (Figma I3): values (fr-CA
+ * numbers recognised), bold, italic, colours, fills and merges. Returns the
+ * range written.
+ */
+export function writeTable(doc: SheetDoc, sheet: string, at: { r: number; c: number }, table: LinkedTable): Range {
+  const width = Math.max(1, ...table.rows.map((row) => row.length));
+  const range = { r0: at.r, c0: at.c, r1: at.r + table.rows.length - 1, c1: at.c + width - 1 };
+  const merges: Range[] = [];
+  table.rows.forEach((row, i) =>
+    row.forEach((cell, j) => {
+      if (cell.merged) return;
+      const r = at.r + i;
+      const c = at.c + j;
+      const { input, fmt } = frInput(cell.text);
+      doc.setInput(sheet, r, c, input);
+      if (fmt || cell.bold || cell.italic || cell.color || cell.fill)
+        doc.formatRange(sheet, { r0: r, c0: c, r1: r, c1: c }, (st) => ({
+          ...st,
+          ...(fmt ? { numFmt: fmt } : {}),
+          ...(cell.fill ? { fill: { css: cell.fill } } : {}),
+          font: { ...st.font, ...(cell.bold ? { bold: true } : {}), ...(cell.italic ? { italic: true } : {}), ...(cell.color ? { color: { css: cell.color } } : {}) },
+        }));
+      if ((cell.colSpan ?? 1) > 1 || (cell.rowSpan ?? 1) > 1) merges.push({ r0: r, c0: c, r1: r + (cell.rowSpan ?? 1) - 1, c1: c + (cell.colSpan ?? 1) - 1 });
+    }),
+  );
+  if (merges.length) doc.setMerges(sheet, [...doc.merges(sheet), ...merges]);
+  return range;
+}
