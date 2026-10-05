@@ -167,6 +167,11 @@ export class YSession {
     });
   }
 
+  /** Name of the person editing here (« par … » in link history). */
+  get author(): string {
+    return this.identity.name;
+  }
+
   setIdentity(id: Identity) {
     this.identity = id;
     this.provider?.setAwarenessField('user', id);

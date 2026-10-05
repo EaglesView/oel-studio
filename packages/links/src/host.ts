@@ -19,6 +19,8 @@ export interface LinkHost {
   openSource(linkId: string): boolean;
   /** « Graphique et style » / « Données seulement » (a copy restyled here keeps its own look). */
   setCarries(linkId: string, carries: Carries): void;
+  /** Title of a desk file by its doc id (« Lancement automne »), for links made from inside an editor. */
+  fileTitle(docId: string): string | null;
   /** Called on any state change. */
   subscribe(fn: () => void): () => void;
   /** The link whose copy is this object (ids are unique across files), with its state; for editors without the Y.Doc at hand. */
@@ -32,6 +34,7 @@ const NONE: LinkHost = {
   unlink: () => {},
   openSource: () => false,
   setCarries: () => {},
+  fileTitle: () => null,
   copyOf: () => null,
   subscribe: () => () => {},
 };

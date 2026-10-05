@@ -32,6 +32,7 @@ import {
   type LinkMode,
   type LinkState,
   type LinkedValue,
+  pictureBytes,
   type LinksDoc,
   type ResolvedLink,
   type SourceRef,
@@ -42,8 +43,8 @@ import { identity, sessionFor } from '../bureau/docs';
 import { sheetSessionFor } from '../bureau/sheets';
 import { slideSessionFor } from '../bureau/slides';
 import { linkMedia, preparePicture, valueRev, type LinkSource, type LinkTarget } from './kinds';
-import { pictureBytes } from './pictures';
 import { imageDocId, openImageSource } from './sources/image';
+import { openDocumentSource, openSlidesSource } from './sources/files';
 import { openSheetSource } from './sources/sheet';
 import { slidesTarget } from './targets/slides';
 import { documentTarget } from './targets/document';
@@ -207,10 +208,11 @@ export class LinkResolver implements LinkHost {
   private async ensureSource(docId: string) {
     if (this.sources.has(docId) || this.opening.has(docId)) return;
     const p = this.paperOfDoc(docId);
-    if (!p || (p.kind !== 'spreadsheet' && p.kind !== 'image')) return;
+    if (!p || !['spreadsheet', 'image', 'slides', 'document'].includes(p.kind)) return;
     this.opening.add(docId);
     try {
-      const opened = p.kind === 'image' ? openImageSource(this.store, p) : await openSheetSource(p);
+      const opened =
+        p.kind === 'image' ? openImageSource(this.store, p) : p.kind === 'slides' ? await openSlidesSource(p) : p.kind === 'document' ? await openDocumentSource(p) : await openSheetSource(p);
       if (this.disposed) return opened.dispose();
       const src: Source = { docId, src: opened, values: new Map(), timer: null, running: null, again: false, off: () => {} };
       // Any change in the source → read the linked objects again.
@@ -460,6 +462,10 @@ export class LinkResolver implements LinkHost {
     const p = this.find(linkId)?.sourcePaper;
     if (p) this.open.paper(p.id);
     return !!p;
+  }
+
+  fileTitle(docId: string): string | null {
+    return this.paperOfDoc(docId)?.title ?? null;
   }
 
   openPaper(paperId: string) {

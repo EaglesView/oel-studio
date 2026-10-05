@@ -264,8 +264,17 @@ export function Canvas({ ctl, ctx, zoom, onContext, label }: { ctl: SlidesContro
       if (ctl.editing || ro) return;
       const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
       e.preventDefault();
-      if (file) void ctl.insertPicture(file);
-      else ctl.paste();
+      // An outside picture is inserted; a picture copied in another desk file pastes linked (Figma I1 d).
+      if (file) return void ctl.insertPicture(file);
+      void ctl.pasteLinkedPicture().then((made) => {
+        if (!made) return ctl.paste();
+        toast({
+          title: `Image liée à « ${made.source} »`,
+          description: 'Elle suivra l’image d’origine. Vous pouvez la garder comme simple copie.',
+          tone: 'success',
+          action: { label: 'Incorporer (sans lien)', onAction: () => linksOf(ctl.session.ydoc).remove(made.linkId, 'person') },
+        });
+      });
     };
     node.addEventListener('paste', onPaste);
     return () => node.removeEventListener('paste', onPaste);

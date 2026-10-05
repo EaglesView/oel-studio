@@ -1,10 +1,9 @@
 /** A document as a link target: copies are body nodes found by their `oid` (charts today). */
 import * as Y from 'yjs';
 import type { ChartSpec } from '@oel/charts';
-import { LINK_ORIGIN, type LinkedValue } from '@oel/links';
+import { LINK_ORIGIN, pictureBytes, type LinkedValue } from '@oel/links';
 import { chartOf, findChart, findPicture, pictureOf, setChart, setPicture, type DocSession } from '@oel/docs';
 import { linkMedia, preparePicture, type LinkTarget } from '../kinds';
-import { pictureBytes } from '../pictures';
 
 export function documentTarget(s: DocSession): LinkTarget {
   const ydoc = s.ydoc;

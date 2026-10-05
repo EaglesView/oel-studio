@@ -24,3 +24,5 @@ export {
 export { THREAD_PREFIX, deriveThreads, type ResolvedLink, type Thread } from './threads';
 export { linkHost, onLinkHost, setLinkHost, type LinkHost } from './host';
 export { adoptCopy, newLinkId, rememberCopied } from './clipboard';
+export { pictureBytes, pictureValue } from './pictures';
+export { linkClip, setLinkClip, type LinkClip } from './clip';

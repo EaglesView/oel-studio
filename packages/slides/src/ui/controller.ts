@@ -7,7 +7,7 @@
 import * as Y from 'yjs';
 import { LOCAL, type SlidesDoc } from '../model/ydoc';
 import { applyLayout, copySlide, newId, picture, shape, slideFromLayout, textBox } from '../model/ops';
-import { adoptCopy, linksOf, rememberCopied } from '@oel/links';
+import { adoptCopy, linkClip, linkHost, linksOf, newLinkId, pictureBytes, pictureValue, rememberCopied, revOf, setLinkClip } from '@oel/links';
 import { setLevel, setParaProps, setRunProps } from '../model/text';
 import { emu, pt, type Element, type Line, type Paint, type ParaProps, type RunProps, type TextBody } from '../model/types';
 import type { SlideSession } from '../collab/session';
@@ -26,7 +26,7 @@ export interface TextEditorApi {
 }
 
 /** Elements copied, shared by every open presentation of the tab (copy between decks keeps what it can). */
-let clipboard: { elements: Element[]; deck: string } | null = null;
+let clipboard: { elements: Element[]; deck: string; at: number } | null = null;
 
 export class SlidesController {
   readonly doc: SlidesDoc;
@@ -296,10 +296,56 @@ export class SlidesController {
   copy() {
     const els = this.selected;
     if (!els.length) return;
-    clipboard = { elements: structuredClone(els), deck: this.session.status.docId };
+    clipboard = { elements: structuredClone(els), deck: this.session.status.docId, at: Date.now() };
     // A linked copy keeps its link when copied or cut (pasting makes a new link to the same source).
     const links = linksOf(this.session.ydoc);
     rememberCopied(els.map((e) => links.byObject(e.id)));
+    // A picture copied here pastes linked in another file of the desk (Figma I1 d).
+    setLinkClip(null);
+    const pic = els.length === 1 && els[0]!.kind === 'picture' && els[0]!.image?.media ? els[0]! : null;
+    const url = pic ? this.session.media.url(pic.image!.media) : null;
+    if (pic && url) {
+      const docId = this.session.status.docId;
+      void fetch(url)
+        .then((r) => r.blob())
+        .then(pictureValue)
+        .then((value) =>
+          setLinkClip({ source: { docId, kind: 'slides', ref: { kind: 'image', objectId: pic.id }, title: linkHost().fileTitle(docId) ?? 'Présentation', label: pic.name || 'Image' }, value, at: Date.now() }),
+        )
+        .catch(() => {});
+    }
+  }
+
+  /**
+   * Paste a picture copied in another desk file as a linked copy (Figma I1 d,
+   * I6 §5). Returns the new link id, or null when there is nothing to paste
+   * linked (then the usual paste runs).
+   */
+  async pasteLinkedPicture(): Promise<{ linkId: string; source: string } | null> {
+    if (this.readOnly) return null;
+    const c = linkClip(this.session.status.docId);
+    // The deck's own clipboard is newer: that is what the person means to paste.
+    if (!c || (clipboard && clipboard.at > c.at)) return null;
+    const blob = pictureBytes(c.value.media.hash);
+    if (!blob) return null;
+    const path = await this.session.addPicture(blob);
+    const { width, height } = c.value.media;
+    const k = Math.min((this.info.width * 0.6) / emu(width * 0.75), (this.info.height * 0.6) / emu(height * 0.75), 1);
+    const cx = Math.round(emu(width * 0.75) * k);
+    const cy = Math.round(emu(height * 0.75) * k);
+    const el = picture(path, c.value.media.mime, this.center(cx, cy), c.source.label);
+    const linkId = newLinkId();
+    const where = `diapo ${this.index + 1}`;
+    this.edit(() => {
+      this.doc.addElement(this.current, el);
+      linksOf(this.session.ydoc).put(
+        { id: linkId, source: c.source, target: { objectId: el.id, label: where }, carries: 'picture', mode: 'live', snapshot: { rev: revOf(c.value), at: Date.now(), by: this.session.author } },
+        'person',
+      );
+    });
+    this.selection = [el.id];
+    this.bump();
+    return { linkId, source: c.source.title };
   }
 
   cut() {

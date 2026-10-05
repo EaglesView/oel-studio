@@ -1,10 +1,10 @@
 /**
  * Bytes of linked pictures, by content hash (plan I-3). A picture link carries
  * only `{ hash, mime, width, height }`; the bytes travel through this cache
- * from the source (read) to each target's media store (prepare), once per
- * target file.
+ * from the source (read) — or from the editor a picture was copied in — to
+ * each target's media store, once per target file.
  */
-import type { LinkedValue } from '@oel/links';
+import type { LinkedValue } from './types';
 
 const bytes = new Map<string, Blob>();
 

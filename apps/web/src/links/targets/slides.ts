@@ -1,9 +1,8 @@
 /** A deck as a link target: copies are slide elements (charts today). */
 import type { ChartSpec } from '@oel/charts';
-import type { LinkedValue } from '@oel/links';
+import { pictureBytes, type LinkedValue } from '@oel/links';
 import type { SlideSession } from '@oel/slides';
 import { linkMedia, preparePicture, type LinkTarget } from '../kinds';
-import { pictureBytes } from '../pictures';
 
 export function slidesTarget(s: SlideSession): LinkTarget {
   const sd = s.slides;

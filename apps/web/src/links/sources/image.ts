@@ -4,10 +4,9 @@
  * id is `img:<paper id>`. A new picture on the paper (dropped, or edited by
  * the image tool) is a new version: copies follow.
  */
-import type { LinkedValue } from '@oel/links';
+import { pictureValue, type LinkedValue } from '@oel/links';
 import type { Bureau, Paper } from '../../bureau/model';
 import type { LinkSource } from '../kinds';
-import { pictureValue } from '../pictures';
 
 /** The link « file » id of an image paper. */
 export const imageDocId = (paperId: string) => `img:${paperId}`;

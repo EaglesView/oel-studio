@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
+import { NodeSelection, type Selection } from '@tiptap/pm/state';
+import { linkClip, linkHost, linksOf, newLinkId, pictureBytes, pictureValue, revOf, setLinkClip, type LinkClip } from '@oel/links';
 import { MenuTrigger } from 'react-aria-components';
 import { Badge, Button, Icon, Kbd, Menu, MenuItem, MenuPopover, toast } from '@oel/emboss';
 import type { DocSession } from '../collab/session';
 import type { Identity } from '../collab/identity';
 import { previewFromYDoc, type DocumentPreview } from '../model/preview';
 import { meta } from '../model/ydoc';
-import type { HeaderFooterKind } from '../model/types';
+import { EMU_PER_PX, type HeaderFooterKind } from '../model/types';
 import { pageKind, type PageInfo } from '../model/sections';
 import { sanitizeStylesheet } from '../model/format';
 import { useDocEditor, useDocMeta } from './useDocEditor';
@@ -259,9 +261,31 @@ export function DocsEditor(props: DocsEditorProps) {
         ...editor.options.editorProps,
         handlePaste: (_view, event) => {
           const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
-          if (!files.length || !editor.isEditable) return false;
-          files.forEach((f) => addImage(f));
+          if (!editor.isEditable) return false;
+          // An outside picture is inserted as before.
+          if (files.length) {
+            files.forEach((f) => addImage(f));
+            return true;
+          }
+          // A picture copied in another desk file pastes linked (Figma I1 d, I6 §5) —
+          // unless the clipboard now holds text copied since.
+          const clip = linkClip(session.status.docId);
+          const html = event.clipboardData?.getData('text/html') ?? '';
+          const text = event.clipboardData?.getData('text/plain') ?? '';
+          if (!clip || (text.trim() && !html.includes('<img'))) return false;
+          void pasteLinkedPicture(editor, session, clip, contentWidth);
           return true;
+        },
+        handleDOMEvents: {
+          ...editor.options.editorProps.handleDOMEvents,
+          copy: (view) => {
+            rememberPictureCopy(view.state.selection, editor, session);
+            return false;
+          },
+          cut: (view) => {
+            rememberPictureCopy(view.state.selection, editor, session);
+            return false;
+          },
         },
         handleDrop: (view, event) => {
           const files = Array.from((event as DragEvent).dataTransfer?.files ?? []).filter((f) => f.type.startsWith('image/'));
@@ -999,4 +1023,52 @@ async function pasteFromClipboard(ed: Editor, plain: boolean) {
     }
   }
   ed.view.pasteText(await navigator.clipboard.readText());
+}
+
+/**
+ * A picture copied here pastes linked in another file of the desk (Figma I1 d):
+ * remember where it comes from. It gets an `oid` (what a link points at) if it
+ * had none; that change is not an undo step.
+ */
+function rememberPictureCopy(sel: Selection, editor: Editor, session: DocSession) {
+  setLinkClip(null);
+  if (!(sel instanceof NodeSelection) || sel.node.type.name !== 'image') return;
+  const path = sel.node.attrs.path as string | null;
+  const url = path ? session.mediaUrl(path) : null;
+  if (!path || !url) return;
+  let oid = sel.node.attrs.oid as string | null;
+  if (!oid) {
+    oid = `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(sel.from, undefined, { ...sel.node.attrs, oid }).setMeta('addToHistory', false));
+  }
+  const docId = session.status.docId;
+  const ref = { kind: 'image' as const, objectId: oid };
+  const label = (sel.node.attrs.alt as string) || path.split('/').pop() || 'Image';
+  void fetch(url)
+    .then((r) => r.blob())
+    .then(pictureValue)
+    .then((value) => setLinkClip({ source: { docId, kind: 'document', ref, title: linkHost().fileTitle(docId) ?? 'Document', label }, value, at: Date.now() }))
+    .catch(() => {});
+}
+
+/** Insert the clipboard's picture at the selection as a linked copy, with a way back to a plain copy. */
+async function pasteLinkedPicture(editor: Editor, session: DocSession, clip: LinkClip, maxWidthPx: number) {
+  const blob = pictureBytes(clip.value.media.hash);
+  if (!blob) return;
+  const path = await session.addImage(blob);
+  const { width, height } = clip.value.media;
+  const scale = Math.min(1, maxWidthPx / Math.max(1, width));
+  const oid = `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const linkId = newLinkId();
+  editor.chain().focus().insertContent({ type: 'image', attrs: { src: `media:${path}`, path, cx: Math.round(width * scale * EMU_PER_PX), cy: Math.round(height * scale * EMU_PER_PX), alt: clip.source.label, oid } }).run();
+  linksOf(session.ydoc).put(
+    { id: linkId, source: clip.source, target: { objectId: oid, label: 'au curseur' }, carries: 'picture', mode: 'live', snapshot: { rev: revOf(clip.value), at: Date.now(), by: session.author } },
+    'person',
+  );
+  toast({
+    title: `Image liée à « ${clip.source.title} »`,
+    description: 'Elle suivra l’image d’origine. Vous pouvez la garder comme simple copie.',
+    tone: 'success',
+    action: { label: 'Incorporer (sans lien)', onAction: () => linksOf(session.ydoc).remove(linkId, 'person') },
+  });
 }

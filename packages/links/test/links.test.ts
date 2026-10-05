@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, chipLabel, defaultCarries, withEdit, withoutEdit, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
+import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, chipLabel, defaultCarries, linkClip, setLinkClip, withEdit, withoutEdit, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
 
 const def = (over: Partial<LinkDef> = {}): LinkDef => ({
   id: 'l1',
@@ -191,5 +191,22 @@ describe('generalised links (Figma I)', () => {
   it('labels threads of the new kinds', () => {
     const img = def({ source: { docId: 'img', kind: 'image', ref: { kind: 'image', objectId: 'p1' }, title: 'photo.jpg', label: 'photo.jpg' }, carries: 'picture' });
     expect(chipLabel(img, 'fresh')).toBe('À jour · image');
+  });
+});
+
+describe('desk clipboard for linked pictures (Figma I1 d)', () => {
+  const clip = (docId: string, at = Date.now()) => ({
+    source: { docId, kind: 'slides' as const, ref: { kind: 'image' as const, objectId: 'el1' }, title: 'Lancement', label: 'Affiche' },
+    value: { kind: 'picture' as const, media: { hash: 'h', mime: 'image/png', width: 2, height: 1 } },
+    at,
+  });
+  it('offers a picture to other files only, and not forever', () => {
+    setLinkClip(clip('deck'));
+    expect(linkClip('deck')).toBeNull();
+    expect(linkClip('doc')?.source.title).toBe('Lancement');
+    setLinkClip(clip('deck', Date.now() - 31 * 60_000));
+    expect(linkClip('doc')).toBeNull();
+    setLinkClip(null);
+    expect(linkClip('doc')).toBeNull();
   });
 });
