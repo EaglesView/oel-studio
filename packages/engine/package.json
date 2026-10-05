@@ -8,7 +8,8 @@
     "./worker": "./src/worker/engine.worker.ts",
     "./generated/oelxlsx": "./src/generated/oelxlsx/index.ts",
     "./generated/oeldocx": "./src/generated/oeldocx/index.ts",
-    "./generated/oelpptx": "./src/generated/oelpptx/index.ts"
+    "./generated/oelpptx": "./src/generated/oelpptx/index.ts",
+    "./generated/oelchart": "./src/generated/oelchart/index.ts"
   },
   "dependencies": {
     "oeldocx-rs": "file:../wasm/oel-docx/web",

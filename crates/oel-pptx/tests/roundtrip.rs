@@ -266,3 +266,21 @@ fn svg_only_graphics_are_pictures() {
         assert!(img.media.ends_with(".svg"), "{} draws its SVG", g.name);
     }
 }
+
+#[test]
+fn chart_frames_carry_their_chart() {
+    let bytes = std::fs::read(format!("{}/../../fixtures/charts/generated-charts.pptx", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let imp = import_pptx(&bytes).unwrap();
+    let charts: Vec<&Element> = imp.deck.slides.iter().flat_map(|s| &s.elements).filter(|e| e.chart.is_some()).collect();
+    assert_eq!(charts.len(), 29);
+    let kinds: std::collections::BTreeSet<String> = charts.iter().map(|e| e.chart.as_ref().unwrap().groups[0].kind.clone()).collect();
+    for k in ["bar", "line", "pie", "doughnut", "area", "scatter", "bubble", "radar"] {
+        assert!(kinds.contains(k), "{k} in {kinds:?}");
+    }
+    // Chart parts are written back untouched.
+    let out = export_pptx(&imp.deck, Some(&bytes), HashMap::new()).unwrap();
+    let (a, b) = (part_map(&bytes), part_map(&out));
+    for (name, data) in a.iter().filter(|(n, _)| n.starts_with("ppt/charts/")) {
+        assert_eq!(Some(data), b.get(name), "{name}");
+    }
+}

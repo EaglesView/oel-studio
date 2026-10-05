@@ -13,14 +13,16 @@ pub const REL_DRAWING: &str = "http://schemas.openxmlformats.org/officeDocument/
 const SCHEME: [&str; 12] = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"];
 
 /// Every drawing of a worksheet part, in z-order (back to front).
-pub fn read_drawings(pkg: &Package, sheet_part: &str, theme: &[String]) -> Vec<Drawing> {
+/// `fonts` are the theme's body and heading fonts (charts use them for `+mn-lt`).
+pub fn read_drawings(pkg: &Package, sheet_part: &str, theme: &[String], fonts: &(Option<String>, Option<String>)) -> Vec<Drawing> {
     let mut out = Vec::new();
     for rel in pkg.rels(sheet_part).into_iter().filter(|r| r.rel_type == REL_DRAWING) {
         let part = resolve_target(sheet_part, &rel.target);
         let Some(doc) = pkg.get_xml(&part) else { continue };
-        let ctx = Ctx { pkg, part: &part, theme };
-        for anchor in doc.root.elements() {
-            if let Some(d) = ctx.anchor(anchor) {
+        let ctx = Ctx { pkg, part: &part, theme, fonts };
+        for (i, anchor) in doc.root.elements().enumerate() {
+            if let Some(mut d) = ctx.anchor(anchor) {
+                d.src = Some(i as u32);
                 out.push(d);
             }
         }
@@ -71,6 +73,7 @@ struct Ctx<'a> {
     pkg: &'a Package,
     part: &'a str,
     theme: &'a [String],
+    fonts: &'a (Option<String>, Option<String>),
 }
 
 fn num(e: &XElement, k: &str) -> Option<i64> {
@@ -180,12 +183,33 @@ impl Ctx<'_> {
                 }
             }
             "graphicFrame" => {
-                let uri = desc(obj, "graphicData").and_then(|g| g.attr("uri")).unwrap_or_default();
+                let data = desc(obj, "graphicData");
+                let uri = data.and_then(|g| g.attr("uri")).unwrap_or_default();
                 d.kind = if uri.contains("chart") { "chart" } else { "other" }.into();
+                if d.kind == "chart" {
+                    d.chart = data.and_then(|g| oelchart::chart_part(self.pkg, self.part, g)).and_then(|p| {
+                        let scheme = |n: &str| self.scheme(n);
+                        let theme = oelchart::Theme { scheme: &scheme, minor_font: self.fonts.0.clone(), major_font: self.fonts.1.clone() };
+                        oelchart::read_chart(self.pkg, &p, &theme)
+                    });
+                }
             }
             _ => {}
         }
         d
+    }
+
+    /// Theme colour by scheme name (`accent1`, `dk1`…) → `RRGGBB`.
+    fn scheme(&self, name: &str) -> Option<String> {
+        let name = match name {
+            "tx1" => "dk1",
+            "bg1" => "lt1",
+            "tx2" => "dk2",
+            "bg2" => "lt2",
+            other => other,
+        };
+        let i = SCHEME.iter().position(|s| *s == name)?;
+        self.theme.get(i).cloned()
     }
 
     /// `r:embed` of a blip → package path.

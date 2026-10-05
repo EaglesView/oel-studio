@@ -599,3 +599,24 @@ fn unchanged_anchors_are_written_back_and_changes_are_patched() {
     assert!(!tb["attrs"]["xml"].as_str().unwrap().contains("mc:Fallback"));
     assert_opens_in_libreoffice(&out, "moved-anchor");
 }
+
+#[test]
+fn charts_are_read_and_kept() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/charts/generated-charts.docx");
+    let original = std::fs::read(path).unwrap();
+    let a = import_docx(&original).unwrap();
+    let charts: Vec<&Value> = nodes(&a.json["doc"], "ooxmlInline").into_iter().filter(|n| n["attrs"]["chart"].is_object()).collect();
+    assert_eq!(charts.len(), 3);
+    assert_eq!(charts[0]["attrs"]["label"], "Graphique");
+    assert_eq!(charts[0]["attrs"]["cx"], 5486400);
+    assert_eq!(charts[0]["attrs"]["chart"]["groups"][0]["kind"], "bar");
+    assert_eq!(charts[2]["attrs"]["chart"]["groups"][0]["kind"], "pie");
+    let bytes = export_docx(&a.json, Some(&original), HashMap::new()).unwrap();
+    let (p0, p1) = (Package::read(&original).unwrap(), Package::read(&bytes).unwrap());
+    for i in 1..=3 {
+        let part = format!("word/charts/chart{i}.xml");
+        assert_eq!(p0.get(&part), p1.get(&part), "{part} kept byte for byte");
+    }
+    let b = import_docx(&bytes).unwrap();
+    assert_eq!(a.json["doc"], b.json["doc"]);
+}

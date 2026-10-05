@@ -171,3 +171,101 @@ fn table_range_follows_rows_and_drawings_stay() {
     let t = Package::read(&out).unwrap().get_xml("xl/tables/table1.xml").unwrap();
     assert_eq!(t.root.child_local("autoFilter").unwrap().attr("ref"), Some("C6:F18"));
 }
+
+fn chart_parts(bytes: &[u8]) -> Vec<String> {
+    let mut v: Vec<String> = Package::read(bytes).unwrap().parts.into_iter().map(|(n, _)| n).filter(|n| n.starts_with("xl/charts/chart") && n.ends_with(".xml")).collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn untouched_charts_and_drawings_stay_byte_for_byte() {
+    for name in ["rich.xlsx", "complex_sheet_graph.xlsx"] {
+        let bytes = fixture(name);
+        let a = import_xlsx(&bytes).unwrap();
+        let out = export_xlsx(&a, Some(&bytes)).unwrap();
+        let (p0, p1) = (Package::read(&bytes).unwrap(), Package::read(&out).unwrap());
+        for (n, data) in p0.parts.iter().filter(|(n, _)| n.starts_with("xl/drawings/") || n.starts_with("xl/charts/")) {
+            assert_eq!(Some(data.as_slice()), p1.get(n), "{name}: {n}");
+        }
+    }
+}
+
+#[test]
+fn a_new_chart_is_written_with_its_caches() {
+    let bytes = fixture("rich.xlsx");
+    let mut wb = import_xlsx(&bytes).unwrap();
+    let sheet = &mut wb.sheets[0];
+    let mut chart = sheet.drawings.iter().find_map(|d| d.chart.clone()).unwrap();
+    chart.part.clear();
+    chart.title = Some(oelchart::Title { text: Some("Nouveau".into()), ..Default::default() });
+    chart.groups[0].kind = "line".into();
+    chart.groups[0].bar_dir = None;
+    chart.groups[0].grouping = Some("standard".into());
+    sheet.drawings.push(oelxlsx::model::Drawing { kind: "chart".into(), name: "Graphique 2".into(), from: oelxlsx::model::DrawingMarker { r: 10, c: 6, dx: 0, dy: 0 }, to: Some(oelxlsx::model::DrawingMarker { r: 25, c: 13, dx: 0, dy: 0 }), chart: Some(chart), ..Default::default() });
+    let out = export_xlsx(&wb, Some(&bytes)).unwrap();
+    assert_eq!(chart_parts(&out), ["xl/charts/chart1.xml", "xl/charts/chart2.xml"]);
+    let back = import_xlsx(&out).unwrap();
+    let charts: Vec<_> = back.sheets[0].drawings.iter().filter_map(|d| d.chart.as_ref()).collect();
+    assert_eq!(charts.len(), 2);
+    let new = charts[1];
+    assert_eq!(new.groups[0].kind, "line");
+    assert_eq!(new.title.as_ref().and_then(|t| t.text.as_deref()), Some("Nouveau"));
+    // Caches come from the cells (openpyxl's original chart had none).
+    let vals = &new.groups[0].series[0].val.as_ref().unwrap().num;
+    assert_eq!(vals.iter().filter(|v| v.is_some()).count(), 4);
+    assert_eq!(new.groups[0].series[0].cat.as_ref().unwrap().str[0].as_deref(), Some("Loyer"));
+    // The untouched chart stays byte for byte.
+    assert_eq!(Package::read(&bytes).unwrap().get("xl/charts/chart1.xml"), Package::read(&out).unwrap().get("xl/charts/chart1.xml"));
+}
+
+#[test]
+fn edited_moved_and_removed_charts() {
+    let bytes = fixture("rich.xlsx");
+    let mut wb = import_xlsx(&bytes).unwrap();
+    let i = wb.sheets[0].drawings.iter().position(|d| d.chart.is_some()).unwrap();
+    {
+        let d = &mut wb.sheets[0].drawings[i];
+        d.chart.as_mut().unwrap().title.as_mut().unwrap().text = Some("Montants 2027".into());
+        d.from.r += 3;
+        if let Some(t) = d.to.as_mut() {
+            t.r += 3;
+        }
+    }
+    let out = export_xlsx(&wb, Some(&bytes)).unwrap();
+    let back = import_xlsx(&out).unwrap();
+    let d = &back.sheets[0].drawings[i];
+    assert_eq!(d.chart.as_ref().unwrap().title.as_ref().unwrap().text.as_deref(), Some("Montants 2027"));
+    assert_eq!(d.from.r, wb.sheets[0].drawings[i].from.r);
+    // Removing the chart removes its part.
+    let mut wb2 = import_xlsx(&bytes).unwrap();
+    wb2.sheets[0].drawings.retain(|d| d.chart.is_none());
+    let out2 = export_xlsx(&wb2, Some(&bytes)).unwrap();
+    assert!(chart_parts(&out2).is_empty());
+    assert!(import_xlsx(&out2).unwrap().sheets[0].drawings.iter().all(|d| d.chart.is_none()));
+}
+
+#[test]
+fn a_chart_in_a_new_workbook_gets_a_drawing_part() {
+    let mut wb = new_workbook();
+    let s = &mut wb.sheets[0];
+    for (r, (label, v)) in [("A", 1.0), ("B", 3.0), ("C", 2.0)].iter().enumerate() {
+        s.cells.push(Cell { r: r as u32, c: 0, t: Some("s".into()), v: Some(serde_json::json!(label)), ..Default::default() });
+        s.cells.push(Cell { r: r as u32, c: 1, t: Some("n".into()), v: Some(serde_json::json!(v)), ..Default::default() });
+    }
+    let name = s.name.clone();
+    let series = oelchart::Series {
+        idx: 0,
+        order: 0,
+        cat: Some(oelchart::DataRef { f: Some(format!("'{name}'!$A$1:$A$3")), ..Default::default() }),
+        val: Some(oelchart::DataRef { f: Some(format!("'{name}'!$B$1:$B$3")), ..Default::default() }),
+        ..Default::default()
+    };
+    let spec = oelchart::ChartSpec { plot_vis_only: true, groups: vec![oelchart::Group { kind: "pie".into(), vary_colors: true, series: vec![series], ..Default::default() }], ..Default::default() };
+    s.drawings.push(oelxlsx::model::Drawing { kind: "chart".into(), from: oelxlsx::model::DrawingMarker { r: 1, c: 3, dx: 0, dy: 0 }, to: Some(oelxlsx::model::DrawingMarker { r: 15, c: 9, dx: 0, dy: 0 }), chart: Some(spec), ..Default::default() });
+    let out = export_xlsx(&wb, None).unwrap();
+    let back = import_xlsx(&out).unwrap();
+    let c = back.sheets[0].drawings[0].chart.as_ref().expect("chart read back");
+    assert_eq!(c.groups[0].kind, "pie");
+    assert_eq!(c.groups[0].series[0].val.as_ref().unwrap().num, vec![Some(1.0), Some(3.0), Some(2.0)]);
+}

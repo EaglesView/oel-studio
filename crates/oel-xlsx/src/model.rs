@@ -606,4 +606,11 @@ pub struct Drawing {
     /// Excel's « move and size with cells » setting (`twoCell`, `oneCell`, `absolute`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edit_as: Option<String>,
+    /// The chart of a `chart` drawing. chartEx references (`_xlchart.v1.N`) are
+    /// replaced by the ranges their defined names stand for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chart: Option<oelchart::ChartSpec>,
+    /// Position of the anchor in the sheet's drawing part (absent for drawings made in the editor).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub src: Option<u32>,
 }

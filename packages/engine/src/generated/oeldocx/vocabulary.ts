@@ -63,7 +63,11 @@ export const CODEC_VOCABULARY: { nodes: Record<string, string[]>; marks: Record<
       "xml"
     ],
     "ooxmlInline": [
+      "chart",
+      "cx",
+      "cy",
       "field",
+      "floating",
       "hidden",
       "label",
       "xml"

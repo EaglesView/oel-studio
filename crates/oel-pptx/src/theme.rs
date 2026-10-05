@@ -96,7 +96,7 @@ impl<'a> ColorCtx<'a> {
         ColorCtx { theme: self.theme, map: self.map, ph }
     }
 
-    fn scheme_hex(&self, name: &str) -> Option<String> {
+    pub fn scheme_hex(&self, name: &str) -> Option<String> {
         let slot = self.map.get(name).map(String::as_str).unwrap_or(name);
         self.theme.scheme.get(slot).cloned()
     }

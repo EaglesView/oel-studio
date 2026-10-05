@@ -682,6 +682,20 @@ pub struct OoxmlInlineAttrs {
     pub hidden: bool,
     /// Field code (`PAGE`, `TOC`, `NOTENUM`…) when the XML is part of a field.
     pub field: Option<String>,
+    /// A chart drawing: its chart (the XML and the chart part are written back as they came).
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub chart: Option<oelchart::ChartSpec>,
+    /// Chart size, EMU.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cx: Option<i64>,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cy: Option<i64>,
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub floating: Option<bool>,
 }
 
 /// Block content the editor does not model, kept as XML.

@@ -28,9 +28,10 @@ function newest(path) {
 const crates = readdirSync(join(root, 'crates')).filter((c) =>
   /^\s*wasm\s*=/m.test(readFileSync(join(root, 'crates', c, 'Cargo.toml'), 'utf8')),
 );
-// A crate is stale if it or any path dependency (oel-opc) changed after its outputs.
+// A crate is stale if it or any shared path dependency (oel-opc, oel-chart) changed after its outputs.
+const SHARED = ['oel-opc', 'oel-chart'];
 const sourcesTime = (c) =>
-  Math.max(newest(join(root, 'crates', c)), newest(join(root, 'crates', 'oel-opc')), newest(join(root, 'Cargo.toml')));
+  Math.max(newest(join(root, 'crates', c)), ...SHARED.map((d) => newest(join(root, 'crates', d))), newest(join(root, 'Cargo.toml')));
 
 const wasmPack = join(root, 'node_modules', '.bin', 'wasm-pack');
 let failed = false;

@@ -108,4 +108,19 @@ fn reads_drawings() {
     assert_eq!((d[2].edit_as.as_deref(), d[2].cx), (Some("twoCell"), 0));
     // Scheme colour accent2 of the file's theme.
     assert_eq!(d[2].fill.as_deref(), Some("#3C9FE0"));
+    // The Pareto chart (chartEx): its `_xlchart.v1.N` names become ranges.
+    let c = d[0].chart.as_ref().expect("chart spec");
+    assert!(c.ex);
+    assert_eq!(c.groups[0].kind, "clusteredColumn");
+    let f = c.groups[0].series[0].val.as_ref().and_then(|v| v.f.as_deref()).unwrap();
+    assert!(f.contains('!') && !f.starts_with("_xlchart"), "{f}");
+}
+
+#[test]
+fn reads_a_classic_chart() {
+    let wb = load("rich.xlsx");
+    let c = wb.sheets.iter().flat_map(|s| &s.drawings).find_map(|d| d.chart.as_ref()).expect("chart");
+    assert_eq!(c.groups[0].kind, "bar");
+    assert_eq!(c.title.as_ref().and_then(|t| t.text.as_deref()), Some("Montants"));
+    assert!(!c.palette.is_empty());
 }

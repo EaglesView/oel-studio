@@ -2,7 +2,7 @@
 
 use crate::model::*;
 use crate::refs::{parse_a1, parse_range, shift_formula, strip_future_prefixes};
-use crate::styles::{read_color, read_styles, theme_colors};
+use crate::styles::{read_color, read_styles, theme_colors, theme_fonts};
 use oel_opc::package::{Package, resolve_target};
 use oel_opc::xml::{XDocument, XElement};
 use std::collections::HashMap;
@@ -73,6 +73,7 @@ struct SheetCtx<'a> {
     part: String,
     strings: &'a [SharedString],
     theme: &'a [String],
+    fonts: &'a (Option<String>, Option<String>),
 }
 
 fn read_cells(ctx: &SheetCtx, sheet_data: &XElement, sheet: &mut Sheet) {
@@ -340,7 +341,7 @@ fn read_sheet(ctx: &SheetCtx, name: &str, state: SheetState) -> Result<Sheet, St
     sheet.hyperlinks = read_hyperlinks(ctx, ws);
     sheet.notes = read_notes(ctx);
     sheet.tables = read_tables(ctx);
-    sheet.drawings = crate::drawing::read_drawings(ctx.pkg, &ctx.part, ctx.theme);
+    sheet.drawings = crate::drawing::read_drawings(ctx.pkg, &ctx.part, ctx.theme, ctx.fonts);
     crate::drawing::fix_sizes(&mut sheet);
     Ok(sheet)
 }
@@ -395,6 +396,7 @@ pub fn import_xlsx(bytes: &[u8]) -> Result<Workbook, String> {
     let rels = pkg.rels(&wb_part);
     let theme_doc = workbook_rel_target(&pkg, &wb_part, REL_THEME).and_then(|p| pkg.get_xml(&p));
     let theme = theme_colors(theme_doc.as_ref());
+    let fonts = theme_fonts(theme_doc.as_ref());
     let styles_doc = workbook_rel_target(&pkg, &wb_part, REL_STYLES).and_then(|p| pkg.get_xml(&p));
     let table = read_styles(styles_doc.as_ref(), &theme);
     let strings = read_shared_strings(workbook_rel_target(&pkg, &wb_part, REL_SHARED_STRINGS).and_then(|p| pkg.get_xml(&p)).as_ref());
@@ -423,7 +425,7 @@ pub fn import_xlsx(bytes: &[u8]) -> Result<Workbook, String> {
             // Chart sheets and dialog sheets: kept in the file, not shown as grids.
             continue;
         }
-        let ctx = SheetCtx { pkg: &pkg, part, strings: &strings, theme: &theme };
+        let ctx = SheetCtx { pkg: &pkg, part, strings: &strings, theme: &theme, fonts: &fonts };
         out.sheets.push(read_sheet(&ctx, &name, state)?);
     }
     if out.sheets.is_empty() {
@@ -440,8 +442,37 @@ pub fn import_xlsx(bytes: &[u8]) -> Result<Workbook, String> {
             });
         }
     }
+    resolve_chart_names(&mut out);
     let active = wb.root.child_local("bookViews").and_then(|b| b.child_local("workbookView")).and_then(|v| v.attr("activeTab")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0);
     out.active_sheet = ids_by_index.get(active).and_then(|id| out.sheets.iter().position(|s| &s.id == id)).unwrap_or(0);
     out.preserved = preserved_inventory(&pkg);
     Ok(out)
+}
+
+/// chartEx series point at hidden defined names (`_xlchart.v1.3`); swap in the ranges they stand for.
+fn resolve_chart_names(wb: &mut Workbook) {
+    let names: Vec<(String, String)> = wb.names.iter().filter(|n| n.name.starts_with("_xlchart.")).map(|n| (n.name.clone(), n.formula.clone())).collect();
+    if names.is_empty() {
+        return;
+    }
+    let fix = |r: &mut Option<String>| {
+        if let Some(f) = r.as_deref() {
+            if let Some((_, v)) = names.iter().find(|(n, _)| n == f) {
+                *r = Some(v.clone());
+            }
+        }
+    };
+    for sheet in &mut wb.sheets {
+        for d in &mut sheet.drawings {
+            let Some(c) = d.chart.as_mut().filter(|c| c.ex) else { continue };
+            for g in &mut c.groups {
+                for s in &mut g.series {
+                    fix(&mut s.name_ref);
+                    for r in [&mut s.cat, &mut s.val, &mut s.size].into_iter().flatten() {
+                        fix(&mut r.f);
+                    }
+                }
+            }
+        }
+    }
 }

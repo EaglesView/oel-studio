@@ -174,7 +174,7 @@ pub enum ElementKind {
     Group,
     Connector,
     Table,
-    /// Chart, SmartArt, embedded object…: drawn as a frame, kept as is.
+    /// Chart (see `Element::chart`), SmartArt, embedded object…: kept as is.
     Graphic,
     /// Anything else in the shape tree (ink, content parts…): kept, not drawn.
     Other,
@@ -251,6 +251,9 @@ pub struct Element {
     /// What a locked element is (« Graphique », « SmartArt »…).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// A chart frame's chart (drawn by @oel/charts; the chart part is kept as is).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chart: Option<oelchart::ChartSpec>,
     #[serde(default, skip_serializing_if = "is_false")]
     #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub hidden: bool,

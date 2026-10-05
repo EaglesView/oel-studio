@@ -70,6 +70,13 @@ pub fn theme_colors(theme: Option<&XDocument>) -> Vec<String> {
     out
 }
 
+/// The theme's body (minor) and heading (major) Latin fonts.
+pub fn theme_fonts(theme: Option<&XDocument>) -> (Option<String>, Option<String>) {
+    let Some(doc) = theme else { return (None, None) };
+    let face = |which: &str| find_desc(&doc.root, which).and_then(|f| f.child_local("latin")).and_then(|l| l.attr("typeface")).filter(|t| !t.is_empty()).map(String::from);
+    (face("minorFont"), face("majorFont"))
+}
+
 fn find_desc<'a>(e: &'a XElement, local: &str) -> Option<&'a XElement> {
     if e.local() == local {
         return Some(e);

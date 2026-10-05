@@ -3,8 +3,9 @@
 //! Only what the editor models is regenerated: each worksheet's cells and
 //! layout elements (in their schema position inside the *original*
 //! `<worksheet>`), the shared strings, appended styles, and the workbook's
-//! sheet list and names. Every other part — charts, drawings, pivots, theme,
-//! macros — and every unmodelled worksheet child is written back untouched.
+//! sheet list and names; drawings and charts only when the editor changed them
+//! (`drawing_write`). Every other part — pivots, theme, macros — and every
+//! unmodelled worksheet child is written back untouched.
 
 use crate::model::*;
 use crate::read::{REL_CALC_CHAIN, REL_SHARED_STRINGS, REL_STYLES, REL_WORKSHEET, rel_id_attr, workbook_part, workbook_rel_target};
@@ -458,7 +459,14 @@ fn hyperlinks_el(pkg: &mut Package, part: &str, sheet: &Sheet) -> Option<XElemen
     Some(e)
 }
 
-fn write_worksheet(pkg: &mut Package, part: &str, sheet: &Sheet, selected: bool, sst: &mut Sst) -> Result<(), String> {
+/// What a worksheet needs from the whole workbook: values for chart caches, the theme for chart colours.
+struct WsCtx<'a> {
+    wb: &'a Workbook,
+    theme: &'a [String],
+    fonts: &'a (Option<String>, Option<String>),
+}
+
+fn write_worksheet(pkg: &mut Package, part: &str, sheet: &Sheet, selected: bool, sst: &mut Sst, cx: &WsCtx) -> Result<(), String> {
     let mut doc = pkg.get_xml(part).unwrap_or_else(|| XDocument::parse(crate::template::WORKSHEET).expect("template worksheet"));
     // A part written with a prefixed main namespace needs the r: namespace for hyperlinks too.
     if !doc.root.attrs.iter().any(|(_, v)| v == NS_R) {
@@ -507,6 +515,10 @@ fn write_worksheet(pkg: &mut Package, part: &str, sheet: &Sheet, selected: bool,
     let hl = hyperlinks_el(pkg, part, sheet);
     let ws = &mut doc.root;
     put(ws, WS_ORDER, "hyperlinks", hl.into_iter().collect());
+    // Charts made or changed in the editor (a new drawing part needs its `<drawing r:id>`).
+    if let Some(rid) = crate::drawing_write::write_drawings(pkg, part, sheet, cx.wb, cx.theme, cx.fonts) {
+        put(&mut doc.root, WS_ORDER, "drawing", vec![XElement::new("drawing").with_attr("r:id", rid)]);
+    }
     pkg.set_xml(part, &doc);
     update_tables(pkg, sheet);
     Ok(())
@@ -571,6 +583,11 @@ pub fn export_xlsx(wb: &Workbook, original: Option<&[u8]>) -> Result<Vec<u8>, St
         pkg.set_xml(&part, &sdoc);
     }
 
+    let theme_doc = workbook_rel_target(&pkg, &wb_part, crate::read::REL_THEME).and_then(|p| pkg.get_xml(&p));
+    let theme = crate::styles::theme_colors(theme_doc.as_ref());
+    let fonts = crate::styles::theme_fonts(theme_doc.as_ref());
+    let ws_ctx = WsCtx { wb: &wb, theme: &theme, fonts: &fonts };
+
     // Sheets: existing parts keep their element (sheetId, r:id…); new ones get a part.
     let rels = pkg.rels(&wb_part);
     let old_sheets: Vec<XElement> = wdoc.root.child_local("sheets").map(|s| s.elements().cloned().collect()).unwrap_or_default();
@@ -600,7 +617,7 @@ pub fn export_xlsx(wb: &Workbook, original: Option<&[u8]>) -> Result<Vec<u8>, St
             SheetState::Hidden => el.set_attr("state", "hidden"),
             SheetState::VeryHidden => el.set_attr("state", "veryHidden"),
         }
-        write_worksheet(&mut pkg, &part, sheet, i == active, &mut sst)?;
+        write_worksheet(&mut pkg, &part, sheet, i == active, &mut sst, &ws_ctx)?;
         kept_parts.push(part);
         new_elems.push(el);
     }

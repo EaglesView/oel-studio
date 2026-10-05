@@ -721,6 +721,15 @@ impl<'p> Reader<'p> {
             1,
         );
         out.label = Some(label.into());
+        if kind == "charts"
+            && let Some(d) = data
+            && let Some(part) = oelchart::chart_part(self.pkg, &sc.part.path, d)
+        {
+            let cc = &sc.cc;
+            let scheme = |n: &str| cc.scheme_hex(n);
+            let theme = oelchart::Theme { scheme: &scheme, minor_font: Some(cc.theme.minor.clone()), major_font: Some(cc.theme.major.clone()) };
+            out.chart = oelchart::read_chart(self.pkg, &part, &theme);
+        }
         // An embedded object usually carries a picture of itself.
         if let Some(pic) = data.and_then(|d| d.find_local("pic"))
             && let Some(p) = self.picture(pic, sc)

@@ -399,7 +399,7 @@ fn read_inline_children(ctx: &mut ReadCtx, parent: &XElement, marks: &[Value], o
 
 fn ooxml_inline(xml: String, label: &str, hidden: bool, field: Option<String>, marks: &[Value]) -> Value {
     let mut n = node("ooxmlInline");
-    n.insert("attrs".into(), json!({ "xml": xml, "label": label, "hidden": hidden, "field": field }));
+    n.insert("attrs".into(), json!({ "xml": xml, "label": label, "hidden": hidden, "field": field, "chart": null, "cx": null, "cy": null, "floating": null }));
     if !marks.is_empty() {
         n.insert("marks".into(), Value::Array(marks.to_vec()));
     }
@@ -620,6 +620,17 @@ fn read_run(ctx: &mut ReadCtx, r: &XElement, inherited: &[Value], out: &mut Vec<
 
 fn read_drawing(ctx: &mut ReadCtx, rpr: Option<&XElement>, d: &XElement, marks: &[Value]) -> Value {
     let xml = wrap_run(rpr, d);
+    if let Some(chart) = read_chart_drawing(ctx, d) {
+        let mut n = ooxml_inline(xml, "Graphique", false, None, marks);
+        let wrapper = d.elements().next();
+        let extent = wrapper.and_then(|w| w.child("wp:extent"));
+        let attrs = n["attrs"].as_object_mut().expect("attrs");
+        attrs.insert("chart".into(), serde_json::to_value(chart).unwrap_or(Value::Null));
+        attrs.insert("cx".into(), json!(extent.and_then(|e| num_attr(e, "cx"))));
+        attrs.insert("cy".into(), json!(extent.and_then(|e| num_attr(e, "cy"))));
+        attrs.insert("floating".into(), json!(wrapper.map(|w| w.name == "wp:anchor").unwrap_or(false)));
+        return n;
+    }
     let blip = d.find("a:blip");
     let target = blip.and_then(|b| b.attr("r:embed")).and_then(|id| ctx.rel_target(id).map(|t| (id.to_string(), t)));
     let Some((rid, (path, external))) = target else {
@@ -648,6 +659,19 @@ fn read_drawing(ctx: &mut ReadCtx, rpr: Option<&XElement>, d: &XElement, marks: 
         }),
         marks,
     )
+}
+
+/// The chart a `w:drawing` holds (`a:graphicData uri=".../chart"`, or a chartEx).
+fn read_chart_drawing(ctx: &ReadCtx, d: &XElement) -> Option<oelchart::ChartSpec> {
+    let data = d.find_local("graphicData")?;
+    if !data.attr("uri").unwrap_or_default().contains("chart") {
+        return None;
+    }
+    let part = oelchart::chart_part(ctx.pkg, &ctx.part, data)?;
+    let theme = &ctx.styles.theme;
+    let scheme = |n: &str| theme.scheme_hex(n).map(String::from);
+    let (minor, major) = super::theme::theme_fonts(ctx.pkg);
+    oelchart::read_chart(ctx.pkg, &part, &oelchart::Theme { scheme: &scheme, minor_font: minor, major_font: major })
 }
 
 /// Merge adjacent text nodes that ended up with identical marks.

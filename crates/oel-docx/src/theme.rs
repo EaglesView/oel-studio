@@ -16,6 +16,13 @@ pub struct Theme {
     pub mapping: HashMap<String, String>,
 }
 
+/// The theme's body (minor) and heading (major) Latin fonts.
+pub fn theme_fonts(pkg: &Package) -> (Option<String>, Option<String>) {
+    let Some(theme) = pkg.get_xml(&pkg.main_related(REL_THEME, "theme/theme1.xml")) else { return (None, None) };
+    let face = |which: &str| theme.root.find_local(which).and_then(|f| f.child_local("latin")).and_then(|l| l.attr("typeface")).filter(|t| !t.is_empty()).map(String::from);
+    (face("minorFont"), face("majorFont"))
+}
+
 impl Theme {
     pub fn load(pkg: &Package) -> Theme {
         let mut t = Theme::default();

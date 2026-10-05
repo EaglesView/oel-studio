@@ -355,11 +355,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "oel-chart"
+version = "0.1.0"
+dependencies = [
+ "oel-opc",
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
 name = "oel-docx"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
+ "oel-chart",
  "oel-opc",
  "serde",
  "serde_json",
@@ -379,6 +390,7 @@ name = "oel-pptx"
 version = "0.1.0"
 dependencies = [
  "js-sys",
+ "oel-chart",
  "oel-opc",
  "serde",
  "serde_json",
@@ -393,6 +405,7 @@ dependencies = [
  "csv",
  "encoding_rs",
  "ironcalc_base",
+ "oel-chart",
  "oel-opc",
  "serde",
  "serde_json",

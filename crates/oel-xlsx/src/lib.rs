@@ -9,6 +9,7 @@
 
 pub mod csv;
 pub mod drawing;
+pub mod drawing_write;
 pub mod engine;
 pub mod model;
 pub mod read;
