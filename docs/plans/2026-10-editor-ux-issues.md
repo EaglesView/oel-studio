@@ -31,6 +31,10 @@ Still to do around these:
 
 ## 1. Generalised links — **Figma first**
 
+**Drawn 2026-10-05:** section **I · Liens généralisés** → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=167-10452
+(I0 matrix of sources × targets, I1 image liée, I2 plage → tableau lié, I3 tableau → tableur, I4 valeur dans le texte,
+I5 cas particuliers, I6 five decisions to take). Next: discuss I6, then write the implementation plan.
+
 Links v1 carries a sheet chart into slides and documents. Next, extend them to most objects:
 
 | Source → target | Carries | Notes / edge cases to draw |
@@ -50,6 +54,11 @@ Model work this implies (for the plan after Figma): `SourceRef` kinds `image`, `
 extLst link markers (plan B4).
 
 ## 2. Toolbar overflow and redesign — **Figma first**
+
+**Drawn 2026-10-05:** section **J · Barres d'outils** → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=173-10495
+(J0 five rules, J1 groups and fold priorities, J2 three widths, J3 « Plus » push vs overlay with the motion spec,
+J4 new Document / Tableur / Présentation bars, J5 keyboard and accessibility, J6 four decisions). Next: discuss J6,
+add the missing Iconoir icons to the Figma Icons frame, then plan the `@oel/emboss` Toolbar overflow.
 
 Today each editor's toolbar is one line; when it overflows it scrolls horizontally
 (`.oel-docs__toolbar > .emb-toolbar { overflow-x: auto }`, same idea in sheets and slides).
