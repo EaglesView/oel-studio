@@ -58,7 +58,10 @@
   padding: 4px 16px 8px;
   min-width: 0;
 }
-.oel-docs__toolbar > .emb-toolbar { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.oel-docs__toolbar > .emb-toolbar { flex: 1; min-width: 0; }
+/* Docked at the bottom (Figma J3): the whole bar under the page, above the status bar. */
+.oel-docs__dock { flex: none; padding: 8px 16px; }
+.oel-docs__dock > .emb-toolbar { width: 100%; }
 .oel-toolbar { flex-wrap: nowrap; }
 .oel-toolbar__select--style { width: 148px; }
 .oel-toolbar__select--font { width: 150px; }
@@ -94,7 +97,7 @@
 
 /* Body: panels + canvas */
 .oel-docs__body { display: flex; flex: 1; min-height: 0; }
-.oel-docs__top, .oel-docs__toolbar, .oel-statusbar { flex: none; }
+.oel-docs__top, .oel-docs__toolbar, .oel-docs__dock, .oel-statusbar { flex: none; }
 .oel-docs__canvas {
   position: relative;
   flex: 1;

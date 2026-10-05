@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { NodeSelection, type Selection, type Transaction } from '@tiptap/pm/state';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
 import { linkedTableStyleChanges, tableAsLinked } from '../extensions/linkedTables';
 import { linkClip, linkHost, linksOf, newLinkId, pictureBytes, pictureValue, revOf, setLinkClip, type LinkClip } from '@oel/links';
 import { MenuTrigger } from 'react-aria-components';
-import { Badge, Button, Icon, Kbd, Menu, MenuItem, MenuPopover, toast } from '@oel/emboss';
+import { Badge, Button, Icon, Kbd, Menu, MenuItem, MenuPopover, toast, useToolbarDock } from '@oel/emboss';
 import type { DocSession } from '../collab/session';
 import type { Identity } from '../collab/identity';
 import { previewFromYDoc, type DocumentPreview } from '../model/preview';
@@ -495,6 +495,8 @@ export function DocsEditor(props: DocsEditorProps) {
   };
 
   const inTable = !!toolbar?.inTable;
+  // The bar folds into « Plus » and can dock at the bottom (Figma J3), remembered per editor.
+  const dock = useToolbarDock(sheet ? 'docs-sheet' : 'docs');
   const imageSelected = !!editor?.isActive('image');
   const ro = !editable;
   const local = status.connection === 'local';
@@ -767,6 +769,22 @@ export function DocsEditor(props: DocsEditorProps) {
       Partager
     </Button>
   );
+  const keepFocus = (e: ReactMouseEvent) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault();
+  const toolbarEl = toolbar && target && (
+    <DocsToolbar
+      editor={target}
+      state={toolbar}
+      styles={docMeta.styles}
+      fonts={docMeta.fonts}
+      editable={editable}
+      onLink={() => setDialog('link')}
+      onImage={() => setDialog('image')}
+      painterActive={painter}
+      more={sheet ? <MoreMenu spec={spec} onAction={act} /> : undefined}
+      dock={dock}
+      storageKey={sheet ? 'docs-sheet' : 'docs'}
+    />
+  );
   const classes = ['oel-docs', `oel-docs--${variant}`, showMarks && 'oel-docs--marks', tableGrid && 'oel-docs--grid', showAnchors && 'oel-docs--anchors', focusMode && 'oel-docs--focus', focusMode && revealed && 'is-revealed'].filter(Boolean).join(' ');
 
   return (
@@ -815,21 +833,8 @@ export function DocsEditor(props: DocsEditorProps) {
         </header>
       )}
 
-      <div className="oel-docs__toolbar" onMouseDown={(e) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault()}>
-        <DocsToolbar
-          editor={target!}
-          state={toolbar}
-          styles={docMeta.styles}
-          fonts={docMeta.fonts}
-          editable={editable}
-          zoom={zoom}
-          setZoom={setZoom}
-          onPrint={() => act('print')}
-          onLink={() => setDialog('link')}
-          onImage={() => setDialog('image')}
-          painterActive={painter}
-          more={sheet ? <MoreMenu spec={spec} onAction={act} /> : undefined}
-        />
+      <div className="oel-docs__toolbar" onMouseDown={keepFocus}>
+        {!dock.docked && toolbarEl}
         <div className="oel-docs__mode" role="group" aria-label="Mode">
           {status.readOnly ? (
             <span className="oel-docs__mode-label"><Icon name="eye" size={16} /> Lecture seule</span>
@@ -909,6 +914,11 @@ export function DocsEditor(props: DocsEditorProps) {
         {showVersions && <VersionPanel session={session} onClose={() => setShowVersions(false)} onRestored={() => editor.storage.pagination.relayout()} />}
       </div>
 
+      {dock.docked && (
+        <div className="oel-docs__dock" onMouseDown={keepFocus}>
+          {toolbarEl}
+        </div>
+      )}
       {!sheet && <StatusBar editor={editor} sheets={sheets} sheetAt={sheetAt} sectionCount={sectionInfo?.count ?? 1} zoom={zoom} setZoom={setZoom} paginated={paginated} />}
 
       <LinkDialog editor={target!} isOpen={dialog === 'link'} onClose={() => setDialog(null)} />

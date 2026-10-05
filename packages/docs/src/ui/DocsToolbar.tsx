@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
 import { Dialog, DialogTrigger, MenuTrigger } from 'react-aria-components';
-import { Menu, MenuItem, MenuPopover, Popover, Select, SelectItem, Toolbar, ToolbarSeparator, ToolbarToggle, ToolButton } from '@oel/emboss';
+import { AdaptiveToolbar, Menu, MenuItem, MenuPopover, Popover, Select, SelectItem, ToolbarToggle, ToolButton, type ToolGroup } from '@oel/emboss';
 import { FONT_FAMILIES, FONT_SIZES, HIGHLIGHT_COLORS, LINE_SPACINGS, TEXT_COLORS } from '../model/format';
 import { listKindOf } from '../model/numbering';
 import type { DocFont, DocStyle } from '../model/types';
@@ -128,17 +128,17 @@ export interface DocsToolbarProps {
   /** The document's fonts, for the font menu (substitutions are named). */
   fonts?: DocFont[];
   editable: boolean;
-  zoom: number;
-  setZoom: (z: number) => void;
-  onPrint: () => void;
   onLink: () => void;
   onImage: () => void;
   painterActive: boolean;
   /** Extra tool at the end of the ribbon (the « Plus » menu in the compact sheet). */
   more?: ReactNode;
+  /** Where the bar lives (top, or docked at the bottom), per editor (Figma J3). */
+  dock: { docked: boolean; forced: boolean; setDocked: (d: boolean) => void };
+  storageKey: string;
 }
 
-export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom, setZoom, onPrint, onLink, onImage, painterActive, more }: DocsToolbarProps) {
+export function DocsToolbar({ editor, state, styles, fonts = [], editable, onLink, onImage, painterActive, more, dock, storageKey }: DocsToolbarProps) {
   const chain = () => editor.chain().focus();
   const ro = editable ? undefined : 'Document en lecture seule.';
   const otherStyles = styles.filter((s) => s.kind === 'paragraph' && !s.hidden && s.quick && !ROLE_LABELS.some(([r]) => r === s.role));
@@ -153,29 +153,34 @@ export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom,
     setSize(n);
   };
 
-  return (
-    <Toolbar aria-label="Mise en forme" className="oel-toolbar" appearance="ribbon">
-      <ToolButton icon="undo" label="Annuler" shortcut={['Ctrl', 'Z']} unavailableReason={ro ?? (state.canUndo ? undefined : 'Rien à annuler.')} onPress={() => chain().undo().run()} />
-      <ToolButton icon="redo" label="Rétablir" shortcut={['Ctrl', 'Maj', 'Z']} unavailableReason={ro ?? (state.canRedo ? undefined : 'Rien à rétablir.')} onPress={() => chain().redo().run()} />
-      <ToolButton icon="print" label="Imprimer" shortcut={['Ctrl', 'P']} onPress={onPrint} />
-      <ToolbarToggle
-        icon="format-painter"
-        label="Reproduire la mise en forme"
-        description="Copie la mise en forme du texte au curseur ; sélectionnez ensuite le texte à mettre en forme."
-        isSelected={painterActive}
-        unavailableReason={ro}
-        onChange={(on) => (on ? editor.commands.startFormatPainter() : editor.commands.cancelFormatPainter())}
-      />
-      <div className="oel-toolbar__select oel-toolbar__select--zoom">
-        <Select aria-label="Zoom" selectedKey={String(zoom)} onSelectionChange={(k) => setZoom(Number(k))}>
-          {ZOOMS.map((z) => (
-            <SelectItem key={z} id={String(z)}>
-              {`${Math.round(z * 100)} %`}
-            </SelectItem>
-          ))}
-        </Select>
-      </div>
-      <ToolbarSeparator />
+  const ALIGNS = [
+    ['left', 'align-left', 'Aligner à gauche', ['Ctrl', 'Maj', 'L']],
+    ['center', 'align-center', 'Centrer', ['Ctrl', 'Maj', 'E']],
+    ['right', 'align-right', 'Aligner à droite', ['Ctrl', 'Maj', 'R']],
+    ['justify', 'align-justify', 'Justifier', ['Ctrl', 'Maj', 'J']],
+  ] as const;
+  const align = ALIGNS.find(([a]) => a === state.align) ?? ALIGNS[0];
+  const LISTS = [
+    ['bullet', 'list', 'Liste à puces', 'Ctrl+Maj+8'],
+    ['numbered', 'list-numbered', 'Liste numérotée', 'Ctrl+Maj+7'],
+    ['check', 'checklist', 'Liste de contrôle', 'Ctrl+Maj+9'],
+  ] as const;
+  const list = LISTS.find(([l]) => l === state.list);
+
+  // Groups and priorities from Figma J1/J4: 1 never folds, 5 folds first.
+  const groups: ToolGroup[] = [
+    {
+      id: 'history',
+      label: 'Historique',
+      priority: 1,
+      content: (
+        <>
+          <ToolButton icon="undo" label="Annuler" shortcut={['Ctrl', 'Z']} unavailableReason={ro ?? (state.canUndo ? undefined : 'Rien à annuler.')} onPress={() => chain().undo().run()} />
+          <ToolButton icon="redo" label="Rétablir" shortcut={['Ctrl', 'Maj', 'Z']} unavailableReason={ro ?? (state.canRedo ? undefined : 'Rien à rétablir.')} onPress={() => chain().redo().run()} />
+        </>
+      ),
+    },
+    { id: 'style', label: 'Style', priority: 1, content: <>
       <div className="oel-toolbar__select oel-toolbar__select--style">
         <Select
           aria-label="Style de paragraphe"
@@ -206,6 +211,8 @@ export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom,
           ]}
         </Select>
       </div>
+    </> },
+    { id: 'font', label: 'Police', priority: 3, content: <>
       <div className="oel-toolbar__select oel-toolbar__select--font">
         <Select aria-label="Police" isDisabled={!editable} selectedKey={state.fontFamily ?? '__default'} onSelectionChange={(k) => (k === '__default' ? chain().unsetFontFamily().run() : chain().setFontFamily(String(k)).run())}>
           {[
@@ -238,11 +245,16 @@ export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom,
         />
         <ToolButton icon="plus" label="Augmenter la taille de police" shortcut={['Ctrl', 'Maj', '.']} unavailableReason={ro} onPress={() => nextSize(1)} />
       </div>
-      <ToolbarSeparator />
-      <ToolbarToggle icon="bold" label="Gras" shortcut={['Ctrl', 'B']} isSelected={state.bold} unavailableReason={ro} onChange={() => chain().toggleBold().run()} />
-      <ToolbarToggle icon="italic" label="Italique" shortcut={['Ctrl', 'I']} isSelected={state.italic} unavailableReason={ro} onChange={() => chain().toggleItalic().run()} />
-      <ToolbarToggle icon="underline" label="Souligné" shortcut={['Ctrl', 'U']} isSelected={state.underline} unavailableReason={ro} onChange={() => chain().toggleUnderline().run()} />
-      <ToolbarToggle icon="strikethrough" label="Barré" shortcut={['Alt', 'Maj', '5']} isSelected={state.strike} unavailableReason={ro} onChange={() => chain().toggleStrike().run()} />
+    </> },
+    {
+      id: 'text',
+      label: 'Texte',
+      priority: 1,
+      content: (
+        <>
+          <ToolbarToggle icon="bold" label="Gras" shortcut={['Ctrl', 'B']} isSelected={state.bold} unavailableReason={ro} onChange={() => chain().toggleBold().run()} />
+          <ToolbarToggle icon="italic" label="Italique" shortcut={['Ctrl', 'I']} isSelected={state.italic} unavailableReason={ro} onChange={() => chain().toggleItalic().run()} />
+          <ToolbarToggle icon="underline" label="Souligné" shortcut={['Ctrl', 'U']} isSelected={state.underline} unavailableReason={ro} onChange={() => chain().toggleUnderline().run()} />
       <DialogTrigger>
         <ToolButton icon="text-color" label="Couleur du texte" value={<span className="oel-colorbar" style={{ background: state.color ?? 'currentColor' }} />} unavailableReason={ro} />
         <Popover placement="bottom">
@@ -259,22 +271,28 @@ export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom,
           </Dialog>
         </Popover>
       </DialogTrigger>
-      <ToolbarSeparator />
-      <ToolbarToggle icon="link" label="Insérer un lien" shortcut={['Ctrl', 'K']} isSelected={state.link} unavailableReason={ro} onChange={onLink} />
-      <ToolButton icon="image" label="Insérer une image" unavailableReason={ro} onPress={onImage} />
-      <DialogTrigger>
-        <ToolButton icon="table" label="Insérer un tableau" unavailableReason={ro} />
-        <Popover placement="bottom">
-          <Dialog aria-label="Taille du tableau" className="oel-popover-dialog">
-            {({ close }) => <TableGrid onPick={(rows, cols) => (chain().insertTable({ rows, cols, withHeaderRow: false }).run(), close())} />}
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
-      <ToolbarSeparator />
-      <ToolbarToggle icon="align-left" label="Aligner à gauche" shortcut={['Ctrl', 'Maj', 'L']} isSelected={state.align === 'left'} unavailableReason={ro} onChange={() => chain().setAlign('left').run()} />
-      <ToolbarToggle icon="align-center" label="Centrer" shortcut={['Ctrl', 'Maj', 'E']} isSelected={state.align === 'center'} unavailableReason={ro} onChange={() => chain().setAlign('center').run()} />
-      <ToolbarToggle icon="align-right" label="Aligner à droite" shortcut={['Ctrl', 'Maj', 'R']} isSelected={state.align === 'right'} unavailableReason={ro} onChange={() => chain().setAlign('right').run()} />
-      <ToolbarToggle icon="align-justify" label="Justifier" shortcut={['Ctrl', 'Maj', 'J']} isSelected={state.align === 'justify'} unavailableReason={ro} onChange={() => chain().setAlign('justify').run()} />
+        </>
+      ),
+    },
+    {
+      id: 'paragraph',
+      label: 'Paragraphe',
+      priority: 2,
+      wide: true,
+      content: (
+        <>
+          <MenuTrigger>
+            <ToolButton icon={align[1]} label={`Alignement : ${align[2].toLocaleLowerCase('fr-CA')}`} unavailableReason={ro} />
+            <MenuPopover>
+              <Menu aria-label="Alignement" onAction={(k) => chain().setAlign(String(k) as 'left').run()}>
+                {ALIGNS.map(([a, icon, label, sc]) => (
+                  <MenuItem key={a} id={a} icon={icon} shortcut={sc.join('+')} textValue={label}>
+                    {state.align === a ? `✓ ${label}` : label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </MenuPopover>
+          </MenuTrigger>
       <MenuTrigger>
         <ToolButton icon="line-spacing" label="Interligne et espacement" unavailableReason={ro} />
         <MenuPopover>
@@ -301,15 +319,83 @@ export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom,
           </Menu>
         </MenuPopover>
       </MenuTrigger>
-      <ToolbarToggle icon="checklist" label="Liste de contrôle" shortcut={['Ctrl', 'Maj', '9']} isSelected={state.list === 'check'} unavailableReason={ro} onChange={() => chain().toggleList('check').run()} />
-      <ToolbarToggle icon="list" label="Liste à puces" shortcut={['Ctrl', 'Maj', '8']} isSelected={state.list === 'bullet'} unavailableReason={ro} onChange={() => chain().toggleList('bullet').run()} />
-      <ToolbarToggle icon="list-numbered" label="Liste numérotée" shortcut={['Ctrl', 'Maj', '7']} isSelected={state.list === 'numbered'} unavailableReason={ro} onChange={() => chain().toggleList('numbered').run()} />
-      <ToolButton icon="indent-less" label="Diminuer le retrait" shortcut={['Ctrl', '[']} unavailableReason={ro} onPress={() => chain().changeIndent(-720).run()} />
-      <ToolButton icon="indent-more" label="Augmenter le retrait" shortcut={['Ctrl', ']']} unavailableReason={ro} onPress={() => chain().changeIndent(720).run()} />
-      <ToolButton icon="clear-format" label="Effacer la mise en forme" shortcut={['Ctrl', '\\']} unavailableReason={ro} onPress={() => chain().clearFormatting().run()} />
-      {more && <ToolbarSeparator />}
-      {more}
-    </Toolbar>
+          <MenuTrigger>
+            <ToolButton icon={list?.[1] ?? 'list'} label={list ? list[2] : 'Listes'} unavailableReason={ro} />
+            <MenuPopover>
+              <Menu aria-label="Listes" onAction={(k) => chain().toggleList(String(k) as 'bullet').run()}>
+                {LISTS.map(([l, icon, label, sc]) => (
+                  <MenuItem key={l} id={l} icon={icon} shortcut={sc} textValue={label}>
+                    {state.list === l ? `✓ ${label}` : label}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </MenuPopover>
+          </MenuTrigger>
+          <ToolButton icon="indent-less" label="Diminuer le retrait" shortcut={['Ctrl', '[']} unavailableReason={ro} onPress={() => chain().changeIndent(-720).run()} />
+          <ToolButton icon="indent-more" label="Augmenter le retrait" shortcut={['Ctrl', ']']} unavailableReason={ro} onPress={() => chain().changeIndent(720).run()} />
+        </>
+      ),
+    },
+    {
+      id: 'insert',
+      label: 'Insertion',
+      priority: 4,
+      content: (
+        <>
+          <ToolbarToggle icon="link" label="Insérer un lien" shortcut={['Ctrl', 'K']} isSelected={state.link} unavailableReason={ro} onChange={onLink} />
+          <ToolButton icon="image" label="Insérer une image" unavailableReason={ro} onPress={onImage} />
+      <DialogTrigger>
+        <ToolButton icon="table" label="Insérer un tableau" unavailableReason={ro} />
+        <Popover placement="bottom">
+          <Dialog aria-label="Taille du tableau" className="oel-popover-dialog">
+            {({ close }) => <TableGrid onPick={(rows, cols) => (chain().insertTable({ rows, cols, withHeaderRow: false }).run(), close())} />}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+        </>
+      ),
+    },
+    {
+      id: 'tools',
+      label: 'Outils',
+      priority: 5,
+      content: (
+        <>
+          <ToolbarToggle
+            icon="format-painter"
+            label="Reproduire la mise en forme"
+            description="Copie la mise en forme du texte au curseur ; sélectionnez ensuite le texte à mettre en forme."
+            isSelected={painterActive}
+            unavailableReason={ro}
+            onChange={(on) => (on ? editor.commands.startFormatPainter() : editor.commands.cancelFormatPainter())}
+          />
+          <ToolButton icon="clear-format" label="Effacer la mise en forme" shortcut={['Ctrl', '\\']} unavailableReason={ro} onPress={() => chain().clearFormatting().run()} />
+        </>
+      ),
+    },
+    {
+      id: 'more-text',
+      label: 'Plus de texte',
+      priority: 5,
+      content: (
+        <>
+          <ToolbarToggle icon="strikethrough" label="Barré" shortcut={['Alt', 'Maj', '5']} isSelected={state.strike} unavailableReason={ro} onChange={() => chain().toggleStrike().run()} />
+          <ToolbarToggle icon="checklist" label="Liste de contrôle" shortcut={['Ctrl', 'Maj', '9']} isSelected={state.list === 'check'} unavailableReason={ro} onChange={() => chain().toggleList('check').run()} />
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <AdaptiveToolbar
+      label="Mise en forme"
+      className="oel-toolbar"
+      groups={groups}
+      trailing={more}
+      storageKey={storageKey}
+      docked={dock.docked}
+      forced={dock.forced}
+      onDockedChange={dock.setDocked}
+    />
   );
 }
-
