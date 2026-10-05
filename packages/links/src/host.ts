@@ -4,7 +4,7 @@
  * know about the desk or other files; the app installs a host, and without one
  * copies show their mode only.
  */
-import type { Carries, LinkState } from './types';
+import type { Carries, LinkState, LinkTheme, Overflow } from './types';
 
 export interface LinkHost {
   /** State of a link by id (`waiting` when unknown). */
@@ -19,12 +19,14 @@ export interface LinkHost {
   openSource(linkId: string): boolean;
   /** « Graphique et style » / « Données seulement » (a copy restyled here keeps its own look). */
   setCarries(linkId: string, carries: Carries): void;
+  /** Linked tables: whose theme the copy wears, and what a slide shows when the table is too tall (Figma I2, I6 §2–3). */
+  setLinkOptions(linkId: string, patch: { theme?: LinkTheme; overflow?: Overflow }): void;
   /** Title of a desk file by its doc id (« Lancement automne »), for links made from inside an editor. */
   fileTitle(docId: string): string | null;
   /** Called on any state change. */
   subscribe(fn: () => void): () => void;
   /** The link whose copy is this object (ids are unique across files), with its state; for editors without the Y.Doc at hand. */
-  copyOf(objectId: string): { linkId: string; source: string; state: LinkState; frozen: boolean; carries: Carries } | null;
+  copyOf(objectId: string): { linkId: string; source: string; state: LinkState; frozen: boolean; carries: Carries; theme?: LinkTheme; overflow?: Overflow } | null;
 }
 
 const NONE: LinkHost = {
@@ -35,6 +37,7 @@ const NONE: LinkHost = {
   openSource: () => false,
   setCarries: () => {},
   fileTitle: () => null,
+  setLinkOptions: () => {},
   copyOf: () => null,
   subscribe: () => () => {},
 };

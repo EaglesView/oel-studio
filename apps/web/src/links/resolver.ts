@@ -32,6 +32,8 @@ import {
   type LinkMode,
   type LinkState,
   type LinkedValue,
+  type LinkTheme,
+  type Overflow,
   pictureBytes,
   type LinksDoc,
   type ResolvedLink,
@@ -413,7 +415,7 @@ export class LinkResolver implements LinkHost {
   }
 
   copyOf(objectId: string) {
-    for (const l of this.resolved()) if (l.def.target.objectId === objectId) return { linkId: l.def.id, source: l.def.source.title, state: l.state, frozen: l.def.mode === 'frozen', carries: l.def.carries };
+    for (const l of this.resolved()) if (l.def.target.objectId === objectId) return { linkId: l.def.id, source: l.def.source.title, state: l.state, frozen: l.def.mode === 'frozen', carries: l.def.carries, theme: l.def.theme, overflow: l.def.view?.overflow };
     return null;
   }
 
@@ -454,6 +456,14 @@ export class LinkResolver implements LinkHost {
     if (!l) return;
     l.target.links.patch(linkId, { carries }, 'person');
     if (l.def.mode !== 'frozen') this.update(linkId);
+  }
+
+  setLinkOptions(linkId: string, patch: { theme?: LinkTheme; overflow?: Overflow }) {
+    const l = this.find(linkId);
+    if (!l) return;
+    l.target.links.patch(linkId, { ...(patch.theme ? { theme: patch.theme } : {}), ...(patch.overflow ? { view: { overflow: patch.overflow } } : {}) }, 'person');
+    // Draw the copy again from the source with the new options.
+    this.update(linkId);
   }
 
   /** « Couper le lien »: the copy stays as it is, with no link. */

@@ -8,12 +8,13 @@ import { createPortal } from 'react-dom';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
 import { Dialog, DialogTrigger } from 'react-aria-components';
-import { Menu, MenuItem, MenuPopover, MenuTrigger, Popover, toast, Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
+import { Button, Icon, Menu, MenuItem, MenuPopover, MenuTrigger, Popover, toast, Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
 import type { ChartSpec } from '@oel/charts';
 import { CopyChartBar } from '@oel/charts/ui';
 import { LinkedCopyBar } from '@oel/collab-client';
 import { STATE_LABEL, linkHost, onLinkHost } from '@oel/links';
 import { TEXT_COLORS } from '../model/format';
+import { LINKED_EDIT_EVENT, type LinkedEditDetail } from '../extensions/linkedTables';
 import { Swatches } from './DocsToolbar';
 
 /**
@@ -72,6 +73,57 @@ export function TableFloat({ editor, scroller }: { editor: Editor; scroller: HTM
     return (dom instanceof HTMLElement ? dom : dom.parentElement)?.closest('table') ?? null;
   });
   const chain = () => editor.chain().focus();
+  // A linked table (Figma I2): values and rows come from the sheet; its look is the document's to change.
+  const oid = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      const $from = e.state.selection.$from;
+      for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === 'table') return ($from.node(d).attrs.oid as string | null) ?? null;
+      return null;
+    },
+  });
+  const host = useSyncExternalStore(onLinkHost, linkHost, linkHost);
+  const copyJson = useSyncExternalStore(host.subscribe, () => JSON.stringify(oid ? host.copyOf(oid) : null), () => 'null');
+  const copy = JSON.parse(copyJson) as ReturnType<typeof host.copyOf>;
+  const fill = (
+    <DialogTrigger>
+      <ToolButton icon="fill-color" label="Fond de cellule" />
+      <Popover placement="bottom">
+        <Dialog aria-label="Fond de cellule" className="oel-popover-dialog">
+          {({ close }) => <Swatches colors={TEXT_COLORS} none="Aucun fond" onPick={(c) => (chain().setCellAttribute('background', c).run(), close())} />}
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+  if (copy)
+    return createPortal(
+      <div ref={bar} className="oel-docfloat" style={placed(at)}>
+        <LinkedCopyBar
+          label="Tableau lié"
+          link={{
+            source: copy.source,
+            stateLabel: copy.frozen ? 'Figé' : STATE_LABEL[copy.state],
+            stale: copy.state === 'stale',
+            frozen: copy.frozen,
+            onSource: () => void (host.openSource(copy.linkId) || toast({ title: 'Source introuvable', description: 'Le tableur n’est pas sur ce bureau.', tone: 'warning' })),
+            onUpdate: () => host.update(copy.linkId),
+            onManage: (r) => host.manage(copy.linkId, r),
+          }}
+        >
+          <MenuTrigger>
+            <ToolButton icon="palette" label="Mise en forme" showLabel description="Thème du tableur ou du document" />
+            <MenuPopover placement="bottom start">
+              <Menu aria-label="Mise en forme" onAction={(k) => host.setLinkOptions(copy.linkId, { theme: k as 'source' | 'target' })}>
+                <MenuItem id="source" textValue="Thème du tableur">{(copy.theme ?? 'source') === 'source' ? '✓ ' : '\u2003'}Thème du tableur</MenuItem>
+                <MenuItem id="target" textValue="Thème du document">{copy.theme === 'target' ? '✓ ' : '\u2003'}Thème du document</MenuItem>
+              </Menu>
+            </MenuPopover>
+          </MenuTrigger>
+          {fill}
+        </LinkedCopyBar>
+      </div>,
+      document.body,
+    );
   return createPortal(
     <div ref={bar} className="oel-tablefloat" style={placed(at)} onMouseDown={(e) => e.preventDefault()}>
       <Toolbar aria-label="Tableau" appearance="pill">
@@ -210,5 +262,47 @@ export function PictureFloat({ editor, scroller }: { editor: Editor; scroller: H
       />
     </div>,
     document.body,
+  );
+}
+
+/**
+ * Why a value in a linked table can't be typed here (Figma I2): it comes from
+ * the sheet. Offers to edit it there, or to unlink the table and edit here.
+ */
+export function LinkedEditNotice({ editor, root }: { editor: Editor; root: HTMLElement | null }) {
+  const [hit, setHit] = useState<(LinkedEditDetail & { x: number; y: number }) | null>(null);
+  const anchor = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!root) return;
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<LinkedEditDetail>).detail;
+      const c = editor.view.coordsAtPos(Math.min(d.pos, editor.state.doc.content.size));
+      setHit({ ...d, x: c.left, y: c.bottom });
+    };
+    root.addEventListener(LINKED_EDIT_EVENT, on);
+    return () => root.removeEventListener(LINKED_EDIT_EVENT, on);
+  }, [editor, root]);
+  if (!hit) return null;
+  const close = () => (setHit(null), editor.commands.focus());
+  return (
+    <>
+      <span ref={anchor} style={{ position: 'fixed', left: hit.x, top: hit.y, width: 1, height: 1, pointerEvents: 'none' }} aria-hidden />
+      <Popover triggerRef={anchor as RefObject<HTMLSpanElement>} isOpen onOpenChange={(o) => !o && close()} placement="bottom start">
+        <Dialog aria-label="Valeurs liées" className="oel-popover-dialog oel-linked-edit">
+          <p className="oel-linked-edit__title">
+            <Icon name="lock" size={16} aria-hidden /> Ces valeurs viennent de {hit.source}
+          </p>
+          <p className="oel-linked-edit__body">Elles se modifient dans le tableur. La mise en forme, elle, se change ici et reste propre à ce document.</p>
+          <div className="oel-linked-edit__actions">
+            <Button size="sm" onPress={() => (linkHost().openSource(hit.linkId), setHit(null))}>
+              Modifier dans le tableur
+            </Button>
+            <Button size="sm" variant="ghost" onPress={() => (linkHost().unlink(hit.linkId), close())}>
+              Délier et modifier
+            </Button>
+          </div>
+        </Dialog>
+      </Popover>
+    </>
   );
 }

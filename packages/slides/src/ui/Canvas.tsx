@@ -5,11 +5,11 @@
  * commit once, so a move is one undo step and one sync message.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
-import { MenuItem, MenuPopover, Menu, MenuSeparator, toast } from '@oel/emboss';
+import { MenuItem, MenuPopover, MenuTrigger, Menu, MenuSeparator, ToolButton, toast } from '@oel/emboss';
 import type { ChartSpec } from '@oel/charts';
 import { CopyChartBar } from '@oel/charts/ui';
 import { LinkedCopyBar } from '@oel/collab-client';
-import { MODE_LABEL, STATE_LABEL, linkHost, linksOf, onLinkHost, type LinkDef, type LinkState } from '@oel/links';
+import { MODE_LABEL, OVERFLOW_LABEL, STATE_LABEL, linkHost, linksOf, onLinkHost, type LinkDef, type LinkState, type LinkTheme, type Overflow } from '@oel/links';
 import type { RefObject } from 'react';
 import { SlideView, textFrameStyle, type RenderCtx } from './render';
 import { TextEditor } from './TextEditor';
@@ -351,6 +351,7 @@ export function Canvas({ ctl, ctx, zoom, onContext, label }: { ctl: SlidesContro
         </div>
         {single?.kind === 'graphic' && single.chart && !ctl.editing && !drag && <ChartBar ctl={ctl} el={single} k={k} />}
         {single?.kind === 'picture' && !ctl.editing && !drag && <PictureBar ctl={ctl} el={single} k={k} />}
+        {single?.kind === 'table' && !ctl.editing && !drag && <TableBar ctl={ctl} el={single} k={k} />}
       </div>
       {menu && <ContextMenu ctl={ctl} at={menu} onClose={() => (setMenu(null), stage.current?.focus())} />}
     </div>
@@ -391,6 +392,63 @@ function useCopyLink(ctl: SlidesController, el: Element) {
   const link = useMemo(() => JSON.parse(json) as LinkDef | null, [json]);
   const state = useSyncExternalStore<LinkState>(host.subscribe, () => (link ? host.state(link.id) : 'waiting'), () => 'waiting');
   return { host, link, state };
+}
+
+/**
+ * The bar over a selected linked table (Figma I2): « Affichage » for a table
+ * taller than its frame (I6 §3), the theme it wears, and its link.
+ */
+function TableBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: number }) {
+  const { host, link, state } = useCopyLink(ctl, el);
+  if (!link) return null;
+  const b = boxOf(el);
+  const above = b.y * k > 52;
+  const overflow = link.view?.overflow ?? 'truncate';
+  const theme = link.theme ?? 'source';
+  const mark = (on: boolean) => (on ? '✓ ' : '\u2003');
+  return (
+    <LinkedCopyBar
+      className="oel-slide-chartbar"
+      style={{ left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' }}
+      label="Tableau lié"
+      link={{
+        source: link.source.title,
+        stateLabel: link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state],
+        stale: state === 'stale',
+        frozen: link.mode === 'frozen',
+        onSource: () => void (host.openSource(link.id) || toast({ title: 'Source introuvable', description: 'Le tableur n’est pas sur ce bureau.', tone: 'warning' })),
+        onUpdate: () => host.update(link.id),
+        onManage: (r) => host.manage(link.id, r),
+      }}
+    >
+      <MenuTrigger>
+        <ToolButton icon="eye" label={`Affichage : ${OVERFLOW_LABEL[overflow].replace('…', '')}`} showLabel description="Quand le tableau dépasse son cadre" />
+        <MenuPopover placement="bottom start">
+          <Menu
+            aria-label="Affichage"
+            onAction={(key) => {
+              // « Choisir les lignes… » happens in the sheet: open it on the range.
+              if (key === 'rows') return void host.openSource(link.id);
+              host.setLinkOptions(link.id, { overflow: key as Overflow });
+            }}
+          >
+            <MenuItem id="truncate" textValue="Tronquer">{mark(overflow === 'truncate')}Tronquer (les lignes qui tiennent)</MenuItem>
+            <MenuItem id="all" textValue="Tout afficher">{mark(overflow === 'all')}Tout afficher (texte réduit)</MenuItem>
+            <MenuItem id="rows" textValue="Choisir les lignes">{'\u2003'}Choisir les lignes…</MenuItem>
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>
+      <MenuTrigger>
+        <ToolButton icon="palette" label="Mise en forme" description="Thème du tableur ou du diaporama" />
+        <MenuPopover placement="bottom start">
+          <Menu aria-label="Mise en forme" onAction={(key) => host.setLinkOptions(link.id, { theme: key as LinkTheme })}>
+            <MenuItem id="source" textValue="Thème du tableur">{mark(theme === 'source')}Thème du tableur</MenuItem>
+            <MenuItem id="target" textValue="Thème du diaporama">{mark(theme === 'target')}Thème du diaporama</MenuItem>
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>
+    </LinkedCopyBar>
+  );
 }
 
 /** The bar over a selected linked picture (Figma I1), above it in the frame. */

@@ -56,3 +56,47 @@ describe('linked copies load into the document schema', () => {
     expect([...marks]).toEqual(expect.arrayContaining(['bold', 'textStyle']));
   });
 });
+
+describe('values in a linked table are read-only, style is not (I6 §2)', () => {
+  it('refuses typing and row changes inside, allows marks, attributes and deleting the table', async () => {
+    const { yXmlFragmentToProseMirrorRootNode } = await import('@tiptap/y-tiptap');
+    const { docsSchema, linkedTableGuard } = await import('../src/extensions');
+    const { BODY } = await import('../src/model/ydoc');
+    const { EditorState, TextSelection } = await import('@tiptap/pm/state');
+    const { setLinkHost } = await import('@oel/links');
+    setLinkHost({
+      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {},
+      subscribe: () => () => {},
+      copyOf: (oid) => (oid === 't1' ? { linkId: 'l1', source: 'Budget 2027', state: 'fresh', frozen: false, carries: 'table' } : null),
+    });
+    const ydoc = new Y.Doc();
+    insertLinkedTable(ydoc, 't1', table('366 500'), 'source', 'end', 'person');
+    const schema = docsSchema();
+    const doc = yXmlFragmentToProseMirrorRootNode(ydoc.getXmlFragment(BODY), schema);
+    const refusedEdits: string[] = [];
+    let state = EditorState.create({ doc, schema, plugins: [linkedTableGuard((d) => refusedEdits.push(d.source))] });
+    // Position inside the first cell's text.
+    let inCell = -1;
+    state.doc.descendants((n, pos) => {
+      if (inCell < 0 && n.isText && n.text === 'Poste') inCell = pos + 1;
+    });
+    const typed = state.apply(state.tr.insertText('X', inCell));
+    expect(typed).toBe(state);
+    expect(refusedEdits).toEqual(['Budget 2027']);
+    // Bold on a cell's text: style, allowed.
+    const bolded = state.apply(state.tr.addMark(inCell, inCell + 3, schema.marks.italic!.create()));
+    expect(bolded).not.toBe(state);
+    // A cell fill (attribute change): allowed.
+    let cellPos = -1;
+    state.doc.descendants((n, pos) => void (cellPos < 0 && n.type.name === 'tableCell' && (cellPos = pos)));
+    const filled = state.apply(state.tr.setNodeMarkup(cellPos, undefined, { ...state.doc.nodeAt(cellPos)!.attrs, background: '#FFEEAA' }));
+    expect(filled).not.toBe(state);
+    // Deleting the whole table: allowed.
+    let tablePos = -1;
+    state.doc.descendants((n, pos) => void (tablePos < 0 && n.type.name === 'table' && (tablePos = pos)));
+    const gone = state.apply(state.tr.delete(tablePos, tablePos + state.doc.nodeAt(tablePos)!.nodeSize));
+    expect(gone).not.toBe(state);
+    state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)));
+    setLinkHost(null);
+  });
+});

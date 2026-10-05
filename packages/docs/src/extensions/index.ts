@@ -1,5 +1,6 @@
 import { Extension, getSchema, type AnyExtension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import { LinkedTableGuard } from './linkedTables';
 import { Color, FontFamily, FontSize } from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
@@ -79,6 +80,7 @@ export function docsExtensions(o: DocsExtensionOptions = {}): AnyExtension[] {
     OoxmlInline,
     OoxmlBlock,
     SdtBlock,
+    LinkedTableGuard,
     DocTable.configure({ resizable: !o.bare, cellMinWidth: 32, allowTableNodeSelection: true, lastColumnResizable: true }),
     DocTableRow,
     DocTableCell,
@@ -119,6 +121,7 @@ export function docsSchema() {
 }
 
 export * from './nodes';
+export * from './linkedTables';
 export * from './lists';
 export * from './find';
 export * from './editing';
