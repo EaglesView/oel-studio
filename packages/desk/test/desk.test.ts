@@ -7,6 +7,7 @@ import {
   readingOrder,
   wheelZoomFactor,
   screenToWorld,
+  threadPath,
   worldToScreen,
   zoomAt,
   type DeskNode,
@@ -113,5 +114,21 @@ describe('DeskStore', () => {
     const desk = createDesk({ nodes: [{ ...node('a', 0, 0), locked: true }] });
     desk.nudge(['a'], { x: 10, y: 10 });
     expect(desk.node('a')?.x).toBe(0);
+  });
+});
+
+describe('threadPath', () => {
+  it('runs from edge to edge with its middle between them', () => {
+    const t = threadPath({ x: 0, y: 0, w: 100, h: 100 }, { x: 300, y: 0, w: 100, h: 100 });
+    expect(t.from).toEqual({ x: 100, y: 50 });
+    expect(t.to).toEqual({ x: 300, y: 50 });
+    expect(t.mid).toEqual({ x: 200, y: 50 });
+    expect(t.d).toBe('M100 50 C200 50 200 50 300 50');
+  });
+
+  it('leaves from the top or bottom when papers are stacked', () => {
+    const t = threadPath({ x: 0, y: 0, w: 100, h: 100 }, { x: 0, y: 400, w: 100, h: 100 });
+    expect(t.from).toEqual({ x: 50, y: 100 });
+    expect(t.to).toEqual({ x: 50, y: 400 });
   });
 });

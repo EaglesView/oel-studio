@@ -256,8 +256,10 @@ export class DeskStore<D = unknown> {
 
   /* ── links ────────────────────────────────────────────────────── */
 
-  setLinks(links: DeskLink[], label = 'Liens') {
-    this.commit(label, () => this.set({ links }));
+  /** Replace the threads. `history: false` for threads derived from elsewhere (they are not the person's edits). */
+  setLinks(links: DeskLink[], label = 'Liens', { history = true } = {}) {
+    if (history) this.commit(label, () => this.set({ links }));
+    else this.set({ links });
   }
 
   toggleLinks(show = !this.state.showLinks) {

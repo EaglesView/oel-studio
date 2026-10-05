@@ -21,6 +21,38 @@ export function center(r: Rect): Vec {
   return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
 }
 
+/** Where the line from a rect's centre toward `toward` leaves the rect. */
+export function edgePoint(r: Rect, toward: Vec): Vec {
+  const c = center(r);
+  const dx = toward.x - c.x;
+  const dy = toward.y - c.y;
+  if (dx === 0 && dy === 0) return c;
+  const t = Math.min(dx ? r.w / 2 / Math.abs(dx) : Infinity, dy ? r.h / 2 / Math.abs(dy) : Infinity);
+  return { x: c.x + dx * t, y: c.y + dy * t };
+}
+
+/**
+ * A thread between two rects (Figma G1): a soft S-curve from edge to edge,
+ * leaving sideways when the rects sit side by side, vertically when stacked.
+ * `mid` is the curve's middle, where its chip goes.
+ */
+export function threadPath(a: Rect, b: Rect): { d: string; from: Vec; to: Vec; mid: Vec } {
+  const from = edgePoint(a, center(b));
+  const to = edgePoint(b, center(a));
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const side = Math.abs(dx) >= Math.abs(dy);
+  const c1 = side ? { x: from.x + dx / 2, y: from.y } : { x: from.x, y: from.y + dy / 2 };
+  const c2 = side ? { x: to.x - dx / 2, y: to.y } : { x: to.x, y: to.y - dy / 2 };
+  const f = (n: number) => Math.round(n * 10) / 10;
+  return {
+    d: `M${f(from.x)} ${f(from.y)} C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(to.x)} ${f(to.y)}`,
+    from,
+    to,
+    mid: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+  };
+}
+
 export function union(rects: Rect[]): Rect | null {
   if (rects.length === 0) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;

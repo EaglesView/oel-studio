@@ -12,13 +12,13 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  center,
   intersects,
   lodForZoom,
   normalizeRect,
   rectOf,
   rectToScreen,
   screenToWorld,
+  threadPath,
   union,
   wheelZoomFactor,
   type Direction,
@@ -40,6 +40,8 @@ export interface DeskMessages {
   redone: (label: string) => string;
   nothingToUndo: string;
   multiSelection: (count: number) => string;
+  /** Description of a thread chip for screen readers. */
+  linkHint: string;
 }
 
 export const defaultMessages: DeskMessages = {
@@ -58,6 +60,7 @@ export const defaultMessages: DeskMessages = {
   redone: (l) => `Rétabli : ${l}`,
   nothingToUndo: 'Rien à annuler',
   multiSelection: (n) => `${n} fichiers`,
+  linkHint: 'Entrée : ouvrir le fil. Suppr : couper le lien. Échap : revenir au bureau.',
 };
 
 export interface NodeRenderContext {
@@ -84,6 +87,12 @@ export interface DeskCanvasProps<D> {
   onContextMenu?: (ids: string[], at: Vec) => void;
   onDropFiles?: (files: File[], at: Vec) => void;
   renderDropZone?: (count: number) => ReactNode;
+  /** A thread's chip was clicked, or Entrée pressed on it (Figma G1/G3). `anchor` is the chip, in desk-element pixels. */
+  onLinkOpen?: (id: string, anchor: Rect) => void;
+  /** Suppr on a focused thread chip (« Couper le lien ? »). */
+  onLinkDelete?: (id: string) => void;
+  /** The thread shown as selected (its popover is open). */
+  activeLinkId?: string | null;
   /** Wheel zoom speed (Ctrl/⌘ + wheel or pinch). Lower is gentler. Default 0.002. */
   wheelZoomSpeed?: number;
   /** Extra keys (return true when handled). Runs before the built-in map. */
@@ -121,6 +130,9 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     onContextMenu,
     onDropFiles,
     renderDropZone,
+    onLinkOpen,
+    onLinkDelete,
+    activeLinkId = null,
     wheelZoomSpeed = 0.002,
     onKeyDown,
     children,
@@ -137,6 +149,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   const [dropCount, setDropCount] = useState(0);
   const [message, setMessage] = useState('');
   const hintId = useId();
+  const chipHintId = useId();
   const listId = useId();
 
   const nodesMap = useDeskState(store, (s) => s.nodes);
@@ -462,13 +475,25 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                 const a = nodesMap[l.from];
                 const b = nodesMap[l.to];
                 if (!a || !b) return null;
-                const p = center(rectOf(a));
-                const q = center(rectOf(b));
+                const t = threadPath(rectOf(a), rectOf(b));
                 return (
-                  <g key={l.id} className={`desk__link desk__link--${l.state}`}>
-                    <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} vectorEffect="non-scaling-stroke" />
-                    <circle cx={p.x} cy={p.y} r={4 / viewport.zoom} />
-                    <circle cx={q.x} cy={q.y} r={4 / viewport.zoom} />
+                  <g key={l.id} className={`desk__link desk__link--${l.state}`} data-active={activeLinkId === l.id || undefined}>
+                    {activeLinkId === l.id && <path className="desk__link-halo" d={t.d} vectorEffect="non-scaling-stroke" />}
+                    <path className="desk__link-line" d={t.d} vectorEffect="non-scaling-stroke" />
+                    {l.label && onLinkOpen && (
+                      <path
+                        className="desk__link-hit"
+                        d={t.d}
+                        data-desk-ui
+                        vectorEffect="non-scaling-stroke"
+                        onClick={(e) => {
+                          const r = rootRef.current!.getBoundingClientRect();
+                          onLinkOpen(l.id, { x: e.clientX - r.left, y: e.clientY - r.top, w: 0, h: 0 });
+                        }}
+                      />
+                    )}
+                    <circle cx={t.from.x} cy={t.from.y} r={4 / viewport.zoom} />
+                    <circle cx={t.to.x} cy={t.to.y} r={4 / viewport.zoom} />
                   </g>
                 );
               })}
@@ -517,6 +542,49 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                   );
                 })}
           </div>
+
+          {/* Thread chips: real buttons, reached with Tab after the papers (Figma G1). */}
+          {showLinks && onLinkOpen && (
+            <div className="desk__chips" data-desk-ui>
+              {links.map((l) => {
+                const a = nodesMap[l.from];
+                const b = nodesMap[l.to];
+                if (!a || !b || !l.label) return null;
+                const { mid } = threadPath(rectOf(a), rectOf(b));
+                return (
+                  <button
+                    key={l.id}
+                    type="button"
+                    className={`desk__chip desk__chip--${l.state}`}
+                    data-link-id={l.id}
+                    data-active={activeLinkId === l.id || undefined}
+                    style={{ left: mid.x, top: mid.y }}
+                    aria-label={`Fil : ${l.title ?? l.label}. ${l.label}.`}
+                    aria-describedby={chipHintId}
+                    aria-expanded={activeLinkId === l.id}
+                    title={l.title}
+                    onClick={(e) => {
+                      const root = rootRef.current!.getBoundingClientRect();
+                      const r = e.currentTarget.getBoundingClientRect();
+                      onLinkOpen(l.id, { x: r.left - root.left, y: r.top - root.top, w: r.width, h: r.height });
+                    }}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Delete' || e.key === 'Backspace') && onLinkDelete) {
+                        e.preventDefault();
+                        onLinkDelete(l.id);
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        rootRef.current?.querySelector<HTMLElement>('[role="option"][tabindex="0"]')?.focus({ preventScroll: true });
+                      }
+                    }}
+                  >
+                    <span className="desk__chip-short">{l.label}</span>
+                    {l.title && <span className="desk__chip-full">{l.title}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Selection outlines stay 2 px on screen whatever the zoom. */}
@@ -555,6 +623,9 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
 
         <p id={hintId} className="desk__sr">
           {m.instructions}
+        </p>
+        <p id={chipHintId} className="desk__sr">
+          {m.linkHint}
         </p>
         <div className="desk__sr" role="status" aria-live="polite" aria-atomic="true">
           {message}

@@ -28,14 +28,18 @@ export interface DeskNode<D = unknown> {
   locked?: boolean;
 }
 
-export type LinkState = 'fresh' | 'stale' | 'frozen';
+/** Figma G1: live and up to date, being updated, late (manual), frozen, broken, or not known yet (grey). */
+export type LinkState = 'fresh' | 'updating' | 'stale' | 'frozen' | 'broken' | 'waiting';
 
-/** A data thread between two papers (Figma B6). */
+/** A data thread between two papers (Figma B6, G1). */
 export interface DeskLink {
   id: string;
   from: string;
   to: string;
+  /** Chip text (« À jour · graphique »). Without one, the thread has no chip and can't be focused. */
   label?: string;
+  /** Full name, shown when the chip is hovered or focused and read by screen readers. */
+  title?: string;
   state: LinkState;
 }
 
