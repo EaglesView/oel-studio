@@ -17,7 +17,7 @@ export function documentTarget(s: DocSession): LinkTarget {
     },
     prepare: (value) => preparePicture(ydoc, value, (blob) => s.addImage(blob), pictureBytes),
     write(objectId, value, link) {
-      if (value.kind === 'table') return setLinkedTable(ydoc, objectId, value.table, link.theme ?? 'source', LINK_ORIGIN);
+      if (value.kind === 'table') return setLinkedTable(ydoc, objectId, value.table, link.theme ?? 'source', LINK_ORIGIN, link.edits);
       if (value.kind === 'chart') return setChart(ydoc, objectId, value.spec as ChartSpec, LINK_ORIGIN);
       if (value.kind === 'picture') {
         const path = linkMedia(ydoc).get(value.media.hash);

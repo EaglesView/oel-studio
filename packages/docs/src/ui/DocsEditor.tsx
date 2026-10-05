@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
-import { NodeSelection, type Selection } from '@tiptap/pm/state';
+import { NodeSelection, type Selection, type Transaction } from '@tiptap/pm/state';
+import { ySyncPluginKey } from '@tiptap/y-tiptap';
+import { linkedTableStyleChanges } from '../extensions/linkedTables';
 import { linkClip, linkHost, linksOf, newLinkId, pictureBytes, pictureValue, revOf, setLinkClip, type LinkClip } from '@oel/links';
 import { MenuTrigger } from 'react-aria-components';
 import { Badge, Button, Icon, Kbd, Menu, MenuItem, MenuPopover, toast } from '@oel/emboss';
@@ -252,6 +254,17 @@ export function DocsEditor(props: DocsEditorProps) {
     },
     [editor, session, contentWidth],
   );
+
+  // Style changes on linked tables become the copy's local edits (Figma I6 §1).
+  useEffect(() => {
+    if (!editor) return;
+    const onTx = ({ transaction }: { transaction: Transaction }) => {
+      if (!transaction.docChanged || transaction.getMeta(ySyncPluginKey)) return;
+      for (const ch of linkedTableStyleChanges(transaction.before, editor.state.doc)) linkHost().recordTableEdit(ch.linkId, ch);
+    };
+    editor.on('transaction', onTx);
+    return () => void editor.off('transaction', onTx);
+  }, [editor]);
 
   // Paste and drop images.
   useEffect(() => {

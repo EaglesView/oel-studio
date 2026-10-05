@@ -5,7 +5,7 @@
  */
 import { withCaches, type ChartSpec } from '@oel/charts';
 import { CalcClient, rangeAsTable, sheetResolver, type CalcPort, type CellShown } from '@oel/sheets';
-import type { LinkedValue, SourceRef } from '@oel/links';
+import type { CellStyleEdit, LinkedValue, SourceRef } from '@oel/links';
 import type { Paper } from '../../bureau/model';
 import { createCalcWorker, sheetSessionFor } from '../../bureau/sheets';
 import type { LinkSource } from '../kinds';
@@ -76,6 +76,19 @@ export async function openSheetSource(p: Paper): Promise<LinkSource> {
         return { kind: 'value', text: got.v?.text ?? '', ...(got.v?.num != null ? { num: got.v.num } : {}) };
       }
       return null;
+    },
+    applyEdit(ref, patch) {
+      const e = patch as CellStyleEdit;
+      if (ref.kind !== 'range' || e?.kind !== 'cell-style') return false;
+      const r = session.sheet.rowIndex(ref.sheetId, e.row);
+      const c = session.sheet.colIndex(ref.sheetId, e.col);
+      if (r == null || c == null) return false;
+      session.sheet.formatRange(ref.sheetId, { r0: r, c0: c, r1: r, c1: c }, (st) => {
+        if (e.prop === 'fill') return { ...st, fill: e.value ? { css: String(e.value) } : undefined };
+        if (e.prop === 'color') return { ...st, font: { ...st.font, color: e.value ? { css: String(e.value) } : undefined } };
+        return { ...st, font: { ...st.font, [e.prop]: !!e.value } };
+      });
+      return true;
     },
     onChange(fn) {
       // Cell edits (anyone's), undo, rows moved…

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Dialog, Heading } from 'react-aria-components';
 import { Badge, Button, DialogOverlay, Icon, Popover, Radio, RadioGroup, Select, SelectItem, SheetDialog, Switch, Tab, TabList, Tabs, TextField, toast, type IconName, type Tone } from '@oel/emboss';
-import { CARRIES_LABEL, MODE_HINT, MODE_LABEL, STATE_LABEL, ago, fullLabel, shortDate, type Carries, type LinkMode, type LinkState } from '@oel/links';
+import { CARRIES_LABEL, MODE_HINT, MODE_LABEL, STATE_LABEL, THEME_LABEL, ago, fullLabel, shortDate, type Carries, type LinkMode, type LinkState, type LinkTheme } from '@oel/links';
 import { useDeskState } from '@oel/desk/react';
 import { KIND_ICON, kindLabel, type Bureau, type Paper } from '../bureau/model';
 import { TARGET_KINDS, type LinkResolver, type Placement } from './resolver';
@@ -92,6 +92,9 @@ function statusLine(state: LinkState, at: number, by: string, mode: LinkMode): s
   }
 }
 
+/** What a link points at, in words (route card). */
+const KIND_WORD: Record<string, string> = { chart: 'graphique', range: 'tableau', cell: 'valeur', image: 'image' };
+
 function ThreadPopover({ resolver, linkId, anchor, onCut }: { resolver: LinkResolver; linkId: string; anchor: { x: number; y: number; width: number; height: number }; onCut: (id: string) => void }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [ready, setReady] = useState(false);
@@ -119,7 +122,7 @@ function ThreadPopover({ resolver, linkId, anchor, onCut }: { resolver: LinkReso
             </header>
             <p className="oel-links__flow">{fullLabel(def, l.targetPaper?.title ?? 'Copie')}</p>
             <div className="oel-links__route">
-              <FileCard paper={l.sourcePaper} fallback={def.source.title} sub={`${def.source.label} · graphique`} />
+              <FileCard paper={l.sourcePaper} fallback={def.source.title} sub={`${def.source.label} · ${KIND_WORD[def.source.ref.kind]}`} />
               <Icon name="arrow-right" size={16} aria-label="vers" />
               <FileCard paper={l.targetPaper} fallback="Copie" sub={def.target.label} />
             </div>
@@ -136,18 +139,64 @@ function ThreadPopover({ resolver, linkId, anchor, onCut }: { resolver: LinkReso
             <p className={`oel-links__status oel-links__status--${state}`} role="status">
               <Icon name={STATE_ICON[state]} size={14} aria-hidden /> {statusLine(state, def.snapshot.at, def.snapshot.by, def.mode)}
             </p>
-            <div className="oel-links__row">
-              <span className="oel-links__label" id={`${linkId}-c`}>
-                Transporte
-              </span>
-              <Select aria-labelledby={`${linkId}-c`} selectedKey={def.carries} onSelectionChange={(k) => resolver.setCarries(linkId, k as Carries)}>
-                {(['chart', 'chart-data'] as const).map((c) => (
-                  <SelectItem key={c} id={c}>
-                    {CARRIES_LABEL[c]}
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
+            {(def.carries === 'chart' || def.carries === 'chart-data') && (
+              <div className="oel-links__row">
+                <span className="oel-links__label" id={`${linkId}-c`}>
+                  Transporte
+                </span>
+                <Select aria-labelledby={`${linkId}-c`} selectedKey={def.carries} onSelectionChange={(k) => resolver.setCarries(linkId, k as Carries)}>
+                  {(['chart', 'chart-data'] as const).map((c) => (
+                    <SelectItem key={c} id={c}>
+                      {CARRIES_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {def.carries === 'table' && (
+              <div className="oel-links__row">
+                <span className="oel-links__label" id={`${linkId}-t`}>
+                  Mise en forme
+                </span>
+                <Select aria-labelledby={`${linkId}-t`} selectedKey={def.theme ?? 'source'} onSelectionChange={(k) => resolver.setLinkOptions(linkId, { theme: k as LinkTheme })}>
+                  {(['source', 'target'] as const).map((t) => (
+                    <SelectItem key={t} id={t}>
+                      {THEME_LABEL[t]}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {!!def.edits?.length && (
+              <section className="oel-links__edits" aria-labelledby={`${linkId}-e`}>
+                <p className="oel-links__label" id={`${linkId}-e`}>
+                  Modifications locales ({def.edits.length})
+                </p>
+                <ul>
+                  {def.edits.map((e) => (
+                    <li key={e.id} className="oel-links__edit">
+                      <Icon name="pen" size={14} aria-hidden />
+                      <span>
+                        <strong>{e.label}</strong>
+                        <small>
+                          {e.by} · {ago(e.at)}
+                        </small>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isDisabled={!resolver.canApplyToSource(linkId)}
+                        onPress={() => resolver.applyEditToSource(linkId, e.id)}
+                      >
+                        Appliquer à la source
+                      </Button>
+                      <Button size="icon-sm" variant="ghost" leadingIcon="undo" aria-label={`Annuler : ${e.label}`} onPress={() => resolver.removeEdit(linkId, e.id)} />
+                    </li>
+                  ))}
+                </ul>
+                <p className="oel-links__hint">Restent propres à cette copie ; les valeurs, elles, viennent toujours de la source.</p>
+              </section>
+            )}
             <div className="oel-links__actions">
               <Button variant="secondary" size="sm" leadingIcon="refresh" isDisabled={!canUpdate} onPress={() => resolver.update(linkId)}>
                 Mettre à jour

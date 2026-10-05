@@ -62,5 +62,7 @@ export function rangeAsTable(doc: SheetDoc, sheet: string, range: Range, shown: 
     // A first row in bold reads as a header (repeated on each page in documents).
     header: out[0]?.length && out[0].every((c) => c.bold || !c.text) && out[0].some((c) => c.text) ? 1 : 0,
     ...(base?.name ? { font: { family: base.name, size: base.size ?? 11 } } : {}),
+    rowIds: rows.map((r) => String(doc.rowKey(sheet, r))),
+    colIds: cols.map((c) => String(doc.colKey(sheet, c))),
   };
 }

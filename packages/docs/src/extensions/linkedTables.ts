@@ -8,6 +8,7 @@
  */
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, type EditorState, type Transaction } from '@tiptap/pm/state';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import { ReplaceStep } from '@tiptap/pm/transform';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
 import { linkHost } from '@oel/links';
@@ -65,3 +66,57 @@ export const LinkedTableGuard = Extension.create({
     return [linkedTableGuard((detail) => this.editor?.view?.dom?.dispatchEvent(new CustomEvent<LinkedEditDetail>(LINKED_EDIT_EVENT, { bubbles: true, detail })))];
   },
 });
+
+/** A style change on one cell of a linked table, by its row and grid column in the copy. */
+export interface TableStyleChange {
+  linkId: string;
+  r: number;
+  c: number;
+  prop: 'fill' | 'bold' | 'italic' | 'color';
+  value: string | boolean | null;
+}
+
+/** The look of a cell: its fill, and the bold/italic/colour all of its text has. */
+function cellLook(cell: PMNode) {
+  const texts: PMNode[] = [];
+  cell.descendants((n) => void (n.isText && texts.push(n)));
+  const all = (name: string) => texts.length > 0 && texts.every((t) => t.marks.some((m) => m.type.name === name));
+  const color = texts.length ? ((texts[0]!.marks.find((m) => m.type.name === 'textStyle')?.attrs.color as string | null | undefined) ?? null) : null;
+  return { fill: (cell.attrs.background as string | null) ?? null, bold: all('bold'), italic: all('italic'), color };
+}
+
+function linkedTables(doc: PMNode): Map<string, PMNode> {
+  const out = new Map<string, PMNode>();
+  doc.descendants((n) => {
+    if (n.type.name === 'table' && n.attrs.oid) out.set(n.attrs.oid as string, n);
+    return n.type.name !== 'table';
+  });
+  return out;
+}
+
+/**
+ * Style changes made by a person on linked tables between two documents
+ * (Figma I6 §1): they become the copy's local edits. Values can't change in
+ * a linked table (the guard), so cells line up one to one.
+ */
+export function linkedTableStyleChanges(before: PMNode, after: PMNode): TableStyleChange[] {
+  const out: TableStyleChange[] = [];
+  const old = linkedTables(before);
+  for (const [oid, table] of linkedTables(after)) {
+    const prev = old.get(oid);
+    const copy = linkHost().copyOf(oid);
+    if (!prev || !copy || prev === table || prev.childCount !== table.childCount) continue;
+    table.forEach((row, _o, r) => {
+      const prow = prev.child(r);
+      if (prow.childCount !== row.childCount) return;
+      let c = 0;
+      row.forEach((cell, _o2, i) => {
+        const a = cellLook(prow.child(i));
+        const b = cellLook(cell);
+        for (const prop of ['fill', 'bold', 'italic', 'color'] as const) if (a[prop] !== b[prop]) out.push({ linkId: copy.linkId, r, c, prop, value: b[prop] });
+        c += (cell.attrs.colspan as number) || 1;
+      });
+    });
+  }
+  return out;
+}

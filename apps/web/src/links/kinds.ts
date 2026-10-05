@@ -15,6 +15,8 @@ export interface LinkSource {
   ydoc: Y.Doc | null;
   /** What a copy of `ref` shows now: `null` when the object is gone, `undefined` when it could not be read yet. */
   read(ref: SourceRef): Promise<LinkedValue | null | undefined>;
+  /** « Appliquer à la source » (Figma I6 §1): write a copy's local edit into the source. False when this source can't. */
+  applyEdit?(ref: SourceRef, patch: unknown): boolean;
   /** Called on any change that may change what `read` returns. */
   onChange(fn: () => void): () => void;
   dispose(): void;

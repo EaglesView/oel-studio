@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, chipLabel, defaultCarries, linkClip, setLinkClip, withEdit, withoutEdit, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
+import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, applyCellEdits, cellEditLabel, chipLabel, defaultCarries, linkClip, setLinkClip, withEdit, withoutEdit, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
 
 const def = (over: Partial<LinkDef> = {}): LinkDef => ({
   id: 'l1',
@@ -208,5 +208,25 @@ describe('desk clipboard for linked pictures (Figma I1 d)', () => {
     expect(linkClip('doc')).toBeNull();
     setLinkClip(null);
     expect(linkClip('doc')).toBeNull();
+  });
+});
+
+describe('local edits on a linked table (Figma I6 §1)', () => {
+  it('lays edits over the source by row and column id, wherever the row moved', () => {
+    const table = {
+      rows: [[{ text: 'Poste' }, { text: 'T1' }], [{ text: 'Total' }, { text: '10' }]],
+      widths: [50, 50],
+      header: 1,
+      rowIds: ['r1', 'r9'],
+      colIds: ['c1', 'c2'],
+    };
+    const edit = (prop: 'fill' | 'bold', value: string | boolean) => ({ id: `r9:c2:${prop}`, label: '', at: 1, by: 'JB', patch: { kind: 'cell-style' as const, row: 'r9', col: 'c2', prop, value } });
+    const out = applyCellEdits(table, [edit('fill', '#FFEEAA'), edit('bold', true)]);
+    expect(out.rows[1]![1]).toMatchObject({ text: '10', fill: '#FFEEAA', bold: true, local: true });
+    expect(table.rows[1]![1]).toEqual({ text: '10' });
+    // A row inserted above: same edit, new place.
+    const moved = applyCellEdits({ ...table, rows: [table.rows[0]!, [{ text: 'Nouveau' }, { text: '1' }], table.rows[1]!], rowIds: ['r1', 'r5', 'r9'] }, [edit('fill', '#FFEEAA')]);
+    expect(moved.rows[2]![1]!.fill).toBe('#FFEEAA');
+    expect(cellEditLabel(edit('bold', false).patch, 'Total, T1')).toBe('Gras retiré · Total, T1');
   });
 });

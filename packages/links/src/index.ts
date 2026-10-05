@@ -2,6 +2,8 @@ export type * from './types';
 export { LINK_ORIGIN, LinksDoc, linksOf } from './ydoc';
 export {
   CARRIES_LABEL,
+  applyCellEdits,
+  cellEditLabel,
   OVERFLOW_LABEL,
   THEME_LABEL,
   defaultCarries,

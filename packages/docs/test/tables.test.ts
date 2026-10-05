@@ -65,7 +65,7 @@ describe('values in a linked table are read-only, style is not (I6 §2)', () => 
     const { EditorState, TextSelection } = await import('@tiptap/pm/state');
     const { setLinkHost } = await import('@oel/links');
     setLinkHost({
-      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {},
+      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {}, recordTableEdit: () => {},
       subscribe: () => () => {},
       copyOf: (oid) => (oid === 't1' ? { linkId: 'l1', source: 'Budget 2027', state: 'fresh', frozen: false, carries: 'table' } : null),
     });
@@ -98,5 +98,44 @@ describe('values in a linked table are read-only, style is not (I6 §2)', () => 
     expect(gone).not.toBe(state);
     state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, 1)));
     setLinkHost(null);
+  });
+});
+
+describe('style changes on a linked table become local edits (I6 §1)', () => {
+  it('reports cell fills and bold by row and grid column, and keeps local fills under the document theme', async () => {
+    const { yXmlFragmentToProseMirrorRootNode } = await import('@tiptap/y-tiptap');
+    const { docsSchema, linkedTableStyleChanges } = await import('../src/extensions');
+    const { BODY } = await import('../src/model/ydoc');
+    const { EditorState } = await import('@tiptap/pm/state');
+    const { setLinkHost } = await import('@oel/links');
+    setLinkHost({
+      state: () => 'fresh', manage: () => {}, update: () => {}, unlink: () => {}, openSource: () => true, setCarries: () => {}, fileTitle: () => null, setLinkOptions: () => {}, recordTableEdit: () => {},
+      subscribe: () => () => {},
+      copyOf: (oid) => (oid === 't1' ? { linkId: 'l1', source: 'Budget 2027', state: 'fresh', frozen: false, carries: 'table' } : null),
+    });
+    const ydoc = new Y.Doc();
+    insertLinkedTable(ydoc, 't1', table('366 500'), 'source', 'end', 'person');
+    const schema = docsSchema();
+    const state = EditorState.create({ doc: yXmlFragmentToProseMirrorRootNode(ydoc.getXmlFragment(BODY), schema), schema });
+    // Row 2 ('Total'), its second cell spans two columns: grid column 1.
+    let pos = -1;
+    let seen = 0;
+    state.doc.descendants((n, p) => void (n.type.name === 'tableCell' && seen++ === 7 && (pos = p)));
+    let tr = state.tr.setNodeMarkup(pos, undefined, { ...state.doc.nodeAt(pos)!.attrs, background: '#FFEEAA' });
+    const cell = tr.doc.nodeAt(pos)!;
+    tr = tr.addMark(pos + 2, pos + cell.nodeSize - 2, schema.marks.bold!.create());
+    const changes = linkedTableStyleChanges(state.doc, tr.doc);
+    expect(changes).toEqual(
+      expect.arrayContaining([
+        { linkId: 'l1', r: 2, c: 1, prop: 'fill', value: '#FFEEAA' },
+        { linkId: 'l1', r: 2, c: 1, prop: 'bold', value: true },
+      ]),
+    );
+    setLinkHost(null);
+    // Refreshed under the document's theme, the local fill stays.
+    const withIds = { ...table('370 000'), rowIds: ['a', 'b', 'c'], colIds: ['x', 'y', 'z'] };
+    setLinkedTable(ydoc, 't1', withIds, 'target', 'link', [{ id: 'c:y:fill', label: '', at: 1, by: 'JB', patch: { kind: 'cell-style', row: 'c', col: 'y', prop: 'fill', value: '#FFEEAA' } }]);
+    const td = ((findLinkedTable(ydoc, 't1')!.toArray()[2] as Y.XmlElement).toArray()[1] as Y.XmlElement).getAttribute('background');
+    expect(td).toBe('#FFEEAA');
   });
 });

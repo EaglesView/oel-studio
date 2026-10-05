@@ -1,5 +1,5 @@
 /** Revisions, states, cycles and the words for them (Figma G1, G3, G6, G7). */
-import type { Carries, LinkDef, LinkMode, LinkState, LinkTheme, LocalEdit, Overflow, SourceRef } from './types';
+import type { Carries, CellStyleEdit, LinkDef, LinkedTable, LinkMode, LinkState, LinkTheme, LocalEdit, Overflow, SourceRef } from './types';
 
 // ---------------------------------------------------------------------------
 // Revision: a hash of the source content a copy shows
@@ -155,4 +155,34 @@ export function withEdit(edits: LocalEdit[] | undefined, edit: LocalEdit): Local
 /** The link's edits without this one (undone, or applied to the source). */
 export function withoutEdit(edits: LocalEdit[] | undefined, id: string): LocalEdit[] {
   return (edits ?? []).filter((e) => e.id !== id);
+}
+
+const isCellEdit = (p: unknown): p is CellStyleEdit => !!p && (p as CellStyleEdit).kind === 'cell-style';
+
+/** The table with the copy's own cell styles over the source's (rows and columns found by id). */
+export function applyCellEdits(table: LinkedTable, edits: LocalEdit[] | undefined): LinkedTable {
+  const list = (edits ?? []).map((e) => e.patch).filter(isCellEdit);
+  if (!list.length || !table.rowIds || !table.colIds) return table;
+  const rows = table.rows.map((r) => r.map((c) => ({ ...c })));
+  for (const e of list) {
+    const ri = table.rowIds.indexOf(e.row);
+    const ci = table.colIds.indexOf(e.col);
+    const cell = rows[ri]?.[ci];
+    if (!cell) continue;
+    if (e.prop === 'bold' || e.prop === 'italic') cell[e.prop] = !!e.value;
+    else {
+      if (e.value) cell[e.prop] = e.value as string;
+      else delete cell[e.prop];
+      cell.local = true;
+    }
+  }
+  return { ...table, rows };
+}
+
+const PROP_LABEL: Record<CellStyleEdit['prop'], string> = { fill: 'Fond', bold: 'Gras', italic: 'Italique', color: 'Couleur du texte' };
+
+/** « Fond #FFF4D6 · Total, T2 », « Gras retiré · Salaires, T1 ». */
+export function cellEditLabel(e: CellStyleEdit, where: string): string {
+  const what = e.prop === 'bold' || e.prop === 'italic' ? `${PROP_LABEL[e.prop]}${e.value ? '' : ' retiré'}` : e.value ? `${PROP_LABEL[e.prop]} ${e.value}` : `${PROP_LABEL[e.prop]} retiré`;
+  return `${what} · ${where}`;
 }

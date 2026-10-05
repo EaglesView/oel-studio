@@ -32,6 +32,10 @@ import {
   type LinkMode,
   type LinkState,
   type LinkedValue,
+  type CellStyleEdit,
+  cellEditLabel,
+  withEdit,
+  withoutEdit,
   type LinkTheme,
   type Overflow,
   pictureBytes,
@@ -456,6 +460,51 @@ export class LinkResolver implements LinkHost {
     if (!l) return;
     l.target.links.patch(linkId, { carries }, 'person');
     if (l.def.mode !== 'frozen') this.update(linkId);
+  }
+
+  recordTableEdit(linkId: string, ch: { r: number; c: number; prop: CellStyleEdit['prop']; value: string | boolean | null }) {
+    const l = this.find(linkId);
+    const v = l && this.sourceValue(l.def);
+    const table = v?.value.kind === 'table' ? v.value.table : null;
+    const row = table?.rowIds?.[ch.r];
+    const col = table?.colIds?.[ch.c];
+    if (!l || !table || !row || !col) return;
+    const src = table.rows[ch.r]?.[ch.c];
+    const norm = (x: unknown) => (typeof x === 'string' ? x.toUpperCase() : x === undefined ? null : x);
+    const style = ch.prop === 'bold' || ch.prop === 'italic';
+    const fromSource = style ? !!src?.[ch.prop] : (l.def.theme ?? 'source') === 'source' ? (src?.[ch.prop] ?? null) : null;
+    const id = `${row}:${col}:${ch.prop}`;
+    const patch: CellStyleEdit = { kind: 'cell-style', row, col, prop: ch.prop, value: ch.value };
+    const where = `${table.rows[ch.r]?.[0]?.text || `ligne ${ch.r + 1}`}, ${table.rows[0]?.[ch.c]?.text || `colonne ${ch.c + 1}`}`;
+    // Back to what the source shows: no longer a local edit.
+    const edits = norm(fromSource) === norm(ch.value) ? withoutEdit(l.def.edits, id) : withEdit(l.def.edits, { id, label: cellEditLabel(patch, where), at: Date.now(), by: identity().name, patch });
+    l.target.links.patch(linkId, { edits }, 'person');
+    this.queueRefresh();
+  }
+
+  /** Undo one local edit: the copy shows the source's style there again. */
+  removeEdit(linkId: string, editId: string) {
+    const l = this.find(linkId);
+    if (!l) return;
+    l.target.links.patch(linkId, { edits: withoutEdit(l.def.edits, editId) }, 'person');
+    this.update(linkId);
+  }
+
+  /** Whether « Appliquer à la source » can work for this link (its source is open here and knows how). */
+  canApplyToSource(linkId: string): boolean {
+    const l = this.find(linkId);
+    return !!l && !!this.sources.get(l.def.source.docId)?.src.applyEdit;
+  }
+
+  /** « Appliquer à la source »: the edit goes into the source, then every copy gets it from there. */
+  applyEditToSource(linkId: string, editId: string): boolean {
+    const l = this.find(linkId);
+    const edit = l?.def.edits?.find((e) => e.id === editId);
+    const src = l && this.sources.get(l.def.source.docId)?.src;
+    if (!l || !edit || !src?.applyEdit?.(l.def.source.ref, edit.patch)) return false;
+    l.target.links.patch(linkId, { edits: withoutEdit(l.def.edits, editId) }, 'person');
+    this.open.announce('Modification appliquée à la source : toutes les copies la recevront.');
+    return true;
   }
 
   setLinkOptions(linkId: string, patch: { theme?: LinkTheme; overflow?: Overflow }) {

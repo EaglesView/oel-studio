@@ -21,6 +21,11 @@ export interface LinkHost {
   setCarries(linkId: string, carries: Carries): void;
   /** Linked tables: whose theme the copy wears, and what a slide shows when the table is too tall (Figma I2, I6 §2–3). */
   setLinkOptions(linkId: string, patch: { theme?: LinkTheme; overflow?: Overflow }): void;
+  /**
+   * A person changed the style of a cell in a linked table copy (Figma I6 §1):
+   * record it as a local edit (or drop the edit when it matches the source again).
+   */
+  recordTableEdit(linkId: string, change: { r: number; c: number; prop: 'fill' | 'bold' | 'italic' | 'color'; value: string | boolean | null }): void;
   /** Title of a desk file by its doc id (« Lancement automne »), for links made from inside an editor. */
   fileTitle(docId: string): string | null;
   /** Called on any state change. */
@@ -38,6 +43,7 @@ const NONE: LinkHost = {
   setCarries: () => {},
   fileTitle: () => null,
   setLinkOptions: () => {},
+  recordTableEdit: () => {},
   copyOf: () => null,
   subscribe: () => () => {},
 };

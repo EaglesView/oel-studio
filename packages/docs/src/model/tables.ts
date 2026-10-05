@@ -7,7 +7,7 @@
  * they are part of what the cells say).
  */
 import * as Y from 'yjs';
-import type { LinkedTable, LinkTheme } from '@oel/links';
+import { applyCellEdits, type LinkedTable, type LinkTheme, type LocalEdit } from '@oel/links';
 import { BODY } from './ydoc';
 
 const PX_PER_PT = 96 / 72;
@@ -19,11 +19,11 @@ function cellText(text: string, c: LinkedTable['rows'][number][number], theme: L
   const marks: Record<string, unknown> = {};
   if (c.bold) marks.bold = {};
   if (c.italic) marks.italic = {};
-  if (theme === 'source') {
+  if (theme === 'source' || c.local) {
     const style: Record<string, unknown> = {};
     if (c.color) style.color = c.color;
-    if (font?.family) style.fontFamily = font.family;
-    if (font?.size) style.fontSize = `${font.size}pt`;
+    if (theme === 'source' && font?.family) style.fontFamily = font.family;
+    if (theme === 'source' && font?.size) style.fontSize = `${font.size}pt`;
     if (Object.keys(style).length) marks.textStyle = style;
   }
   t.insert(0, text, marks);
@@ -44,7 +44,7 @@ function rows(table: LinkedTable, theme: LinkTheme): Y.XmlElement[] {
         td.setAttribute('colspan', span as unknown as string);
         td.setAttribute('rowspan', (c.rowSpan ?? 1) as unknown as string);
         td.setAttribute('colwidth', widthsPx.slice(col, col + span) as unknown as string);
-        if (theme === 'source' && c.fill) td.setAttribute('background', c.fill);
+        if ((theme === 'source' || c.local) && c.fill) td.setAttribute('background', c.fill);
         const p = new Y.XmlElement('paragraph');
         if (c.align && c.align !== 'left') p.setAttribute('align', c.align);
         p.insert(0, [cellText(c.text, c, theme, table.font)]);
@@ -89,14 +89,18 @@ export function findLinkedTable(ydoc: Y.Doc, oid: string): Y.XmlElement | null {
   return walk(ydoc.getXmlFragment(BODY));
 }
 
-/** Refresh a linked table's rows from the source (the table node itself, and its place, stay). */
-export function setLinkedTable(ydoc: Y.Doc, oid: string, table: LinkedTable, theme: LinkTheme, origin: unknown): boolean {
+/**
+ * Refresh a linked table's rows from the source (the table node itself, and
+ * its place, stay). The copy's own style edits are laid over the source's.
+ */
+export function setLinkedTable(ydoc: Y.Doc, oid: string, table: LinkedTable, theme: LinkTheme, origin: unknown, edits?: LocalEdit[]): boolean {
   const el = findLinkedTable(ydoc, oid);
   if (!el) return false;
+  const shown = applyCellEdits(table, edits);
   ydoc.transact(() => {
-    setGrid(el, table);
+    setGrid(el, shown);
     el.delete(0, el.length);
-    el.insert(0, rows(table, theme));
+    el.insert(0, rows(shown, theme));
   }, origin);
   return true;
 }

@@ -53,6 +53,18 @@ export interface LinkedCell {
   rowSpan?: number;
   /** Covered by a merge that starts elsewhere. */
   merged?: boolean;
+  /** Its fill or colour is a local edit (shown whatever the theme). */
+  local?: boolean;
+}
+
+/** A style change made on one cell of a linked table copy (Figma I6 §1), by the source's row/column ids. */
+export interface CellStyleEdit {
+  kind: 'cell-style';
+  row: string;
+  col: string;
+  prop: 'fill' | 'bold' | 'italic' | 'color';
+  /** New value; `null` removes the fill or colour. */
+  value: string | boolean | null;
 }
 
 /** A linked table: what both hosts need to draw a real table (Figma I2). */
@@ -64,6 +76,9 @@ export interface LinkedTable {
   header: number;
   /** The source sheet's look, used when `theme` is `source`. */
   font?: { family: string; size: number };
+  /** Stable ids of the source rows and columns shown, in order: local edits are kept by them. */
+  rowIds?: string[];
+  colIds?: string[];
 }
 
 /** What a link carries, by kind; `revOf(value)` is the copy's revision. */
