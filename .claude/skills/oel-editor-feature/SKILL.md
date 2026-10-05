@@ -10,6 +10,10 @@ First locate the spec: Figma `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behavior
 G = Fils de liaison (links between files), H = Graphiques (charts) — see
 `docs/plans/2026-10-links-and-charts.md`).
 Link: https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca
+Linked copies (G): editors never reach other files. They show badges through
+`linkHost()` from `@oel/links` and raise « Lier dans… » through a callback prop
+(`SheetsEditor.onLinkChart`); writes made by link resolution use `LINK_ORIGIN` and must stay
+out of the editor's undo manager. The resolver is `apps/web/src/links/resolver.ts`.
 If the user gave a Figma link, read it with the Figma tools before coding. New UX is drawn
 there first (load `figma-use` before `use_figma`), using kit instances and `emboss/*` variables.
 

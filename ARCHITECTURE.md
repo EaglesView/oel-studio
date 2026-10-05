@@ -78,6 +78,7 @@ oel-studio/
                              (web + node targets), built by `npm run build:wasm`
     engine/ emboss/ desk/ collab-client/ docs/ sheets/ slides/ forms/
     charts/                  @oel/charts: ChartSpec → scene of marks → SVG / Canvas (every Office chart type)
+    links/                   @oel/links: linked copies between files — LinkDef in the target Y.Doc, backlinks in the source, states, cycles, desk threads
     platform/                NEW: platform seam (web impl now, tauri impl later)
   apps/
     web/  collab/
@@ -138,6 +139,15 @@ export const KINDS: Record<PaperKind, KindModule> = { document, spreadsheet, for
 become generic. Adding a kind = one folder + one registry line (+ an engine if it parses
 files + a server kind if it collaborates). The server mirrors it with a
 `kinds: Record<DocKind, { mime, exportFormats, exporter(ydoc) }>` table.
+
+**Cross-kind links** (« fils de liaison », Figma G) sit beside the kinds, not inside them:
+`@oel/links` is the model (a `LinkDef` per copy in the **target** file's Y.Doc, backlinks
+in the source's, written with `LINK_ORIGIN` so no one's undo replays them), and
+`apps/web/src/links/resolver.ts` is the one place that knows both ends — it reads a sheet
+chart with its own calc engine, writes copies into slides/documents, and derives the desk
+threads. Editors only render badges through `linkHost()` and raise « Lier dans… » through a
+callback. When Phase 3 lands, the per-kind `readRef`/`apply` branches become
+`LinkSource`/`LinkTarget` entries on the kind modules.
 
 ## 6. Server
 

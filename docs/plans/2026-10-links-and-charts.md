@@ -287,7 +287,14 @@ interface LinkDef {
 - Phase 4 done: `@oel/charts` draws 2-D, 3-D (projected polygons), stock, surface, radar, chartEx; placeholders replaced in sheets, slides, docs, sheet thumbnails.
 - Phase 5 mostly done (sheets): Alt+F1 / gallery insert, select, move, resize, delete, duplicate, type, colours, elements, data, format, 3-D rotation; xlsx export (new/edited/moved/removed; untouched byte for byte); id-based refs. Not yet: sparklines, chart sheets, per-element click selection and inspector, dragging the coloured range handles, chartEx editing.
 - Phase 6 not started: editing charts in slides and documents (embedded workbook writer).
-- Phases 7–10 (links) not started. Fixtures from Office still to come.
+- Phase 7 done, Phase 8 started (2026-10-05, branch `feat/links`), without the Phase 3 `KindModule` prerequisite (the resolver keeps per-kind branches, to move onto kind modules later):
+  - `@oel/links`: `LinkDef`/`Backlink` in Y.Docs (`oel-links`, `oel-backlinks`, one Y.Map per link so mode and updates merge), `revOf`, `linkState`, `createsCycle`, `deriveThreads`, `linkHost()` for editors; tests.
+  - `apps/web/src/links/resolver.ts`: watches sources (sheet session + its own `CalcClient`, 300 ms debounce, retry when the engine reloads), writes live copies, `Manuel` → stale, `Figé`, broken when the chart is deleted (computed, so Ctrl+Z in the source restores it); copies deleted in the target drop their link.
+  - Desk: curved threads edge to edge, states fresh/updating/stale/frozen/broken/waiting, focusable chips (Tab after papers, Entrée popover, Suppr cut); `SEED_LINKS` removed; form threads kept as they were.
+  - UI: « Lier dans… » from the sheet chart bar (G2 step 2: file list with refusals, placement, style), popover (G3), « Fils du bureau » panel (G6, Ctrl+Maj+L, dock « Fils »), badges on copies in slides and documents (G4), « Utilisé dans N fichiers » on the source chart (G5).
+  - Model changes: sheet drawings get an editor-only `oid` (stripped before the codec), docx `ooxmlInline` gets `oid` (contract + reader emit `null`), `@oel/charts` `withCaches`/`chartName`/`keepLook`, slides `chartFrame`/`chartSlide`, docs `insertChartParagraph`/`setChart`.
+  - Not yet: export of copies to .pptx/.docx (new charts aren't written by those codecs — Phase 6 + 9), paste / drag / insert-from-target routes (G2b), range and single-value links, delete-source dialog with three choices (G5), slideshow deferral (G7), « Changer la source… », history, read-only viewers, the source range outline in the grid.
+- Phases 9–10 not started. Fixtures from Office still to come.
 
 ## Phasing (each phase ends with `oel-verify` and a commit)
 
