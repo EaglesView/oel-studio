@@ -29,6 +29,8 @@ export interface PaperData {
   status: PaperStatus;
   stamp?: Stamp;
   editor?: string;
+  /** Last change (ms since epoch), by `editor`: « Récents » in the menu (M-5), Ranger par date (M-3). */
+  updatedAt?: number;
   /** Object URL for imported images. */
   imageUrl?: string;
   fileName?: string;
@@ -158,6 +160,6 @@ export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper
     w: size.w,
     h: size.h,
     rotation: kind === 'note' ? -3 : 0,
-    data: { preview, status: { state: 'ready' }, editor: 'JB' },
+    data: { preview, status: { state: 'ready' }, editor: 'JB', updatedAt: Date.now() },
   };
 }

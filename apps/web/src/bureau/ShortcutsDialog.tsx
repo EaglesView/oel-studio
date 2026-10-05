@@ -31,6 +31,7 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
       [['N'], 'Nouvelle note'],
       [['Ctrl', 'O'], 'Importer des fichiers'],
       [['Alt', 'N'], 'Nouveau fichier (menu « + »)'],
+      [['Ctrl', 'Maj', 'L'], 'Fils du bureau'],
       [['Maj', 'F10'], 'Menu contextuel'],
       [['Ctrl', 'Maj', 'Entrée'], 'Ouvrir la sélection en plein écran'],
       [['?'], 'Afficher cette aide'],
@@ -62,30 +63,36 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
   },
 ];
 
-/** B3 · "Clavier d'abord": every shortcut, grouped. */
+/** B3 · "Clavier d'abord": every shortcut, grouped (the dialog, and the menu's « Raccourcis clavier »). */
+export function ShortcutsList() {
+  return (
+    <div className="shortcuts">
+      {GROUPS.map((g) => (
+        <section key={g.title}>
+          <h3 className="emb-t-overline">{g.title}</h3>
+          <dl>
+            {g.rows.map(([keys, what]) => (
+              <div key={what} className="shortcuts__row">
+                <dt>
+                  {keys.map((k, i) => (
+                    <Kbd key={i}>{k}</Kbd>
+                  ))}
+                </dt>
+                <dd>{what}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function ShortcutsDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (o: boolean) => void }) {
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
       <SheetDialog title="Raccourcis clavier" width={640}>
-        <div className="shortcuts">
-          {GROUPS.map((g) => (
-            <section key={g.title}>
-              <h3 className="emb-t-overline">{g.title}</h3>
-              <dl>
-                {g.rows.map(([keys, what]) => (
-                  <div key={what} className="shortcuts__row">
-                    <dt>
-                      {keys.map((k, i) => (
-                        <Kbd key={i}>{k}</Kbd>
-                      ))}
-                    </dt>
-                    <dd>{what}</dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          ))}
-        </div>
+        <ShortcutsList />
       </SheetDialog>
     </DialogOverlay>
   );

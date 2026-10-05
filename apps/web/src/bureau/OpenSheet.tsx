@@ -117,7 +117,7 @@ export function OpenSheet({
         store.update(
           paper.id,
           {
-            data: { ...cur.data, preview },
+            data: { ...cur.data, preview, editor: 'JB', updatedAt: Date.now() },
             ...(firstHeading && paper.kind === 'note' ? { title: firstHeading } : {}),
             ...(size && (size.w !== cur.w || size.h !== cur.h) ? { w: size.w, h: size.h } : {}),
           },

@@ -80,4 +80,17 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
   Tableur, Formulaire with their kind colours, Note, Importer) and « Ou partir d’un modèle → », greyed « Bientôt »
   until templates exist. Sizes are Figma M1 · 4 at 2× (the mockup is 960 wide). Formulaire uses the `form` icon like
   the « + » menu, not the File icon of the mockup.
-- M-2 empty desk confirmed in the browser by hand (5 Oct). Not yet: the rest of the browser checklist (bar widths, keyboard only, reduced motion).
+- **M-5 done** — `AppMenu` (`apps/web/src/bureau/AppMenu.tsx`): RAC `ModalOverlay`/`Modal`/`Dialog` « Menu », grows from
+  the logo's centre (clip-path circle, 240 ms; none with reduced motion). Rail as drawn; focus lands on the current
+  pane's rail item; Échap, the rail logo or « Retour au bureau » close it. Panes: Accueil (Nouveau cards, Récents by
+  the new `PaperData.updatedAt`, Vos projets), Nouveau, Ouvrir et importer (Importer + every file, a click reveals it on
+  the desk), Projets, Partager et inviter (people + copy link; invites « Bientôt »), Paramètres du projet › Import
+  (the former « À l’arrivée » switches), Affichage (theme incl. « Comme le système », bureau/liste, mini-carte, fils
+  visibles), Raccourcis (`ShortcutsList`), Aide (« Composants du kit » in dev only), Compte (link to /connexion).
+  « Fils du bureau » closes the menu and opens the G6 panel. Galerie vide, modèles and Nouveau projet are greyed
+  « Bientôt » until L-6 / templates / N. Logo shows a dot for stale threads; the project pill's title opens the menu
+  on Projets; theme and shortcuts buttons left the share pill. Desk background context menu has « Nouveau ▸ ».
+  Kit: `RailNav`/`RailItem`/`RailSeparator`, `ChoiceCard` (also used by the empty desk), `SubmenuTrigger`, icon
+  `gallery` (Iconoir MediaImageList), with a `/composants` demo.
+- M-2 empty desk confirmed in the browser by hand (5 Oct). M-5 not checked in a browser yet (test browser can't
+  capture the page). Not yet: the rest of the browser checklist (bar widths, keyboard only, reduced motion).

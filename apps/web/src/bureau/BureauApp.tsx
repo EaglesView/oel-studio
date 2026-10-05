@@ -8,11 +8,13 @@ import {
   MenuItem,
   MenuPopover,
   MenuSeparator,
+  SubmenuTrigger,
   ToastRegion,
   toast,
 } from '@oel/emboss';
+import { AppMenu, type MenuPane } from './AppMenu';
 import { ContextToolbar } from './ContextToolbar';
-import { BottomBar, EmptyDesk, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
+import { BottomBar, EmptyDesk, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
@@ -53,6 +55,14 @@ export function BureauApp() {
   const [newMenu, setNewMenu] = useState(false);
   const [help, setHelp] = useState(false);
   const [rules, setRules] = useState<ArrivalRules>({ sortByType: false, ocr: true, linkTables: true });
+  /** M2 · the logo's full-screen menu: open, on which pane, growing from where. */
+  const [appMenu, setAppMenu] = useState<{ open: boolean; pane: MenuPane; origin: { x: number; y: number } | null }>({
+    open: false,
+    pane: 'home',
+    origin: null,
+  });
+  const openMenu = (pane: MenuPane, origin: { x: number; y: number } | null) => setAppMenu({ open: true, pane, origin });
+  const [minimap, setMinimap] = useState(true);
   const [menu, setMenu] = useState<{ ids: string[]; at: { x: number; y: number } } | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<OpenSheetHandle>(null);
@@ -74,6 +84,9 @@ export function BureauApp() {
     };
   }, [links]);
   const linksUi = useSyncExternalStore(links.subscribeUi, links.getUi, links.getUi);
+  const linksVersion = useSyncExternalStore(links.subscribe, () => links.version, () => links.version);
+  /** Late threads put a dot on the logo (M3). */
+  const lateLinks = useMemo(() => links.all().filter((l) => l.state === 'stale').length, [links, linksVersion]);
   /** Desk-element pixels → viewport (the popover anchors in the viewport). */
   const deskToViewport = (r: { x: number; y: number; w: number; h: number }) => {
     const d = document.querySelector('.desk')?.getBoundingClientRect();
@@ -201,6 +214,13 @@ export function BureauApp() {
   };
   const doImport = (files: File[], at: { x: number; y: number } | null = null) =>
     void importFiles(store, files, at, rules, (m) => announceRef.current(m));
+  /** Show a file on the desk (from the menu's lists). */
+  const reveal = (id: string) => {
+    setView('desk');
+    store.select([id]);
+    store.focus(id);
+    requestAnimationFrame(() => store.reveal(id));
+  };
   const remove = (ids: string[]) => {
     const n = ids.length;
     store.remove(ids);
@@ -301,6 +321,7 @@ export function BureauApp() {
                 onClose={() => setMenu(null)}
                 onOpen={open}
                 onRemove={remove}
+                onCreate={create}
               />
             )}
           </DeskCanvas>
@@ -308,23 +329,27 @@ export function BureauApp() {
           <ListView store={store} onOpen={open} />
         )}
 
-        <ProjectPill title={PROJECT} count={count} view={view} onToggleView={() => setView((v) => (v === 'desk' ? 'list' : 'desk'))} />
-        <SharePill onHelp={() => setHelp(true)} />
+        <ProjectPill
+          title={PROJECT}
+          count={count}
+          view={view}
+          onToggleView={() => setView((v) => (v === 'desk' ? 'list' : 'desk'))}
+          onProjects={() => openMenu('projects', { x: 60, y: 40 })}
+        />
+        <SharePill />
         <BottomBar
           onCreate={create}
           onImport={(files) => doImport(files)}
           newMenuOpen={newMenu}
           onNewMenuOpenChange={setNewMenu}
-          linksPanel={linksUi.panel}
-          onLinksPanel={() => links.setUi({ panel: !linksUi.panel })}
-          rules={rules}
-          onRulesChange={setRules}
-          onHelp={() => setHelp(true)}
+          menuOpen={appMenu.open}
+          onMenu={(origin) => openMenu('home', origin)}
+          lateLinks={lateLinks}
         />
         {view === 'desk' && (
           <div className="bureau__corner">
             <ZoomControl store={store} />
-            <Minimap store={store} />
+            {minimap && <Minimap store={store} />}
           </div>
         )}
       </main>
@@ -355,6 +380,26 @@ export function BureauApp() {
           onCreate={createForm}
         />
       )}
+      <AppMenu
+        isOpen={appMenu.open}
+        onOpenChange={(o) => setAppMenu((m) => ({ ...m, open: o }))}
+        pane={appMenu.pane}
+        onPaneChange={(pane) => setAppMenu((m) => ({ ...m, pane }))}
+        origin={appMenu.origin}
+        project={PROJECT}
+        store={store}
+        onCreate={create}
+        onImport={(files) => doImport(files)}
+        onReveal={reveal}
+        onLinksPanel={() => links.setUi({ panel: true })}
+        lateLinks={lateLinks}
+        rules={rules}
+        onRulesChange={setRules}
+        view={view}
+        onViewChange={setView}
+        minimap={minimap}
+        onMinimapChange={setMinimap}
+      />
       <LinksUI resolver={links} store={store} />
       <ShortcutsDialog isOpen={help} onOpenChange={setHelp} />
       <ToastRegion />
@@ -381,6 +426,7 @@ function ContextMenu({
   onClose,
   onOpen,
   onRemove,
+  onCreate,
 }: {
   at: { x: number; y: number };
   ids: string[];
@@ -388,6 +434,7 @@ function ContextMenu({
   onClose: () => void;
   onOpen: (id: string) => void;
   onRemove: (ids: string[]) => void;
+  onCreate: (kind: PaperKind) => void;
 }) {
   const anchor = useRef<HTMLSpanElement>(null);
   const [ready, setReady] = useState(false);
@@ -411,6 +458,28 @@ function ContextMenu({
               onClose();
             }}
           >
+            {ids.length === 0 ? (
+              <SubmenuTrigger>
+                <MenuItem id="new" icon="plus">Nouveau</MenuItem>
+                <MenuPopover placement="end top">
+                  <Menu
+                    aria-label="Nouveau"
+                    onAction={(key) => {
+                      onCreate(key as PaperKind);
+                      onClose();
+                    }}
+                  >
+                    {NEW_KINDS.map((k) => (
+                      <MenuItem key={k.kind} id={k.kind} icon={k.icon} className={`bottom-bar__kind bottom-bar__kind--${k.kind}`}>
+                        {k.label}
+                      </MenuItem>
+                    ))}
+                    <MenuItem id="note" icon="note" shortcut="N">Note</MenuItem>
+                  </Menu>
+                </MenuPopover>
+              </SubmenuTrigger>
+            ) : null}
+            {ids.length === 0 ? <MenuSeparator /> : null}
             {single ? <MenuItem id="open" icon="expand" shortcut="Entrée">Ouvrir sur place</MenuItem> : null}
             {ids.length > 0 ? <MenuItem id="front" icon="layout">Mettre au premier plan</MenuItem> : null}
             {ids.length > 1 ? <MenuItem id="arrange" icon="grid">Ranger en ligne</MenuItem> : null}

@@ -1,5 +1,8 @@
 import type { Paper } from './model';
 
+/** Seed « last change » times, minutes before the page loads. */
+const ago = (min: number) => Date.now() - min * 60_000;
+
 /** The desk from Figma "B1 · Anatomie du bureau" (83:1063), in world units. */
 export const SEED_PAPERS: Paper[] = [
   {
@@ -12,6 +15,7 @@ export const SEED_PAPERS: Paper[] = [
     h: 594,
     rotation: 0,
     data: {
+      updatedAt: ago(1440),
       eyebrow: 'Communiqué',
       editor: 'JB',
       status: { state: 'ready' },
@@ -44,6 +48,7 @@ export const SEED_PAPERS: Paper[] = [
     h: 292,
     rotation: 1,
     data: {
+      updatedAt: ago(4320),
       eyebrow: 'Lancement',
       editor: 'MC',
       status: { state: 'ready' },
@@ -68,6 +73,7 @@ export const SEED_PAPERS: Paper[] = [
     h: 300,
     rotation: -0.6,
     data: {
+      updatedAt: ago(12),
       editor: 'AL',
       status: { state: 'ready' },
       preview: {
@@ -95,7 +101,7 @@ export const SEED_PAPERS: Paper[] = [
     w: 300,
     h: 330,
     rotation: 2.5,
-    data: { editor: 'MC', status: { state: 'ready' }, preview: { kind: 'image', width: 1080, height: 1350 }, fileName: 'affiche-v3.png' },
+    data: { updatedAt: ago(300), editor: 'MC', status: { state: 'ready' }, preview: { kind: 'image', width: 1080, height: 1350 }, fileName: 'affiche-v3.png' },
   },
   {
     id: 'contrat',
@@ -107,6 +113,7 @@ export const SEED_PAPERS: Paper[] = [
     h: 440,
     rotation: 1,
     data: {
+      updatedAt: ago(8640),
       editor: 'JB',
       stamp: { label: 'À signer', tone: 'warning' },
       status: { state: 'readonly', reason: 'PDF : ouvert en lecture.' },
@@ -123,6 +130,7 @@ export const SEED_PAPERS: Paper[] = [
     h: 96,
     rotation: -4,
     data: {
+      updatedAt: ago(40),
       assignee: 'Alex',
       status: { state: 'ready' },
       preview: { kind: 'note', text: 'Reprendre les chiffres du tableur dans la diapo 4.' },
