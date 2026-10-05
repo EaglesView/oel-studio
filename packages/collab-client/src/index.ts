@@ -6,4 +6,4 @@ export { MediaStore, type MediaEntry } from './media';
 export { SyncStatus, Peers, useSessionStatus } from './ui/SyncStatus';
 export { IdentityDialog, ShareDialog, VersionPanel } from './ui/dialogs';
 export { FontsDialog, type FontsDialogProps } from './ui/FontsDialog';
-export { MenuBar, MoreMenu, type MenuEntry, type MenuSpec } from './ui/MenuBar';
+export { ContextMenu, MenuBar, MoreMenu, type MenuEntry, type MenuSpec } from './ui/MenuBar';

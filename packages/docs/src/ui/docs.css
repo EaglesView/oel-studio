@@ -76,8 +76,7 @@
 .oel-fontsize__input:focus { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
 .oel-docs__mode { flex-shrink: 0; }
 .oel-docs__mode-label { display: inline-flex; gap: 6px; align-items: center; font: 500 13px/1 var(--font-sans); color: var(--emboss-ink-muted); }
-.oel-docs__tablebar { display: flex; justify-content: center; padding: 0 16px 8px; }
-.oel-tablebar { flex-wrap: wrap; justify-content: center; }
+.oel-tablefloat { position: fixed; z-index: 40; filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.12)); }
 
 /* Popovers: palettes, table grid */
 .oel-tablegrid__cells { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; }
@@ -87,7 +86,7 @@
 
 /* Body: panels + canvas */
 .oel-docs__body { display: flex; flex: 1; min-height: 0; }
-.oel-docs__top, .oel-docs__toolbar, .oel-docs__tablebar, .oel-statusbar { flex: none; }
+.oel-docs__top, .oel-docs__toolbar, .oel-statusbar { flex: none; }
 .oel-docs__canvas {
   position: relative;
   flex: 1;
@@ -363,11 +362,10 @@ tr.oel-pgap td { padding: 0 !important; border: none !important; background: tra
 
 /* Mode concentration (B2): on demand, tools fade, the page stays sharp,
    the way out never drops below 35 % opacity. */
-.oel-docs__top, .oel-docs__toolbar, .oel-docs__tablebar, .oel-statusbar, .oel-panel {
+.oel-docs__top, .oel-docs__toolbar, .oel-statusbar, .oel-panel {
   transition: opacity var(--dur-hover, 200ms) ease;
 }
 .oel-docs--focus:not(.is-revealed) .oel-docs__toolbar,
-.oel-docs--focus:not(.is-revealed) .oel-docs__tablebar,
 .oel-docs--focus:not(.is-revealed) .oel-statusbar,
 .oel-docs--focus:not(.is-revealed) .oel-panel,
 .oel-docs--focus:not(.is-revealed) .oel-docs__titles,
@@ -375,7 +373,7 @@ tr.oel-pgap td { padding: 0 !important; border: none !important; background: tra
 .oel-docs--focus:not(.is-revealed) .oel-docs__crumbs { opacity: 0.35; }
 .oel-docs--focus :focus-within { opacity: 1 !important; }
 @media (prefers-reduced-motion: reduce) {
-  .oel-docs__top, .oel-docs__toolbar, .oel-docs__tablebar, .oel-statusbar, .oel-panel { transition: none; }
+  .oel-docs__top, .oel-docs__toolbar, .oel-statusbar, .oel-panel { transition: none; }
 }
 @media (max-width: 1280px) {
   .oel-docs--sheet .oel-docs__sheet-actions .oel-sync span:not(.emb-visually-hidden) { display: none; }

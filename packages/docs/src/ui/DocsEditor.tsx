@@ -12,8 +12,8 @@ import { sanitizeStylesheet } from '../model/format';
 import { useDocEditor, useDocMeta } from './useDocEditor';
 import { fontNoticeOnFirstOpen } from './fonts';
 import type { FontReport } from '@oel/fonts';
-import { DocsToolbar, TableBar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
-import { MenuBar, MoreMenu, type MenuSpec } from './MenuBar';
+import { DocsToolbar, TableFloat, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
+import { ContextMenu, MenuBar, MoreMenu, type MenuEntry, type MenuSpec } from './MenuBar';
 import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
 import { printPages } from './print';
 import { FindBar } from './FindBar';
@@ -119,6 +119,7 @@ export function DocsEditor(props: DocsEditorProps) {
   const [showAnchors, setShowAnchors] = useState(false);
   const [find, setFind] = useState<{ replace: boolean } | null>(null);
   const [dialog, setDialog] = useState<DialogName>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; editor: Editor } | null>(null);
   const [editingStory, setEditingStory] = useState<EditingStory | null>(null);
   const [french, setFrench] = useState(true);
   const editable = !status.readOnly && mode === 'edit';
@@ -367,7 +368,9 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'copy': e.view.focus(); return void document.execCommand('copy');
       case 'paste':
       case 'paste-plain':
-        return toast({ title: 'Collez avec le clavier', description: id === 'paste' ? 'Ctrl+V colle avec la mise en forme.' : 'Ctrl+Maj+V colle sans mise en forme.', tone: 'info' });
+        return void pasteFromClipboard(e, id === 'paste-plain').catch(() =>
+          toast({ title: 'Collez avec le clavier', description: id === 'paste' ? 'Ctrl+V colle avec la mise en forme.' : 'Ctrl+Maj+V colle sans mise en forme.', tone: 'info' }),
+        );
       case 'select-all': return void chain().selectAll().run();
       case 'delete': return void chain().deleteSelection().run();
       case 'find': return setFind({ replace: false });
@@ -799,15 +802,38 @@ export function DocsEditor(props: DocsEditorProps) {
           </div>
         )}
       </div>
-      {inTable && editable && (
-        <div className="oel-docs__tablebar" onMouseDown={(e) => e.preventDefault()}>
-          <TableBar editor={editor} />
-        </div>
+      {inTable && editable && target && <TableFloat editor={target} scroller={canvasRef.current} />}
+      {ctxMenu && (
+        <ContextMenu
+          at={ctxMenu}
+          label="Actions sur la sélection"
+          items={contextItems(ctxMenu.editor, ro)}
+          onAction={act}
+          onClose={() => {
+            const ed = ctxMenu.editor;
+            setCtxMenu(null);
+            requestAnimationFrame(() => !ed.isDestroyed && !document.querySelector('[role="dialog"]') && ed.view.focus());
+          }}
+        />
       )}
 
       <div className="oel-docs__body">
         {showOutline && !sheet && <OutlinePanel editor={editor} onClose={() => setShowOutline(false)} />}
-        <div className="oel-docs__canvas" ref={canvasRef} onFocus={(e) => (e.target as HTMLElement).closest('.oel-body-wrap') && setActive(editor)}>
+        <div
+          className="oel-docs__canvas"
+          ref={canvasRef}
+          onFocus={(e) => (e.target as HTMLElement).closest('.oel-body-wrap') && setActive(editor)}
+          onContextMenu={(ev) => {
+            // Linked copies open their own menu; Maj+clic droit keeps the browser's.
+            if (ev.defaultPrevented || ev.shiftKey) return;
+            const ed = ((ev.target as HTMLElement).closest('.ProseMirror') as (HTMLElement & { editor?: Editor }) | null)?.editor;
+            if (!ed || ed.isDestroyed) return;
+            ev.preventDefault();
+            caretToClick(ed, ev.clientX, ev.clientY);
+            setActive(ed);
+            setCtxMenu({ x: ev.clientX, y: ev.clientY, editor: ed });
+          }}
+        >
           {find && <FindBar editor={editor} replace={find.replace} editable={editable} onClose={() => setFind(null)} />}
           <PageView
             editor={editor}
@@ -906,4 +932,68 @@ function StatusBar({
       </span>
     </footer>
   );
+}
+
+/**
+ * Like Word: a right-click outside the selection moves the caret there first;
+ * inside the selection (or a cell selection) it keeps it.
+ */
+function caretToClick(ed: Editor, x: number, y: number) {
+  const hit = ed.view.posAtCoords({ left: x, top: y });
+  if (!hit) return;
+  const { from, to, empty } = ed.state.selection;
+  if (!empty && hit.pos >= from && hit.pos <= to) return;
+  if (!empty && ed.view.dom.querySelector('.selectedCell')) {
+    const cell = (document.elementFromPoint(x, y) as HTMLElement | null)?.closest('td, th');
+    if (cell?.classList.contains('selectedCell')) return;
+  }
+  ed.chain().focus().setTextSelection(hit.pos).run();
+}
+
+/** Right-click menu of the document: clipboard, link, then the table's actions. */
+function contextItems(ed: Editor, ro: boolean): Array<MenuEntry | '-'> {
+  const empty = ed.state.selection.empty;
+  const items: Array<MenuEntry | '-'> = [
+    { id: 'cut', label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', disabled: ro || empty },
+    { id: 'copy', label: 'Copier', icon: 'copy', shortcut: 'Ctrl+C', disabled: empty },
+    { id: 'paste', label: 'Coller', icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
+    { id: 'paste-plain', label: 'Coller sans mise en forme', shortcut: 'Ctrl+Maj+V', disabled: ro },
+    '-',
+    { id: 'ins-link', label: ed.isActive('link') ? 'Modifier le lien…' : 'Lien…', icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
+  ];
+  if (ed.isActive('image')) items.push({ id: 'img-options', label: 'Options de l’image…', icon: 'image', disabled: ro });
+  items.push({ id: 'clear', label: 'Effacer la mise en forme', icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro || empty });
+  if (ed.isActive('table') && !ro) {
+    items.push(
+      '-',
+      { id: 'tbl-row-before', label: 'Insérer une ligne au-dessus', icon: 'table-rows' },
+      { id: 'tbl-row-after', label: 'Insérer une ligne en dessous', icon: 'table-rows' },
+      { id: 'tbl-col-before', label: 'Insérer une colonne à gauche', icon: 'insert-col' },
+      { id: 'tbl-col-after', label: 'Insérer une colonne à droite', icon: 'insert-col' },
+      { id: 'tbl-merge', label: 'Fusionner / scinder les cellules', icon: 'merge' },
+      { id: 'tbl-header', label: 'Ligne d’en-tête' },
+      {
+        id: 'tbl-delete',
+        label: 'Supprimer',
+        icon: 'trash',
+        children: [
+          { id: 'tbl-del-row', label: 'La ligne' },
+          { id: 'tbl-del-col', label: 'La colonne' },
+          { id: 'tbl-del', label: 'Le tableau' },
+        ],
+      },
+    );
+  }
+  return items;
+}
+
+/** « Coller » from a menu: the async clipboard, through ProseMirror's own paste path. */
+async function pasteFromClipboard(ed: Editor, plain: boolean) {
+  ed.view.focus();
+  if (!plain && navigator.clipboard?.read) {
+    for (const item of await navigator.clipboard.read()) {
+      if (item.types.includes('text/html')) return void ed.view.pasteHTML(await (await item.getType('text/html')).text());
+    }
+  }
+  ed.view.pasteText(await navigator.clipboard.readText());
 }

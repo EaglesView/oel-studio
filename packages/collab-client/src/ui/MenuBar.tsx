@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useRef, type RefObject } from 'react';
 import { MenuTrigger, SubmenuTrigger } from 'react-aria-components';
 import { Button, Menu, MenuItem, MenuPopover, MenuSeparator, ToolButton, type IconName } from '@oel/emboss';
 
@@ -79,5 +79,24 @@ export function MoreMenu({ spec, onAction }: { spec: MenuSpec; onAction: (id: st
         </Menu>
       </MenuPopover>
     </MenuTrigger>
+  );
+}
+
+/**
+ * Right-click menu at a screen point, built from the same entries as the menu
+ * bar (submenus included). The caller owns `at` and clears it in `onClose`.
+ */
+export function ContextMenu({ at, items, onAction, onClose, label = 'Actions' }: { at: { x: number; y: number }; items: Array<MenuEntry | '-'>; onAction: (id: string) => void; onClose: () => void; label?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const act = (id: string) => (onClose(), onAction(id));
+  return (
+    <>
+      <span ref={ref} style={{ position: 'fixed', left: at.x, top: at.y, width: 1, height: 1, pointerEvents: 'none' }} aria-hidden />
+      <MenuPopover triggerRef={ref as RefObject<HTMLSpanElement>} isOpen onOpenChange={(o) => !o && onClose()} placement="bottom start">
+        <Menu aria-label={label} autoFocus="first" onAction={(k) => act(String(k))} disabledKeys={items.filter((c): c is MenuEntry => c !== '-' && !!c.disabled).map((c) => c.id)}>
+          {renderItems(items, act)}
+        </Menu>
+      </MenuPopover>
+    </>
   );
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { Dialog, DialogTrigger, MenuTrigger } from 'react-aria-components';
 import { Menu, MenuItem, MenuPopover, Popover, Select, SelectItem, Toolbar, ToolbarSeparator, ToolbarToggle, ToolButton } from '@oel/emboss';
@@ -306,29 +307,84 @@ export function DocsToolbar({ editor, state, styles, fonts = [], editable, zoom,
   );
 }
 
-/** Extra row shown while the caret is in a table. */
-export function TableBar({ editor }: { editor: Editor }) {
+/**
+ * Small floating bar over the table that holds the caret: rows, columns,
+ * merge, cell fill and deletes. It floats above the table (inside its top
+ * edge when there is no room) so the page never moves; the same actions are
+ * in the right-click menu.
+ */
+export function TableFloat({ editor, scroller }: { editor: Editor; scroller: HTMLElement | null }) {
+  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    let raf = 0;
+    const place = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const { view, state } = editor;
+        if (editor.isDestroyed || !editor.isActive('table')) return setAt(null);
+        const dom = view.domAtPos(state.selection.from).node;
+        const table = (dom instanceof HTMLElement ? dom : dom.parentElement)?.closest('table');
+        if (!table) return setAt(null);
+        const r = table.getBoundingClientRect();
+        const clip = scroller?.getBoundingClientRect() ?? { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
+        if (r.bottom < clip.top + 8 || r.top > clip.bottom - 8) return setAt(null);
+        const h = bar.current?.offsetHeight ?? 40;
+        const w = bar.current?.offsetWidth ?? 320;
+        const top = Math.max(clip.top + 4, r.top - h - 6);
+        const left = Math.min(Math.max(r.left + r.width / 2 - w / 2, clip.left + 4), clip.right - w - 4);
+        setAt({ left, top });
+      });
+    };
+    place();
+    editor.on('transaction', place);
+    scroller?.addEventListener('scroll', place, { passive: true });
+    addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      editor.off('transaction', place);
+      scroller?.removeEventListener('scroll', place);
+      removeEventListener('resize', place);
+    };
+  }, [editor, scroller]);
   const chain = () => editor.chain().focus();
-  return (
-    <Toolbar aria-label="Tableau" className="oel-tablebar" appearance="pill">
-      <ToolButton icon="table-rows" label="Insérer une ligne au-dessus" showLabel onPress={() => chain().addRowBefore().run()} />
-      <ToolButton icon="table-rows" label="Insérer une ligne en dessous" showLabel onPress={() => chain().addRowAfter().run()} />
-      <ToolButton icon="layout" label="Colonne à gauche" showLabel onPress={() => chain().addColumnBefore().run()} />
-      <ToolButton icon="layout" label="Colonne à droite" showLabel onPress={() => chain().addColumnAfter().run()} />
-      <ToolbarSeparator />
-      <ToolButton icon="merge" label="Fusionner / scinder les cellules" showLabel onPress={() => chain().mergeOrSplit().run()} />
-      <DialogTrigger>
-        <ToolButton icon="fill-color" label="Fond de cellule" showLabel />
-        <Popover placement="bottom">
-          <Dialog aria-label="Fond de cellule" className="oel-popover-dialog">
-            {({ close }) => <Swatches colors={TEXT_COLORS} none="Aucun fond" onPick={(c) => (chain().setCellAttribute('background', c).run(), close())} />}
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
-      <ToolbarSeparator />
-      <ToolButton icon="trash" label="Supprimer la ligne" showLabel onPress={() => chain().deleteRow().run()} />
-      <ToolButton icon="trash" label="Supprimer la colonne" showLabel onPress={() => chain().deleteColumn().run()} />
-      <ToolButton icon="trash" label="Supprimer le tableau" showLabel onPress={() => chain().deleteTable().run()} />
-    </Toolbar>
+  return createPortal(
+    <div ref={bar} className="oel-tablefloat" style={at ? { left: at.left, top: at.top } : { visibility: 'hidden' }} onMouseDown={(e) => e.preventDefault()}>
+      <Toolbar aria-label="Tableau" appearance="pill">
+        <ToolButton icon="table-rows" label="Insérer une ligne au-dessus" onPress={() => chain().addRowBefore().run()} />
+        <ToolButton icon="table-rows" label="Insérer une ligne en dessous" onPress={() => chain().addRowAfter().run()} />
+        <ToolButton icon="insert-col" label="Insérer une colonne à gauche" onPress={() => chain().addColumnBefore().run()} />
+        <ToolButton icon="insert-col" label="Insérer une colonne à droite" onPress={() => chain().addColumnAfter().run()} />
+        <ToolbarSeparator />
+        <ToolButton icon="merge" label="Fusionner / scinder les cellules" onPress={() => chain().mergeOrSplit().run()} />
+        <DialogTrigger>
+          <ToolButton icon="fill-color" label="Fond de cellule" />
+          <Popover placement="bottom">
+            <Dialog aria-label="Fond de cellule" className="oel-popover-dialog">
+              {({ close }) => <Swatches colors={TEXT_COLORS} none="Aucun fond" onPick={(c) => (chain().setCellAttribute('background', c).run(), close())} />}
+            </Dialog>
+          </Popover>
+        </DialogTrigger>
+        <ToolbarSeparator />
+        <MenuTrigger>
+          <ToolButton icon="trash" label="Supprimer…" />
+          <MenuPopover placement="bottom end">
+            <Menu
+              aria-label="Supprimer"
+              onAction={(k) => {
+                if (k === 'row') chain().deleteRow().run();
+                if (k === 'col') chain().deleteColumn().run();
+                if (k === 'table') chain().deleteTable().run();
+              }}
+            >
+              <MenuItem id="row">Supprimer la ligne</MenuItem>
+              <MenuItem id="col">Supprimer la colonne</MenuItem>
+              <MenuItem id="table">Supprimer le tableau</MenuItem>
+            </Menu>
+          </MenuPopover>
+        </MenuTrigger>
+      </Toolbar>
+    </div>,
+    document.body,
   );
 }
