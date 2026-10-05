@@ -1,4 +1,3 @@
-import type { DeskLink } from '@oel/desk';
 import type { Paper } from './model';
 
 /** The desk from Figma "B1 · Anatomie du bureau" (83:1063), in world units. */
@@ -129,10 +128,4 @@ export const SEED_PAPERS: Paper[] = [
       preview: { kind: 'note', text: 'Reprendre les chiffres du tableur dans la diapo 4.' },
     },
   },
-];
-
-/** B6 · Fils de liaison. */
-export const SEED_LINKS: DeskLink[] = [
-  { id: 'l1', from: 'budget', to: 'lancement', label: 'Budget!B2:B8 → diapo 4', state: 'fresh' },
-  { id: 'l2', from: 'lancement', to: 'communique', label: 'Diapo 1 → Communiqué § 2', state: 'stale' },
 ];

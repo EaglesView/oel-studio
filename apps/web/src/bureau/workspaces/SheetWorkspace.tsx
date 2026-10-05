@@ -4,6 +4,7 @@ import '@oel/sheets/styles.css';
 import type { WorkspaceProps } from '../OpenSheet';
 import { identity } from '../docs';
 import { createCalcWorker, exportSheet, sheetSessionFor } from '../sheets';
+import { activeLinks } from '../../links/resolver';
 
 /**
  * 03 · Grille (C3 · Tableur): the spreadsheet editor (@oel/sheets) on a
@@ -45,6 +46,7 @@ export function SheetWorkspace({ paper, level, onDraft, registerFlush, onPatch, 
         onBureau={onBureau}
         onExpand={onExpand}
         onReduce={onReduce}
+        onLinkChart={activeLinks() ? (chart) => activeLinks()?.setUi({ dialog: { ...chart, sourcePaperId: paper.id } }) : undefined}
       />
     </div>
   );

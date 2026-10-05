@@ -18,6 +18,7 @@ import {
   Switch,
   Toolbar,
   ToolbarSeparator,
+  ToolbarToggle,
   ToolButton,
   toast,
 } from '@oel/emboss';
@@ -113,15 +114,16 @@ export interface ArrivalRules {
 export function Dock({
   onCreate,
   onImport,
-  showLinks,
-  onToggleLinks,
+  linksPanel,
+  onLinksPanel,
   rules,
   onRulesChange,
 }: {
   onCreate: (kind: PaperKind) => void;
   onImport: (files: File[]) => void;
-  showLinks: boolean;
-  onToggleLinks: () => void;
+  /** G6 « Fils du bureau » is open. */
+  linksPanel: boolean;
+  onLinksPanel: () => void;
   rules: ArrivalRules;
   onRulesChange: (r: ArrivalRules) => void;
 }) {
@@ -157,11 +159,13 @@ export function Dock({
             </div>
           </Popover>
         </DialogTrigger>
-        <ToolButton
+        <ToolbarToggle
           icon="link"
-          label={showLinks ? 'Masquer les fils' : 'Afficher les fils'}
-          description="Fils de liaison entre fichiers qui partagent des données."
-          onPress={onToggleLinks}
+          label="Fils"
+          shortcut={['Ctrl', 'Maj', 'L']}
+          description="Les fils de liaison du bureau : leur état, les mettre à jour, les afficher ou les masquer."
+          isSelected={linksPanel}
+          onChange={onLinksPanel}
         />
         <ToolbarSeparator />
         <MenuTrigger>

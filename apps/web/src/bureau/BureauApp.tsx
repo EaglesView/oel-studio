@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createDesk } from '@oel/desk';
 import { DeskCanvas, Minimap, useDesk, useDeskState } from '@oel/desk/react';
 import '@oel/desk/desk.css';
@@ -19,7 +19,10 @@ import { ListView } from './ListView';
 import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper } from './Paper';
-import { SEED_LINKS, SEED_PAPERS } from './seed';
+import { SEED_PAPERS } from './seed';
+import { LinkResolver, setActiveLinks } from '../links/resolver';
+import { LinksUI } from '../links/LinksUI';
+import { THREAD_PREFIX } from '@oel/links';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { convertToEditable, importFiles } from './importFiles';
 import { seedFixtures } from './seedFixtures';
@@ -42,7 +45,6 @@ export function BureauApp() {
   const store = useMemo<Bureau>(() => {
     const desk = createDesk<PaperData>({
       nodes: SEED_PAPERS,
-      links: SEED_LINKS,
       viewport: { x: 0, y: 40, zoom: 0.9 },
       zoom: { min: MAX_ZOOM_OUT, max: 4 },
     });
@@ -62,9 +64,25 @@ export function BureauApp() {
   const [newForm, setNewForm] = useState<{ sheetId: string | null } | null>(null);
   useFormSync(store, formsBackend, announce);
 
+  // Fils de liaison (Figma G): derived from the links stored in the files.
+  const openRef = useRef<(id: string) => void>(() => {});
+  const links = useMemo(() => new LinkResolver(store, { paper: (id) => openRef.current(id), announce: (m) => announceRef.current(m) }), [store]);
+  useEffect(() => {
+    setActiveLinks(links);
+    return () => {
+      setActiveLinks(null);
+      links.dispose();
+    };
+  }, [links]);
+  const linksUi = useSyncExternalStore(links.subscribeUi, links.getUi, links.getUi);
+  /** Desk-element pixels → viewport (the popover anchors in the viewport). */
+  const deskToViewport = (r: { x: number; y: number; w: number; h: number }) => {
+    const d = document.querySelector('.desk')?.getBoundingClientRect();
+    return { x: r.x + (d?.left ?? 0), y: r.y + (d?.top ?? 0), width: r.w, height: r.h };
+  };
+
   const count = useDeskState(store, (s) => s.order.length);
   const openId = useDeskState(store, (s) => s.openId);
-  const showLinks = useDeskState(store, (s) => s.showLinks);
   const openPaper = useDeskState(store, (s) => (s.openId ? (s.nodes[s.openId] as PaperNode | undefined) : undefined));
 
   // TEMPORARY: real fixture files in place of two sample papers (see seedFixtures.ts).
@@ -153,6 +171,14 @@ export function BureauApp() {
   }, [store]);
 
   const open = (id: string) => openAt(id, 2);
+  /** Open a paper from a link (« Ouvrir la source / la copie »), even from inside another open paper. */
+  openRef.current = (id: string) => {
+    if (store.getState().openId === id) return;
+    if (store.getState().openId) {
+      apply(id, false);
+      history.replaceState({ oelDepth: depth() || 1 }, '', urlFor(id, false));
+    } else openAt(id, 2);
+  };
   const create = (kind: PaperKind) => {
     if (kind === 'form') return setNewForm({ sheetId: null });
     const p = blankPaper(kind, store.viewCenter());
@@ -194,6 +220,9 @@ export function BureauApp() {
       if (e.key === '?') {
         e.preventDefault();
         setHelp(true);
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        links.setUi({ panel: !links.getUi().panel });
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         document.querySelector<HTMLInputElement>('.dock input[type=file]')?.click();
@@ -227,6 +256,9 @@ export function BureauApp() {
             onDelete={remove}
             onContextMenu={(ids, at) => setMenu({ ids, at })}
             onDropFiles={(files, at) => doImport(files, at)}
+            onLinkOpen={(id, anchor) => links.manage(id.replace(THREAD_PREFIX, ''), deskToViewport(anchor))}
+            onLinkDelete={(id) => links.setUi({ cut: id.replace(THREAD_PREFIX, '') })}
+            activeLinkId={linksUi.popover ? THREAD_PREFIX + linksUi.popover.linkId : null}
             renderDropZone={(n) => (
               <div className="dropzone">
                 <Badge tone="accent" dot={false}>{n}</Badge>
@@ -283,8 +315,8 @@ export function BureauApp() {
         <Dock
           onCreate={create}
           onImport={(files) => doImport(files)}
-          showLinks={showLinks}
-          onToggleLinks={() => store.toggleLinks()}
+          linksPanel={linksUi.panel}
+          onLinksPanel={() => links.setUi({ panel: !linksUi.panel })}
           rules={rules}
           onRulesChange={setRules}
         />
@@ -322,6 +354,7 @@ export function BureauApp() {
           onCreate={createForm}
         />
       )}
+      <LinksUI resolver={links} store={store} />
       <ShortcutsDialog isOpen={help} onOpenChange={setHelp} />
       <ToastRegion />
     </div>
