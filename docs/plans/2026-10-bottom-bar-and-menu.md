@@ -80,4 +80,4 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
   Tableur, Formulaire with their kind colours, Note, Importer) and « Ou partir d’un modèle → », greyed « Bientôt »
   until templates exist. Sizes are Figma M1 · 4 at 2× (the mockup is 960 wide). Formulaire uses the `form` icon like
   the « + » menu, not the File icon of the mockup.
-- Not yet: browser check for M-1 and M-2 (test browser couldn't reach or capture the page in either session).
+- M-2 empty desk confirmed in the browser by hand (5 Oct). Not yet: the rest of the browser checklist (bar widths, keyboard only, reduced motion).
