@@ -102,3 +102,25 @@ need the edits list to be honest about what is local.
   read-only cell filter, edits list undo/apply, fr-CA number parsing for table → sheet.
 - Browser (Claudezilla, one attempt each; blocked → « non vérifié »): image paper → doc and slide, change the source
   image; range → doc table and slide table with overflow menu; table → new workbook and back; cell → value in text.
+
+## Status (2026-10-05, branch `fix/editor-ux`)
+
+- **I-1 done** — model: `image`/`cell` refs, `picture`/`table`/`value` carries, `theme`, `view`, `edits`, `LinkedValue`, `LinkedTable` (with row/column ids).
+- **I-2 done** — resolver core + adapters: `sources/{sheet,image,files}.ts`, `targets/{slides,document}.ts`; async `prepare` for bytes.
+- **I-3 done** — desk image papers and pictures in decks/documents as sources; « Lier dans… » on image papers; copy/paste
+  between desk files pastes linked (desk clipboard `@oel/links` `clip`), « Incorporer (sans lien) » in the toast; « Image
+  liée » bar in docs and slides; docx `ImageAttrs.oid`.
+  Not yet: drag of an image paper onto an open paper, crop as a local edit, « Relier à… » and « Remplir / Ajuster ».
+- **I-4 done** — `rangeAsTable` (@oel/sheets); docs linked tables (`TableAttrs.oid`, `model/tables.ts`), slides linked tables
+  (`linkedTableFrame/Content`, overflow truncate/all); « Lier dans un fichier du bureau… » in the sheet cell menu with theme
+  choice; read-only values guard + « Ces valeurs viennent de … » notice; « Tableau lié » bars (theme, Affichage).
+- **I-7 done** — cell style edits on document linked tables become local edits by row/column id, re-applied on update,
+  listed in the link popover with « Annuler » / « Appliquer à la source ». Not yet: slide table edits, picture crop edits.
+- **I-5 done** — « Envoyer vers un tableur… » for document tables: new workbook or new sheet, « Le tableur commande » or
+  « Copie simple », fr-CA numbers (`frInput`, `writeTable`), one « Annuler ». Not yet: slide tables.
+- **I-6 done** — copy a cell, paste in a document: linked value (editor-made `ooxmlInline` with `oid`), states shown,
+  written as plain text in .docx. Not yet: values in slide text.
+- **I-8 not started** — export markers (docx `w:sdt oel-link`, pptx extLst) and re-import; slide tables and pictures made by
+  links are not written to .pptx (the writer only copies tables/graphics it read), same as linked charts — do with Phase 9
+  of the links plan.
+- Nothing above is browser-checked yet: the test browser (Claudezilla) could not reach its own tabs this session.
