@@ -94,7 +94,7 @@ The big front-end scalability win (ARCHITECTURE §5).
 
 ## Phase 8 — Later
 
-- [ ] `oelimg-rs` → `crates/oel-img` (bump `image` 0.24 → current; `wasm` feature); wire crop/resize/filters into the image kind (removes the disabled-with-reason tools). Keep publishing the npm package from the monorepo if the old site still needs it.
+- [ ] `oelimg-rs` → `crates/oel-img` (bump `image` 0.24 → current; `wasm` feature); wire crop/resize/filters into the image kind (removes the disabled-with-reason tools). Keep publishing the npm package from the monorepo if the old site still needs it. **Superseded by `docs/plans/2026-10-images.md`** (wgpu engine, atelier, galleries).
 - [ ] Tools site → `apps/tools` on `@oel/emboss`; retire its PixiJS editor and the legacy `DocxController`; archive `oeldocx_rs`.
 - [x] Slides kind: `crates/oel-pptx` on `oel-opc`, same codec pattern; `@oel/slides` editor.
 - [ ] PDF: decide engine (pdfium via WASM vs pdf.js for view + Rust for edits) before building "convert to editable".
