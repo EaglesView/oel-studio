@@ -69,5 +69,10 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
 - Browser (one attempt): bar at 1440/1024/720; empty desk cards; Ranger each mode + Annuler; Étaler filter + Entrée +
   Échap; menu open/close by logo, Échap, Retour; keyboard only; reduced motion.
 
-## Status
-- Not started.
+## Status (2026-10-05, branch `feat/bottom-bar`)
+
+- **M-1 done** — `BottomBar` replaces `Dock` (`apps/web/src/bureau/Chrome.tsx`); sidebar removed; « + » is an ink
+  sphere (radial light + the toast seal's inner relief) with the Nouveau menu, `Alt + N` opens it; Ranger and Étaler
+  are in the bar, greyed « Bientôt » until M-3/M-4. Until M-5 the logo opens a short menu: Accueil, Fils du bureau,
+  À l’arrivée… (the old rules popover), Raccourcis clavier. Icon `sort` (Iconoir Sort) added to `@oel/emboss`.
+- Not yet: browser check (test browser couldn't reach the page this session).

@@ -30,6 +30,7 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
       [['/'], 'Aller aux outils de la sélection'],
       [['N'], 'Nouvelle note'],
       [['Ctrl', 'O'], 'Importer des fichiers'],
+      [['Alt', 'N'], 'Nouveau fichier (menu « + »)'],
       [['Maj', 'F10'], 'Menu contextuel'],
       [['Ctrl', 'Maj', 'Entrée'], 'Ouvrir la sélection en plein écran'],
       [['?'], 'Afficher cette aide'],

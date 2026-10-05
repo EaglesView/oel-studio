@@ -1,4 +1,5 @@
-import { FileTrigger } from 'react-aria-components';
+import { useRef, useState } from 'react';
+import { Button as RACButton, FileTrigger } from 'react-aria-components';
 import { useDeskState } from '@oel/desk/react';
 import { worldToScreen } from '@oel/desk';
 import { ACCEPTED_EXTENSIONS } from '@oel/engine';
@@ -6,8 +7,8 @@ import {
   AvatarStack,
   Badge,
   Button,
-  DialogTrigger,
   Icon,
+  Logo,
   Menu,
   MenuItem,
   MenuPopover,
@@ -18,9 +19,10 @@ import {
   Switch,
   Toolbar,
   ToolbarSeparator,
-  ToolbarToggle,
   ToolButton,
+  WithTooltip,
   toast,
+  type IconName,
 } from '@oel/emboss';
 import { PEOPLE, type Bureau, type PaperKind } from './model';
 import { ThemeToggle } from './ThemeToggle';
@@ -103,7 +105,7 @@ export function PresenceCursors({ store }: { store: Bureau }) {
   );
 }
 
-/* ── B1 · 7 Dock de création ────────────────────────────────────────── */
+/* ── M1 · Barre du bas ───────────────────────────────────────────────── */
 
 export interface ArrivalRules {
   sortByType: boolean;
@@ -111,82 +113,118 @@ export interface ArrivalRules {
   linkTables: boolean;
 }
 
-export function Dock({
+/** Kinds offered by the round « + » (Figma M1): Note has its own button. */
+const NEW_KINDS: { kind: PaperKind; label: string; icon: IconName }[] = [
+  { kind: 'document', label: 'Document', icon: 'file' },
+  { kind: 'slides', label: 'Présentation', icon: 'slide' },
+  { kind: 'spreadsheet', label: 'Tableur', icon: 'table' },
+  { kind: 'form', label: 'Formulaire', icon: 'form' },
+];
+
+const SOON = 'Bientôt.';
+
+/**
+ * Figma M1: logo menu on the left, Note · Importer · Ranger · Étaler, and a
+ * round « + » on the right that creates the other kinds.
+ *
+ * Until the full-screen menu (plan M-5), the logo opens a short menu holding
+ * what left the dock and the sidebar: home, the desk's threads, the arrival
+ * rules (moving to project settings, N) and the shortcuts.
+ */
+export function BottomBar({
   onCreate,
   onImport,
+  newMenuOpen,
+  onNewMenuOpenChange,
   linksPanel,
   onLinksPanel,
   rules,
   onRulesChange,
+  onHelp,
 }: {
   onCreate: (kind: PaperKind) => void;
   onImport: (files: File[]) => void;
+  /** The « + » menu, controlled so Alt + N can open it. */
+  newMenuOpen: boolean;
+  onNewMenuOpenChange: (open: boolean) => void;
   /** G6 « Fils du bureau » is open. */
   linksPanel: boolean;
   onLinksPanel: () => void;
   rules: ArrivalRules;
   onRulesChange: (r: ArrivalRules) => void;
+  onHelp: () => void;
 }) {
+  const logoRef = useRef<HTMLButtonElement>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
   return (
-    <div className="dock" data-desk-ui>
-      <Toolbar appearance="pill" aria-label="Créer et importer">
-        <ToolButton className="dock__kind dock__kind--document" icon="file" label="Document" showLabel description="Nouveau document au centre de la vue." onPress={() => onCreate('document')} />
-        <ToolButton className="dock__kind dock__kind--slides" icon="slide" label="Diapo" showLabel description="Nouvelle présentation 16:9." onPress={() => onCreate('slides')} />
-        <ToolButton className="dock__kind dock__kind--spreadsheet" icon="table" label="Tableur" showLabel description="Nouvelle grille." onPress={() => onCreate('spreadsheet')} />
-        <ToolButton className="dock__kind dock__kind--form" icon="form" label="Formulaire" showLabel description="Questions, réponses rangées dans un tableur lié, publication par lien." onPress={() => onCreate('form')} />
-        <ToolButton icon="note" label="Note" showLabel shortcut={['N']} description="Pense-bête, assignable à quelqu’un." onPress={() => onCreate('note')} />
+    <div className="bottom-bar" data-desk-ui>
+      <Toolbar appearance="pill" aria-label="Bureau">
+        <MenuTrigger>
+          <WithTooltip label="Menu" description="Accueil, fils du bureau, règles d’import, raccourcis.">
+            <RACButton ref={logoRef} className="bottom-bar__logo" aria-label="Menu">
+              <Logo size={22} aria-hidden />
+            </RACButton>
+          </WithTooltip>
+          <MenuPopover placement="top start">
+            <Menu
+              aria-label="Menu"
+              onAction={(key) => {
+                if (key === 'home') location.assign('/');
+                else if (key === 'links') onLinksPanel();
+                else if (key === 'rules') setRulesOpen(true);
+                else if (key === 'help') onHelp();
+              }}
+            >
+              <MenuItem id="home" icon="home">Accueil</MenuItem>
+              <MenuSeparator />
+              <MenuItem id="links" icon="link" shortcut="Ctrl+Maj+L">
+                {linksPanel ? 'Masquer les fils du bureau' : 'Fils du bureau'}
+              </MenuItem>
+              <MenuItem id="rules" icon="settings">À l’arrivée…</MenuItem>
+              <MenuSeparator />
+              <MenuItem id="help" icon="keyboard" shortcut="?">Raccourcis clavier</MenuItem>
+            </Menu>
+          </MenuPopover>
+        </MenuTrigger>
+        <Popover triggerRef={logoRef} isOpen={rulesOpen} onOpenChange={setRulesOpen} placement="top start">
+          <div className="rules" role="group" aria-label="À l’arrivée">
+            <strong className="rules__title">À l’arrivée</strong>
+            <Switch isSelected={rules.sortByType} onChange={(v) => onRulesChange({ ...rules, sortByType: v })}>
+              Ranger automatiquement par type
+            </Switch>
+            <Switch isSelected={rules.ocr} onChange={(v) => onRulesChange({ ...rules, ocr: v })}>
+              Convertir les PDF numérisés (OCR)
+            </Switch>
+            <Switch isSelected={rules.linkTables} onChange={(v) => onRulesChange({ ...rules, linkTables: v })}>
+              Lier les tableaux importés
+            </Switch>
+            <p className="rules__help">
+              Les fichiers se posent là où on les lâche, en éventail, puis glissent vers leur pile si le rangement est actif.
+            </p>
+          </div>
+        </Popover>
+        <ToolbarSeparator />
+        <ToolButton icon="note" label="Note" showLabel shortcut={['N']} description="Pense-bête posé au centre de la vue." onPress={() => onCreate('note')} />
         <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
           <ToolButton icon="upload" label="Importer" showLabel shortcut={['Ctrl', 'O']} description="PDF, Word, PowerPoint, Excel, images · 100 Mo max." />
         </FileTrigger>
         <ToolbarSeparator />
-        <DialogTrigger>
-          <ToolButton icon="settings" label="À l’arrivée" description="Règles appliquées aux fichiers déposés." />
-          <Popover placement="top">
-            <div className="rules">
-              <strong className="rules__title">À l’arrivée</strong>
-              <Switch isSelected={rules.sortByType} onChange={(v) => onRulesChange({ ...rules, sortByType: v })}>
-                Ranger automatiquement par type
-              </Switch>
-              <Switch isSelected={rules.ocr} onChange={(v) => onRulesChange({ ...rules, ocr: v })}>
-                Convertir les PDF numérisés (OCR)
-              </Switch>
-              <Switch isSelected={rules.linkTables} onChange={(v) => onRulesChange({ ...rules, linkTables: v })}>
-                Lier les tableaux importés
-              </Switch>
-              <p className="rules__help">
-                Les fichiers se posent là où on les lâche, en éventail, puis glissent vers leur pile si le rangement est actif.
-              </p>
-            </div>
-          </Popover>
-        </DialogTrigger>
-        <ToolbarToggle
-          icon="link"
-          label="Fils"
-          shortcut={['Ctrl', 'Maj', 'L']}
-          description="Les fils de liaison du bureau : leur état, les mettre à jour, les afficher ou les masquer."
-          isSelected={linksPanel}
-          onChange={onLinksPanel}
-        />
+        <ToolButton icon="sort" label="Ranger" showLabel description="Poser les fichiers en rangées : par type, date, nom, personne ou fils." unavailableReason={SOON} />
+        <ToolButton icon="grid" label="Étaler" showLabel shortcut={['E']} description="Voir tout le projet en grille, sans rien déplacer." unavailableReason={SOON} />
         <ToolbarSeparator />
-        <MenuTrigger>
-          <Button variant="primary" size="sm" leadingIcon="plus">
-            Nouveau
-          </Button>
-          <MenuPopover placement="top">
-            <Menu
-              aria-label="Nouveau"
-              onAction={(key) => {
-                if (key === 'import') document.querySelector<HTMLInputElement>('.dock input[type=file]')?.click();
-                else onCreate(key as PaperKind);
-              }}
-            >
-              <MenuItem id="document" icon="file">Document</MenuItem>
-              <MenuItem id="slides" icon="slide">Présentation</MenuItem>
-              <MenuItem id="spreadsheet" icon="table">Tableur</MenuItem>
-              <MenuItem id="form" icon="form">Formulaire</MenuItem>
-              <MenuItem id="note" icon="note" shortcut="N">Note</MenuItem>
-              <MenuSeparator />
-              <MenuItem id="import" icon="upload" shortcut="Ctrl+O">Importer des fichiers…</MenuItem>
+        <MenuTrigger isOpen={newMenuOpen} onOpenChange={onNewMenuOpenChange}>
+          <WithTooltip label="Nouveau" shortcut={['Alt', 'N']} description="Document, présentation, tableur ou formulaire, au centre de la vue.">
+            <RACButton className="bottom-bar__new" aria-label="Nouveau" aria-keyshortcuts="Alt+N">
+              <Icon name="plus" size={20} />
+            </RACButton>
+          </WithTooltip>
+          <MenuPopover placement="top end">
+            <Menu aria-label="Nouveau" onAction={(key) => onCreate(key as PaperKind)}>
+              {NEW_KINDS.map((k) => (
+                <MenuItem key={k.kind} id={k.kind} icon={k.icon} className={`bottom-bar__kind bottom-bar__kind--${k.kind}`}>
+                  {k.label}
+                </MenuItem>
+              ))}
             </Menu>
           </MenuPopover>
         </MenuTrigger>

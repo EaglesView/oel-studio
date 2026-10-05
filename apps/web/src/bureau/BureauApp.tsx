@@ -8,13 +8,11 @@ import {
   MenuItem,
   MenuPopover,
   MenuSeparator,
-  NavItem,
-  Sidebar,
   ToastRegion,
   toast,
 } from '@oel/emboss';
 import { ContextToolbar } from './ContextToolbar';
-import { Dock, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
+import { BottomBar, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
@@ -51,7 +49,8 @@ export function BureauApp() {
     return desk;
   }, []);
   const [view, setView] = useState<'desk' | 'list'>('desk');
-  const [navCollapsed, setNavCollapsed] = useState(true);
+  /** The bottom bar's « + » menu (M1), opened by Alt + N too. */
+  const [newMenu, setNewMenu] = useState(false);
   const [help, setHelp] = useState(false);
   const [rules, setRules] = useState<ArrivalRules>({ sortByType: false, ocr: true, linkTables: true });
   const [menu, setMenu] = useState<{ ids: string[]; at: { x: number; y: number } } | null>(null);
@@ -60,7 +59,7 @@ export function BureauApp() {
   const [full, setFull] = useState(false);
   const announceRef = useRef<(m: string) => void>(() => {});
   const announce = useCallback((m: string) => announceRef.current(m), []);
-  /** E2 · 1 « Nouveau formulaire » (from the dock, or from a selected spreadsheet). */
+  /** E2 · 1 « Nouveau formulaire » (from the « + » menu, or from a selected spreadsheet). */
   const [newForm, setNewForm] = useState<{ sheetId: string | null } | null>(null);
   useFormSync(store, formsBackend, announce);
 
@@ -223,9 +222,13 @@ export function BureauApp() {
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
         e.preventDefault();
         links.setUi({ panel: !links.getUi().panel });
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyN') {
+        // Alt + N: the « + » menu (M1). By key code: on macOS Option + N types a dead key.
+        e.preventDefault();
+        setNewMenu(true);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
         e.preventDefault();
-        document.querySelector<HTMLInputElement>('.dock input[type=file]')?.click();
+        document.querySelector<HTMLInputElement>('.bottom-bar input[type=file]')?.click();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -234,12 +237,6 @@ export function BureauApp() {
 
   return (
     <div className="bureau" style={{ ['--desk-selection' as string]: identity().color }}>
-      <Sidebar collapsed={navCollapsed} onToggle={() => setNavCollapsed((c) => !c)}>
-        <NavItem icon="home" label="Accueil" href="/" collapsed={navCollapsed} />
-        <NavItem icon="folder" label="Bureau" href="/bureau" current count={count} collapsed={navCollapsed} />
-        <NavItem icon="grid" label="Composants" href="/composants" collapsed={navCollapsed} />
-      </Sidebar>
-
       <main id="contenu" className="bureau__main">
         {view === 'desk' ? (
           <DeskCanvas<PaperData>
@@ -312,13 +309,16 @@ export function BureauApp() {
 
         <ProjectPill title={PROJECT} count={count} view={view} onToggleView={() => setView((v) => (v === 'desk' ? 'list' : 'desk'))} />
         <SharePill onHelp={() => setHelp(true)} />
-        <Dock
+        <BottomBar
           onCreate={create}
           onImport={(files) => doImport(files)}
+          newMenuOpen={newMenu}
+          onNewMenuOpenChange={setNewMenu}
           linksPanel={linksUi.panel}
           onLinksPanel={() => links.setUi({ panel: !linksUi.panel })}
           rules={rules}
           onRulesChange={setRules}
+          onHelp={() => setHelp(true)}
         />
         {view === 'desk' && (
           <div className="bureau__corner">

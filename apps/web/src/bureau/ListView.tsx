@@ -29,7 +29,7 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
         onAction={(key) => onOpen(String(key))}
         items={papers}
         className="list-view__grid"
-        renderEmptyState={() => <p className="list-view__empty">Aucun fichier. Importez-en depuis le dock.</p>}
+        renderEmptyState={() => <p className="list-view__empty">Aucun fichier. Importez-en avec « Importer », en bas.</p>}
       >
         {(p) => (
           <GridListItem id={p.id} textValue={p.title} className="list-row">
