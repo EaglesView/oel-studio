@@ -14,10 +14,9 @@
  *   their last value. Ctrl+Z in the source brings the chart back, and the links.
  */
 import * as Y from 'yjs';
-import { chartName, keepLook, withCaches, type ChartSpec } from '@oel/charts';
-import { CalcClient, sheetResolver, type CalcPort, type SheetSession } from '@oel/sheets';
+import { chartName, keepLook, type ChartSpec } from '@oel/charts';
 import { chartBoxOn, chartFrame, chartSlide, type SlideSession } from '@oel/slides';
-import { chartOf, findChart, insertChartParagraph, setChart, type DocSession } from '@oel/docs';
+import { insertChartParagraph, type DocSession } from '@oel/docs';
 import {
   LINK_ORIGIN,
   THREAD_PREFIX,
@@ -25,7 +24,6 @@ import {
   deriveThreads,
   linkState,
   linksOf,
-  revOf,
   setLinkHost,
   stableJson,
   type Carries,
@@ -33,6 +31,7 @@ import {
   type LinkHost,
   type LinkMode,
   type LinkState,
+  type LinkedValue,
   type LinksDoc,
   type ResolvedLink,
   type SourceRef,
@@ -40,8 +39,12 @@ import {
 import type { DeskLink } from '@oel/desk';
 import type { Bureau, Paper } from '../bureau/model';
 import { identity, sessionFor } from '../bureau/docs';
-import { createCalcWorker, sheetSessionFor } from '../bureau/sheets';
+import { sheetSessionFor } from '../bureau/sheets';
 import { slideSessionFor } from '../bureau/slides';
+import { valueRev, type LinkSource, type LinkTarget } from './kinds';
+import { openSheetSource } from './sources/sheet';
+import { slidesTarget } from './targets/slides';
+import { documentTarget } from './targets/document';
 
 /** Kinds that can hold a linked chart. */
 export const TARGET_KINDS = new Set(['slides', 'document']);
@@ -73,6 +76,8 @@ interface Target {
   kind: 'slides' | 'document';
   ydoc: Y.Doc;
   links: LinksDoc;
+  /** Reads and writes the copies (per kind). */
+  adapter: LinkTarget;
   slides?: SlideSession;
   doc?: DocSession;
   off: () => void;
@@ -80,10 +85,10 @@ interface Target {
 
 interface Source {
   docId: string;
-  session: SheetSession;
-  calc: CalcClient;
+  /** Reads what links point at (per kind). */
+  src: LinkSource;
   /** By ref key: the copy value and its revision; `null` = the object is gone. */
-  values: Map<string, { value: ChartSpec; rev: string } | null>;
+  values: Map<string, { value: LinkedValue; rev: string } | null>;
   timer: ReturnType<typeof setTimeout> | null;
   running: Promise<void> | null;
   again: boolean;
@@ -161,8 +166,8 @@ export class LinkResolver implements LinkHost {
       const kind = p.kind as 'slides' | 'document';
       const t: Target =
         kind === 'slides'
-          ? await slideSessionFor(p, () => {}).then((s) => ({ paperId: p.id, docId, kind, ydoc: s.ydoc, links: linksOf(s.ydoc), slides: s, off: () => {} }))
-          : await sessionFor(p, () => {}).then((s) => ({ paperId: p.id, docId, kind, ydoc: s.ydoc, links: linksOf(s.ydoc), doc: s, off: () => {} }));
+          ? await slideSessionFor(p, () => {}).then((s) => ({ paperId: p.id, docId, kind, ydoc: s.ydoc, links: linksOf(s.ydoc), adapter: slidesTarget(s), slides: s, off: () => {} }))
+          : await sessionFor(p, () => {}).then((s) => ({ paperId: p.id, docId, kind, ydoc: s.ydoc, links: linksOf(s.ydoc), adapter: documentTarget(s), doc: s, off: () => {} }));
       if (this.disposed) return;
       // Links whose copy is gone since the file was last open (no undo can bring it back now) go away.
       for (const l of t.links.list()) if (!this.copyExists(t, l.target.objectId)) t.links.remove(l.id);
@@ -191,17 +196,15 @@ export class LinkResolver implements LinkHost {
     if (!p || p.kind !== 'spreadsheet') return;
     this.opening.add(docId);
     try {
-      const session = await sheetSessionFor(p, () => {});
-      if (this.disposed) return;
-      const calc = new CalcClient(session.sheet, createCalcWorker() as unknown as CalcPort);
-      const src: Source = { docId, session, calc, values: new Map(), timer: null, running: null, again: false, off: () => {} };
-      // Cell edits (anyone's), undo, rows moved… → read the linked charts again.
-      const onTx = () => this.scheduleSource(src);
-      session.ydoc.on('afterTransaction', onTx);
+      const opened = await openSheetSource(p);
+      if (this.disposed) return opened.dispose();
+      const src: Source = { docId, src: opened, values: new Map(), timer: null, running: null, again: false, off: () => {} };
+      // Any change in the source → read the linked objects again.
+      const offChange = opened.onChange(() => this.scheduleSource(src));
       src.off = () => {
-        session.ydoc.off('afterTransaction', onTx);
+        offChange();
         if (src.timer) clearTimeout(src.timer);
-        calc.dispose();
+        opened.dispose();
       };
       this.sources.set(docId, src);
       this.scheduleSource(src, 0);
@@ -239,30 +242,10 @@ export class LinkResolver implements LinkHost {
     }, ms);
   }
 
-  /** The value a copy of `ref` shows now (`null` when the chart is gone, `undefined` when it could not be read). */
-  private async readRef(src: Source, ref: SourceRef): Promise<ChartSpec | null | undefined> {
-    if (ref.kind !== 'chart') return null;
-    // First pass asks the engine for the ranges; once it has caught up, the second reads them.
-    // A rebuild of the engine in between (rows inserted…) drops fetched values: read again.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      await src.calc.settled();
-      const loads = src.calc.loads;
-      const hit = src.session.sheet.drawingById(ref.chartId);
-      if (!hit?.drawing.chart) return null;
-      const resolve = sheetResolver({ doc: src.session.sheet, calc: src.calc }, hit.sheet);
-      withCaches(hit.drawing.chart, resolve);
-      await src.calc.settled();
-      const again = src.session.sheet.drawingById(ref.chartId);
-      if (!again?.drawing.chart) return null;
-      if (src.calc.loads === loads) return { ...withCaches(again.drawing.chart, resolve), part: '' };
-    }
-    return undefined;
-  }
-
   private async readSource(src: Source) {
     for (const ref of this.refsOf(src.docId)) {
-      const value = await this.readRef(src, ref);
-      if (value !== undefined) src.values.set(refKey(ref), value ? { value, rev: revOf(value) } : null);
+      const value = await src.src.read(ref);
+      if (value !== undefined) src.values.set(refKey(ref), value ? { value, rev: valueRev(value) } : null);
     }
     this.pushLive();
     this.queueRefresh();
@@ -284,36 +267,24 @@ export class LinkResolver implements LinkHost {
       }
   }
 
-  private apply(t: Target, l: LinkDef, value: ChartSpec, rev: string) {
+  private apply(t: Target, l: LinkDef, value: LinkedValue, rev: string) {
     const by = identity().name;
-    if (t.kind === 'slides' && t.slides) {
-      const sd = t.slides.slides;
-      const slideId = sd.slideIds().find((id) => sd.slide(id)?.elements.some((e) => e.id === l.target.objectId));
-      if (!slideId) return;
-      const current = sd.slide(slideId)!.elements.find((e) => e.id === l.target.objectId)!.chart ?? null;
-      const chart = l.carries === 'chart-data' ? keepLook(current, value) : value;
-      t.ydoc.transact(() => {
-        sd.updateElement(slideId, l.target.objectId, { chart });
-        t.links.patch(l.id, { snapshot: { rev, at: Date.now(), by } });
-      }, LINK_ORIGIN);
-    } else if (t.kind === 'document') {
-      const current = chartOf(t.ydoc, l.target.objectId);
-      const chart = l.carries === 'chart-data' ? keepLook(current, value) : value;
-      t.ydoc.transact(() => {
-        if (setChart(t.ydoc, l.target.objectId, chart, LINK_ORIGIN)) t.links.patch(l.id, { snapshot: { rev, at: Date.now(), by } });
-      }, LINK_ORIGIN);
+    const oid = l.target.objectId;
+    // « Données seulement »: the copy keeps its own look (and variant) around the source's data.
+    if (value.kind === 'chart' && l.carries === 'chart-data') {
+      const current = t.adapter.current(oid);
+      value = { kind: 'chart', spec: keepLook(current?.kind === 'chart' ? (current.spec as ChartSpec) : null, value.spec as ChartSpec) };
     }
+    t.ydoc.transact(() => {
+      if (t.adapter.write(oid, value)) t.links.patch(l.id, { snapshot: { rev, at: Date.now(), by } });
+    }, LINK_ORIGIN);
     this.updatingUntil.set(l.id, Date.now() + UPDATING_MS);
     setTimeout(() => this.queueRefresh(), UPDATING_MS + 20);
   }
 
   /** Whether the copy a link writes into is still in its file. */
   private copyExists(t: Target, objectId: string): boolean {
-    if (t.kind === 'slides') {
-      const sd = t.slides!.slides;
-      return sd.slideIds().some((id) => sd.slide(id)?.elements.some((e) => e.id === objectId));
-    }
-    return !!chartOf(t.ydoc, objectId);
+    return t.adapter.exists(objectId);
   }
 
   /**
@@ -323,7 +294,8 @@ export class LinkResolver implements LinkHost {
   private repairBacklinks(list: Array<ResolvedLink & { target: Target; targetPaper?: Paper }>) {
     const openTargets = new Set(this.targets.keys());
     for (const src of this.sources.values()) {
-      const bl = linksOf(src.session.ydoc);
+      if (!src.src.ydoc) continue;
+      const bl = linksOf(src.src.ydoc);
       const wanted = new Map(list.filter((l) => l.def.source.docId === src.docId).map((l) => [l.def.id, l]));
       for (const [id, l] of wanted)
         bl.putBacklink({ linkId: id, ref: l.def.source.ref, docId: l.targetDocId, kind: l.target.kind, objectId: l.def.target.objectId, title: l.targetPaper?.title ?? '', label: l.def.target.label }, LINK_ORIGIN);
@@ -454,8 +426,8 @@ export class LinkResolver implements LinkHost {
     const l = this.find(linkId);
     if (!l) return;
     l.target.links.remove(linkId, 'person');
-    const src = this.sources.get(l.def.source.docId);
-    if (src) linksOf(src.session.ydoc).removeBacklink(linkId, 'person');
+    const src = this.sources.get(l.def.source.docId)?.src.ydoc;
+    if (src) linksOf(src).removeBacklink(linkId, 'person');
     if (this.ui.popover?.linkId === linkId) this.setUi({ popover: null });
     this.open.announce('Lien coupé : la copie garde sa dernière image.');
     this.queueRefresh();
@@ -477,25 +449,11 @@ export class LinkResolver implements LinkHost {
     if (!l) return;
     const t = l.target;
     t.ydoc.transact(() => {
-      if (t.kind === 'slides' && t.slides) {
-        const sd = t.slides.slides;
-        for (const id of sd.slideIds()) {
-          const s = sd.slide(id);
-          if (!s?.elements.some((e) => e.id === l.def.target.objectId)) continue;
-          // A slide made for the chart goes with it.
-          if (s.elements.length <= 2 && s.elements.every((e) => e.id === l.def.target.objectId || !!e.ph)) sd.removeSlide(id);
-          else sd.removeElements(id, [l.def.target.objectId]);
-        }
-      } else {
-        const el = findChart(t.ydoc, l.def.target.objectId);
-        const para = el?.parent;
-        if (para instanceof Y.XmlElement && para.length === 1 && para.parent) (para.parent as Y.XmlFragment).delete((para.parent as Y.XmlFragment).toArray().indexOf(para), 1);
-        else if (el?.parent) (el.parent as Y.XmlElement).delete((el.parent as Y.XmlElement).toArray().indexOf(el), 1);
-      }
+      t.adapter.remove(l.def.target.objectId);
       t.links.remove(linkId, 'person');
     }, 'person');
-    const src = this.sources.get(l.def.source.docId);
-    if (src) linksOf(src.session.ydoc).removeBacklink(linkId, 'person');
+    const srcDoc = this.sources.get(l.def.source.docId)?.src.ydoc;
+    if (srcDoc) linksOf(srcDoc).removeBacklink(linkId, 'person');
     this.queueRefresh();
   }
 
@@ -546,8 +504,9 @@ export class LinkResolver implements LinkHost {
     // The value comes from the source's own engine, so it matches what live updates will write.
     await this.ensureSource(sourcePaper.data.docId);
     const src = this.sources.get(sourcePaper.data.docId);
-    const value = (src && (await this.readRef(src, ref))) ?? { ...req.spec, part: '' };
-    const rev = revOf(value);
+    const read = src ? await src.src.read(ref) : null;
+    const value: ChartSpec = read?.kind === 'chart' ? (read.spec as ChartSpec) : { ...req.spec, part: '' };
+    const rev = valueRev({ kind: 'chart', spec: value });
     const id = `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
     const name = chartName(value) === 'Graphique' ? req.name : chartName(value);
     let objectId = '';
@@ -610,7 +569,7 @@ export class LinkResolver implements LinkHost {
     }
 
     // The source learns where it is used (« Utilisé dans… »).
-    const srcDoc = src?.session.ydoc ?? (await sheetSessionFor(sourcePaper, () => {})).ydoc;
+    const srcDoc = src?.src.ydoc ?? (await sheetSessionFor(sourcePaper, () => {})).ydoc;
     linksOf(srcDoc).putBacklink({ linkId: id, ref, docId: targetDocId, kind: targetPaper.kind as 'slides' | 'document', objectId, title: targetPaper.title, label: where }, 'person');
     if (targetPaper.data.docId) void this.ensureTarget(this.store.node(targetPaperId) as Paper);
     this.queueRefresh();
