@@ -60,7 +60,7 @@
   border-radius: 50%;
   cursor: pointer;
   outline: none;
-  transition: box-shadow var(--dur-toggle, 160ms) ease, background-color var(--dur-toggle, 160ms) ease, scale 120ms ease;
+  transition: box-shadow var(--dur-toggle, 160ms) ease, background-color var(--dur-toggle, 160ms) ease;
 }
 .bottom-bar__logo {
   border: 1px solid var(--emboss-edge);
@@ -71,27 +71,52 @@
 .bottom-bar__logo[data-hovered] { box-shadow: var(--shadow-raised); }
 .bottom-bar__logo[data-pressed],
 .bottom-bar__logo[aria-expanded='true'] { background-color: var(--emboss-well); box-shadow: var(--shadow-pressed); }
+/* The light's position is animatable: at rest it sits near the centre (a low dome), hovering lifts the sphere and
+   the light slides to the top left; pressing pushes it into the paper (light drops low, relief turns inward). */
+@property --_hx { syntax: '<percentage>'; inherits: false; initial-value: 46%; }
+@property --_hy { syntax: '<percentage>'; inherits: false; initial-value: 40%; }
+@property --_hl { syntax: '<number>'; inherits: false; initial-value: 0.4; }
 .bottom-bar__new {
   --_ink: var(--emboss-fill-primary);
   border: 0;
   color: #fff;
   background:
-    radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.55) 0, rgb(255 255 255 / 0.12) 28%, transparent 52%),
+    radial-gradient(circle at var(--_hx) var(--_hy), rgb(255 255 255 / var(--_hl)) 0, rgb(255 255 255 / calc(var(--_hl) * 0.2)) 26%, transparent 50%),
     radial-gradient(circle at 50% 50%, var(--_ink) 55%, color-mix(in oklab, var(--_ink), black 22%) 100%);
   box-shadow:
     inset 0 -2px 3px var(--emboss-highlight),
     inset 0 2px 5px var(--emboss-shade),
     var(--shadow-raised-soft);
+  transition: --_hx 200ms ease, --_hy 200ms ease, --_hl 200ms ease, box-shadow 200ms ease, translate 160ms ease;
 }
-.bottom-bar__new svg { filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25)); }
-.bottom-bar__new[data-hovered] { --_ink: var(--emboss-fill-primary-hover); box-shadow: inset 0 -2px 3px var(--emboss-highlight), inset 0 2px 5px var(--emboss-shade), var(--shadow-raised); }
+.bottom-bar__new svg { filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25)); transition: translate 160ms ease; }
+.bottom-bar__new[data-hovered] {
+  --_hx: 34%;
+  --_hy: 28%;
+  --_hl: 0.55;
+  translate: 0 -1px;
+  box-shadow: inset 0 -2px 3px var(--emboss-highlight), inset 0 2px 5px var(--emboss-shade), var(--shadow-raised);
+}
 .bottom-bar__new[data-pressed],
-.bottom-bar__new[aria-expanded='true'] { --_ink: var(--emboss-fill-primary-pressed); scale: 0.96; box-shadow: inset 0 -1px 2px var(--emboss-highlight), inset 0 3px 6px var(--emboss-shade); }
+.bottom-bar__new[aria-expanded='true'] {
+  --_hx: 50%;
+  --_hy: 72%;
+  --_hl: 0.22;
+  translate: 0 1px;
+  transition-duration: 90ms;
+  box-shadow:
+    inset 0 3px 6px var(--emboss-shade),
+    inset 0 -1px 2px var(--emboss-highlight),
+    0 0 0 1px var(--emboss-edge),
+    0 1px 2px var(--emboss-highlight);
+}
+.bottom-bar__new[data-pressed] svg,
+.bottom-bar__new[aria-expanded='true'] svg { translate: 0 0.5px; filter: none; }
 .bottom-bar__logo[data-focus-visible],
 .bottom-bar__new[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
-  .bottom-bar__logo, .bottom-bar__new { transition: none; }
-  .bottom-bar__new[data-pressed], .bottom-bar__new[aria-expanded='true'] { scale: none; }
+  .bottom-bar__logo, .bottom-bar__new, .bottom-bar__new svg { transition: none; }
+  .bottom-bar__new[data-hovered], .bottom-bar__new[data-pressed], .bottom-bar__new[aria-expanded='true'] { translate: none; }
 }
 
 .bureau__corner {
