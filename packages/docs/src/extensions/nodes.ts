@@ -340,6 +340,8 @@ export const DocImage = Node.create<{ resolver: ImageResolver }>({
       title: { default: '' },
       floating: raw(false),
       xml: raw(),
+      /** Editor-only id of a linked picture (@oel/links): what a link points at. */
+      oid: raw(),
     };
   },
   parseHTML: () => [{ tag: 'img[src]' }],

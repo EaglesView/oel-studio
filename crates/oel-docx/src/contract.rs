@@ -490,6 +490,11 @@ pub struct ImageAttrs {
     pub floating: bool,
     /// The original run, written back while the image is unchanged.
     pub xml: Option<String>,
+    /// Editor-only id of a linked picture (`@oel/links`, plan I-3): what a link points at.
+    /// Always null from the reader; the writer ignores it.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub oid: Option<String>,
 }
 
 /// A floating object (`wp:anchor`): picture, shape, text box or group, drawn on

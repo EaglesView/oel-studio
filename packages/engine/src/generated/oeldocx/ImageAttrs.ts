@@ -12,4 +12,9 @@ cx: number | null, cy: number | null, alt: string, title: string, floating: bool
 /**
  * The original run, written back while the image is unchanged.
  */
-xml: string | null, };
+xml: string | null, 
+/**
+ * Editor-only id of a linked picture (`@oel/links`, plan I-3): what a link points at.
+ * Always null from the reader; the writer ignores it.
+ */
+oid?: string, };

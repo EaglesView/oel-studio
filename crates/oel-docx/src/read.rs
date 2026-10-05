@@ -656,6 +656,7 @@ fn read_drawing(ctx: &mut ReadCtx, rpr: Option<&XElement>, d: &XElement, marks: 
             "title": doc_pr.and_then(|p| p.attr("title")).unwrap_or(""),
             "floating": floating,
             "xml": xml,
+            "oid": null,
         }),
         marks,
     )
