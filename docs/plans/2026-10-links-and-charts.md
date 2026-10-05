@@ -29,6 +29,12 @@ Branch `feat/pptx` has uncommitted changes: the fonts dialog (`packages/collab-c
 
 ## Step 1 — Figma UX (before code, then we discuss)
 
+**Status 2026-10-04: drawn.** G · Fils de liaison → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=148-9523 ·
+H · Graphiques → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=156-10341.
+Added while drawing (to confirm in the discussion): linked single value inside text (G2b d), « Transporte : graphique et style / données seulement »,
+delete-source dialog with three outcomes (figer / rompre / supprimer les copies), updates deferred during a slideshow, 6 Iconoir icons
+(Filter, Snow Flake, Rotate 3D, Palette, Switch Rows Columns, Axes) added to the Icons frame.
+
 Build the frames from `@oel/emboss` kit instances and `emboss/*` variables, use Iconoir icons only, write copy in fr-CA, and load the `figma-use` skill before calling `use_figma`. Leave the user's own Editor page alone.
 
 **G · Fils de liaison**
@@ -274,6 +280,14 @@ interface LinkDef {
 - Form → sheet moves onto `@oel/links`.
 
 ---
+
+## Status (2026-10-05)
+
+- Phase 3 done: `crates/oel-chart` reads every generated fixture chart (classic + chartEx), writes classic charts.
+- Phase 4 done: `@oel/charts` draws 2-D, 3-D (projected polygons), stock, surface, radar, chartEx; placeholders replaced in sheets, slides, docs, sheet thumbnails.
+- Phase 5 mostly done (sheets): Alt+F1 / gallery insert, select, move, resize, delete, duplicate, type, colours, elements, data, format, 3-D rotation; xlsx export (new/edited/moved/removed; untouched byte for byte); id-based refs. Not yet: sparklines, chart sheets, per-element click selection and inspector, dragging the coloured range handles, chartEx editing.
+- Phase 6 not started: editing charts in slides and documents (embedded workbook writer).
+- Phases 7–10 (links) not started. Fixtures from Office still to come.
 
 ## Phasing (each phase ends with `oel-verify` and a commit)
 

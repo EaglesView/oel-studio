@@ -195,7 +195,8 @@ Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock �
 | Contextual toolbar per type (B2), multi-selection actions (B7) | Working |
 | Comments | Removed from papers; planned as a canvas-wide feature |
 | Documents (.docx): full editor, lossless round trip, offline, sharing, versions | Working (`@oel/docs` + `apps/collab`) |
-| Presentations (.pptx): editor (filmstrip, shapes, text, pictures, layouts, notes), slideshow + presenter window, lossless round trip, offline, sharing, versions, `/presentation` | Working (`@oel/slides` + `crates/oel-pptx` + `apps/collab`). Kept but not editable: animations, transitions, charts, SmartArt, group members, table structure |
+| Presentations (.pptx): editor (filmstrip, shapes, text, pictures, layouts, notes), slideshow + presenter window, lossless round trip, offline, sharing, versions, `/presentation` | Working (`@oel/slides` + `crates/oel-pptx` + `apps/collab`). Kept but not editable: animations, transitions, SmartArt, group members, table structure. Charts are drawn (`@oel/charts`) but not yet editable in slides |
+| Charts (`crates/oel-chart` + `@oel/charts`, Figma H): every Office chart type read and drawn (2-D, 3-D, stock, surface, radar, chartEx) in sheets, slides, documents and desk thumbnails; in sheets: insert (Alt+F1, gallery with live previews), select, move, resize, change type, colours, elements, data, format, written back to .xlsx (untouched charts byte for byte) | Working in sheets. Slides and documents: drawn from the file's cache, not yet editable. chartEx (treemap, cascade…) drawn and kept, not editable. « Lier dans… » waits for the links (Figma G) |
 | Open in place (B4): PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
 | Import (B8): drop / file picker → worker → paper with progress, read-only states, toast | Working with the JS preview engine |
 | PDF → editable document (06) | **Simulated progress**; the new document says so |

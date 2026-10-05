@@ -25,6 +25,7 @@ done — the skills describe the layout *as it is now*).
 - Parsing/writing a file format, or heavy computation → Rust. Follow `oel-rust-engine`.
 - New desk paper type or changing how a type appears on the desk → `oel-file-kind`.
 - Feature inside the document/spreadsheet/form editors → `oel-editor-feature`.
+- Charts (reading, drawing, editing, writing, any chart type) → `oel-charts`.
 - Anything that needs a server, accounts, emails, uploads, anti-abuse → `oel-collab-backend`.
 - Every change ends with `oel-verify`.
 

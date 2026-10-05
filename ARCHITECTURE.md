@@ -71,16 +71,18 @@ oel-studio/
     oel-docx/                DOCX ↔ ProseMirror-JSON codec           (from oeldocx_rs/src/ooxml + fonts)
     oel-xlsx/                XLSX/CSV codec + IronCalc calc          (from oelxlsx_rs)
     oel-img/                 image operations                        (from oelimg-rs, when wired)
-    oel-pptx/ …              future codecs, same shape
+    oel-pptx/                PPTX ↔ deck-JSON codec
+    oel-chart/               DrawingML charts (c: and cx: chartSpace) ↔ ChartSpec, shared by the three codecs
   packages/
     wasm/                    GENERATED, gitignored: wasm-pack output per crate
                              (web + node targets), built by `npm run build:wasm`
-    engine/ emboss/ desk/ collab-client/ docs/ sheets/ forms/
+    engine/ emboss/ desk/ collab-client/ docs/ sheets/ slides/ forms/
+    charts/                  @oel/charts: ChartSpec → scene of marks → SVG / Canvas (every Office chart type)
     platform/                NEW: platform seam (web impl now, tauri impl later)
   apps/
     web/  collab/
     desktop/                 LATER: Tauri 2 shell reusing apps/web's build
-  fixtures/                  NEW: shared .docx/.xlsx/.csv corpus used by cargo AND vitest
+  fixtures/                  shared .docx/.xlsx/.pptx/.csv corpus used by cargo AND vitest (charts/: chart samples)
   docs/plans/                execution plans
   .claude/skills/            how-to skills for changing features (see §8)
 ```
