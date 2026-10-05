@@ -179,6 +179,7 @@
 .oel-canvas__plane { position: absolute; left: 0; top: 0; transform-origin: 0 0; cursor: default; touch-action: none; }
 .oel-canvas__plane .oel-el { cursor: move; }
 .oel-canvas__overlay { position: absolute; inset: 0; pointer-events: none; }
+.oel-slide-chartbar { z-index: 5; white-space: nowrap; }
 .oel-sel { position: absolute; box-sizing: border-box; border: 1.5px solid var(--emboss-fill-primary); transform-origin: center center; }
 .oel-sel.is-locked { border-style: dashed; }
 .oel-sel.is-editing { border-style: dashed; }

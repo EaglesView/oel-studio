@@ -12,7 +12,8 @@ import { sanitizeStylesheet } from '../model/format';
 import { useDocEditor, useDocMeta } from './useDocEditor';
 import { fontNoticeOnFirstOpen } from './fonts';
 import type { FontReport } from '@oel/fonts';
-import { DocsToolbar, TableFloat, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
+import { DocsToolbar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
+import { ChartFloat, TableFloat } from './Floats';
 import { ContextMenu, MenuBar, MoreMenu, type MenuEntry, type MenuSpec } from './MenuBar';
 import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
 import { printPages } from './print';
@@ -803,6 +804,7 @@ export function DocsEditor(props: DocsEditorProps) {
         )}
       </div>
       {inTable && editable && target && <TableFloat editor={target} scroller={canvasRef.current} />}
+      {toolbar?.chartAt != null && target && <ChartFloat key={toolbar.chartAt} editor={target} scroller={canvasRef.current} editable={editable} />}
       {ctxMenu && (
         <ContextMenu
           at={ctxMenu}

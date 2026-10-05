@@ -1,10 +1,12 @@
 /**
  * Chart editing pieces shared by the hosts (Figma H2): Office palettes, the
- * « Éléments » checklist. The sheet's full chart tools build on these, and so
- * do the bars over chart copies in slides and documents.
+ * « Éléments » checklist, and the bar over a chart copy in slides and
+ * documents. The sheet's full chart tools build on the same pieces.
  */
+import type { CSSProperties } from 'react';
 import { Dialog } from 'react-aria-components';
-import { Checkbox, Radio, RadioGroup } from '@oel/emboss';
+import { Checkbox, Menu, MenuItem, MenuPopover, MenuTrigger, Popover, Radio, RadioGroup, Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
+import { applyType, chartFamily, CHART_TYPES } from '../catalog';
 import type { Axis, ChartSpec, Group, Series } from '../types';
 
 /** Office palettes offered by « Couleurs » (colourful, then monochrome). */
@@ -98,5 +100,104 @@ export function ElementsMenu({ spec, apply }: { spec: ChartSpec; apply: (fn: (s:
         </div>
       )}
     </Dialog>
+  );
+}
+
+/** « Couleurs »: the Office palettes as a menu (series follow the new colours). */
+export function PaletteMenu({ apply, unavailableReason }: { apply: (fn: (s: ChartSpec) => ChartSpec) => void; unavailableReason?: string }) {
+  return (
+    <MenuTrigger>
+      <ToolButton icon="palette" label="Couleurs" unavailableReason={unavailableReason} />
+      <MenuPopover placement="bottom start">
+        <Menu aria-label="Couleurs" onAction={(k) => apply((s) => withPalette(s, PALETTES.find((p) => p.id === k)!.colors))}>
+          {PALETTES.map((p) => (
+            <MenuItem key={p.id} id={p.id} textValue={p.label}>
+              <span className="oel-chart-swatches" aria-hidden>
+                {p.colors.map((c) => (
+                  <i key={c} style={{ background: c }} />
+                ))}
+              </span>
+              {p.label}
+            </MenuItem>
+          ))}
+        </Menu>
+      </MenuPopover>
+    </MenuTrigger>
+  );
+}
+
+/** What a chart copy's bar shows about its link (the host reads it from @oel/links). */
+export interface CopyLinkInfo {
+  /** Source file title (« Budget 2027 »). */
+  source: string;
+  /** State in words (« À jour », « En retard »…). */
+  stateLabel: string;
+  stale: boolean;
+  frozen: boolean;
+  /** Why « Voir la source » is unavailable (the source is not on the desk…). */
+  sourceUnavailable?: string;
+  onSource: () => void;
+  onUpdate: () => void;
+  onManage: (anchor: { x: number; y: number; width: number; height: number }) => void;
+}
+
+/**
+ * The bar over a chart in a slide or a document (Figma G4 + H2): the variant
+ * within the chart's family, colours, elements and, for a linked copy, its
+ * source, « Mettre à jour » and the link's popover. The host positions it.
+ */
+export function CopyChartBar({ spec, apply, lockReason, link, style, className }: { spec: ChartSpec; apply: (fn: (s: ChartSpec) => ChartSpec) => void; lockReason?: string; link?: CopyLinkInfo | null; style?: CSSProperties; className?: string }) {
+  const current = chartFamily(spec);
+  const lock = lockReason ?? (spec.ex ? 'Graphique Office 2016+ : affiché et conservé, pas encore modifiable.' : undefined);
+  const variants = current ? CHART_TYPES.filter((t) => t.family === current.family && !t.ex) : [];
+  return (
+    <div className={`oel-chart-bar${className ? ` ${className}` : ''}`} style={style} onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} onKeyDown={(e) => e.stopPropagation()}>
+      <Toolbar aria-label={link ? 'Graphique lié' : 'Graphique'}>
+        <span className="oel-chart-bar__label">{link ? 'Graphique lié' : 'Graphique'}</span>
+        {lock || variants.length < 2 ? (
+          <ToolButton icon="chart" label={current?.label ?? 'Type'} showLabel unavailableReason={lock ?? 'Pas d’autre variante pour ce type de graphique.'} />
+        ) : (
+          <MenuTrigger>
+            <ToolButton icon="chart" label={current!.label} showLabel description={`Autre variante : ${current!.family.toLocaleLowerCase('fr-CA')}`} />
+            <MenuPopover placement="bottom start">
+              <Menu aria-label="Variante" onAction={(k) => k !== current!.id && apply((s) => applyType(s, String(k)))}>
+                {variants.map((t) => (
+                  <MenuItem key={t.id} id={t.id} textValue={t.label}>
+                    {t.id === current!.id ? `✓ ${t.label}` : `\u2003${t.label}`}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </MenuPopover>
+          </MenuTrigger>
+        )}
+        <PaletteMenu apply={apply} unavailableReason={lock} />
+        {lock ? (
+          <ToolButton icon="plus" label="Éléments" showLabel unavailableReason={lock} />
+        ) : (
+          <MenuTrigger>
+            <ToolButton icon="plus" label="Éléments" showLabel description="Titre, axes, légende, étiquettes, quadrillage…" />
+            <Popover placement="bottom">
+              <ElementsMenu spec={spec} apply={apply} />
+            </Popover>
+          </MenuTrigger>
+        )}
+        {link && (
+          <>
+            <ToolbarSeparator />
+            <ToolButton icon="table" label="Voir la source" showLabel description={`Ouvrir ${link.source}`} unavailableReason={link.sourceUnavailable} onPress={link.onSource} />
+            {link.stale && !link.frozen && <ToolButton icon="refresh" label="Mettre à jour" showLabel onPress={link.onUpdate} />}
+            <ToolButton
+              icon="link"
+              label={`Lien · ${link.stateLabel}`}
+              description="Mode, mise à jour, couper le lien"
+              onPress={() => {
+                const r = document.activeElement?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0 };
+                link.onManage({ x: r.x, y: r.y, width: r.width, height: r.height });
+              }}
+            />
+          </>
+        )}
+      </Toolbar>
+    </div>
   );
 }

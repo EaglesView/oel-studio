@@ -78,6 +78,8 @@
 .oel-docs__mode { flex-shrink: 0; }
 .oel-docs__mode-label { display: inline-flex; gap: 6px; align-items: center; font: 500 13px/1 var(--font-sans); color: var(--emboss-ink-muted); }
 .oel-tablefloat { position: fixed; z-index: 40; filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.12)); }
+.oel-docfloat { position: fixed; z-index: 40; }
+.oel-docfloat .oel-chart-bar { position: static; }
 
 /* Popovers: palettes, table grid */
 .oel-tablegrid__cells { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; }

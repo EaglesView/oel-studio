@@ -4,9 +4,11 @@
  * several shapes, double-click (or Entrée) to type. Drags preview locally and
  * commit once, so a move is one undo step and one sync message.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
-import { MenuItem, MenuPopover, Menu, MenuSeparator } from '@oel/emboss';
-import { linkHost, linksOf } from '@oel/links';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
+import { MenuItem, MenuPopover, Menu, MenuSeparator, toast } from '@oel/emboss';
+import type { ChartSpec } from '@oel/charts';
+import { CopyChartBar } from '@oel/charts/ui';
+import { MODE_LABEL, STATE_LABEL, linkHost, linksOf, onLinkHost, type LinkDef, type LinkState } from '@oel/links';
 import type { RefObject } from 'react';
 import { SlideView, textFrameStyle, type RenderCtx } from './render';
 import { TextEditor } from './TextEditor';
@@ -337,6 +339,7 @@ export function Canvas({ ctl, ctx, zoom, onContext, label }: { ctl: SlidesContro
             )}
           </div>
         </div>
+        {single?.kind === 'graphic' && single.chart && !ctl.editing && !drag && <ChartBar ctl={ctl} el={single} k={k} />}
       </div>
       {menu && <ContextMenu ctl={ctl} at={menu} onClose={() => (setMenu(null), stage.current?.focus())} />}
     </div>
@@ -362,6 +365,55 @@ function Selection({ el, k, handles, onResize, onRotate, editing }: { el: Elemen
         <span className="oel-sel__rotate" style={{ width: hs * 1.4, height: hs * 1.4, top: -24 / k, left: `calc(50% - ${(hs * 1.4) / 2}px)`, borderWidth: 1 / k }} onPointerDown={(e) => onRotate(e, el)} />
       )}
     </div>
+  );
+}
+
+/**
+ * The bar over a selected chart (Figma G4 + H2), above it in the frame:
+ * variant, colours, elements and, on a linked copy, its source and link.
+ * Restyling a copy that carries the source's style switches it to « Données
+ * seulement », so the next update keeps the look chosen here.
+ */
+function ChartBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: number }) {
+  const host = useSyncExternalStore(onLinkHost, linkHost, linkHost);
+  const links = linksOf(ctl.session.ydoc);
+  const json = useSyncExternalStore(
+    (fn) => links.observe(fn),
+    () => JSON.stringify(links.byObject(el.id)),
+    () => 'null',
+  );
+  const link = useMemo(() => JSON.parse(json) as LinkDef | null, [json]);
+  const state = useSyncExternalStore<LinkState>(host.subscribe, () => (link ? host.state(link.id) : 'waiting'), () => 'waiting');
+  const spec = el.chart!;
+  const b = boxOf(el);
+  const above = b.y * k > 52;
+  const apply = (fn: (s: ChartSpec) => ChartSpec) => {
+    ctl.update(el.id, { chart: { ...fn(spec), part: spec.part } });
+    if (link && link.mode !== 'frozen' && link.carries === 'chart') {
+      host.setCarries(link.id, 'chart-data');
+      toast({ title: 'Style propre à cette copie', description: 'Les données suivent toujours la source ; le style choisi ici est gardé.', tone: 'info' });
+    }
+  };
+  const lock = ctl.readOnly ? 'Lecture seule' : spec.part ? 'Graphique du fichier PowerPoint : affiché et conservé, pas encore modifiable.' : undefined;
+  return (
+    <CopyChartBar
+      className="oel-slide-chartbar"
+      style={{ left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' }}
+      spec={spec}
+      apply={apply}
+      lockReason={lock}
+      link={
+        link && {
+          source: link.source.title,
+          stateLabel: link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state],
+          stale: state === 'stale',
+          frozen: link.mode === 'frozen',
+          onSource: () => void (host.openSource(link.id) || toast({ title: 'Source introuvable', description: 'Le fichier source n’est pas sur ce bureau.', tone: 'warning' })),
+          onUpdate: () => host.update(link.id),
+          onManage: (r) => host.manage(link.id, r),
+        }
+      }
+    />
   );
 }
 
