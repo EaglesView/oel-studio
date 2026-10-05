@@ -164,12 +164,18 @@ export class LinkResolver implements LinkHost {
           ? await slideSessionFor(p, () => {}).then((s) => ({ paperId: p.id, docId, kind, ydoc: s.ydoc, links: linksOf(s.ydoc), slides: s, off: () => {} }))
           : await sessionFor(p, () => {}).then((s) => ({ paperId: p.id, docId, kind, ydoc: s.ydoc, links: linksOf(s.ydoc), doc: s, off: () => {} }));
       if (this.disposed) return;
+      // Links whose copy is gone since the file was last open (no undo can bring it back now) go away.
+      for (const l of t.links.list()) if (!this.copyExists(t, l.target.objectId)) t.links.remove(l.id);
       t.off = t.links.observe(() => this.queueRefresh());
-      // A copy deleted in its file takes its link with it.
-      const onTx = (tr: Y.Transaction) => tr.origin !== LINK_ORIGIN && this.dropOrphans(t);
+      // A copy deleted (or cut) in its file stops being followed; Ctrl+Z brings it back, still linked.
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const onTx = (tr: Y.Transaction) => {
+        if (tr.origin === LINK_ORIGIN || timer || !t.links.links.size) return;
+        timer = setTimeout(() => ((timer = null), this.queueRefresh()), 150);
+      };
       t.ydoc.on('afterTransaction', onTx);
       const offLinks = t.off;
-      t.off = () => (offLinks(), t.ydoc.off('afterTransaction', onTx));
+      t.off = () => (offLinks(), t.ydoc.off('afterTransaction', onTx), timer && clearTimeout(timer));
       this.targets.set(docId, t);
       this.queueRefresh();
     } catch {
@@ -272,7 +278,7 @@ export class LinkResolver implements LinkHost {
   private pushLive() {
     for (const t of this.targets.values())
       for (const l of t.links.list()) {
-        if (l.mode !== 'live') continue;
+        if (l.mode !== 'live' || !this.copyExists(t, l.target.objectId)) continue;
         const v = this.sourceValue(l);
         if (v && v.rev !== l.snapshot.rev) this.apply(t, l, v.value, v.rev);
       }
@@ -301,30 +307,42 @@ export class LinkResolver implements LinkHost {
     setTimeout(() => this.queueRefresh(), UPDATING_MS + 20);
   }
 
-  /** Links whose copy was deleted in the target go away (with their backlink). */
-  private dropOrphans(t: Target) {
-    for (const l of t.links.list()) {
-      const exists =
-        t.kind === 'slides'
-          ? t.slides!.slides.slideIds().some((id) => t.slides!.slides.slide(id)?.elements.some((e) => e.id === l.target.objectId))
-          : !!chartOf(t.ydoc, l.target.objectId);
-      if (!exists) {
-        t.links.remove(l.id);
-        this.sources.get(l.source.docId) && linksOf(this.sources.get(l.source.docId)!.session.ydoc).removeBacklink(l.id);
-      }
+  /** Whether the copy a link writes into is still in its file. */
+  private copyExists(t: Target, objectId: string): boolean {
+    if (t.kind === 'slides') {
+      const sd = t.slides!.slides;
+      return sd.slideIds().some((id) => sd.slide(id)?.elements.some((e) => e.id === objectId));
+    }
+    return !!chartOf(t.ydoc, objectId);
+  }
+
+  /**
+   * The sources' backlinks follow the links of the files open here: a link
+   * made by a paste gets one, a link cut or whose copy was deleted loses it.
+   */
+  private repairBacklinks(list: Array<ResolvedLink & { target: Target; targetPaper?: Paper }>) {
+    const openTargets = new Set(this.targets.keys());
+    for (const src of this.sources.values()) {
+      const bl = linksOf(src.session.ydoc);
+      const wanted = new Map(list.filter((l) => l.def.source.docId === src.docId).map((l) => [l.def.id, l]));
+      for (const [id, l] of wanted)
+        bl.putBacklink({ linkId: id, ref: l.def.source.ref, docId: l.targetDocId, kind: l.target.kind, objectId: l.def.target.objectId, title: l.targetPaper?.title ?? '', label: l.def.target.label }, LINK_ORIGIN);
+      for (const b of bl.backlinkList()) if (openTargets.has(b.docId) && !wanted.has(b.linkId)) bl.removeBacklink(b.linkId, LINK_ORIGIN);
     }
   }
 
   // ===== state & threads ===================================================
 
-  private resolved(): Array<ResolvedLink & { target: Target }> {
-    const out: Array<ResolvedLink & { target: Target }> = [];
+  private resolved(): Array<ResolvedLink & { target: Target; targetPaper?: Paper }> {
+    const out: Array<ResolvedLink & { target: Target; targetPaper?: Paper }> = [];
     const now = Date.now();
     for (const t of this.targets.values())
       for (const def of t.links.list()) {
+        // A deleted copy's link sleeps until undo brings the copy back.
+        if (!this.copyExists(t, def.target.objectId)) continue;
         const v = this.sourceValue(def);
         const state = linkState(def, { rev: v === undefined ? undefined : (v?.rev ?? null), updating: (this.updatingUntil.get(def.id) ?? 0) > now });
-        out.push({ def, targetDocId: t.docId, state, target: t });
+        out.push({ def, targetDocId: t.docId, state, target: t, targetPaper: this.store.node(t.paperId) as Paper | undefined });
       }
     return out;
   }
@@ -346,6 +364,7 @@ export class LinkResolver implements LinkHost {
       const wanted = this.refsOf(src.docId).some((r) => !src.values.has(refKey(r)));
       if (wanted) this.scheduleSource(src, 0);
     }
+    this.repairBacklinks(list);
     const threads = deriveThreads(
       this.papers().map((p) => ({ id: p.id, title: p.title, docId: p.data.docId })),
       list,

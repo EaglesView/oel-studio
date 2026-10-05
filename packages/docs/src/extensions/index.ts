@@ -30,6 +30,7 @@ import { DocList } from './lists';
 import { FindReplace } from './find';
 import { DocEditing } from './editing';
 import { Pagination } from './pagination';
+import { LinkedCopies } from './links';
 
 export interface DocsExtensionOptions {
   /** Bind to a Yjs fragment (undo/redo then come from Yjs). */
@@ -107,6 +108,7 @@ export function docsExtensions(o: DocsExtensionOptions = {}): AnyExtension[] {
       : null;
     exts.push(Collaboration.configure({ fragment: o.fragment, ...(undoManager ? { yUndoOptions: { undoManager } } : {}) }));
     if (undoManager) exts.push(Extension.create({ name: 'sharedUndoLifecycle', onDestroy: () => undoManager.destroy() }));
+    if (!o.bare && o.fragment.doc) exts.push(LinkedCopies.configure({ doc: o.fragment.doc }));
   }
   return exts;
 }

@@ -13,6 +13,8 @@ export interface LinkHost {
   manage(linkId: string, anchor: { x: number; y: number; width: number; height: number }): void;
   /** Update a manual link now. */
   update(linkId: string): void;
+  /** « Délier »: the copy stays as it is, with no link. */
+  unlink(linkId: string): void;
   /** Called on any state change. */
   subscribe(fn: () => void): () => void;
   /** The link whose copy is this object (ids are unique across files), with its state; for editors without the Y.Doc at hand. */
@@ -23,6 +25,7 @@ const NONE: LinkHost = {
   state: () => 'waiting',
   manage: () => {},
   update: () => {},
+  unlink: () => {},
   copyOf: () => null,
   subscribe: () => () => {},
 };

@@ -579,6 +579,13 @@ export const OoxmlInline = Node.create({
       let unsub = linkHost().subscribe(paint);
       const unhost = onLinkHost(() => (unsub(), (unsub = linkHost().subscribe(paint)), paint()));
       dom.appendChild(badge);
+      // Right-click: the link's actions (Figma G4), where « Couper le lien » lives.
+      dom.addEventListener('contextmenu', (e) => {
+        const c = linkHost().copyOf(a.oid as string);
+        if (!c) return;
+        e.preventDefault();
+        linkHost().manage(c.linkId, { x: e.clientX, y: e.clientY, width: 0, height: 0 });
+      });
       return { dom, stopEvent: (e: Event) => badge.contains(e.target as globalThis.Node), destroy: () => (unsub(), unhost()) };
     };
   },

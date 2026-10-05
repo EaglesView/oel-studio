@@ -18,3 +18,4 @@ export {
 } from './model';
 export { THREAD_PREFIX, deriveThreads, type ResolvedLink, type Thread } from './threads';
 export { linkHost, onLinkHost, setLinkHost, type LinkHost } from './host';
+export { adoptCopy, newLinkId, rememberCopied } from './clipboard';

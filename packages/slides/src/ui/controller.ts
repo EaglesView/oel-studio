@@ -7,6 +7,7 @@
 import * as Y from 'yjs';
 import { LOCAL, type SlidesDoc } from '../model/ydoc';
 import { applyLayout, copySlide, newId, picture, shape, slideFromLayout, textBox } from '../model/ops';
+import { adoptCopy, linksOf, rememberCopied } from '@oel/links';
 import { setLevel, setParaProps, setRunProps } from '../model/text';
 import { emu, pt, type Element, type Line, type Paint, type ParaProps, type RunProps, type TextBody } from '../model/types';
 import type { SlideSession } from '../collab/session';
@@ -191,7 +192,14 @@ export class SlidesController {
     if (!s) return;
     const copy = copySlide(s, this.doc.notes(id)?.toString() ?? '');
     const at = this.doc.slideIds().indexOf(id) + 1;
-    this.edit(() => this.doc.insertSlide(at, copy));
+    // Linked copies on the slide get ids of their own and links of their own.
+    const links = linksOf(this.session.ydoc);
+    const linked = new Map(copy.elements.filter((e) => links.byObject(e.id)).map((e) => [e.id, newId('c')]));
+    copy.elements = copy.elements.map((e) => (linked.has(e.id) ? { ...e, id: linked.get(e.id)! } : e));
+    this.edit(() => {
+      this.doc.insertSlide(at, copy);
+      for (const [from, to] of linked) adoptCopy(links, from, to, `diapo ${at + 1}`);
+    });
     this.goTo(copy.id);
   }
 
@@ -287,7 +295,11 @@ export class SlidesController {
 
   copy() {
     const els = this.selected;
-    if (els.length) clipboard = { elements: structuredClone(els), deck: this.session.status.docId };
+    if (!els.length) return;
+    clipboard = { elements: structuredClone(els), deck: this.session.status.docId };
+    // A linked copy keeps its link when copied or cut (pasting makes a new link to the same source).
+    const links = linksOf(this.session.ydoc);
+    rememberCopied(els.map((e) => links.byObject(e.id)));
   }
 
   cut() {
@@ -304,13 +316,16 @@ export class SlidesController {
     const sameDeck = clipboard.deck === this.session.status.docId;
     const existing = new Set(this.slide?.elements.map((e) => e.id));
     const offset = existing.size && clipboard.elements.some((e) => existing.has(e.id)) ? emu(12) : 0;
-    const els = clipboard.elements
-      // Another deck's pictures and tables cannot be written from here.
-      .filter((e) => sameDeck || (e.kind !== 'picture' && e.kind !== 'table' && e.kind !== 'group' && e.kind !== 'graphic'))
-      .map((e) => ({ ...e, id: newId('c'), x: e.x + offset, y: e.y + offset, src: sameDeck ? e.src : undefined, ph: undefined }));
+    const pairs = clipboard.elements
+      // Another deck's pictures and tables cannot be written from here (charts made in the editor can).
+      .filter((e) => sameDeck || (e.kind !== 'picture' && e.kind !== 'table' && e.kind !== 'group' && (e.kind !== 'graphic' || (!!e.chart && !e.src))))
+      .map((e) => [e.id, { ...e, id: newId('c'), x: e.x + offset, y: e.y + offset, src: sameDeck ? e.src : undefined, ph: undefined }] as const);
+    const els = pairs.map(([, e]) => e);
     if (!els.length) return;
+    const where = `diapo ${this.index + 1}`;
     this.edit(() => {
       for (const el of els) this.doc.addElement(this.current, el);
+      for (const [from, el] of pairs) adoptCopy(linksOf(this.session.ydoc), from, el.id, where);
     });
     this.selection = els.map((e) => e.id);
     this.bump();

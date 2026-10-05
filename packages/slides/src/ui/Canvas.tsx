@@ -6,6 +6,7 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
 import { MenuItem, MenuPopover, Menu, MenuSeparator } from '@oel/emboss';
+import { linkHost, linksOf } from '@oel/links';
 import type { RefObject } from 'react';
 import { SlideView, textFrameStyle, type RenderCtx } from './render';
 import { TextEditor } from './TextEditor';
@@ -424,6 +425,9 @@ function EditingFrame({ ctl, el, ctx, cell, plane }: { ctl: SlidesController; el
 function ContextMenu({ ctl, at, onClose }: { ctl: SlidesController; at: { x: number; y: number; onEl: boolean }; onClose: () => void }) {
   const ref = useRef<HTMLSpanElement>(null);
   const ro = ctl.readOnly;
+  // A linked copy (Figma G4): its link's actions, « Délier » keeps the copy as it is.
+  const only = at.onEl && ctl.selection.length === 1 ? ctl.selection[0]! : null;
+  const link = only ? linksOf(ctl.session.ydoc).byObject(only) : null;
   const items: Array<{ id: string; label: string; disabled?: boolean } | '-'> = at.onEl
     ? [
         { id: 'cut', label: 'Couper', disabled: ro },
@@ -436,6 +440,9 @@ function ContextMenu({ ctl, at, onClose }: { ctl: SlidesController; at: { x: num
         { id: 'forward', label: 'Avancer', disabled: ro },
         { id: 'backward', label: 'Reculer', disabled: ro },
         { id: 'back', label: 'Mettre à l’arrière-plan', disabled: ro },
+        ...(link
+          ? (['-', { id: 'link-manage', label: 'Gérer le lien…' }, { id: 'link-update', label: 'Mettre à jour', disabled: ro || link.mode === 'frozen' }, { id: 'link-cut', label: 'Délier', disabled: ro }] as const)
+          : []),
       ]
     : [
         { id: 'paste', label: 'Coller', disabled: ro || !ctl.canPaste },
@@ -458,6 +465,9 @@ function ContextMenu({ ctl, at, onClose }: { ctl: SlidesController; at: { x: num
       'select-all': () => ctl.selectAll(),
       'new-slide': () => ctl.newSlide(),
       text: () => ctl.insertTextBox(),
+      'link-manage': () => link && linkHost().manage(link.id, { x: at.x, y: at.y, width: 0, height: 0 }),
+      'link-update': () => link && linkHost().update(link.id),
+      'link-cut': () => link && linkHost().unlink(link.id),
     };
     map[id]?.();
   };

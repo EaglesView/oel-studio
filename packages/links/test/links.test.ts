@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { LINK_ORIGIN, THREAD_PREFIX, chipLabel, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
+import { LINK_ORIGIN, THREAD_PREFIX, adoptCopy, chipLabel, rememberCopied, createsCycle, deriveThreads, linkState, linksOf, revOf, type LinkDef } from '../src';
 
 const def = (over: Partial<LinkDef> = {}): LinkDef => ({
   id: 'l1',
@@ -123,5 +123,25 @@ describe('deriveThreads', () => {
     expect(threads).toEqual([
       { id: THREAD_PREFIX + 'l1', linkId: 'l1', from: 'p-budget', to: 'p-deck', label: 'À jour · graphique', title: 'Budget 2027 › Dépenses par mois → Lancement · diapo 5', state: 'fresh' },
     ]);
+  });
+});
+
+describe('copying a linked copy', () => {
+  it('pastes a new link to the same source, in the same file or another', () => {
+    const a = new Y.Doc();
+    const b = new Y.Doc();
+    linksOf(a).put(def());
+    rememberCopied([linksOf(a).byObject('el-9')]);
+    // Copy within the file: the original's link is still there.
+    const same = adoptCopy(linksOf(a), 'el-9', 'el-10', 'diapo 6');
+    expect(same).toMatchObject({ source: def().source, mode: 'live', target: { objectId: 'el-10', label: 'diapo 6' } });
+    expect(same!.id).not.toBe('l1');
+    // Cut, then paste elsewhere: the link comes from what was copied.
+    linksOf(a).remove('l1');
+    const other = adoptCopy(linksOf(b), 'el-9', 'x-1', '§ 3');
+    expect(other?.source.ref).toEqual(def().source.ref);
+    expect(linksOf(b).byObject('x-1')?.id).toBe(other!.id);
+    // An object with no link pastes as a plain copy.
+    expect(adoptCopy(linksOf(b), 'nothing', 'x-2', '')).toBeNull();
   });
 });
