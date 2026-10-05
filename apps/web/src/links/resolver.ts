@@ -15,8 +15,8 @@
  */
 import * as Y from 'yjs';
 import { chartName, keepLook, type ChartSpec } from '@oel/charts';
-import { chartBoxOn, chartFrame, chartSlide, picture, type SlideSession } from '@oel/slides';
-import { insertChartParagraph, insertPictureParagraph, type DocSession } from '@oel/docs';
+import { chartBoxOn, chartFrame, chartSlide, linkedTableFrame, picture, type SlideSession } from '@oel/slides';
+import { insertChartParagraph, insertLinkedTable, insertPictureParagraph, type DocSession } from '@oel/docs';
 import {
   LINK_ORIGIN,
   THREAD_PREFIX,
@@ -68,7 +68,17 @@ export interface ImageRequest {
   name: string;
 }
 
-export type LinkRequest = ChartRequest | ImageRequest;
+/** « Lier dans… » on a sheet range (Figma G2b d, I2): a linked table. */
+export interface RangeRequest {
+  kind: 'range';
+  sourcePaperId: string;
+  sheetId: string;
+  ids: { r0: string; c0: string; r1: string; c1: string };
+  /** « Budget!B2:F7 ». */
+  name: string;
+}
+
+export type LinkRequest = ChartRequest | ImageRequest | RangeRequest;
 
 export type Placement = { kind: 'slides'; where: 'new-slide' | 'last-slide' } | { kind: 'document'; where: 'end' | 'start' };
 
@@ -509,10 +519,11 @@ export class LinkResolver implements LinkHost {
 
   /** Why a paper can't take a copy of this chart, or null when it can (G2 step 2, G7 cycles). */
   refusal(req: LinkRequest, target: Paper): string | null {
-    const what = req.kind === 'image' ? 'une image liée' : 'un graphique lié';
+    const what = req.kind === 'image' ? 'une image liée' : req.kind === 'range' ? 'un tableau lié' : 'un graphique lié';
     if (target.id === req.sourcePaperId) return req.kind === 'image' ? 'Une image ne peut pas se lier à elle-même.' : 'Un graphique ne peut pas dépendre de lui-même.';
     if (!TARGET_KINDS.has(target.kind)) {
       if (target.kind === 'spreadsheet') return req.kind === 'image' ? 'Les images dans un tableur arrivent plus tard.' : 'Lier entre tableurs arrive plus tard.';
+
       return `${target.kind === 'image' ? 'Une image' : target.kind === 'pdf' ? 'Un PDF' : 'Ce fichier'} ne peut pas accueillir ${what}.`;
     }
     const from = (this.store.node(req.sourcePaperId) as Paper | undefined)?.data.docId;
@@ -526,6 +537,8 @@ export class LinkResolver implements LinkHost {
 
   async createLink(req: LinkRequest, targetPaperId: string, placement: Placement, carries: Carries): Promise<{ linkId: string; where: string } | null> {
     if (req.kind === 'image') return this.createImageLink(req, targetPaperId, placement);
+    // The dialog's « keep the copy's style » choice means, for a table, the destination's theme.
+    if (req.kind === 'range') return this.createRangeLink(req, targetPaperId, placement, carries === 'chart-data' ? 'target' : 'source');
     const sourcePaper = this.store.node(req.sourcePaperId) as Paper | undefined;
     const targetPaper = this.store.node(targetPaperId) as Paper | undefined;
     if (!sourcePaper?.data.docId || !targetPaper) return null;
@@ -602,6 +615,79 @@ export class LinkResolver implements LinkHost {
     // The source learns where it is used (« Utilisé dans… »).
     const srcDoc = src?.src.ydoc ?? (await sheetSessionFor(sourcePaper, () => {})).ydoc;
     linksOf(srcDoc).putBacklink({ linkId: id, ref, docId: targetDocId, kind: targetPaper.kind as 'slides' | 'document', objectId, title: targetPaper.title, label: where }, 'person');
+    if (targetPaper.data.docId) void this.ensureTarget(this.store.node(targetPaperId) as Paper);
+    this.queueRefresh();
+    return { linkId: id, where };
+  }
+
+  /** « Lier dans… » on a range (Figma I2): a real table in a slide or a document. */
+  private async createRangeLink(req: RangeRequest, targetPaperId: string, placement: Placement, theme: 'source' | 'target'): Promise<{ linkId: string; where: string } | null> {
+    const sourcePaper = this.store.node(req.sourcePaperId) as Paper | undefined;
+    const targetPaper = this.store.node(targetPaperId) as Paper | undefined;
+    if (!sourcePaper?.data.docId || !targetPaper) return null;
+    const reason = this.refusal(req, targetPaper);
+    if (reason) throw new Error(reason);
+    const docId = sourcePaper.data.docId;
+    const ref: SourceRef = { kind: 'range', sheetId: req.sheetId, ids: req.ids };
+    await this.ensureSource(docId);
+    const src = this.sources.get(docId);
+    const value = await src?.src.read(ref);
+    if (!value || value.kind !== 'table') throw new Error('Cette plage ne peut pas être lue pour l’instant.');
+    const rev = valueRev(value);
+    const id = `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    const def = (objectId: string, label: string): LinkDef => ({
+      id,
+      source: { docId, kind: 'spreadsheet', ref, title: sourcePaper.title, label: req.name },
+      target: { objectId, label },
+      carries: 'table',
+      mode: 'live',
+      snapshot: { rev, at: Date.now(), by: identity().name },
+      theme,
+      ...(targetPaper.kind === 'slides' ? { view: { overflow: 'truncate' as const } } : {}),
+    });
+    let objectId = '';
+    let where = '';
+    let targetDocId = targetPaper.data.docId ?? '';
+    if (targetPaper.kind === 'slides') {
+      const s = await slideSessionFor(targetPaper, (d) => this.patchDocId(targetPaperId, d));
+      targetDocId = s.status.docId;
+      const sd = s.slides;
+      const info = sd.info();
+      const ids = sd.slideIds();
+      const last = ids[ids.length - 1];
+      if (placement.kind === 'slides' && placement.where === 'last-slide' && last) {
+        const el = linkedTableFrame(info, value.table, theme, 'truncate', chartBoxOn(info, sd.slide(last)?.elements ?? []));
+        objectId = el.id;
+        where = `diapo ${ids.length}`;
+        s.ydoc.transact(() => {
+          sd.addElement(last, el);
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      } else {
+        const { slide, chartId } = chartSlide(info, { groups: [] } as unknown as ChartSpec, req.name.split('!')[0] || sourcePaper.title, last ? sd.slide(last)?.layout : undefined);
+        const i = slide.elements.findIndex((e) => e.id === chartId);
+        const frame = slide.elements[i]!;
+        const el = linkedTableFrame(info, value.table, theme, 'truncate', frame);
+        slide.elements[i] = el;
+        objectId = el.id;
+        where = `diapo ${ids.length + 1}`;
+        s.ydoc.transact(() => {
+          sd.insertSlide(ids.length, slide);
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      }
+    } else {
+      const s = await sessionFor(targetPaper, (d) => this.patchDocId(targetPaperId, d));
+      targetDocId = s.status.docId;
+      objectId = `t${id}`;
+      const atStart = placement.kind === 'document' && placement.where === 'start';
+      where = atStart ? 'début' : `§ ${s.fragment.length + 1}`;
+      s.ydoc.transact(() => {
+        insertLinkedTable(s.ydoc, objectId, value.table, theme, atStart ? 'start' : 'end', 'person');
+        linksOf(s.ydoc).put(def(objectId, where), 'person');
+      }, 'person');
+    }
+    if (src?.src.ydoc) linksOf(src.src.ydoc).putBacklink({ linkId: id, ref, docId: targetDocId, kind: targetPaper.kind as 'slides' | 'document', objectId, title: targetPaper.title, label: where }, 'person');
     if (targetPaper.data.docId) void this.ensureTarget(this.store.node(targetPaperId) as Paper);
     this.queueRefresh();
     return { linkId: id, where };

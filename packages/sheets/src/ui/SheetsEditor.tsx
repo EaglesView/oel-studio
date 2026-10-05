@@ -5,6 +5,7 @@ import { IdentityDialog, MenuBar, MoreMenu, Peers, ShareDialog, SyncStatus, Vers
 import type * as Y from 'yjs';
 import { SheetDoc } from '../model/ydoc';
 import { toPreview } from '../model/preview';
+import { rangeA1 } from '../model/a1';
 import type { Workbook } from '../model/types';
 import { CalcClient } from '../calc/client';
 import type { SheetSession } from '../collab/session';
@@ -50,6 +51,7 @@ export interface SheetsEditorProps {
   onExpand?: () => void;
   /** « Lier dans… » on a chart (Figma G2): the host offers the files that can take a linked copy. */
   onLinkChart?: SheetController['onLinkChart'];
+  onLinkRange?: SheetController['onLinkRange'];
 }
 
 type DialogName = 'format-cells' | 'sort' | 'validation' | 'cf' | 'names' | 'link' | 'csv' | 'share' | 'identity' | 'col-width' | 'row-height' | 'split' | 'chart' | null;
@@ -114,6 +116,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
   ctl.validator = (r, c, t) => validate(ctl, r, c, t);
   ctl.onNotice = (title, description) => toast({ title, description, tone: 'warning' });
   ctl.onLinkChart = props.onLinkChart ?? null;
+  ctl.onLinkRange = props.onLinkRange ?? null;
 
   const [zoom, setZoom] = useState(1);
   const [find, setFind] = useState<{ replace: boolean } | null>(null);
@@ -314,6 +317,11 @@ export function SheetsEditor(props: SheetsEditorProps) {
         return toast({ title: 'Sélectionnez des données', description: 'Placez-vous dans un tableau (ou sélectionnez une plage) avant d’insérer un graphique.', tone: 'info' });
       case 'link':
         return setDialog('link');
+      case 'link-range': {
+        if (!ctl.onLinkRange) return toast({ title: 'Ouvrez ce classeur depuis le bureau', description: 'Les plages se lient dans les présentations et les documents du bureau.', tone: 'info' });
+        const r = ctl.sel.ranges[ctl.sel.ranges.length - 1]!;
+        return ctl.onLinkRange({ sheetId: ctl.sheetId, ids: ctl.doc.idRange(ctl.sheetId, r), label: `${ctl.doc.sheetName(ctl.sheetId) ?? ''}!${rangeA1(r)}` });
+      }
       case 'format-cells':
         return setDialog('format-cells');
       case 'bold':
@@ -770,6 +778,7 @@ function ContextMenu({ at, kind, ro, onAction, onClose }: { at: { x: number; y: 
     { id: 'sort-desc', label: 'Trier de Z à A' },
     { id: 'filter', label: 'Filtre' },
     { id: 'link', label: 'Insérer un lien' },
+    { id: 'link-range', label: 'Lier dans un fichier du bureau…' },
     { id: 'cf', label: 'Mise en forme conditionnelle…' },
     { id: 'validation', label: 'Validation des données…' },
     { id: 'format-cells', label: 'Format des nombres…' },

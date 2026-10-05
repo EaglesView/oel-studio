@@ -14,6 +14,7 @@ import { SheetDoc, colMeta, parseInput, rowMeta, type CellEdit, type YCell } fro
 import type { ChartSpec } from '@oel/charts';
 import type { CalcClient } from '../calc/client';
 import { Axis, colWidthPx, rowHeightPx } from '../grid/geometry';
+import type { IdRange } from '../model/ydoc';
 import { clampPos, current, cycleInside, extendTo, jump, movingCorner, single, type Pos, type Selection } from '../grid/selection';
 
 export interface EditState {
@@ -389,6 +390,8 @@ export class SheetController {
   onNotice: ((title: string, description?: string) => void) | null = null;
   /** « Lier dans… » on a chart (Figma G2): the host lists the files that can take a linked copy. Null hides nothing, it disables the button. */
   onLinkChart: ((chart: { sheetId: string; chartId: string; name: string; spec: ChartSpec }) => void) | null = null;
+  /** « Lier dans… » on a range (Figma G2b d, I2): the host offers a linked table in a deck or a document. */
+  onLinkRange: ((range: { sheetId: string; ids: IdRange; label: string }) => void) | null = null;
 
   commitEdit(move: 'down' | 'up' | 'right' | 'left' | null, opts: { all?: boolean; array?: boolean } = {}) {
     const e = this.edit;

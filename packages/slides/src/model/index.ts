@@ -5,3 +5,4 @@ export * from './geometry';
 export * from './text';
 export * from './ops';
 export { toPreview } from './preview';
+export { linkedTableContent, linkedTableFrame } from './linkedTable';

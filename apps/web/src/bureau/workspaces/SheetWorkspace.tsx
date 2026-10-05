@@ -47,6 +47,7 @@ export function SheetWorkspace({ paper, level, onDraft, registerFlush, onPatch, 
         onExpand={onExpand}
         onReduce={onReduce}
         onLinkChart={activeLinks() ? (chart) => activeLinks()?.setUi({ dialog: { ...chart, sourcePaperId: paper.id } }) : undefined}
+        onLinkRange={activeLinks() ? (r) => activeLinks()?.setUi({ dialog: { kind: 'range', sourcePaperId: paper.id, sheetId: r.sheetId, ids: r.ids, name: r.label } }) : undefined}
       />
     </div>
   );

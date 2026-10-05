@@ -288,7 +288,13 @@ function LinkDialog({ resolver, store }: { resolver: LinkResolver; store: Bureau
                 <Radio value="start">Au début</Radio>
               </RadioGroup>
             )}
-            {req.kind !== 'image' && (
+            {req.kind === 'range' && (
+              <RadioGroup label="Mise en forme" value={carries} onChange={(v) => setCarries(v as Carries)}>
+                <Radio value="chart">Thème du tableur (polices, couleurs, remplissages)</Radio>
+                <Radio value="chart-data">Thème du {target.kind === 'slides' ? 'diaporama' : 'document'}</Radio>
+              </RadioGroup>
+            )}
+            {req.kind !== 'image' && req.kind !== 'range' && (
               <RadioGroup label="Style" value={carries} onChange={(v) => setCarries(v as Carries)}>
                 <Radio value="chart">Garder le style du tableur (suit la source)</Radio>
                 <Radio value="chart-data">Garder le style de la copie (seules les données suivent)</Radio>
