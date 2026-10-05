@@ -42,3 +42,13 @@ trailing « Présenter » split button: main part starts the last used mode, arr
 ## Verification
 - vitest: `foldGroups` (priorities, order, nothing folds when it fits, priority 1 never folds), storage round-trip.
 - Browser (one attempt): widths 1440/1024/720 for each editor, expand/fold, dock/undock, keyboard shortcuts.
+
+## Status (2026-10-05, branch `fix/editor-ux`)
+
+- **J-1 done** — `@oel/emboss` `AdaptiveToolbar`, `foldGroups` (tested), `useToolbarDock`; icons `dock-bottom`, `presenter`.
+- **J-2 done** — document bar in groups; Imprimer and zoom out of the bar; docked under the page.
+- **J-3 done** — sheet bar in groups (new « Trier » menu); zoom stays in the sheet bar; docked above the tabs.
+- **J-4 done** — slides bar in groups, Texte greyed until a text box is selected, « Présenter » split button with the
+  last mode remembered; docked above the status bar.
+- Not yet: browser check at 1440/1024/720 (test browser unavailable this session); the docked bar on phones is the
+  same component, not yet the bottom sheet over the virtual keyboard drawn in J3.

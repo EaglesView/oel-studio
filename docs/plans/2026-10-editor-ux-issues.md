@@ -98,6 +98,11 @@ Implementation notes for later: measure groups with a `ResizeObserver` and move 
 (never single buttons), keep roving focus across rows, respect `prefers-reduced-motion`, and put the shared logic in
 `@oel/emboss` (`Toolbar` with `overflow="wrap" | "menu"`) so all three editors use it.
 
+## Implementation
+
+- Links: `docs/plans/2026-10-generalised-links.md` (I-1…I-7 done, I-8 export pending).
+- Toolbars: `docs/plans/2026-10-toolbars.md` (J-1…J-4 done).
+
 ## Order once Figma is ready
 
 1. Browser-check the four fixes above.
