@@ -131,3 +131,18 @@ describe('oelpptx engine', () => {
     expect(old instanceof Error ? old.message : (old as { engine: string }).engine).not.toBe('oelpptx-rs');
   });
 });
+
+describe('zip writer', () => {
+  it('writes archives the reader reads back', async () => {
+    const { writeZip, readZipDirectory, readZipText, crc32 } = await import('../src/zip');
+    expect(crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926);
+    const zip = writeZip([
+      { name: 'été.txt', data: new TextEncoder().encode('bonjour') },
+      { name: 'b/c.txt', data: new TextEncoder().encode('deux') },
+    ]);
+    const dir = readZipDirectory(zip);
+    expect([...dir.keys()]).toEqual(['été.txt', 'b/c.txt']);
+    expect(await readZipText(zip, dir.get('été.txt')!)).toBe('bonjour');
+    expect(await readZipText(zip, dir.get('b/c.txt')!)).toBe('deux');
+  });
+});
