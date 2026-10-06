@@ -10,6 +10,8 @@ pub mod cpu;
 pub mod curve;
 #[cfg(feature = "decode")]
 pub mod decode;
+#[cfg(feature = "gpu")]
+pub mod gpu;
 pub mod recipe;
 #[cfg(feature = "wasm")]
 pub mod wasm;

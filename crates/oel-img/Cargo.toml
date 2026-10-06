@@ -15,6 +15,8 @@ default = ["decode"]
 # The browser decodes with createImageBitmap and hands RGBA to the engine.
 decode = ["dep:image", "dep:moxcms"]
 wasm = ["dep:wasm-bindgen"]
+# GPU renderer (wgpu): WebGPU / WebGL2 in the browser worker, Vulkan / Metal / DX12 natively.
+gpu = ["dep:wgpu", "dep:bytemuck", "dep:pollster"]
 # TypeScript bindings for @oel/img (`npm run gen:types`); dev-only.
 ts = ["dep:ts-rs"]
 
@@ -24,7 +26,23 @@ serde_json = "1"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
 moxcms = { version = "0.9", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
+wgpu = { version = "30", optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"], optional = true }
 
 [dev-dependencies]
+naga = { version = "30", features = ["wgsl-in"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+[[test]]
+name = "gpu_parity"
+required-features = ["gpu", "decode"]
+
+[[example]]
+name = "gpu_info"
+required-features = ["gpu"]
+
+[[example]]
+name = "gpu_bench"
+required-features = ["gpu"]

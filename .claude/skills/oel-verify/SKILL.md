@@ -12,7 +12,10 @@ Run what applies, report actual results (paste failures, don't paraphrase them).
 ```bash
 cargo test --workspace           # from the oel-studio root
 cargo clippy --workspace --all-targets -- -D warnings   # needs the clippy component (Fedora: dnf install clippy)
-cargo check --workspace --target wasm32-unknown-unknown --features oel-docx/wasm,oel-xlsx/wasm,oel-pptx/wasm
+cargo check --workspace --target wasm32-unknown-unknown --features oel-docx/wasm,oel-xlsx/wasm,oel-pptx/wasm,oel-img/wasm,oel-img/gpu
+cargo test -p oel-img --features gpu   # GPU vs CPU parity (lavapipe if installed; skips without an adapter)
+# WebGL2-like path: WGPU_BACKEND=gl cargo test -p oel-img --features gpu --test gpu_parity -- --test-threads=1
+#   (NVIDIA: prefix __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json)
 npm run build:wasm               # web + node targets into packages/wasm/
 ```
 A stale `packages/wasm/` is the most common cause of "works in Rust, broken in the app"

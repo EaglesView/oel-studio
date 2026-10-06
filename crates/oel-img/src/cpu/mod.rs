@@ -4,7 +4,10 @@
 pub mod blur;
 mod pipeline;
 
-pub use pipeline::{grain_noise, render, render_working};
+pub use pipeline::{
+    grain_noise, input_matrix, output_size, render, render_working, wheel_offset, CLARITY_SIGMA, DEHAZE_SIGMA, SHARPEN_K,
+    TEXTURE_SIGMA, TONE_BASE_SIGMA,
+};
 
 use crate::color::{luma, srgb_eotf, srgb_oetf};
 use crate::Image;
