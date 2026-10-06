@@ -45,8 +45,16 @@ impl Readback {
         });
         #[cfg(not(target_arch = "wasm32"))]
         device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| e.to_string())?;
+        // WebGL2 maps only when polled, and its fences signal only after the event loop runs:
+        // poll, yield a macrotask, repeat. (WebGPU resolves on its own; the poll is a no-op.)
         #[cfg(target_arch = "wasm32")]
-        let _ = device;
+        while slot.lock().unwrap().result.is_none() {
+            let _ = device.poll(wgpu::PollType::Poll);
+            if slot.lock().unwrap().result.is_some() {
+                break;
+            }
+            next_task().await;
+        }
         Mapped(slot).await?;
         let data = self.buf.slice(..).get_mapped_range().map_err(|e| e.to_string())?;
         let mut out = Vec::with_capacity((self.w * self.h * 4) as usize);
@@ -80,4 +88,17 @@ impl Future for Mapped {
             }
         }
     }
+}
+
+/// Resolves on the next macrotask (`setTimeout(0)`), in a window or a worker.
+#[cfg(target_arch = "wasm32")]
+async fn next_task() {
+    use wasm_bindgen::{JsCast, JsValue};
+    let p = js_sys::Promise::new(&mut |resolve, _| {
+        let global = js_sys::global();
+        if let Ok(f) = js_sys::Reflect::get(&global, &JsValue::from_str("setTimeout")) {
+            let _ = f.unchecked_into::<js_sys::Function>().call2(&global, &resolve, &JsValue::from(0));
+        }
+    });
+    let _ = wasm_bindgen_futures::JsFuture::from(p).await;
 }

@@ -14,9 +14,9 @@ default = ["decode"]
 # Native/server decoding (JPEG, PNG, WebP) with EXIF orientation and ICC → sRGB.
 # The browser decodes with createImageBitmap and hands RGBA to the engine.
 decode = ["dep:image", "dep:moxcms"]
-wasm = ["dep:wasm-bindgen"]
+wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:web-sys", "dep:js-sys"]
 # GPU renderer (wgpu): WebGPU / WebGL2 in the browser worker, Vulkan / Metal / DX12 natively.
-gpu = ["dep:wgpu", "dep:bytemuck", "dep:pollster"]
+gpu = ["dep:wgpu", "dep:bytemuck", "dep:pollster", "dep:js-sys", "dep:wasm-bindgen", "dep:wasm-bindgen-futures"]
 # TypeScript bindings for @oel/img (`npm run gen:types`); dev-only.
 ts = ["dep:ts-rs"]
 
@@ -30,6 +30,17 @@ wgpu = { version = "30", optional = true }
 pollster = { version = "0.4", optional = true }
 bytemuck = { version = "1", features = ["derive"], optional = true }
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"], optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["OffscreenCanvas", "console"], optional = true }
+
+# In the browser the GPU renderer needs WebGL2 too (WebGPU is in wgpu's defaults).
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { version = "30", optional = true, features = ["webgl"] }
+# Readback polling in the browser (gpu/readback.rs).
+js-sys = { version = "0.3", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
 
 [dev-dependencies]
 naga = { version = "30", features = ["wgsl-in"] }

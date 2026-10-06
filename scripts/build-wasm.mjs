@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Builds every crate in `crates/` that has a `wasm` feature into
- * `packages/wasm/<crate>/{web,node}` (web: engine + calc workers; node: collab
- * server and vitest). Module names stay `oeldocx_rs` / `oelxlsx_rs` / `oelpptx_rs`.
+ * `packages/wasm/<crate>/{web,node}` (web: engine, calc and image workers; node: collab
+ * server and vitest). Module names stay `oeldocx_rs` / `oelxlsx_rs` / `oelpptx_rs` / `oelimg`.
  *
  *   node scripts/build-wasm.mjs           build all
  *   node scripts/build-wasm.mjs --if-stale  skip crates whose outputs are newer than their sources
@@ -16,7 +16,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const ifStale = process.argv.includes('--if-stale');
 
 /** Generated module name per crate (what the JS adapters import). */
-const OUT_NAME = { 'oel-docx': 'oeldocx_rs', 'oel-xlsx': 'oelxlsx_rs', 'oel-pptx': 'oelpptx_rs' };
+const OUT_NAME = { 'oel-docx': 'oeldocx_rs', 'oel-xlsx': 'oelxlsx_rs', 'oel-pptx': 'oelpptx_rs', 'oel-img': 'oelimg' };
+/** Cargo features per crate and target dir (default: `wasm`). The image engine's GPU view is browser-only. */
+const FEATURES = { 'oel-img': { web: 'wasm,gpu', node: 'wasm' } };
 const TARGETS = [['web', 'web'], ['nodejs', 'node']];
 
 function newest(path) {
@@ -44,7 +46,7 @@ for (const c of crates) {
     console.log(`\n▸ ${c} → packages/wasm/${c}/${dir}`);
     const r = spawnSync(
       existsSync(wasmPack) ? wasmPack : 'wasm-pack',
-      ['build', join('crates', c), '--release', '--target', target, '--out-dir', out, '--out-name', outName, '--', '--features', 'wasm'],
+      ['build', join('crates', c), '--release', '--target', target, '--out-dir', out, '--out-name', outName, '--', '--features', FEATURES[c]?.[dir] ?? 'wasm'],
       { cwd: root, stdio: 'inherit' },
     );
     if (r.error) console.error(`wasm-pack introuvable : npm install (${r.error.message})`);

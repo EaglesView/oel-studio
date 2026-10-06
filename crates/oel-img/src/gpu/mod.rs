@@ -169,7 +169,8 @@ pub struct Renderer {
     dummy: wgpu::Texture,
     lut: wgpu::Texture,
     pool: Pool,
-    source: Option<Source>,
+    sources: Vec<Option<Source>>,
+    current: Option<usize>,
     settings: Settings,
     options: RenderOptions,
 }
@@ -285,7 +286,8 @@ impl Renderer {
             dummy,
             lut,
             pool: Pool::default(),
-            source: None,
+            sources: Vec::new(),
+            current: None,
             settings: Settings::default(),
             options: RenderOptions::default(),
         }
@@ -300,14 +302,26 @@ impl Renderer {
         &self.device
     }
 
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
     /// Largest source or output side this device accepts.
     pub fn max_size(&self) -> u32 {
         self.device.limits().max_texture_dimension_2d
     }
 
-    /// Uploads the (upright, sRGB) source. Larger than [`max_size`](Self::max_size) is refused:
-    /// pass a proxy and set `RenderOptions::scale`.
+    /// Replaces every source with `img` (upright, sRGB) and uses it.
     pub fn set_source(&mut self, img: &Image) -> Result<(), String> {
+        self.clear_sources();
+        let id = self.add_source(img)?;
+        self.use_source(id);
+        Ok(())
+    }
+
+    /// Uploads another version of the source (e.g. the half-size proxy used while a slider is
+    /// dragged) and returns its slot. Larger than [`max_size`](Self::max_size) is refused.
+    pub fn add_source(&mut self, img: &Image) -> Result<usize, String> {
         let max = self.max_size();
         if img.width > max || img.height > max {
             return Err(format!("Image trop grande pour le processeur graphique ({} × {}, max {max})", img.width, img.height));
@@ -318,9 +332,26 @@ impl Renderer {
             wgpu::util::TextureDataOrder::LayerMajor,
             &img.data,
         );
-        self.source = Some(Source { tex, w: img.width, h: img.height });
+        self.sources.push(Some(Source { tex, w: img.width, h: img.height }));
+        Ok(self.sources.len() - 1)
+    }
+
+    /// Renders from source slot `id` from now on (unknown slots are ignored).
+    pub fn use_source(&mut self, id: usize) {
+        if matches!(self.sources.get(id), Some(Some(_))) {
+            self.current = Some(id);
+        }
+    }
+
+    /// Drops every source and intermediate texture.
+    pub fn clear_sources(&mut self) {
+        self.sources.clear();
+        self.current = None;
         self.pool.clear();
-        Ok(())
+    }
+
+    fn source(&self) -> Option<&Source> {
+        self.current.and_then(|i| self.sources.get(i)).and_then(|s| s.as_ref())
     }
 
     pub fn set_recipe(&mut self, s: &Settings, o: &RenderOptions) {
@@ -330,7 +361,7 @@ impl Renderer {
 
     /// Output size for the current source and recipe (the crop at source resolution).
     pub fn output_size(&self) -> (u32, u32) {
-        self.source.as_ref().map_or((0, 0), |src| cpu::output_size(&self.settings, src.w, src.h))
+        self.source().map_or((0, 0), |src| cpu::output_size(&self.settings, src.w, src.h))
     }
 
     /// Renders into `view` (a canvas or any texture of `format`), scaling the output to the
@@ -344,11 +375,17 @@ impl Renderer {
     /// Renders the full output and reads it back.
     pub async fn render_image(&mut self) -> Result<Image, String> {
         let size = self.output_size();
-        self.render_image_sized(size).await
+        self.start_image(size)?.finish().await
     }
 
     /// Renders the output scaled to `size` and reads it back (thumbnails, histogram proxies).
     pub async fn render_image_sized(&mut self, size: (u32, u32)) -> Result<Image, String> {
+        self.start_image(size)?.finish().await
+    }
+
+    /// Encodes and submits a render of the output scaled to `size`; the returned readback
+    /// no longer borrows the renderer, so other calls may run while it is awaited.
+    pub fn start_image(&mut self, size: (u32, u32)) -> Result<PendingImage, String> {
         let target = self.device.create_texture(&texture_desc(
             "oel-img output",
             size.0,
@@ -360,16 +397,20 @@ impl Renderer {
         let mut frame = self.encode(&view, OUTPUT, size)?;
         let rb = readback::Readback::new(&self.device, &mut frame.enc, &target, size);
         self.submit(frame);
-        let data = rb.read(&self.device).await?;
-        Ok(Image { width: size.0, height: size.1, data })
+        Ok(PendingImage { rb, device: self.device.clone(), size })
+    }
+
+    /// Size of the ≤ 256-px rendering histograms are computed from.
+    pub fn histogram_size(&self) -> (u32, u32) {
+        let (w, h) = self.output_size();
+        let k = (256.0 / w.max(h).max(1) as f32).min(1.0);
+        (((w as f32 * k).round() as u32).max(1), ((h as f32 * k).round() as u32).max(1))
     }
 
     /// Histogram of the output, from a rendering at most 256 px on its long side.
     pub async fn histogram(&mut self) -> Result<Histogram, String> {
-        let (w, h) = self.output_size();
-        let k = (256.0 / w.max(h) as f32).min(1.0);
-        let size = (((w as f32 * k).round() as u32).max(1), ((h as f32 * k).round() as u32).max(1));
-        Ok(cpu::histogram(&self.render_image_sized(size).await?))
+        let size = self.histogram_size();
+        Ok(cpu::histogram(&self.start_image(size)?.finish().await?))
     }
 
     fn submit(&mut self, frame: Frame) {
@@ -515,7 +556,7 @@ impl Renderer {
     }
 
     fn encode(&mut self, target: &wgpu::TextureView, format: wgpu::TextureFormat, size: (u32, u32)) -> Result<Frame, String> {
-        let src = self.source.as_ref().ok_or("Aucune image chargée")?;
+        let src = self.source().ok_or("Aucune image chargée")?;
         let (w, h, src_tex) = (src.w, src.h, src.tex.clone());
         let long = w.max(h) as f32;
         let scale = self.options.scale;
@@ -590,6 +631,20 @@ impl Renderer {
         self.pass(&mut f, "fs_final", target, format, &[&last], PassUniform::default())?;
         self.pool.release(img);
         Ok(f)
+    }
+}
+
+/// A submitted render waiting to be read back.
+pub struct PendingImage {
+    rb: readback::Readback,
+    device: wgpu::Device,
+    size: (u32, u32),
+}
+
+impl PendingImage {
+    pub async fn finish(self) -> Result<Image, String> {
+        let data = self.rb.read(&self.device).await?;
+        Ok(Image { width: self.size.0, height: self.size.1, data })
     }
 }
 
