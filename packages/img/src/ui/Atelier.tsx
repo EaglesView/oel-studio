@@ -3,10 +3,10 @@
  * histogram and the Simple / Avancé tabs, both editing one recipe. The bar: back to the desk,
  * undo / redo, before / after (hold « \ »), copy / paste settings, export.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import type * as Y from 'yjs';
 import { Button, Menu, MenuItem, MenuTrigger, Popover, Slider, Tab, TabList, TabPanel, Tabs, toast } from '@oel/emboss';
-import type { Histogram as Bins } from '../engine';
+import type { Histogram as Bins, ImageEngine } from '../engine';
 import type { ExportOptions, Raster } from '../protocol';
 import { frameSize, leafValue, outputSize, stackRecipes, type Recipe } from '../recipe';
 import { ADVANCED_PANELS, GRADING_WHEELS, HSL_ASPECTS, HSL_BANDS, SIMPLE_GROUPS, leafSlider, type SliderControl } from '../model/controls';
@@ -53,13 +53,23 @@ export interface AtelierProps {
   missing?: string;
   doc: RecipeDoc;
   createWorker: () => Worker;
-  onBureau: () => void;
+  onBureau?: () => void;
   /** Saves an exported file (download on the web, a save dialog in the app). */
   onExport: (blob: Blob, fileName: string) => void;
   /** The retouched picture, a while after edits settle (desk thumbnail). */
   onRendered?: (r: Raster) => void;
   /** Present when the picture belongs to a gallery. */
   gallery?: AtelierGallery;
+  /**
+   * `full`: the atelier at full screen (desk images). `panel`: docked inside an editor (L3), the
+   * picture on the page being the result; `onClose` gets the engine to render the final pixels.
+   */
+  variant?: 'full' | 'panel';
+  onClose?: (engine: ImageEngine | null) => void | Promise<void>;
+  /** Text under the panel (what the file keeps). */
+  note?: string;
+  /** Open with the crop frame (« Recadrer »). */
+  startInCrop?: boolean;
 }
 
 type Rect = [number, number, number, number];
@@ -103,7 +113,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const geometryOf = (r: Recipe): Recipe => unflattenRecipe(Object.entries(flattenRecipe(r)).filter(([k]) => isGeometryPath(k)));
 const withLook = (look: Recipe, r: Recipe): Recipe => unflattenRecipe([...Object.entries(lookOf(look)), ...Object.entries(flattenRecipe(geometryOf(r)))]);
 
-export function Atelier({ title, original, missing, doc, createWorker, onBureau, onExport, onRendered, gallery }: AtelierProps) {
+export function Atelier({ title, original, missing, doc, createWorker, onBureau, onExport, onRendered, gallery, variant = 'full', onClose, note, startInCrop }: AtelierProps) {
   const own = useRecipe(doc);
   const styleDoc = gallery?.styleDoc ?? NO_STYLE;
   const style = useRecipe(styleDoc);
@@ -160,6 +170,7 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
   const [before, setBefore] = useState(false);
   const [hoverStyle, setHoverStyle] = useState<Recipe | null>(null);
   const [crop, setCrop] = useState<Rect | null>(null);
+  const cropOnOpen = useRef(startInCrop);
   const [bins, setBins] = useState<Bins | null>(null);
   const hasCopied = useSyncExternalStore(subscribeCopied, () => copied !== null);
 
@@ -172,7 +183,13 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     return recipe;
   }, [recipe, before, hoverStyle, crop]);
   // In a gallery the stage is padded at the bottom for the filmstrip (the box is its content).
-  const css = source && box ? fitBox(outputSize(shown, source.width, source.height), box) : null;
+  const css = source && box ? fitBox(outputSize(shown, source.width, source.height), box, variant === 'panel' ? 12 : 48) : null;
+  useEffect(() => {
+    if (!source || !cropOnOpen.current) return;
+    cropOnOpen.current = false;
+    setCrop(leafValue(recipe, 'geometry.crop') as Rect);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
 
   const rendered = useRef(onRendered);
   rendered.current = onRendered;
@@ -243,46 +260,245 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     }
   };
 
-  return (
-    <div
-      className="atelier"
-      onKeyDown={(e) => {
-        const mod = e.ctrlKey || e.metaKey;
-        const typing = (e.target as HTMLElement).closest('input[type=text], textarea, [contenteditable]');
-        const inSlider = (e.target as HTMLElement).closest('.emb-slider, [role=slider], [role=radio], [role=tab]');
-        if (mod && e.key.toLowerCase() === 'z' && !typing) {
+  // Keys: undo / redo, before / after (« \\ » held), ← → in a gallery, Entrée / Échap while cropping.
+  const keys = {
+    onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+      const mod = e.ctrlKey || e.metaKey;
+      const typing = (e.target as HTMLElement).closest('input[type=text], textarea, [contenteditable]');
+      const inSlider = (e.target as HTMLElement).closest('.emb-slider, [role=slider], [role=radio], [role=tab]');
+      if (mod && e.key.toLowerCase() === 'z' && !typing) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.shiftKey) undo.redo();
+        else undo.undo();
+      } else if (mod && e.key.toLowerCase() === 'y' && !typing) {
+        e.preventDefault();
+        e.stopPropagation();
+        undo.redo();
+      } else if (gallery && !crop && !mod && !inSlider && !typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        // ← → : previous / next picture of the gallery.
+        const i = gallery.images.findIndex((x) => x.id === gallery.current);
+        const next = gallery.images[(i + (e.key === 'ArrowRight' ? 1 : -1) + gallery.images.length) % gallery.images.length];
+        if (next && next.id !== gallery.current) {
           e.preventDefault();
-          e.stopPropagation();
-          if (e.shiftKey) undo.redo();
-          else undo.undo();
-        } else if (mod && e.key.toLowerCase() === 'y' && !typing) {
-          e.preventDefault();
-          e.stopPropagation();
-          undo.redo();
-        } else if (gallery && !crop && !mod && !inSlider && !typing && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-          // ← → : previous / next picture of the gallery.
-          const i = gallery.images.findIndex((x) => x.id === gallery.current);
-          const next = gallery.images[(i + (e.key === 'ArrowRight' ? 1 : -1) + gallery.images.length) % gallery.images.length];
-          if (next && next.id !== gallery.current) {
-            e.preventDefault();
-            setChosen([]);
-            gallery.onCurrent(next.id);
-          }
-        } else if (e.key === '\\' && !typing) {
-          e.preventDefault();
-          setBefore(true);
-        } else if (crop && e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          finishCrop();
-        } else if (crop && e.key === 'Escape') {
-          e.preventDefault();
-          e.stopPropagation();
-          setCrop(null);
+          setChosen([]);
+          gallery.onCurrent(next.id);
         }
-      }}
-      onKeyUp={(e) => e.key === '\\' && setBefore(false)}
-    >
+      } else if (e.key === '\\' && !typing) {
+        e.preventDefault();
+        setBefore(true);
+      } else if (crop && e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        finishCrop();
+      } else if (crop && e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setCrop(null);
+      }
+    },
+    onKeyUp: (e: KeyboardEvent<HTMLDivElement>) => void (e.key === '\\' && setBefore(false)),
+  };
+
+  const stageEl = (
+    <div className={`atelier__stage${gallery ? ' atelier__stage--gallery' : ''}`} ref={stage}>
+      {missing ? (
+        <p className="atelier__message">{missing}</p>
+      ) : engineState.error ? (
+        <p className="atelier__message">Impossible d’ouvrir l’image : {engineState.error}</p>
+      ) : (
+        <div className="atelier__frame" style={css ? { width: css.width, height: css.height } : { visibility: 'hidden' }}>
+          <div className="atelier__canvas-host" ref={host} />
+          {crop && source && <CropOverlay rect={crop} ratio={aspect === 'libre' ? null : ratio} fw={frame.width} fh={frame.height} onChange={setCrop} />}
+        </div>
+      )}
+      {!missing && !engineState.error && !source && <p className="atelier__message">Ouverture de l’image…</p>}
+      {before && <span className="atelier__badge">Avant</span>}
+      {crop && (
+        <div className="atelier__cropbar chrome-pill">
+          <Slider
+            size="sm"
+            label="Redresser"
+            minValue={-45}
+            maxValue={45}
+            step={0.1}
+            origin={0}
+            resetValue={0}
+            value={Number(leafValue(recipe, 'geometry.angle')) || 0}
+            valueLabel={(v) => formatValue(v, { signed: true, digits: 1, unit: '°' })}
+            onChange={(v) => {
+              startEdit();
+              setLeaf('geometry.angle', v as number);
+            }}
+            onChangeEnd={endEdit}
+          />
+          <Button variant="ghost" size="sm" onPress={() => setCrop(null)}>
+            Annuler
+          </Button>
+          <Button variant="primary" size="sm" onPress={finishCrop}>
+            Terminer
+          </Button>
+        </div>
+      )}
+      {engine?.notice && <p className="atelier__notice">{engine.notice}</p>}
+      {gallery && (
+        <Filmstrip
+          gallery={gallery}
+          chosen={chosen}
+          onPick={(id, add) => {
+            if (add) {
+              // Ctrl + clic : several pictures receive « Cette image » settings together.
+              const base = chosen.length ? chosen : [gallery.current];
+              const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+              setChosen(next.length ? next : [gallery.current]);
+              if (next.length > 1) setScope('image');
+            } else {
+              setChosen([]);
+              gallery.onCurrent(id);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+
+  const controls = (
+    <Tabs className="atelier__tabs" defaultSelectedKey="simple">
+      <TabList aria-label="Mode de retouche" className="atelier__tablist">
+        <Tab id="simple">Simple</Tab>
+        <Tab id="avance">Avancé</Tab>
+      </TabList>
+      {gallery && (
+        <div className="atelier__scope">
+          <Tabs selectedKey={scope} onSelectionChange={(k) => setScope(k as 'gallery' | 'image')}>
+            <TabList aria-label="Où vont les réglages" className="atelier__tablist atelier__tablist--scope">
+              <Tab id="gallery">Style de la galerie</Tab>
+              <Tab id="image">{chosen.length > 1 ? `Ces images (${chosen.length})` : 'Cette image'}</Tab>
+            </TabList>
+          </Tabs>
+          <p className="atelier-hint">
+            {toStyle
+              ? `Ce que vous réglez ici s’applique aux ${gallery.images.length} images.`
+              : chosen.length > 1
+                ? `Réglages propres à ces ${chosen.length} images, par-dessus le style.`
+                : 'Réglages propres à cette image, par-dessus le style.'}
+          </p>
+          {!toStyle && Object.keys(lookOf(own)).length > 0 && (
+            <Button variant="ghost" size="sm" onPress={() => replaceLook({})}>
+              Revenir au style de la galerie
+            </Button>
+          )}
+        </div>
+      )}
+      <TabPanel id="simple" className="atelier__tabpanel">
+        <Styles engine={engine} recipe={values} geometry={recipe} source={source} onHover={setHoverStyle} onPick={replaceLook} />
+        <Button variant="secondary" size="sm" leadingIcon="magic-wand" className="atelier__auto" isDisabled={!engine} onPress={auto}>
+          Auto
+        </Button>
+        {SIMPLE_GROUPS.map((g) => (
+          <Section key={g.id} title={g.label}>
+            {g.controls.map((c) => (
+              <SliderRow
+                key={c.id}
+                control={c}
+                value={c.read(values)}
+                reset={c.read(below)}
+                onChange={(v) => apply(c.write(v === c.read(below) ? undefined : v))}
+                onStart={startEdit}
+                onEnd={endEdit}
+              />
+            ))}
+          </Section>
+        ))}
+        <Section title="Cadrer">
+          <div className="atelier__row">
+            <Button variant="ghost" size="sm" leadingIcon="crop" isDisabled={!source} onPress={() => setCrop(leafValue(recipe, 'geometry.crop') as Rect)}>
+              Recadrer
+            </Button>
+            <Button variant="ghost" size="sm" leadingIcon="rotate-3d" onPress={() => apply(turnLeaves(recipe, 1))}>
+              Pivoter
+            </Button>
+            <AspectMenu value={aspect} onChange={setAspect} />
+          </div>
+        </Section>
+      </TabPanel>
+      <TabPanel id="avance" className="atelier__tabpanel">
+        {ADVANCED_PANELS.map((p) => (
+          <Section key={p.id} title={p.label} defaultOpen={p.open} disabled={p.body.kind === 'soon' ? 'Bientôt' : undefined}>
+            {p.body.kind === 'sliders' &&
+              p.body.groups.map((g, i) => (
+                <div key={i} className="atelier__group">
+                  {g.label && <h4 className="atelier__group-label">{g.label}</h4>}
+                  {g.sliders.map((c) => (
+                    <LeafRow key={c.id} control={c} recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />
+                  ))}
+                </div>
+              ))}
+            {p.body.kind === 'curve' && (
+              <CurveEditor
+                curves={Object.fromEntries(['rgb', 'r', 'g', 'b'].map((c) => [c, leafValue(values, `toneCurve.${c}`) as [number, number][]]))}
+                onChange={(ch, pts) => apply({ [`toneCurve.${ch}`]: pts })}
+                onStart={startEdit}
+                onEnd={endEdit}
+              />
+            )}
+            {p.body.kind === 'hsl' && <HslMixer recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />}
+            {p.body.kind === 'grading' && <Grading recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />}
+            {p.body.kind === 'geometry' && (
+              <div className="atelier__group">
+                <LeafRow control={leafSlider('geometry.angle', 'Redresser', { signed: true, digits: 1, unit: '°' })} recipe={recipe} below={{}} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />
+                <div className="atelier__row">
+                  <Button variant="ghost" size="sm" onPress={() => apply(turnLeaves(recipe, -1))}>
+                    Pivoter à gauche
+                  </Button>
+                  <Button variant="ghost" size="sm" leadingIcon="rotate-3d" onPress={() => apply(turnLeaves(recipe, 1))}>
+                    Pivoter à droite
+                  </Button>
+                </div>
+                <div className="atelier__row">
+                  <Button variant="ghost" size="sm" onPress={() => apply(flipLeaves(recipe, 'h'))}>
+                    Miroir horizontal
+                  </Button>
+                  <Button variant="ghost" size="sm" onPress={() => apply(flipLeaves(recipe, 'v'))}>
+                    Miroir vertical
+                  </Button>
+                </div>
+                <div className="atelier__row">
+                  <Button variant="ghost" size="sm" leadingIcon="crop" isDisabled={!source} onPress={() => setCrop(leafValue(recipe, 'geometry.crop') as Rect)}>
+                    Recadrer
+                  </Button>
+                  <AspectMenu value={aspect} onChange={setAspect} />
+                </div>
+                <p className="atelier-hint">Profils d’objectif et correction de perspective : plus tard.</p>
+              </div>
+            )}
+            {p.body.kind === 'soon' && <p className="atelier-hint">{p.body.text}</p>}
+          </Section>
+        ))}
+      </TabPanel>
+    </Tabs>
+  );
+
+  if (variant === 'panel') {
+    // L3 · the same atelier docked inside an editor: small preview, then the tabs.
+    return (
+      <div className="atelier atelier--panel" {...keys}>
+        <header className="atelier-panel__head">
+          <h2 className="atelier-panel__title">Retoucher l’image</h2>
+          <Button variant="ghost" size="icon-sm" leadingIcon="undo" aria-label="Annuler" aria-keyshortcuts="Control+Z" isDisabled={!canUndo} onPress={() => undo.undo()} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="redo" aria-label="Rétablir" aria-keyshortcuts="Control+Shift+Z" isDisabled={!canRedo} onPress={() => undo.redo()} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="eye" aria-label="Avant / après" aria-pressed={before} aria-keyshortcuts="\" onPress={() => setBefore(!before)} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="close" aria-label="Fermer" onPress={() => void onClose?.(engine)} />
+        </header>
+        {stageEl}
+        {controls}
+        {note && <p className="atelier-hint">{note}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="atelier" {...keys}>
       <header className="atelier__bar">
         <Button variant="ghost" size="sm" leadingIcon="chevron-left" onPress={onBureau}>
           Bureau
@@ -309,183 +525,13 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
         )}
       </header>
 
+
       <div className="atelier__body">
-        <div className={`atelier__stage${gallery ? ' atelier__stage--gallery' : ''}`} ref={stage}>
-          {missing ? (
-            <p className="atelier__message">{missing}</p>
-          ) : engineState.error ? (
-            <p className="atelier__message">Impossible d’ouvrir l’image : {engineState.error}</p>
-          ) : (
-            <div className="atelier__frame" style={css ? { width: css.width, height: css.height } : { visibility: 'hidden' }}>
-              <div className="atelier__canvas-host" ref={host} />
-              {crop && source && <CropOverlay rect={crop} ratio={aspect === 'libre' ? null : ratio} fw={frame.width} fh={frame.height} onChange={setCrop} />}
-            </div>
-          )}
-          {!missing && !engineState.error && !source && <p className="atelier__message">Ouverture de l’image…</p>}
-          {before && <span className="atelier__badge">Avant</span>}
-          {crop && (
-            <div className="atelier__cropbar chrome-pill">
-              <Slider
-                size="sm"
-                label="Redresser"
-                minValue={-45}
-                maxValue={45}
-                step={0.1}
-                origin={0}
-                resetValue={0}
-                value={Number(leafValue(recipe, 'geometry.angle')) || 0}
-                valueLabel={(v) => formatValue(v, { signed: true, digits: 1, unit: '°' })}
-                onChange={(v) => {
-                  startEdit();
-                  setLeaf('geometry.angle', v as number);
-                }}
-                onChangeEnd={endEdit}
-              />
-              <Button variant="ghost" size="sm" onPress={() => setCrop(null)}>
-                Annuler
-              </Button>
-              <Button variant="primary" size="sm" onPress={finishCrop}>
-                Terminer
-              </Button>
-            </div>
-          )}
-          {engine?.notice && <p className="atelier__notice">{engine.notice}</p>}
-          {gallery && (
-            <Filmstrip
-              gallery={gallery}
-              chosen={chosen}
-              onPick={(id, add) => {
-                if (add) {
-                  // Ctrl + clic : several pictures receive « Cette image » settings together.
-                  const base = chosen.length ? chosen : [gallery.current];
-                  const next = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
-                  setChosen(next.length ? next : [gallery.current]);
-                  if (next.length > 1) setScope('image');
-                } else {
-                  setChosen([]);
-                  gallery.onCurrent(id);
-                }
-              }}
-            />
-          )}
-        </div>
+        {stageEl}
 
         <aside className="atelier__panel" aria-label="Réglages de l’image">
           <Histogram bins={bins} />
-          <Tabs className="atelier__tabs" defaultSelectedKey="simple">
-            <TabList aria-label="Mode de retouche" className="atelier__tablist">
-              <Tab id="simple">Simple</Tab>
-              <Tab id="avance">Avancé</Tab>
-            </TabList>
-            {gallery && (
-              <div className="atelier__scope">
-                <Tabs selectedKey={scope} onSelectionChange={(k) => setScope(k as 'gallery' | 'image')}>
-                  <TabList aria-label="Où vont les réglages" className="atelier__tablist atelier__tablist--scope">
-                    <Tab id="gallery">Style de la galerie</Tab>
-                    <Tab id="image">{chosen.length > 1 ? `Ces images (${chosen.length})` : 'Cette image'}</Tab>
-                  </TabList>
-                </Tabs>
-                <p className="atelier-hint">
-                  {toStyle
-                    ? `Ce que vous réglez ici s’applique aux ${gallery.images.length} images.`
-                    : chosen.length > 1
-                      ? `Réglages propres à ces ${chosen.length} images, par-dessus le style.`
-                      : 'Réglages propres à cette image, par-dessus le style.'}
-                </p>
-                {!toStyle && Object.keys(lookOf(own)).length > 0 && (
-                  <Button variant="ghost" size="sm" onPress={() => replaceLook({})}>
-                    Revenir au style de la galerie
-                  </Button>
-                )}
-              </div>
-            )}
-            <TabPanel id="simple" className="atelier__tabpanel">
-              <Styles engine={engine} recipe={values} geometry={recipe} source={source} onHover={setHoverStyle} onPick={replaceLook} />
-              <Button variant="secondary" size="sm" leadingIcon="magic-wand" className="atelier__auto" isDisabled={!engine} onPress={auto}>
-                Auto
-              </Button>
-              {SIMPLE_GROUPS.map((g) => (
-                <Section key={g.id} title={g.label}>
-                  {g.controls.map((c) => (
-                    <SliderRow
-                      key={c.id}
-                      control={c}
-                      value={c.read(values)}
-                      reset={c.read(below)}
-                      onChange={(v) => apply(c.write(v === c.read(below) ? undefined : v))}
-                      onStart={startEdit}
-                      onEnd={endEdit}
-                    />
-                  ))}
-                </Section>
-              ))}
-              <Section title="Cadrer">
-                <div className="atelier__row">
-                  <Button variant="ghost" size="sm" leadingIcon="crop" isDisabled={!source} onPress={() => setCrop(leafValue(recipe, 'geometry.crop') as Rect)}>
-                    Recadrer
-                  </Button>
-                  <Button variant="ghost" size="sm" leadingIcon="rotate-3d" onPress={() => apply(turnLeaves(recipe, 1))}>
-                    Pivoter
-                  </Button>
-                  <AspectMenu value={aspect} onChange={setAspect} />
-                </div>
-              </Section>
-            </TabPanel>
-            <TabPanel id="avance" className="atelier__tabpanel">
-              {ADVANCED_PANELS.map((p) => (
-                <Section key={p.id} title={p.label} defaultOpen={p.open} disabled={p.body.kind === 'soon' ? 'Bientôt' : undefined}>
-                  {p.body.kind === 'sliders' &&
-                    p.body.groups.map((g, i) => (
-                      <div key={i} className="atelier__group">
-                        {g.label && <h4 className="atelier__group-label">{g.label}</h4>}
-                        {g.sliders.map((c) => (
-                          <LeafRow key={c.id} control={c} recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />
-                        ))}
-                      </div>
-                    ))}
-                  {p.body.kind === 'curve' && (
-                    <CurveEditor
-                      curves={Object.fromEntries(['rgb', 'r', 'g', 'b'].map((c) => [c, leafValue(values, `toneCurve.${c}`) as [number, number][]]))}
-                      onChange={(ch, pts) => apply({ [`toneCurve.${ch}`]: pts })}
-                      onStart={startEdit}
-                      onEnd={endEdit}
-                    />
-                  )}
-                  {p.body.kind === 'hsl' && <HslMixer recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />}
-                  {p.body.kind === 'grading' && <Grading recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />}
-                  {p.body.kind === 'geometry' && (
-                    <div className="atelier__group">
-                      <LeafRow control={leafSlider('geometry.angle', 'Redresser', { signed: true, digits: 1, unit: '°' })} recipe={recipe} below={{}} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />
-                      <div className="atelier__row">
-                        <Button variant="ghost" size="sm" onPress={() => apply(turnLeaves(recipe, -1))}>
-                          Pivoter à gauche
-                        </Button>
-                        <Button variant="ghost" size="sm" leadingIcon="rotate-3d" onPress={() => apply(turnLeaves(recipe, 1))}>
-                          Pivoter à droite
-                        </Button>
-                      </div>
-                      <div className="atelier__row">
-                        <Button variant="ghost" size="sm" onPress={() => apply(flipLeaves(recipe, 'h'))}>
-                          Miroir horizontal
-                        </Button>
-                        <Button variant="ghost" size="sm" onPress={() => apply(flipLeaves(recipe, 'v'))}>
-                          Miroir vertical
-                        </Button>
-                      </div>
-                      <div className="atelier__row">
-                        <Button variant="ghost" size="sm" leadingIcon="crop" isDisabled={!source} onPress={() => setCrop(leafValue(recipe, 'geometry.crop') as Rect)}>
-                          Recadrer
-                        </Button>
-                        <AspectMenu value={aspect} onChange={setAspect} />
-                      </div>
-                      <p className="atelier-hint">Profils d’objectif et correction de perspective : plus tard.</p>
-                    </div>
-                  )}
-                  {p.body.kind === 'soon' && <p className="atelier-hint">{p.body.text}</p>}
-                </Section>
-              ))}
-            </TabPanel>
-          </Tabs>
+          {controls}
         </aside>
       </div>
     </div>
