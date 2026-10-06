@@ -17,4 +17,12 @@ xml: string | null,
  * Editor-only id of a linked picture (`@oel/links`, plan I-3): what a link points at.
  * Always null from the reader; the writer ignores it.
  */
-oid?: string, };
+oid?: string, 
+/**
+ * Retouched picture (plan L-7): its `oel-img-recipe@1` recipe; `path` holds the rendering.
+ */
+recipe?: Record<string, unknown> | null, 
+/**
+ * Package path of the retouched picture's original (`oel/media/…`, or a picture added in the editor).
+ */
+orig?: string, };

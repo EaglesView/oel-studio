@@ -500,6 +500,14 @@ pub struct ImageAttrs {
     #[serde(default)]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub oid: Option<String>,
+    /// Retouched picture (plan L-7): its `oel-img-recipe@1` recipe; `path` holds the rendering.
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown> | null", optional))]
+    pub recipe: Option<Value>,
+    /// Package path of the retouched picture's original (`oel/media/…`, or a picture added in the editor).
+    #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub orig: Option<String>,
 }
 
 /// A floating object (`wp:anchor`): picture, shape, text box or group, drawn on

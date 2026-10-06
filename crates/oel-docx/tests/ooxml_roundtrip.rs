@@ -620,3 +620,56 @@ fn charts_are_read_and_kept() {
     let b = import_docx(&bytes).unwrap();
     assert_eq!(a.json["doc"], b.json["doc"]);
 }
+
+fn first_image_mut(v: &mut Value) -> Option<&mut Value> {
+    if v["type"] == "image" {
+        return Some(v);
+    }
+    for c in v.get_mut("content")?.as_array_mut()? {
+        if let Some(found) = first_image_mut(c) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// Plan L-7: a picture retouched in OEL keeps its original and recipe in the .docx; Word sees the
+/// rendered pixels; a picture changed outside OEL loses its recipe.
+#[test]
+fn retouched_pictures_round_trip() {
+    let src = fixture("rich.docx");
+    let imported = import_docx(&src).unwrap();
+    let mut json = imported.json.clone();
+    let img = first_image_mut(&mut json["doc"]).expect("rich.docx has a picture");
+    let original = img["attrs"]["path"].as_str().unwrap().to_string();
+    let recipe = json!({ "exposure": 0.4, "presence": { "vibrance": 20 } });
+    let a = img["attrs"].as_object_mut().unwrap();
+    a.insert("path".into(), json!("word/media/oel-retouche.png"));
+    a.insert("src".into(), json!("media:word/media/oel-retouche.png"));
+    a.insert("recipe".into(), recipe.clone());
+    a.insert("orig".into(), json!(original));
+    let media = HashMap::from([("word/media/oel-retouche.png".to_string(), b"\x89PNG rendered pixels".to_vec())]);
+    let out = export_docx(&json, Some(&src), media).unwrap();
+
+    let back = import_docx(&out).unwrap();
+    let mut v = back.json["doc"].clone();
+    let img = first_image_mut(&mut v).unwrap();
+    assert_eq!(img["attrs"]["path"], "word/media/oel-retouche.png");
+    assert_eq!(img["attrs"]["recipe"], recipe);
+    let orig = img["attrs"]["orig"].as_str().unwrap().to_string();
+    assert!(orig.starts_with("oel/media/"), "{orig}");
+    let orig_bytes = back.media.iter().find(|m| m.path == orig).expect("original travels with the media").bytes.clone();
+    assert_eq!(orig_bytes, Package::read(&src).unwrap().get(&original).unwrap());
+
+    // Word replaced the picture: the visible image becomes the new base.
+    let mut pkg = Package::read(&out).unwrap();
+    pkg.set("word/media/oel-retouche.png", b"edited in Word".to_vec());
+    let edited = import_docx(&pkg.write().unwrap()).unwrap();
+    let mut v = edited.json["doc"].clone();
+    let img = first_image_mut(&mut v).unwrap();
+    assert!(img["attrs"]["recipe"].is_null() && img["attrs"]["orig"].is_null());
+
+    // Without retouched pictures, nothing OEL-specific is written.
+    let plain = export_docx(&imported.json, Some(&src), HashMap::new()).unwrap();
+    assert!(!Package::read(&plain).unwrap().has(oel_opc::retouch::MANIFEST));
+}

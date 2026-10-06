@@ -84,6 +84,10 @@ impl Package {
         }
     }
 
+    pub fn remove(&mut self, name: &str) {
+        self.parts.retain(|(n, _)| n != name);
+    }
+
     pub fn set_xml(&mut self, name: &str, doc: &XDocument) {
         self.set(name, doc.to_string().into_bytes());
     }

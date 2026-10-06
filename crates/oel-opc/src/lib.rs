@@ -5,8 +5,10 @@
 //!   written back with untouched parts byte for byte.
 //! - [`color`]: DrawingML colours and their transforms, resolved to CSS.
 //! - [`fonts`]: open substitutes for Office fonts, embedded-font de-obfuscation.
+//! - [`retouch`]: retouched pictures (plan L-7): original + recipe in a part Office ignores.
 
 pub mod color;
 pub mod fonts;
 pub mod package;
+pub mod retouch;
 pub mod xml;

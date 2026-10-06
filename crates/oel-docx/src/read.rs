@@ -29,12 +29,15 @@ pub struct ReadCtx<'a> {
     pub sections: Option<Vec<Value>>,
     /// Header/footer stories referenced by those sections: id → (side, part).
     pub stories: BTreeMap<String, (&'static str, String)>,
+    /// Retouched pictures recorded by OEL (rendered part → original + recipe), still valid.
+    pub retouches: std::rc::Rc<HashMap<String, oel_opc::retouch::RetouchEntry>>,
 }
 
 impl<'a> ReadCtx<'a> {
     pub fn new(pkg: &'a Package, styles: &'a Styles, numbering: &'a Numbering, part: &str) -> Self {
         let rels = pkg.rels(part).into_iter().map(|r| (r.id.clone(), r)).collect();
-        ReadCtx { pkg, styles, numbering, part: part.to_string(), rels, media: BTreeSet::new(), sections: None, stories: BTreeMap::new() }
+        let retouches = std::rc::Rc::new(oel_opc::retouch::read(pkg));
+        ReadCtx { pkg, styles, numbering, part: part.to_string(), rels, media: BTreeSet::new(), sections: None, stories: BTreeMap::new(), retouches }
     }
 
     /// Reader for the main document body: also collects its sections.
@@ -641,6 +644,11 @@ fn read_drawing(ctx: &mut ReadCtx, rpr: Option<&XElement>, d: &XElement, marks: 
         return ooxml_inline(xml, "Image liée", false, None, marks);
     }
     ctx.media.insert(path.clone());
+    // A picture retouched in OEL whose pixels Word left alone: its original and recipe.
+    let retouch = ctx.retouches.get(&path).cloned();
+    if let Some(r) = &retouch {
+        ctx.media.insert(r.original.clone());
+    }
     let wrapper = d.elements().next();
     let floating = wrapper.map(|w| w.name == "wp:anchor").unwrap_or(false);
     let extent = wrapper.and_then(|w| w.child("wp:extent"));
@@ -658,6 +666,8 @@ fn read_drawing(ctx: &mut ReadCtx, rpr: Option<&XElement>, d: &XElement, marks: 
             "floating": floating,
             "xml": xml,
             "oid": null,
+            "recipe": retouch.as_ref().map(|r| r.recipe.clone()),
+            "orig": retouch.as_ref().map(|r| r.original.clone()),
         }),
         marks,
     )

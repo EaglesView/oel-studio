@@ -113,6 +113,7 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
         sections_written: HashSet::new(),
         story_rids: HashMap::new(),
         orig_story_of_rid,
+        retouches: Vec::new(),
     };
     w.content_width = sections.first().map(content_width).unwrap_or(9360);
 
@@ -197,6 +198,10 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
 
     // --- Styles referenced but missing (new headings, links, notes…) -------
     w.ensure_styles();
+
+    // --- Retouched pictures: original + recipe beside the final pixels (plan L-7) ---
+    let items: Vec<oel_opc::retouch::Retouch> = w.retouches.iter().map(|(rendered, original, recipe)| oel_opc::retouch::Retouch { rendered, original, recipe }).collect();
+    oel_opc::retouch::write(w.pkg, &items, &w.media);
     Ok(pkg.write()?)
 }
 
@@ -241,6 +246,8 @@ struct Writer<'p> {
     story_rids: HashMap<String, String>,
     /// The original package's main-part relationship ids → story ids.
     orig_story_of_rid: HashMap<String, String>,
+    /// Retouched pictures written so far: (rendered part, original part, recipe).
+    retouches: Vec<(String, String, Value)>,
 }
 
 /// Text width of a section, in twips.
@@ -548,6 +555,9 @@ impl Writer<'_> {
             let ext = path.rsplit('.').next().unwrap_or("png").to_string();
             self.pkg.ensure_default(&ext, mime_for_ext(&ext));
             self.pkg.set(&path, bytes);
+        }
+        if let (Some(recipe), Some(orig)) = (a["recipe"].as_object().filter(|r| !r.is_empty()), s(&a["orig"])) {
+            self.retouches.push((path.clone(), orig.to_string(), Value::Object(recipe.clone())));
         }
         let part = self.part.clone();
         let rid = self.pkg.add_rel(&part, REL_IMAGE, &relative_target(&part, &path), false);

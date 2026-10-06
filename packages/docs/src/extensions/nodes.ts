@@ -385,6 +385,10 @@ export const DocImage = Node.create<{ resolver: ImageResolver }>({
       xml: raw(),
       /** Editor-only id of a linked picture (@oel/links): what a link points at. */
       oid: raw(),
+      /** Retouched picture (plan L-7): `oel-img-recipe@1`; `path` holds the rendering. */
+      recipe: raw(),
+      /** Media path of the retouched picture's original. */
+      orig: raw(),
     };
   },
   parseHTML: () => [{ tag: 'img[src]' }],
