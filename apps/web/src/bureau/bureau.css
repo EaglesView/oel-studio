@@ -415,6 +415,55 @@
 .paper--slides { border-radius: 10px; }
 .paper--spreadsheet { border-radius: 8px; }
 .paper--image { border-radius: 4px; }
+/* L2 · a picture of a gallery with its own settings. */
+.paper__own-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--emboss-warning);
+  box-shadow: 0 0 0 2px var(--emboss-sheet);
+}
+/* L2 · the gallery planche: a sheet that holds pictures (drawn above it by the desk). */
+.paper--gallery { border-radius: 8px; box-shadow: var(--shadow-sheet); }
+.paper__gallery {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 16px 20px 12px;
+}
+.paper__gallery-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--emboss-ink);
+}
+.paper__gallery-title {
+  overflow: hidden;
+  color: var(--emboss-text);
+  font: 600 15px/20px var(--font-sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paper__gallery-style {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--emboss-accent-soft);
+  color: var(--emboss-fill-primary);
+  font: 600 11px/16px var(--font-sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.paper__gallery-foot {
+  margin: 0;
+  color: var(--emboss-ink-muted);
+  font: 500 12px/16px var(--font-sans);
+}
 .paper--pdf { overflow: visible; border-radius: 2px; }
 .paper--note {
   border: 0;

@@ -19,6 +19,7 @@ import { NOTE_COLORS, kindLabel, uid, type Bureau, type NoteColor, type Paper } 
 import { sheetTotal } from './Paper';
 import { downloadSlides, requestPresent } from './slides';
 import { activeLinks } from '../links/resolver';
+import { exportGallery, layoutGallery } from './images';
 
 const nf = new Intl.NumberFormat('fr-CA');
 const ENGINE_LATER = 'Arrive avec le moteur de documents (WASM).';
@@ -236,6 +237,25 @@ function TypeTools({
           />
           <ToolButton icon="sparkle" label="Détourer" unavailableReason={IMAGE_ENGINE_LATER} />
           <ToolButton icon="search" label="Reconnaître le texte (OCR)" unavailableReason={IMAGE_ENGINE_LATER} />
+        </>
+      );
+    case 'gallery':
+      // L2 · the gallery planche: one object to move; its pictures share a style.
+      return (
+        <>
+          <ToolButton icon="palette" label="Retoucher" showLabel description="Régler le style de la galerie et ses images (plein écran)" onPress={() => onOpenFull(node.id)} />
+          <ToolButton icon="expand" label="Étaler les images" showLabel description="Ranger les images en grille dans la planche" onPress={() => layoutGallery(store, node.id)} />
+          <ToolButton
+            icon="download"
+            label="Exporter"
+            showLabel
+            description="Toutes les images retouchées, en JPEG pleine résolution, dans un .zip"
+            onPress={() =>
+              void exportGallery(store, node.id, { mime: 'image/jpeg', quality: 0.9 }, 'jpg').catch((e: Error) =>
+                toast({ title: 'Exportation impossible', description: e.message, tone: 'danger' }),
+              )
+            }
+          />
         </>
       );
     case 'pdf':

@@ -32,6 +32,7 @@ import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
 import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms';
 import { ProjectProvider, useProject, useSetting } from '../project/ProjectContext';
+import { bindImages, createGallery } from './images';
 import './bureau.css';
 
 /** Furthest you can zoom out: papers are small thumbnails, never piles or a full overview. */
@@ -169,6 +170,8 @@ function BureauDesk() {
   /** E2 · 1 « Nouveau formulaire » (from the « + » menu, or from a selected spreadsheet). */
   const [newForm, setNewForm] = useState<{ sheetId: string | null } | null>(null);
   useFormSync(store, formsBackend, announce);
+  // Figma L: recipes mirrored on papers, desk pictures re-rendered, galleries kept in step.
+  useEffect(() => bindImages(store), [store]);
 
   // Fils de liaison (Figma G): derived from the links stored in the files.
   const openRef = useRef<(id: string) => void>(() => {});
@@ -235,8 +238,8 @@ function BureauDesk() {
   const openAt = (id: string, level: 2 | 3) => {
     // K2 · a note never opens: Entrée, double-click or « Écrire » write in it on the desk.
     if (store.node(id)?.kind === 'note') return editNote(id);
-    // L1 · an image opens straight in the atelier (plein écran).
-    if (store.node(id)?.kind === 'image') level = 3;
+    // L1 · an image (or a gallery) opens straight in the atelier (plein écran).
+    if (store.node(id)?.kind === 'image' || store.node(id)?.kind === 'gallery') level = 3;
     history.pushState({ oelDepth: 1 }, '', urlFor(id, false));
     if (level === 3) history.pushState({ oelDepth: 2 }, '', urlFor(id, true));
     apply(id, level === 3);
@@ -251,7 +254,7 @@ function BureauDesk() {
     const id = store.getState().openId;
     if (!id) return;
     // The atelier has no « ouvert sur place »: Échap goes back to the desk.
-    if (store.node(id)?.kind === 'image') return toDesk();
+    if (store.node(id)?.kind === 'image' || store.node(id)?.kind === 'gallery') return toDesk();
     if (depth() >= 2) return history.back();
     history.replaceState({ oelDepth: 1 }, '', urlFor(id, false));
     apply(id, false);
@@ -372,6 +375,7 @@ function BureauDesk() {
             renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} editing={n.id === editingNote ? noteEditing : null} />}
             selectionOverhang={(n, zoom) => (KIND_TAB[n.kind as PaperKind] ? tabHeightOnScreen(zoom) - 4 : 0)}
             resizeMode={(n) => RESIZE_MODE[n.kind as PaperKind] ?? 'aspect'}
+            canContain={(c, n) => c.kind === 'gallery' && n.kind === 'image'}
             renderGroupLabel={(nodes) => {
               const kinds = new Set(nodes.map((n) => n.kind)).size;
               return `${nodes.length} fichiers · ${kinds} type${kinds > 1 ? 's' : ''}`;
@@ -458,6 +462,11 @@ function BureauDesk() {
                 onRemove={remove}
                 onCreate={create}
                 notes={notes}
+                onRetouch={(ids) => {
+                  // L2 · « Modifier les images (N) » : a gallery around them, opened in the atelier.
+                  const id = ids.length > 1 ? createGallery(store, ids) : ids[0];
+                  if (id) openAt(id, 3);
+                }}
               />
             )}
           </DeskCanvas>
@@ -564,8 +573,11 @@ function ContextMenu({
   onRemove,
   onCreate,
   notes,
+  onRetouch,
 }: {
   notes: NoteActions;
+  /** Images only: open the atelier (one) or make a gallery of them (several). */
+  onRetouch: (ids: string[]) => void;
   at: { x: number; y: number };
   ids: string[];
   store: Bureau;
@@ -579,6 +591,8 @@ function ContextMenu({
   useEffect(() => setReady(true), []);
   const single = ids.length === 1 ? ids[0]! : null;
   const singleNode = single ? store.node(single) : undefined;
+  // L2 · only when the selection is images and nothing else.
+  const images = ids.length > 0 && ids.every((id) => store.node(id)?.kind === 'image');
   return (
     <>
       <span ref={anchor} className="context-anchor" style={{ left: at.x, top: at.y }} data-desk-ui />
@@ -597,6 +611,7 @@ function ContextMenu({
               if (key === 'stick' && single) notes.stick(single);
               if (key === 'stick-to' && single) notes.stickTo(single);
               if (key === 'unstick' && single) notes.unstick(single);
+              if (key === 'retouch') onRetouch(ids);
               onClose();
             }}
           >
@@ -631,6 +646,8 @@ function ContextMenu({
                   <MenuItem key="stick-to" id="stick-to" icon="pin" shortcut="Maj+P">Coller à…</MenuItem>,
                 ]
               )
+            ) : images ? (
+              <MenuItem id="retouch" icon="magic-wand">{single ? 'Retoucher l’image' : `Modifier les images (${ids.length})`}</MenuItem>
             ) : single ? (
               <MenuItem id="open" icon="expand" shortcut="Entrée">Ouvrir sur place</MenuItem>
             ) : null}

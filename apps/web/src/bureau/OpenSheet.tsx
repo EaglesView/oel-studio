@@ -39,7 +39,7 @@ export interface OpenSheetHandle {
 }
 
 /** Kinds whose workspace brings its own full-screen chrome (breadcrumb, « Réduire », status bar). */
-const OWN_CHROME = new Set(['document', 'spreadsheet', 'slides', 'image']);
+const OWN_CHROME = new Set(['document', 'spreadsheet', 'slides', 'image', 'gallery']);
 
 /**
  * B4 · Ouvrir sur place (level 2) and Plein écran (level 3).
@@ -214,7 +214,7 @@ export function OpenSheet({
               {paper.kind === 'slides' && <SlidesWorkspace {...props} />}
               {paper.kind === 'spreadsheet' && <SheetWorkspace {...props} />}
               {paper.kind === 'pdf' && <PdfWorkspace {...props} />}
-              {paper.kind === 'image' && <ImageWorkspace {...props} />}
+              {(paper.kind === 'image' || paper.kind === 'gallery') && <ImageWorkspace {...props} />}
               {paper.kind === 'form' && <FormWorkspace {...props} />}
               {paper.kind === 'file' && (
                 <div className="workspace-empty">

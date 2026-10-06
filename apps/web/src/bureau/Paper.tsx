@@ -1,5 +1,6 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { NodeRenderContext } from '@oel/desk/react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useDesk, useDeskState, type NodeRenderContext } from '@oel/desk/react';
+import { currentStyle, isEmptyRecipe, lookOf } from '@oel/img';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
 import { contrastGuard, questionsOf } from '@oel/forms/model';
 import { KIND_ICON, KIND_TAB, type Paper as PaperNode } from './model';
@@ -243,9 +244,13 @@ function Content({ node }: { node: PaperNode }) {
         </div>
       );
     }
+    case 'gallery':
+      return <GalleryPlanche node={node} />;
     case 'image':
       return (
         <div className="paper__photo">
+          {/* L2 · amber dot: a picture of a gallery with its own settings over the style. */}
+          {node.parent && Object.keys(lookOf(node.data.image?.recipe ?? {})).length > 0 && <span className="paper__own-dot" title="Réglages propres" />}
           <div className="paper__photo-frame">
             {data.image?.rendered || data.imageUrl ? <img src={data.image?.rendered ?? data.imageUrl} alt="" draggable={false} /> : <Icon name="image" size={40} />}
           </div>
@@ -327,6 +332,34 @@ function Content({ node }: { node: PaperNode }) {
         </div>
       );
   }
+}
+
+/**
+ * L2 · a gallery on the desk: a planche that works like a folder. Its pictures are desk nodes
+ * drawn above it (moved and resized freely inside); the planche shows the title, the style
+ * and a count.
+ */
+function GalleryPlanche({ node }: { node: PaperNode }) {
+  const { store } = useDesk();
+  const nodes = useDeskState(store, (s) => s.nodes);
+  const kids = useMemo(() => Object.values(nodes).filter((n) => n.parent?.id === node.id && n.kind === 'image') as PaperNode[], [nodes, node.id]);
+  const style = node.data.gallery?.style ?? {};
+  const named = currentStyle(style);
+  const own = kids.filter((k) => Object.keys(lookOf(k.data.image?.recipe ?? {})).length > 0).length;
+  return (
+    <div className="paper__gallery">
+      <div className="paper__gallery-head">
+        <Icon name="gallery" size={18} />
+        <span className="paper__gallery-title">{node.title}</span>
+        {!isEmptyRecipe(style) && <span className="paper__gallery-style">{named ? `Style « ${named.label} »` : 'Style personnalisé'}</span>}
+      </div>
+      <p className="paper__gallery-foot">
+        {kids.length === 0
+          ? 'Glissez des images ici'
+          : `${kids.length} image${kids.length > 1 ? 's' : ''} posée${kids.length > 1 ? 's' : ''} librement${own ? ` · ${own} avec ses propres réglages` : ''}`}
+      </p>
+    </div>
+  );
 }
 
 function Bars({ count }: { count: number }) {

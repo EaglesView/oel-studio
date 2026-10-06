@@ -8,7 +8,7 @@ import type { Recipe } from '@oel/img';
  * Desk paper kinds = engine file kinds (minus "unsupported" which shows as a generic file),
  * plus forms (Editor — Behaviors · E), which are OEL papers rather than imported files.
  */
-export type PaperKind = Exclude<FileKind, 'unsupported'> | 'file' | 'form';
+export type PaperKind = Exclude<FileKind, 'unsupported'> | 'file' | 'form' | 'gallery';
 
 export type PaperStatus =
   | { state: 'ready' }
@@ -34,8 +34,13 @@ export interface PaperData {
   updatedAt?: number;
   /** Object URL for imported images (the original). */
   imageUrl?: string;
-  /** Retouched image (Figma L): original by content hash, its recipe, and the rendering shown on the desk. */
+  /**
+   * Retouched image (Figma L): original by content hash, its recipe (in a gallery: its own
+   * settings on top of the gallery style), and the rendering shown on the desk.
+   */
   image?: { original?: string; recipe?: Recipe; rendered?: string };
+  /** Gallery (Figma L2): the style every picture inside shares. Its pictures are its desk children. */
+  gallery?: { style?: Recipe };
   fileName?: string;
   /** Collaborative document (@oel/docs) or workbook (@oel/sheets) backing this paper, once created. */
   docId?: string;
@@ -64,6 +69,7 @@ export const KIND_ICON: Record<PaperKind, IconName> = {
   note: 'note',
   file: 'file',
   form: 'form',
+  gallery: 'gallery',
 };
 
 /** Kinds that carry a coloured tab on the desk (and a tinted icon elsewhere): the OEL palette, one colour per editor. */
@@ -76,6 +82,7 @@ export const KIND_TAB: Partial<Record<PaperKind, string>> = {
 
 export function kindLabel(kind: string): string {
   if (kind === 'form') return 'Formulaire';
+  if (kind === 'gallery') return 'Galerie';
   return kind === 'file' ? 'Fichier' : (KIND_LABEL[kind as FileKind] ?? 'Fichier');
 }
 
@@ -92,6 +99,7 @@ export const RESIZE_MODE: Record<PaperKind, ResizeMode> = {
   file: 'scale',
   image: 'aspect',
   note: 'free',
+  gallery: 'free',
 };
 
 /** Paper sizes per type (B1 · 3: each type has its shape). */
@@ -104,6 +112,7 @@ export const PAPER_SIZE: Record<PaperKind, { w: number; h: number }> = {
   note: { w: 200, h: 140 },
   file: { w: 260, h: 320 },
   form: { w: 340, h: 460 },
+  gallery: { w: 640, h: 420 },
 };
 
 /**
@@ -155,6 +164,7 @@ export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper
     image: 'Image',
     file: 'Fichier',
     form: 'Formulaire sans titre',
+    gallery: 'Galerie sans titre',
   };
   const preview: Preview =
     kind === 'document'
