@@ -33,14 +33,27 @@ export function drawingImagePaths(doc: SheetDoc): Array<[string, string]> {
 /**
  * Object URLs for drawing images. Imported images live in the original .xlsx
  * (kept by the session, offline too); the calc worker reads them out of the
- * package. The caller revokes the URLs.
+ * package. Pictures made in the editor (retouched ones) are in the session's
+ * media store. The caller revokes the URLs.
  */
 export async function drawingImageUrls(session: SheetSession, calc: CalcClient, wanted: Array<[string, string]>): Promise<Map<string, string>> {
   const next = new Map<string, string>();
-  if (!wanted.length) return next;
+  const inPackage: Array<[string, string]> = [];
+  for (const [path, mime] of wanted) {
+    const url = session.media.url(path);
+    if (!url) {
+      inPackage.push([path, mime]);
+      continue;
+    }
+    const blob = await fetch(url)
+      .then((r) => r.blob())
+      .catch(() => null);
+    if (blob) next.set(path, URL.createObjectURL(blob));
+  }
+  if (!inPackage.length) return next;
   const original = await session.original().catch(() => null);
   if (!original) return next;
-  const files = await calc.media(original, wanted.map(([p]) => p));
+  const files = await calc.media(original, inPackage.map(([p]) => p));
   for (const f of files) {
     const mime = wanted.find(([p]) => p === f.path)?.[1] || 'application/octet-stream';
     const bytes = mime === 'image/svg+xml' ? svgForCanvas(f.bytes) : f.bytes;

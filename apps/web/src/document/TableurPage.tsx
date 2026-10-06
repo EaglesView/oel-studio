@@ -3,6 +3,8 @@ import { Button, Logo, ToastRegion, toast } from '@oel/emboss';
 import { IdentityDialog, decodeToken, defaultIdentity, loadIdentity, tokenStore, type Identity } from '@oel/collab-client';
 import { SheetSession, SheetsEditor, type Workbook } from '@oel/sheets';
 import '@oel/sheets/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../bureau/images';
 import { asWorkbookPayload, type WorkbookPayload } from '@oel/engine';
 import { collabApi } from '../bureau/docs';
 import { engineHost } from '../bureau/importFiles';
@@ -148,6 +150,7 @@ export function TableurPage() {
         identity={identity}
         onIdentityChange={setIdentity}
         createCalcWorker={createCalcWorker}
+        createImageWorker={createImageWorker}
         exportFile={exportSheet}
         onNewWorkbook={create}
         onOpenFile={(f) => open(f)}

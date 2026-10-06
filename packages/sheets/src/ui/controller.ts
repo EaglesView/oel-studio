@@ -391,6 +391,11 @@ export class SheetController {
   onNotice: ((title: string, description?: string) => void) | null = null;
   /** « Lier dans… » on a chart (Figma G2): the host lists the files that can take a linked copy. Null hides nothing, it disables the button. */
   onLinkChart: ((chart: { sheetId: string; chartId: string; name: string; spec: ChartSpec }) => void) | null = null;
+  /**
+   * Picture tools (Figma L3), set by the editor: `retouch` opens the retouch panel (null: no image
+   * engine here), `replace` puts another file in the frame, `open` while the panel is open.
+   */
+  pictures: { retouch: ((index: number, crop: boolean) => void) | null; replace: (index: number, file: File) => void; open: boolean } | null = null;
   /** « Lier dans… » on a range (Figma G2b d, I2): the host offers a linked table in a deck or a document. */
   onLinkRange: ((range: { sheetId: string; ids: IdRange; label: string }) => void) | null = null;
   /** The workbook's doc id (what links made from here point at); set by the editor. */

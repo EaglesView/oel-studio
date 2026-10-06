@@ -24,7 +24,8 @@
     "react-aria-components": "^1.21.1",
     "yjs": "^13.6.33",
     "@oel/charts": "*",
-    "@oel/links": "*"
+    "@oel/links": "*",
+    "@oel/img": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

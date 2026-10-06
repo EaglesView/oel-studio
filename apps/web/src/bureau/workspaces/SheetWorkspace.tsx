@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { SheetsEditor, toPreview, type SheetSession } from '@oel/sheets';
 import '@oel/sheets/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../images';
 import type { WorkspaceProps } from '../OpenSheet';
 import { identity } from '../docs';
 import { createCalcWorker, exportSheet, sheetSessionFor } from '../sheets';
@@ -40,6 +42,7 @@ export function SheetWorkspace({ paper, level, onDraft, registerFlush, onPatch, 
         title={paper.title}
         identity={identity()}
         createCalcWorker={createCalcWorker}
+        createImageWorker={createImageWorker}
         onTitleChange={(title) => onPatch?.({ title })}
         onPreview={(p) => onDraft(p)}
         exportFile={exportSheet}

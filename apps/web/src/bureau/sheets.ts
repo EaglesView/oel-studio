@@ -48,7 +48,7 @@ export function sheetSessionFor(paper: Paper, onCreated: (docId: string) => void
 }
 
 export async function exportSheet(req: ExportRequest): Promise<Uint8Array> {
-  return engineHost().export({ kind: 'spreadsheet', format: req.format, data: { json: req.json, original: req.original, sheet: req.sheet } });
+  return engineHost().export({ kind: 'spreadsheet', format: req.format, data: { json: req.json, original: req.original, media: req.media, sheet: req.sheet } });
 }
 
 // ---------------------------------------------------------------------------
