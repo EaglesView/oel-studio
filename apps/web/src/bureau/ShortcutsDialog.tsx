@@ -29,6 +29,9 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
     rows: [
       [['/'], 'Aller aux outils de la sélection'],
       [['N'], 'Nouvelle note'],
+      [['P'], 'Note : coller au fichier dessous · décoller'],
+      [['Maj', 'P'], 'Note : « Coller à… » (Tab, Entrée, Échap)'],
+      [['Alt', 'glisser'], 'Lâcher une note sur un fichier pour l’y coller'],
       [['Ctrl', 'O'], 'Importer des fichiers'],
       [['Alt', 'N'], 'Nouveau fichier (menu « + »)'],
       [['Ctrl', 'Maj', 'L'], 'Fils du bureau'],

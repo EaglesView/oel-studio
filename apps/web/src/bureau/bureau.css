@@ -511,6 +511,23 @@
   outline: none;
   cursor: text;
 }
+/* K1 · Couleur: the same paper, tinted with a kit colour. */
+.paper--note[data-color='rose'] { background-color: color-mix(in srgb, var(--emboss-danger) 18%, var(--emboss-sheet)); }
+.paper--note[data-color='vert'] { background-color: color-mix(in srgb, var(--emboss-success) 22%, var(--emboss-sheet)); }
+.paper--note[data-color='bleu'] { background-color: color-mix(in srgb, var(--emboss-fill-primary) 16%, var(--emboss-sheet)); }
+/* K1 · 3 a stuck note: a pin above it, in the accent colour. */
+.paper-pin {
+  position: absolute;
+  z-index: 2;
+  top: -14px;
+  left: 50%;
+  translate: -50% 0;
+  rotate: 20deg;
+  color: var(--emboss-fill-primary);
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--emboss-shade) 60%, transparent));
+  pointer-events: none;
+}
+.desk__node[data-attached] > .paper--note { rotate: 2deg; }
 .paper--note[data-editing] { box-shadow: var(--shadow-raised-soft), 0 0 0 2px var(--emboss-focus); }
 
 .paper__file { display: grid; place-items: center; align-content: center; gap: 12px; height: 100%; color: var(--emboss-ink-muted); font: 500 14px/18px var(--font-sans); text-align: center; padding: 24px; }
@@ -754,3 +771,7 @@
 .paper__flash { position: absolute; top: 10px; right: 10px; animation: paper-flash 4s var(--ease-paper) forwards; pointer-events: none; }
 @keyframes paper-flash { 0% { opacity: 0; translate: 0 6px; } 8%, 70% { opacity: 1; translate: 0 0; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .paper__flash { animation-duration: 6s; } }
+
+/* « Coller ▾ » (K1): split button like « Présenter », main part + arrow. */
+.context-bar__split { display: inline-flex; align-items: center; }
+.context-bar__split > :last-child { border-left: 1px solid var(--emboss-edge); border-radius: 0 10px 10px 0; padding-inline: 6px; }

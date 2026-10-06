@@ -36,6 +36,8 @@ export interface PaperData {
   fileName?: string;
   /** Collaborative document (@oel/docs) or workbook (@oel/sheets) backing this paper, once created. */
   docId?: string;
+  /** Note colour (Figma K1 « Couleur »); yellow when absent. */
+  noteColor?: NoteColor;
   /** Form definition (@oel/forms) for `form` papers. */
   form?: FormDef;
   /** Live counters shown on the form paper (« 42 RÉPONSES »). */
@@ -43,6 +45,9 @@ export interface PaperData {
   /** Spreadsheet that just received a response row: flashes « +1 ligne » for a moment. */
   flash?: { label: string; at: number };
 }
+
+export type NoteColor = 'jaune' | 'rose' | 'vert' | 'bleu';
+export const NOTE_COLORS: Record<NoteColor, string> = { jaune: 'Jaune', rose: 'Rose', vert: 'Vert', bleu: 'Bleu' };
 
 export type Paper = DeskNode<PaperData> & { kind: PaperKind };
 export type Bureau = DeskStore<PaperData>;

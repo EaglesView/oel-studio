@@ -3,6 +3,10 @@ import { useDesk, useDeskState, useSelectionScreenRect } from '@oel/desk/react';
 import {
   Button,
   DialogTrigger,
+  Menu,
+  MenuItem,
+  MenuPopover,
+  MenuTrigger,
   Popover,
   TextField,
   Toolbar,
@@ -11,7 +15,7 @@ import {
   toast,
 } from '@oel/emboss';
 import { copyLink } from '@oel/forms';
-import { kindLabel, uid, type Bureau, type Paper } from './model';
+import { NOTE_COLORS, kindLabel, uid, type Bureau, type NoteColor, type Paper } from './model';
 import { sheetTotal } from './Paper';
 import { downloadSlides, requestPresent } from './slides';
 import { activeLinks } from '../links/resolver';
@@ -28,8 +32,17 @@ interface Props {
   onCreateForm: (sheetId: string) => void;
   /** Open a paper straight in full screen (form → Réponses lives there). */
   onOpenFull: (id: string) => void;
+  /** K1 · « Coller » (main part), « Coller à… » (arrow), « Décoller ». */
+  notes: NoteActions;
+  onRemove: (ids: string[]) => void;
   /** Ref so "/" can move focus into the toolbar (B3: keyboard first). */
   toolbarRef: React.RefObject<HTMLDivElement | null>;
+}
+
+export interface NoteActions {
+  stick: (id: string) => void;
+  stickTo: (id: string) => void;
+  unstick: (id: string) => void;
 }
 
 /**
@@ -38,7 +51,7 @@ interface Props {
  * B7 · several types selected:
  * only actions every type supports (arrange, produce, share).
  */
-export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenFull, toolbarRef }: Props) {
+export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenFull, notes, onRemove, toolbarRef }: Props) {
   const { announce } = useDesk();
   const rect = useSelectionScreenRect(store);
   const selection = useDeskState(store, (s) => s.selection);
@@ -89,10 +102,16 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
         appearance="pill"
         aria-label={single ? `Outils : ${kindLabel(single.kind)} « ${single.title} »` : `Outils pour ${selected.length} fichiers`}
       >
-        {single ? <TypeTools node={single} store={store} onConvert={onConvert} onCreateForm={onCreateForm} onOpenFull={onOpenFull} /> : <MultiTools store={store} ids={selection} kinds={kinds.size} />}
-        {single?.kind !== 'note' && <ToolbarSeparator />}
         {single?.kind === 'note' ? (
-          <ToolButton icon="pen" label="Écrire" showLabel shortcut={['Entrée']} description="Écrire dans la note, sur le bureau." onPress={() => onOpen(single.id)} />
+          <NoteTools node={single} store={store} notes={notes} />
+        ) : single ? (
+          <TypeTools node={single} store={store} onConvert={onConvert} onCreateForm={onCreateForm} onOpenFull={onOpenFull} />
+        ) : (
+          <MultiTools store={store} ids={selection} kinds={kinds.size} />
+        )}
+        <ToolbarSeparator />
+        {single?.kind === 'note' ? (
+          <ToolButton icon="trash" label="Supprimer" shortcut={['Suppr']} description="Retire la note du bureau." onPress={() => onRemove([single.id])} />
         ) : single ? (
           <ToolButton
             icon="expand"
@@ -234,6 +253,54 @@ function TypeTools({
     default:
       return <ToolButton icon="sparkle" label="Convertir" unavailableReason="Format non pris en charge pour l’instant." />;
   }
+}
+
+/** K1 · Couleur · « Coller ▾ » (or « Décoller » once stuck). Writing: Entrée, a double-click or just typing. */
+function NoteTools({ node, store, notes }: { node: Paper; store: Bureau; notes: NoteActions }) {
+  const color = node.data.noteColor ?? 'jaune';
+  const target = node.attach ? (store.node(node.attach.to) as Paper | undefined) : undefined;
+  return (
+    <>
+      <MenuTrigger>
+        <ToolButton icon="palette" label="Couleur" value={NOTE_COLORS[color]} />
+        <MenuPopover placement="bottom start">
+          <Menu
+            aria-label="Couleur de la note"
+            onAction={(k) => store.update(node.id, { data: { ...node.data, noteColor: k as NoteColor } }, { label: 'Couleur de la note' })}
+          >
+            {(Object.keys(NOTE_COLORS) as NoteColor[]).map((c) => (
+              <MenuItem key={c} id={c} textValue={NOTE_COLORS[c]}>
+                {c === color ? '✓ ' : ''}
+                {NOTE_COLORS[c]}
+              </MenuItem>
+            ))}
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>
+      {target ? (
+        <ToolButton
+          icon="pin-slash"
+          label="Décoller"
+          showLabel
+          shortcut={['P']}
+          description={`Collée à « ${target.title} ». La note reste où elle est.`}
+          onPress={() => notes.unstick(node.id)}
+        />
+      ) : (
+        <span className="context-bar__split" role="group" aria-label="Coller">
+          <ToolButton
+            icon="pin"
+            label="Coller"
+            showLabel
+            shortcut={['P']}
+            description="Colle la note au fichier qu’elle recouvre, là où elle est. Sinon, choisissez-le."
+            onPress={() => notes.stick(node.id)}
+          />
+          <ToolButton icon="chevron-down" label="Coller à…" shortcut={['Maj', 'P']} description="Désignez le fichier : clic, ou Tab puis Entrée." onPress={() => notes.stickTo(node.id)} />
+        </span>
+      )}
+    </>
+  );
 }
 
 function MultiTools({ store, ids, kinds }: { store: Bureau; ids: string[]; kinds: number }) {

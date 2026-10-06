@@ -83,4 +83,10 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
 - K-2 done (2026-10-05): notes are written on the desk (`NoteEditor` in `Paper.tsx`, one undo step per writing
   session via `store.begin/end`), new notes start in writing, typing a printable key on a selected note starts with that
   character (`notes.ts` reserves P, N, ?, /, zoom keys and Space). `NoteWorkspace` and « Assigner » are gone;
-  `migrateNote` turns an old assignee into a leading `@Nom`. The toolbar shows « Écrire » for a note until K-3.
+  `migrateNote` turns an old assignee into a leading `@Nom`.
+- K-3 done (2026-10-05): note toolbar Couleur (jaune, rose, vert, bleu) · « Coller ▾ » (main = stick to the item it
+  covers most, or pick mode when it covers none; arrow = « Coller à… », placed on the item's top-right corner and
+  staggered) · Supprimer; « Décoller » once stuck; `P` / `Maj + P`, context menu entries, Alt + drop, pin on stuck
+  notes, toasts with « Annuler »; dragging a note off says « Note décollée »; deleting an item says how many notes came
+  unstuck (the rest of K-5's toast work). Not built from the K-3 list: a pin-shaped cursor (crosshair for now) and a
+  shared split-button component in `@oel/emboss` (the toolbar uses the same two-button pattern as « Présenter »).

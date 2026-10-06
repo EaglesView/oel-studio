@@ -57,6 +57,11 @@ export const Paper = memo(
     const tab = KIND_TAB[node.kind];
     return (
     <>
+    {node.attach && (
+      <span className="paper-pin" aria-hidden>
+        <Icon name="pin" size={18} />
+      </span>
+    )}
     {tab && (
       <span className="paper-tab" data-kind={node.kind} aria-hidden>
         <Icon name={KIND_ICON[node.kind]} size={14} />
@@ -69,6 +74,7 @@ export const Paper = memo(
       data-selected={ctx.isSelected || undefined}
       data-state={status.state}
       data-editing={editing ? '' : undefined}
+      data-color={node.kind === 'note' ? (node.data.noteColor ?? 'jaune') : undefined}
       aria-hidden={editing ? undefined : true}
     >
       {editing && node.kind === 'note' ? <NoteEditor node={node} editing={editing} /> : content.data.thumbnail ? <img className="paper__thumbnail" src={content.data.thumbnail} alt="" draggable={false} decoding="async" /> : <Content node={content} />}

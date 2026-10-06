@@ -49,6 +49,8 @@ export interface DeskMessages {
   pickCandidate: (title: string) => string;
   pickNone: string;
   pickCancelled: string;
+  /** A pointer drag moved nodes (after the move's undo step closed). `altKey`: Alt held on release (Figma K « Alt + lâcher » sticks). */
+  onMoveEnd?: (ids: string[], modifiers: { altKey: boolean }) => void;
   /** A stuck node was dragged off its target. */
   detached: (count: number) => string;
 }
@@ -128,6 +130,8 @@ export interface DeskCanvasProps<D> {
   activeLinkId?: string | null;
   /** While set, the desk is in pick mode (see `PickTarget`). */
   pickTarget?: PickTarget<D> | null;
+  /** A pointer drag moved nodes (after the move's undo step closed). `altKey`: Alt held on release (Figma K « Alt + lâcher » sticks). */
+  onMoveEnd?: (ids: string[], modifiers: { altKey: boolean }) => void;
   /** A stuck node was dragged off its target (`store.detach` already ran inside the drag's undo step). */
   onDetach?: (ids: string[]) => void;
   /** Wheel zoom speed (Ctrl/⌘ + wheel or pinch). Lower is gentler. Default 0.002. */
@@ -187,6 +191,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     activeLinkId = null,
     pickTarget = null,
     onDetach,
+    onMoveEnd,
     wheelZoomSpeed = 0.002,
     onKeyDown,
     children,
@@ -467,7 +472,10 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     if (g.kind === 'drag') {
       if (g.stuck.length) store.moveBy(g.stuck, { x: -g.stuckApplied.x, y: -g.stuckApplied.y });
       store.end();
-      if (g.moved && g.ids.length) announce(m.moved(g.ids.length));
+      if (g.moved && g.ids.length) {
+        announce(m.moved(g.ids.length));
+        onMoveEnd?.(g.ids, { altKey: e.altKey });
+      }
       else if (g.wasSelected && !(e.shiftKey || e.metaKey || e.ctrlKey)) store.select([g.hitId]);
     }
     if (g.kind === 'lasso') {

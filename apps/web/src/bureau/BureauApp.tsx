@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createDesk } from '@oel/desk';
-import { DeskCanvas, Minimap, useDesk, useDeskState } from '@oel/desk/react';
+import { DeskCanvas, Minimap, useDesk, useDeskState, type PickTarget } from '@oel/desk/react';
 import '@oel/desk/desk.css';
 import {
   Badge,
@@ -13,7 +13,7 @@ import {
   toast,
 } from '@oel/emboss';
 import { AppMenu, type MenuPane } from './AppMenu';
-import { ContextToolbar } from './ContextToolbar';
+import { ContextToolbar, type NoteActions } from './ContextToolbar';
 import { BottomBar, EmptyDesk, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
@@ -101,6 +101,44 @@ function BureauDesk() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingNote, store, project.me.initials]);
+
+  /* K1 · notes collées: stick to the item underneath, pick one (« Coller à… »), or unstick. */
+  const [pickFor, setPickFor] = useState<string | null>(null);
+  const titleOf = (id: string) => store.node(id)?.title ?? '';
+  const stuckToast = (id: string, to: string) =>
+    toast({ title: `Note collée à « ${titleOf(to)} »`, tone: 'success', action: { label: 'Annuler', onAction: () => store.undo() } });
+  const notes: NoteActions = {
+    stick: (id) => {
+      const under = store.overlapping(id, isStickTarget);
+      if (!under) return setPickFor(id);
+      if (store.attach(id, under.id)) stuckToast(id, under.id);
+    },
+    stickTo: (id) => setPickFor(id),
+    unstick: (id) => {
+      if (!store.detach([id]).length) return;
+      toast({ title: 'Note décollée', tone: 'info', action: { label: 'Annuler', onAction: () => store.undo() } });
+    },
+  };
+  const pickTarget = useMemo<PickTarget<PaperData> | null>(
+    () =>
+      pickFor
+        ? {
+            from: pickFor,
+            filter: isStickTarget,
+            onPick: (to) => {
+              setPickFor(null);
+              if (store.attach(pickFor, to, stickSpot(store, pickFor, to))) {
+                stuckToast(pickFor, to);
+                store.select([pickFor]);
+                store.focus(pickFor);
+              }
+            },
+            onCancel: () => setPickFor(null),
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pickFor, store],
+  );
   /** The bottom bar's « + » menu (M1), opened by Alt + N too. */
   const [newMenu, setNewMenu] = useState(false);
   const [help, setHelp] = useState(false);
@@ -285,9 +323,11 @@ function BureauDesk() {
   };
   const remove = (ids: string[]) => {
     const n = ids.length;
-    store.remove(ids);
+    const freed = store.remove(ids);
     toast({
       title: n > 1 ? `${n} fichiers retirés du bureau` : 'Fichier retiré du bureau',
+      // K « Le fichier est supprimé »: its notes stay on the desk, unstuck.
+      description: freed.length ? (freed.length > 1 ? `${freed.length} notes décollées` : '1 note décollée') : undefined,
       tone: 'info',
       action: { label: 'Annuler', onAction: () => store.undo() },
     });
@@ -334,6 +374,16 @@ function BureauDesk() {
             onOpen={open}
             onDelete={remove}
             onContextMenu={(ids, at) => setMenu({ ids, at })}
+            pickTarget={pickTarget}
+            onMoveEnd={(ids, { altKey }) => {
+              // K1 · Alt + lâcher une note sur un fichier l'y colle.
+              const id = ids.length === 1 ? ids[0]! : null;
+              const n = id ? store.node(id) : undefined;
+              if (!altKey || !id || n?.kind !== 'note' || n.attach) return;
+              const under = store.overlapping(id, isStickTarget);
+              if (under && store.attach(id, under.id)) stuckToast(id, under.id);
+            }}
+            onDetach={() => toast({ title: 'Note décollée', tone: 'info', action: { label: 'Annuler', onAction: () => store.undo() } })}
             onDropFiles={(files, at) => doImport(files, at)}
             onLinkOpen={(id, anchor) => links.manage(id.replace(THREAD_PREFIX, ''), deskToViewport(anchor))}
             onLinkDelete={(id) => links.setUi({ cut: id.replace(THREAD_PREFIX, '') })}
@@ -359,9 +409,16 @@ function BureauDesk() {
                 return true;
               }
               {
-                // K2 · typing on a selected note starts writing with that character.
                 const sel = store.getState().selection;
                 const only = sel.length === 1 ? store.node(sel[0]!) : undefined;
+                // K1 · P sticks (or unsticks) the selected note, Maj + P picks where.
+                if (only?.kind === 'note' && e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                  if (e.shiftKey) notes.stickTo(only.id);
+                  else if (only.attach) notes.unstick(only.id);
+                  else notes.stick(only.id);
+                  return true;
+                }
+                // K2 · typing on a selected note starts writing with that character.
                 if (only?.kind === 'note' && startsNoteText(e)) {
                   editNote(only.id, e.key);
                   return true;
@@ -382,6 +439,8 @@ function BureauDesk() {
               onConvert={(id) => convertToEditable(store, id, announceRef.current)}
               onCreateForm={(sheetId) => setNewForm({ sheetId })}
               onOpenFull={(id) => openAt(id, 3)}
+              notes={notes}
+              onRemove={remove}
               toolbarRef={toolbarRef}
             />
             {menu && (
@@ -393,6 +452,7 @@ function BureauDesk() {
                 onOpen={open}
                 onRemove={remove}
                 onCreate={create}
+                notes={notes}
               />
             )}
           </DeskCanvas>
@@ -498,7 +558,9 @@ function ContextMenu({
   onOpen,
   onRemove,
   onCreate,
+  notes,
 }: {
+  notes: NoteActions;
   at: { x: number; y: number };
   ids: string[];
   store: Bureau;
@@ -511,6 +573,7 @@ function ContextMenu({
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   const single = ids.length === 1 ? ids[0]! : null;
+  const singleNode = single ? store.node(single) : undefined;
   return (
     <>
       <span ref={anchor} className="context-anchor" style={{ left: at.x, top: at.y }} data-desk-ui />
@@ -526,6 +589,9 @@ function ContextMenu({
               if (key === 'all') store.selectAll();
               if (key === 'fit') store.zoomToFit(ids.length ? ids : undefined);
               if (key === 'remove') onRemove(ids);
+              if (key === 'stick' && single) notes.stick(single);
+              if (key === 'stick-to' && single) notes.stickTo(single);
+              if (key === 'unstick' && single) notes.unstick(single);
               onClose();
             }}
           >
@@ -551,7 +617,18 @@ function ContextMenu({
               </SubmenuTrigger>
             ) : null}
             {ids.length === 0 ? <MenuSeparator /> : null}
-            {single ? <MenuItem id="open" icon="expand" shortcut="Entrée">Ouvrir sur place</MenuItem> : null}
+            {single && singleNode?.kind === 'note' ? (
+              singleNode.attach ? (
+                <MenuItem id="unstick" icon="pin-slash" shortcut="P">Décoller</MenuItem>
+              ) : (
+                [
+                  <MenuItem key="stick" id="stick" icon="pin" shortcut="P">Coller</MenuItem>,
+                  <MenuItem key="stick-to" id="stick-to" icon="pin" shortcut="Maj+P">Coller à…</MenuItem>,
+                ]
+              )
+            ) : single ? (
+              <MenuItem id="open" icon="expand" shortcut="Entrée">Ouvrir sur place</MenuItem>
+            ) : null}
             {ids.length > 0 ? <MenuItem id="front" icon="layout">Mettre au premier plan</MenuItem> : null}
             {ids.length > 1 ? <MenuItem id="arrange" icon="grid">Ranger en ligne</MenuItem> : null}
             <MenuItem id="fit" icon="search" shortcut="0">{ids.length ? 'Zoomer sur la sélection' : 'Tout voir'}</MenuItem>
@@ -563,4 +640,18 @@ function ContextMenu({
       )}
     </>
   );
+}
+
+/** Notes stick to whole desk items, never to other notes (Figma K0). */
+const isStickTarget = (n: { kind: string }) => n.kind !== 'note';
+
+/**
+ * Where « Coller à… » puts a note: over the item's top-right corner, like a
+ * sticky note, staggered down the right edge when the item already has some.
+ */
+function stickSpot(store: Bureau, id: string, to: string): { x: number; y: number } {
+  const n = store.node(id)!;
+  const t = store.node(to)!;
+  const i = store.attachedTo(to).filter((c) => c.id !== id).length;
+  return { x: t.x + t.w - n.w * 0.6, y: t.y - 16 + i * Math.round(n.h * 0.6 + 8) };
 }
