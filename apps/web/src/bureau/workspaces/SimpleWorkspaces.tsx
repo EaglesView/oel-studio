@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Icon, Toolbar, ToolButton } from '@oel/emboss';
 import type { WorkspaceProps } from '../OpenSheet';
 import { Inspector, InspectorRow } from './Inspector';
@@ -33,31 +32,6 @@ export function ImageWorkspace({ paper }: WorkspaceProps) {
         <InspectorRow label="Dimensions" value={p.kind === 'image' && p.width ? `${p.width} × ${p.height} px` : '—'} />
         <InspectorRow label="Fichier" value={paper.data.fileName ?? '—'} />
       </Inspector>
-    </div>
-  );
-}
-
-export function NoteWorkspace({ paper, onDraft }: WorkspaceProps) {
-  const [text, setText] = useState(paper.data.preview.kind === 'note' ? paper.data.preview.text : '');
-  return (
-    <div className="ws ws--note">
-      <div className="ws__stage">
-        <div className="ws-note">
-          <label className="ws-note__label" htmlFor="note-text">
-            {paper.title}
-            {paper.data.assignee && <span> · assignée à {paper.data.assignee}</span>}
-          </label>
-          <textarea
-            id="note-text"
-            autoFocus
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              onDraft({ kind: 'note', text: e.target.value });
-            }}
-          />
-        </div>
-      </div>
     </div>
   );
 }

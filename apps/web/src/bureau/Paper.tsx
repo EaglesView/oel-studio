@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { NodeRenderContext } from '@oel/desk/react';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
 import { contrastGuard, questionsOf } from '@oel/forms/model';
@@ -41,8 +41,16 @@ function useThrottledSnapshot<T>(value: T, frozen: boolean, interval: number): T
  * THUMBNAIL_REFRESH_MS, so live editing elsewhere does not re-render every paper.
  * Status (import progress, read-only) always stays live.
  */
+/** A note being written on the desk (Figma K2): live text, and when the person leaves it. */
+export interface NoteEditing {
+  onText: (text: string) => void;
+  /** Grow the note so its text fits (desk units). */
+  onHeight: (h: number) => void;
+  onDone: () => void;
+}
+
 export const Paper = memo(
-  function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }) {
+  function Paper({ node, ctx, editing }: { node: PaperNode; ctx: NodeRenderContext; editing?: NoteEditing | null }) {
     const thumbnail = ctx.lod === 'thumbnail';
     const content = useThrottledSnapshot<PaperNode>(node, thumbnail, THUMBNAIL_REFRESH_MS);
     const status = node.data.status;
@@ -60,9 +68,10 @@ export const Paper = memo(
       data-lod={ctx.lod}
       data-selected={ctx.isSelected || undefined}
       data-state={status.state}
-      aria-hidden
+      data-editing={editing ? '' : undefined}
+      aria-hidden={editing ? undefined : true}
     >
-      {content.data.thumbnail ? <img className="paper__thumbnail" src={content.data.thumbnail} alt="" draggable={false} decoding="async" /> : <Content node={content} />}
+      {editing && node.kind === 'note' ? <NoteEditor node={node} editing={editing} /> : content.data.thumbnail ? <img className="paper__thumbnail" src={content.data.thumbnail} alt="" draggable={false} decoding="async" /> : <Content node={content} />}
       {node.data.flash && Date.now() - node.data.flash.at < 4000 && (
         <Badge key={node.data.flash.at} tone="success" className="paper__flash">
           {node.data.flash.label}
@@ -90,8 +99,56 @@ export const Paper = memo(
     </>
     );
   },
-  (a, b) => a.node === b.node && a.ctx.lod === b.ctx.lod && a.ctx.isSelected === b.ctx.isSelected,
+  (a, b) => a.node === b.node && a.ctx.lod === b.ctx.lod && a.ctx.isSelected === b.ctx.isSelected && !!a.editing === !!b.editing,
 );
+
+/**
+ * K2 · a note is written where it lies. Clicking outside (blur) or Échap
+ * leaves the text; the note stays selected. The textarea is desk UI, so
+ * dragging inside it selects text instead of moving the note.
+ */
+function NoteEditor({ node, editing }: { node: PaperNode; editing: NoteEditing }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const text = node.data.preview.kind === 'note' ? node.data.preview.text : '';
+  useEffect(() => {
+    const ta = ref.current;
+    if (!ta) return;
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }, []);
+  // Grow with the text (never shrinks while writing, so the note doesn't jump).
+  useLayoutEffect(() => {
+    const ta = ref.current;
+    const box = boxRef.current;
+    if (!ta || !box) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${ta.scrollHeight}px`;
+    if (box.scrollHeight > node.h) editing.onHeight(box.scrollHeight);
+  }, [text, node.h, editing]);
+  return (
+    <div className="paper__note paper__note--editing" ref={boxRef}>
+      <strong>{node.title}</strong>
+      <textarea
+        ref={ref}
+        className="paper__note-text"
+        data-desk-ui
+        aria-label={`Texte de la note « ${node.title} »`}
+        value={text}
+        rows={1}
+        onChange={(e) => editing.onText(e.target.value)}
+        onBlur={() => editing.onDone()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.blur();
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 /** Whether a CSS colour (`#RRGGBB` or `rgba(…)`) is dark enough for light ink. */
 function isDark(css: string): boolean {

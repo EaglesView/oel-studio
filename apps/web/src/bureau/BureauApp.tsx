@@ -18,7 +18,8 @@ import { BottomBar, EmptyDesk, NEW_KINDS, PresenceCursors, ProjectPill, SharePil
 import { ListView } from './ListView';
 import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
-import { Paper } from './Paper';
+import { Paper, type NoteEditing } from './Paper';
+import { migrateNote, startsNoteText } from './notes';
 import { SEED_PAPERS } from './seed';
 import { LinkResolver, setActiveLinks } from '../links/resolver';
 import { LinksUI } from '../links/LinksUI';
@@ -53,13 +54,53 @@ function BureauDesk() {
   const project = useProject();
   const store = useMemo<Bureau>(() => {
     const desk = createDesk<PaperData>({
-      nodes: SEED_PAPERS,
+      nodes: SEED_PAPERS.map(migrateNote),
       viewport: { x: 0, y: 40, zoom: 0.9 },
       zoom: { min: MAX_ZOOM_OUT, max: 4 },
     });
     return desk;
   }, []);
   const [view, setView] = useState<'desk' | 'list'>('desk');
+  /** K2 · the note being written on the desk (one undo step per writing session). */
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const noteStart = useRef<{ id: string; text: string } | null>(null);
+  const noteText = (id: string) => {
+    const p = store.node(id)?.data.preview;
+    return p?.kind === 'note' ? p.text : '';
+  };
+  const setNoteText = (id: string, text: string) => {
+    const n = store.node(id);
+    if (n) store.update(id, { data: { ...n.data, preview: { kind: 'note', text } } }, { history: false });
+  };
+  const editNote = (id: string, typed = '') => {
+    if (store.node(id)?.kind !== 'note' || editingNote === id) return;
+    setView('desk');
+    store.select([id]);
+    store.focus(id);
+    store.begin(`Note « ${store.node(id)!.title} »`);
+    noteStart.current = { id, text: noteText(id) };
+    if (typed) setNoteText(id, noteText(id) + typed);
+    setEditingNote(id);
+  };
+  const noteEditing = useMemo<NoteEditing | null>(() => {
+    if (!editingNote) return null;
+    const id = editingNote;
+    return {
+      onText: (text) => setNoteText(id, text),
+      onHeight: (h) => store.update(id, { h: Math.ceil(h) }, { history: false }),
+      onDone: () => {
+        const n = store.node(id);
+        if (n && noteStart.current?.id === id && noteText(id) !== noteStart.current.text) {
+          store.update(id, { data: { ...n.data, editor: project.me.initials, updatedAt: Date.now() } }, { history: false });
+        }
+        store.end();
+        noteStart.current = null;
+        setEditingNote(null);
+        requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }));
+      },
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingNote, store, project.me.initials]);
   /** The bottom bar's « + » menu (M1), opened by Alt + N too. */
   const [newMenu, setNewMenu] = useState(false);
   const [help, setHelp] = useState(false);
@@ -154,6 +195,8 @@ function BureauDesk() {
     setFull(!!id && isFull);
   };
   const openAt = (id: string, level: 2 | 3) => {
+    // K2 · a note never opens: Entrée, double-click or « Écrire » write in it on the desk.
+    if (store.node(id)?.kind === 'note') return editNote(id);
     history.pushState({ oelDepth: 1 }, '', urlFor(id, false));
     if (level === 3) history.pushState({ oelDepth: 2 }, '', urlFor(id, true));
     apply(id, level === 3);
@@ -214,7 +257,8 @@ function BureauDesk() {
     const p = blankPaper(kind, store.viewCenter());
     store.add([p]);
     announceRef.current(`${kindLabel(kind)} créé au centre de la vue`);
-    if (kind !== 'note') setTimeout(() => openAt(p.id, 2), 50);
+    // A new note is written straight away, on the desk (K2); other files open in place.
+    setTimeout(() => (kind === 'note' ? editNote(p.id) : openAt(p.id, 2)), 50);
   };
   const createForm = ({ form, linkTo }: NewFormResult) => {
     const p = blankPaper('form', store.viewCenter());
@@ -281,7 +325,7 @@ function BureauDesk() {
             store={store}
             label={`Bureau du projet ${project.name}`}
             describeNode={(n) => describePaper(n as PaperNode)}
-            renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} />}
+            renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} editing={n.id === editingNote ? noteEditing : null} />}
             selectionOverhang={(n, zoom) => (KIND_TAB[n.kind as PaperKind] ? tabHeightOnScreen(zoom) - 4 : 0)}
             renderGroupLabel={(nodes) => {
               const kinds = new Set(nodes.map((n) => n.kind)).size;
@@ -313,6 +357,15 @@ function BureauDesk() {
               if (e.key === '/' && toolbarRef.current) {
                 toolbarRef.current.querySelector<HTMLElement>('button')?.focus();
                 return true;
+              }
+              {
+                // K2 · typing on a selected note starts writing with that character.
+                const sel = store.getState().selection;
+                const only = sel.length === 1 ? store.node(sel[0]!) : undefined;
+                if (only?.kind === 'note' && startsNoteText(e)) {
+                  editNote(only.id, e.key);
+                  return true;
+                }
               }
               if (e.key.toLowerCase() === 'n' && !e.ctrlKey && !e.metaKey) {
                 create('note');

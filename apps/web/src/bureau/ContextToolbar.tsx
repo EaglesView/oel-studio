@@ -90,8 +90,10 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
         aria-label={single ? `Outils : ${kindLabel(single.kind)} « ${single.title} »` : `Outils pour ${selected.length} fichiers`}
       >
         {single ? <TypeTools node={single} store={store} onConvert={onConvert} onCreateForm={onCreateForm} onOpenFull={onOpenFull} /> : <MultiTools store={store} ids={selection} kinds={kinds.size} />}
-        <ToolbarSeparator />
-        {single ? (
+        {single?.kind !== 'note' && <ToolbarSeparator />}
+        {single?.kind === 'note' ? (
+          <ToolButton icon="pen" label="Écrire" showLabel shortcut={['Entrée']} description="Écrire dans la note, sur le bureau." onPress={() => onOpen(single.id)} />
+        ) : single ? (
           <ToolButton
             icon="expand"
             label="Ouvrir"
@@ -228,11 +230,7 @@ function TypeTools({
         </>
       );
     case 'note':
-      return (
-        <>
-          <ToolButton icon="user" label="Assigner" value={node.data.assignee ?? '—'} description="Assigne la note à quelqu’un." onPress={() => store.update(node.id, { data: { ...node.data, assignee: node.data.assignee === 'Alex' ? 'Marie-Claude' : 'Alex' } }, { label: 'Assignation' })} />
-        </>
-      );
+      return null;
     default:
       return <ToolButton icon="sparkle" label="Convertir" unavailableReason="Format non pris en charge pour l’instant." />;
   }

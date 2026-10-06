@@ -80,3 +80,7 @@ Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`
   `DeskCanvas` `pickTarget` (ring, dashed guide, Tab/Maj+Tab nearest first, Entrée, Échap or click on empty to cancel)
   and drag-off with 24 px rubber band (`onDetach`). One level only (a target is never itself stuck; a node with notes
   can't be stuck). Nothing uses it in the Bureau yet: K-3 wires « Coller », K-5 the delete toast.
+- K-2 done (2026-10-05): notes are written on the desk (`NoteEditor` in `Paper.tsx`, one undo step per writing
+  session via `store.begin/end`), new notes start in writing, typing a printable key on a selected note starts with that
+  character (`notes.ts` reserves P, N, ?, /, zoom keys and Space). `NoteWorkspace` and « Assigner » are gone;
+  `migrateNote` turns an old assignee into a leading `@Nom`. The toolbar shows « Écrire » for a note until K-3.

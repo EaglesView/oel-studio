@@ -494,6 +494,24 @@
 
 .paper__note { display: grid; gap: 6px; padding: 14px; font: 400 13px/19px var(--font-sans); }
 .paper__note strong { font-weight: 600; color: var(--emboss-warning-ink); }
+.paper__note span { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* K2 · writing on the desk: same paper, a caret instead of a sheet. */
+.paper__note--editing { align-content: start; }
+.paper__note-text {
+  width: 100%;
+  min-height: 19px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--emboss-text);
+  font: inherit;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  cursor: text;
+}
+.paper--note[data-editing] { box-shadow: var(--shadow-raised-soft), 0 0 0 2px var(--emboss-focus); }
 
 .paper__file { display: grid; place-items: center; align-content: center; gap: 12px; height: 100%; color: var(--emboss-ink-muted); font: 500 14px/18px var(--font-sans); text-align: center; padding: 24px; }
 
@@ -570,7 +588,6 @@
   gap: 16px;
   height: 100%;
 }
-.ws--note { grid-template-columns: 1fr; grid-template-areas: 'stage'; grid-template-rows: 1fr; }
 .ws__ribbon { grid-area: ribbon; display: flex; justify-content: center; min-width: 0; }
 .ws__ribbon > .emb-toolbar { max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .ws__stage { grid-area: stage; min-height: 0; overflow: auto; display: grid; justify-items: center; align-content: start; padding: 8px 8px 24px; }
@@ -641,24 +658,11 @@
 }
 .pdf-page__stamp { position: absolute; right: 72px; bottom: 72px; scale: 1.4; }
 
-/* Image + note */
+/* Image */
 .ws-photo { display: grid; gap: 12px; margin: 0; padding: 18px; border-radius: 4px; background: var(--emboss-sheet); box-shadow: var(--shadow-sheet); }
 .ws-photo img { display: block; max-width: min(900px, 100%); max-height: 70vh; }
 .ws-photo__placeholder { display: grid; place-items: center; width: min(640px, 70vw); aspect-ratio: 4 / 5; max-height: 70vh; background: var(--emboss-accent-soft); color: var(--emboss-ink); }
 .ws-photo figcaption { font: 500 14px/18px var(--font-sans); }
-.ws-note {
-  display: grid;
-  gap: 10px;
-  width: min(560px, 100%);
-  padding: 28px;
-  rotate: -1.5deg;
-  border-radius: 4px;
-  background-color: color-mix(in srgb, var(--emboss-warning) 22%, var(--emboss-sheet));
-  box-shadow: var(--shadow-sheet);
-}
-.ws-note__label { font: 600 18px/24px var(--font-sans); color: var(--emboss-warning-ink); }
-.ws-note textarea { min-height: 260px; border: 0; background: transparent; font: 400 18px/28px var(--font-sans); color: var(--emboss-text); resize: vertical; outline: none; }
-.ws-note textarea:focus-visible { box-shadow: 0 0 0 2px var(--emboss-accent-soft); border-radius: 4px; }
 
 /* ── List view ─────────────────────────────────────────────────────── */
 .list-view { height: 100%; overflow: auto; padding: 96px 32px 120px; background: var(--emboss-well); box-shadow: inset 0 2px 5px var(--emboss-shade); }

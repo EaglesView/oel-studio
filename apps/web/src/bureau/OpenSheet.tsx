@@ -8,7 +8,7 @@ import { DocumentWorkspace } from './workspaces/DocumentWorkspace';
 import { SlidesWorkspace } from './workspaces/SlidesWorkspace';
 import { SheetWorkspace } from './workspaces/SheetWorkspace';
 import { PdfWorkspace } from './workspaces/PdfWorkspace';
-import { ImageWorkspace, NoteWorkspace } from './workspaces/SimpleWorkspaces';
+import { ImageWorkspace } from './workspaces/SimpleWorkspaces';
 import { FormWorkspace } from './workspaces/FormWorkspace';
 
 /** 2 = ouvert sur place (floating sheet), 3 = plein écran (Editor — Behaviors · A1). */
@@ -109,7 +109,6 @@ export function OpenSheet({
         const preview = flush.current?.() ?? draft.current;
         if (!preview) return;
         draft.current = null;
-        const firstHeading = preview.kind === 'document' ? preview.blocks.find((b) => b.type === 'heading')?.text : undefined;
         const cur = store.node(paper.id) as Paper | undefined;
         if (!cur) return;
         // A document's paper follows its page setup (portrait, landscape, Legal…), a deck its slide shape.
@@ -118,7 +117,6 @@ export function OpenSheet({
           paper.id,
           {
             data: { ...cur.data, preview, editor: 'JB', updatedAt: Date.now() },
-            ...(firstHeading && paper.kind === 'note' ? { title: firstHeading } : {}),
             ...(size && (size.w !== cur.w || size.h !== cur.h) ? { w: size.w, h: size.h } : {}),
           },
           { label: `Modification de « ${paper.title} »` },
@@ -126,7 +124,7 @@ export function OpenSheet({
         queueThumbnail(store, paper.id);
       },
     }),
-    [store, paper.id, paper.kind, paper.title],
+    [store, paper.id, paper.title],
   );
 
   const props: WorkspaceProps = {
@@ -217,7 +215,6 @@ export function OpenSheet({
               {paper.kind === 'spreadsheet' && <SheetWorkspace {...props} />}
               {paper.kind === 'pdf' && <PdfWorkspace {...props} />}
               {paper.kind === 'image' && <ImageWorkspace {...props} />}
-              {paper.kind === 'note' && <NoteWorkspace {...props} />}
               {paper.kind === 'form' && <FormWorkspace {...props} />}
               {paper.kind === 'file' && (
                 <div className="workspace-empty">

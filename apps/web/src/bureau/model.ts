@@ -36,8 +36,6 @@ export interface PaperData {
   fileName?: string;
   /** Collaborative document (@oel/docs) or workbook (@oel/sheets) backing this paper, once created. */
   docId?: string;
-  /** Sticky note colour/assignee. */
-  assignee?: string;
   /** Form definition (@oel/forms) for `form` papers. */
   form?: FormDef;
   /** Live counters shown on the form paper (« 42 RÉPONSES »). */

@@ -131,9 +131,8 @@ export const SEED_PAPERS: Paper[] = [
     rotation: -4,
     data: {
       updatedAt: ago(40),
-      assignee: 'Alex',
       status: { state: 'ready' },
-      preview: { kind: 'note', text: 'Reprendre les chiffres du tableur dans la diapo 4.' },
+      preview: { kind: 'note', text: '@Alex Reprendre les chiffres du tableur dans la diapo 4.' },
     },
   },
 ];
