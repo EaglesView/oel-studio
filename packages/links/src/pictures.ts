@@ -10,7 +10,8 @@ const bytes = new Map<string, Blob>();
 
 export const pictureBytes = (hash: string): Blob | undefined => bytes.get(hash);
 
-async function hashOf(blob: Blob): Promise<string> {
+/** Content hash of bytes (truncated SHA-256, hex): the key of pictures and image originals. */
+export async function contentHash(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
   return [...new Uint8Array(digest).slice(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
@@ -29,7 +30,7 @@ async function sizeOf(blob: Blob): Promise<{ width: number; height: number }> {
 
 /** The link value of a picture, its bytes kept for targets. */
 export async function pictureValue(blob: Blob): Promise<Extract<LinkedValue, { kind: 'picture' }>> {
-  const [hash, size] = await Promise.all([hashOf(blob), sizeOf(blob)]);
+  const [hash, size] = await Promise.all([contentHash(blob), sizeOf(blob)]);
   bytes.set(hash, blob);
   return { kind: 'picture', media: { hash, mime: blob.type || 'image/png', ...size } };
 }

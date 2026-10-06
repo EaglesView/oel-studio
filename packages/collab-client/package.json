@@ -8,6 +8,7 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./local": "./src/local.ts",
     "./styles.css": "./src/ui/collab.css"
   },
   "peerDependencies": {
