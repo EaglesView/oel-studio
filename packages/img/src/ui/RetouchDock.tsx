@@ -22,6 +22,13 @@ export interface RetouchResult {
   before: { width: number; height: number };
 }
 
+export interface RetouchPreview {
+  url: string;
+  /** Size of the rendering, px: only its proportions matter. */
+  width: number;
+  height: number;
+}
+
 export interface RetouchDockProps {
   title: string;
   /** The original picture; `null` (or a rejection) when it is not on this device. */
@@ -32,8 +39,11 @@ export interface RetouchDockProps {
   crop?: boolean;
   note?: string;
   createWorker: () => Worker;
-  /** Live rendering for the picture in the editor; `null`: back to what the file holds. */
-  onPreview: (url: string | null) => void;
+  /**
+   * Live rendering for the picture in the editor, with its shape (a crop or a quarter turn
+   * changes it); `null`: back to what the file holds.
+   */
+  onPreview: (preview: RetouchPreview | null) => void;
   /** On closing: the final pixels, or `null` when nothing is left of the recipe (back to the original). */
   onCommit: (result: RetouchResult | null) => void | Promise<void>;
   onClose: () => void;
@@ -55,10 +65,11 @@ export function RetouchDock(props: RetouchDockProps) {
 
   // The preview URL shown by the host; the previous one is revoked once the host has moved on.
   const shown = useRef<string | null>(null);
-  const preview = (url: string | null) => {
+  const preview = (p: RetouchPreview | null) => {
     const old = shown.current;
+    const url = p?.url ?? null;
     shown.current = url;
-    onPreview(url);
+    onPreview(p);
     if (old && old !== url) setTimeout(() => URL.revokeObjectURL(old), 1000);
   };
   useEffect(() => () => preview(null), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,7 +99,7 @@ export function RetouchDock(props: RetouchDockProps) {
       onRendered={async (raster) => {
         const c = new OffscreenCanvas(raster.width, raster.height);
         c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(raster.data.buffer as ArrayBuffer, raster.data.byteOffset, raster.data.byteLength), raster.width, raster.height), 0, 0);
-        preview(URL.createObjectURL(await c.convertToBlob({ type: 'image/webp', quality: 0.9 })));
+        preview({ url: URL.createObjectURL(await c.convertToBlob({ type: 'image/webp', quality: 0.9 })), width: raster.width, height: raster.height });
       }}
       onClose={async (engine) => {
         try {

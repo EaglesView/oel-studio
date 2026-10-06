@@ -97,6 +97,8 @@ export class SlidesController {
 
   /** Display URL of a media part: a retouch preview, else the session's file. */
   mediaUrl = (path: string): string | null => this.previews.get(path) ?? this.session.media.url(path);
+  /** Whether a media part shows a retouch preview. */
+  previewing = (path: string): boolean => this.previews.has(path);
 
   get readOnly() {
     return this.session.status.readOnly;

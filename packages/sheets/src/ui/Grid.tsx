@@ -25,6 +25,8 @@ export interface GridProps {
   onListOpen?: (at: { x: number; y: number }) => void;
   /** Object URLs of drawing images, by package path. */
   media?: ReadonlyMap<string, string>;
+  /** The image URL of a retouch preview, drawn whole inside its frame (L3). */
+  fitted?: string | null;
 }
 
 /** Scrollable height/width is capped (browsers cap element sizes); past it the scrollbar scales. */
@@ -60,7 +62,7 @@ function dragged(f: Box, h: Handle, dx: number, dy: number): Box {
 
 const NO_MEDIA: ReadonlyMap<string, string> = new Map();
 
-export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, onCommand, hasList, onListOpen, media = NO_MEDIA }: GridProps) {
+export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, onCommand, hasList, onListOpen, media = NO_MEDIA, fitted = null }: GridProps) {
   useSyncExternalStore(ctl.subscribe, ctl.getVersion, ctl.getVersion);
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -111,6 +113,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
       }
       const img = new Image();
       img.decoding = 'async';
+      if (url === fitted) img.dataset.fit = 'contain';
       img.onload = () => {
         out.set(path, img);
         decoded.current.set(url, img);
@@ -120,7 +123,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
     }
     decoded.current = keep;
     return out;
-  }, [media, ctl]);
+  }, [media, ctl]); // eslint-disable-line react-hooks/exhaustive-deps -- `fitted` is one of `media`'s URLs
 
   // ----- painting --------------------------------------------------------------
 

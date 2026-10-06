@@ -154,7 +154,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   }, [ctl.version, ctl.doc, onPreview]);
 
   const ctx: RenderCtx = useMemo(
-    () => ({ theme: info.theme, fonts: info.fonts, media: ctl.mediaUrl, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
+    () => ({ theme: info.theme, fonts: info.fonts, media: ctl.mediaUrl, previewing: ctl.previewing, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [info, session, ctl.editing, ctl.index, ctl.version],
   );
@@ -636,7 +636,7 @@ function SlideRetouch({ ctl, createWorker }: { ctl: SlidesController; createWork
       crop={crop}
       note={RETOUCH_NOTE}
       createWorker={createWorker}
-      onPreview={(url) => ctl.previewMedia(shown, url)}
+      onPreview={(p) => ctl.previewMedia(shown, p?.url ?? null)}
       onCommit={(r) => ctl.retouchPicture(slide, id, r)}
       onClose={() => ctl.closeRetouch()}
     />

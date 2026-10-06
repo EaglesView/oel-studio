@@ -46,8 +46,15 @@ export function paintDrawings(
     ctx.translate(-f.w / 2, -f.h / 2);
     if (d.kind === 'picture') {
       const img = d.media ? images.get(d.media) : undefined;
-      // Excel stretches the picture to its frame (`a:stretch`).
-      if (img) ctx.drawImage(img, 0, 0, f.w, f.h);
+      if (img instanceof HTMLImageElement && img.dataset.fit === 'contain' && img.naturalWidth) {
+        // A retouch preview (L3): drawn whole in its own shape; the frame takes it when the panel closes.
+        const k = Math.min(f.w / img.naturalWidth, f.h / img.naturalHeight);
+        const [w, h] = [img.naturalWidth * k, img.naturalHeight * k];
+        ctx.drawImage(img, (f.w - w) / 2, (f.h - h) / 2, w, h);
+      } else if (img) {
+        // Excel stretches the picture to its frame (`a:stretch`).
+        ctx.drawImage(img, 0, 0, f.w, f.h);
+      }
     } else if (d.kind === 'shape') {
       paintShape(ctx, d, f.w, f.h);
     } else if (d.kind === 'chart') {

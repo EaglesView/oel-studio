@@ -709,6 +709,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
           hasList={hasList}
           onListOpen={(at) => setListMenu(at)}
           media={media}
+          fitted={preview?.url ?? null}
         />
         {showVersions && (
           <VersionPanel
@@ -917,7 +918,7 @@ function SheetRetouch(p: { ctl: SheetController; session: SheetSession; calc: Ca
       crop={p.crop}
       note={RETOUCH_NOTE}
       createWorker={p.createWorker}
-      onPreview={(url) => p.onPreview(url ? { path: shown, url } : null)}
+      onPreview={(v) => p.onPreview(v ? { path: shown, url: v.url } : null)}
       onCommit={(r) => retouchPicture(ctl, session, oid, r)}
       onClose={p.onClose}
     />

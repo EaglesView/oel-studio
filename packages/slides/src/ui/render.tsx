@@ -36,6 +36,8 @@ export interface RenderCtx extends TextCtx {
   editingText?: string | null;
   /** Links of the deck: linked copies show their badge while editing (Figma G4). */
   links?: LinksDoc | null;
+  /** A media part showing a retouch preview: drawn whole, fitted inside its frame (L3). */
+  previewing?: (path: string) => boolean;
 }
 
 const Ctx = createContext<RenderCtx | null>(null);
@@ -176,7 +178,10 @@ function Shape({ el, w, h }: { el: Element; w: number; h: number }) {
   const picUrl = pic ? ctx.media(pic.svg ?? pic.media) ?? (pic.svg ? ctx.media(pic.media) : null) : null;
   const clip = `${uid}c`;
   let image: ReactNode = null;
-  if (pic && picUrl) {
+  if (pic && picUrl && ctx.previewing?.(pic.media)) {
+    // The retouch's own crop and turns give its shape; the frame takes it when the panel closes.
+    image = <image href={picUrl} x={0} y={0} width={w} height={h} preserveAspectRatio="xMidYMid meet" opacity={pic.alpha ?? undefined} />;
+  } else if (pic && picUrl) {
     const c = pic.crop ?? { l: 0, t: 0, r: 0, b: 0 };
     const iw = w / Math.max(0.01, 1 - c.l - c.r);
     const ih = h / Math.max(0.01, 1 - c.t - c.b);

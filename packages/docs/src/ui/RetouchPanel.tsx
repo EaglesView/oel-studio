@@ -11,6 +11,7 @@ import { toast } from '@oel/emboss';
 import { RecipeDoc, isEmptyRecipe, outputSize, type ImageEngine, type Recipe } from '@oel/img';
 import { Atelier } from '@oel/img/ui';
 import type { DocSession } from '../collab/session';
+import { EMU_PER_PX } from '../model/types';
 
 const NOTE = 'Le fichier Word garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
 
@@ -65,15 +66,23 @@ export function RetouchPanel({ editor, session, pos, crop, createWorker, onClose
   }, [doc, editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dom = () => editor.view.nodeDOM(at.current) as HTMLElement | null;
-  const setPreview = (url: string | null) => {
+  /** The live rendering on the page, in its own shape: same width, height from its proportions. */
+  const setPreview = (url: string | null, ratio?: number) => {
     const el = dom();
     const img = el?.querySelector('img');
     if (!el || !img) return;
     const old = el.dataset.preview;
     if (url) {
       el.dataset.preview = url;
+      if (ratio) el.dataset.previewRatio = String(ratio);
       img.src = url;
-    } else delete el.dataset.preview;
+      if (ratio && img.style.width) img.style.height = `${parseFloat(img.style.width) * ratio}px`;
+    } else {
+      delete el.dataset.preview;
+      delete el.dataset.previewRatio;
+      const cy = node()?.attrs.cy as number | null | undefined;
+      if (cy) img.style.height = `${cy / EMU_PER_PX}px`;
+    }
     if (old && old !== url) setTimeout(() => URL.revokeObjectURL(old), 1000);
   };
   useEffect(() => () => setPreview(null), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -115,7 +124,7 @@ export function RetouchPanel({ editor, session, pos, crop, createWorker, onClose
       onRendered={async (raster) => {
         const c = new OffscreenCanvas(raster.width, raster.height);
         c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(raster.data.buffer as ArrayBuffer, raster.data.byteOffset, raster.data.byteLength), raster.width, raster.height), 0, 0);
-        setPreview(URL.createObjectURL(await c.convertToBlob({ type: 'image/webp', quality: 0.9 })));
+        setPreview(URL.createObjectURL(await c.convertToBlob({ type: 'image/webp', quality: 0.9 })), raster.height / raster.width);
       }}
       onClose={async (engine) => {
         try {
