@@ -3,13 +3,14 @@
 //! The drawing part is rewritten only when something changed: a chart was
 //! added, edited, moved or removed, or a picture moved. Anchors keep their
 //! original XML (`src` = position in the part) with only their position patched;
-//! untouched chart parts are not rewritten. Edited and new charts are written
+//! untouched chart parts are not rewritten. A picture retouched or replaced in the editor
+//! (plan L-7) points at its new media part; its alternative text is patched. Edited and new charts are written
 //! by `oelchart::write_chart`, with caches filled from the recalculated cells.
 
 use crate::drawing::{REL_DRAWING, read_drawings};
 use crate::model::{Cell, Drawing, DrawingMarker, Sheet, Workbook};
 use crate::refs::{col_index, parse_range};
-use oel_opc::package::{Package, relative_target, resolve_target};
+use oel_opc::package::{Package, REL_IMAGE, relative_target, resolve_target};
 use oel_opc::xml::{XDocument, XElement, XNode};
 use oelchart::{ChartSpec, DataRef};
 
@@ -69,6 +70,24 @@ pub fn write_drawings(pkg: &mut Package, sheet_part: &str, sheet: &Sheet, wb: &W
                 let mut spec = spec.clone();
                 fill_caches(&mut spec, wb, &sheet.name);
                 pkg.set(&spec.part, oelchart::write_chart(&spec, None).into_bytes());
+            }
+        }
+        // A picture retouched in the editor: the anchor shows its new pixels (the SVG version
+        // showed the old picture).
+        if let Some(media) = d.media.as_ref().filter(|m| d.kind == "picture" && orig.is_some_and(|o| o.media.as_ref() != Some(*m)) && pkg.has(m)) {
+            let rid = pkg.add_rel(&part, REL_IMAGE, &relative_target(&part, media), false);
+            if let Some(blip) = anchor.elements_mut().find(|e| e.local() == "pic").and_then(|p| p.child_local_mut("blipFill")).and_then(|b| b.child_local_mut("blip")) {
+                blip.set_attr("r:embed", rid);
+                blip.children.retain(|n| !matches!(n, XNode::Element(e) if e.local() == "extLst"));
+            }
+        }
+        // Alternative text changed in the editor.
+        if d.kind == "picture" && orig.is_some_and(|o| o.descr != d.descr) {
+            if let Some(nv) = anchor.elements_mut().find(|e| e.local() == "pic").and_then(|p| p.child_local_mut("nvPicPr")).and_then(|n| n.child_local_mut("cNvPr")) {
+                match d.descr.as_deref().filter(|s| !s.is_empty()) {
+                    Some(t) => nv.set_attr("descr", t),
+                    None => nv.remove_attr("descr"),
+                }
             }
         }
         if orig.map(|o| o.from != d.from || o.to != d.to || o.cx != d.cx || o.cy != d.cy || o.edit_as != d.edit_as).unwrap_or(false) {

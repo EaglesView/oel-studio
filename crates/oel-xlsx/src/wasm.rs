@@ -39,10 +39,19 @@ pub fn new_workbook_model() -> Result<String, JsError> {
 }
 
 /// The original `.xlsx` (when the workbook came from one) is the base the
-/// edits are written into; without it a new package is built.
+/// edits are written into; without it a new package is built. `media` is `{path, bytes}[]` for
+/// pictures made in the editor (retouched pictures' renderings and originals).
 #[wasm_bindgen]
-pub fn model_to_xlsx(json: &str, original: Option<Vec<u8>>) -> Result<Vec<u8>, JsError> {
-    crate::export_xlsx(&parse_wb(json)?, original.as_deref()).map_err(js_err)
+pub fn model_to_xlsx(json: &str, original: Option<Vec<u8>>, media: Option<js_sys::Array>) -> Result<Vec<u8>, JsError> {
+    let mut map = std::collections::HashMap::new();
+    for item in media.iter().flat_map(|m| m.iter()) {
+        let path = js_sys::Reflect::get(&item, &"path".into()).ok().and_then(|v| v.as_string()).unwrap_or_default();
+        let bytes = js_sys::Reflect::get(&item, &"bytes".into()).map(|v| js_sys::Uint8Array::new(&v).to_vec()).unwrap_or_default();
+        if !path.is_empty() {
+            map.insert(path, bytes);
+        }
+    }
+    crate::export_xlsx_with_media(&parse_wb(json)?, original.as_deref(), map).map_err(js_err)
 }
 
 /// One sheet as delimited text. `dialect` (JSON, optional) overrides the file's own.

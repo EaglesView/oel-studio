@@ -170,9 +170,9 @@ export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngin
       return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
     },
     export(mod, req) {
-      const d = req.data as { json: unknown; original?: Uint8Array | null; sheet?: number };
+      const d = req.data as { json: unknown; original?: Uint8Array | null; media?: Array<{ path: string; bytes: Uint8Array }>; sheet?: number };
       const json = typeof d.json === 'string' ? d.json : JSON.stringify(d.json);
-      if (req.format === 'xlsx') return mod.model_to_xlsx(json, d.original ?? undefined);
+      if (req.format === 'xlsx') return mod.model_to_xlsx(json, d.original ?? undefined, d.media ?? []);
       if (req.format === 'csv') return mod.model_to_csv(json, d.sheet ?? 0, '');
       if (req.format === 'tsv') return mod.model_to_csv(json, d.sheet ?? 0, JSON.stringify({ delimiter: '\t', encoding: 'utf-8', bom: false, lineEnding: '\r\n' }));
       throw new Error(`Format d’export inconnu : ${req.format}`);

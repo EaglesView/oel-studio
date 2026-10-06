@@ -269,3 +269,43 @@ fn a_chart_in_a_new_workbook_gets_a_drawing_part() {
     assert_eq!(c.groups[0].kind, "pie");
     assert_eq!(c.groups[0].series[0].val.as_ref().unwrap().num, vec![Some(1.0), Some(3.0), Some(2.0)]);
 }
+
+/// Plan L-7: a picture retouched in OEL shows its rendering in Excel and keeps its original and
+/// recipe in the .xlsx; a picture changed outside OEL loses its recipe.
+#[test]
+fn retouched_pictures_round_trip() {
+    let src = fixture("complex_sheet_graph.xlsx");
+    let mut wb = import_xlsx(&src).unwrap();
+    let i = wb.sheets[0].drawings.iter().position(|d| d.kind == "picture").unwrap();
+    let recipe = serde_json::json!({ "exposure": 0.4 });
+    let d = &mut wb.sheets[0].drawings[i];
+    d.media = Some("xl/media/oel-retouche.png".into());
+    d.mime = Some("image/png".into());
+    d.recipe = Some(recipe.clone());
+    d.orig = Some("xl/media/image1.png".into());
+    d.descr = Some("Logo retouché".into());
+    let media = std::collections::HashMap::from([("xl/media/oel-retouche.png".to_string(), b"\x89PNG rendered".to_vec())]);
+    let out = oelxlsx::export_xlsx_with_media(&wb, Some(&src), media).unwrap();
+
+    let back = import_xlsx(&out).unwrap();
+    let d = &back.sheets[0].drawings[i];
+    assert_eq!(d.media.as_deref(), Some("xl/media/oel-retouche.png"), "the anchor shows the rendering, not the old SVG");
+    assert_eq!(d.recipe.as_ref(), Some(&recipe));
+    assert_eq!(d.descr.as_deref(), Some("Logo retouché"));
+    let orig = d.orig.clone().unwrap();
+    assert!(orig.starts_with("oel/media/"), "{orig}");
+    let pkg = Package::read(&out).unwrap();
+    assert_eq!(pkg.get(&orig).unwrap(), Package::read(&src).unwrap().get("xl/media/image1.png").unwrap());
+    // Other drawings are untouched.
+    assert_eq!(back.sheets[0].drawings.len(), wb.sheets[0].drawings.len());
+
+    // Excel replaced the picture: the visible image becomes the new base.
+    let mut edited = pkg;
+    edited.set("xl/media/oel-retouche.png", b"edited in Excel".to_vec());
+    let e = import_xlsx(&edited.write().unwrap()).unwrap();
+    assert!(e.sheets[0].drawings[i].recipe.is_none() && e.sheets[0].drawings[i].orig.is_none());
+
+    // Without retouched pictures, nothing OEL-specific is written.
+    let plain = export_xlsx(&import_xlsx(&src).unwrap(), Some(&src)).unwrap();
+    assert!(!Package::read(&plain).unwrap().has(oel_opc::retouch::MANIFEST));
+}

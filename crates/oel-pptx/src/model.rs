@@ -478,6 +478,13 @@ pub struct Picture {
     /// Opacity 0–1 (`alphaModFix`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alpha: Option<f64>,
+    /// Retouched picture (plan L-7): its `oel-img-recipe@1` recipe; `media` holds the rendering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>", optional))]
+    pub recipe: Option<serde_json::Value>,
+    /// Media path of the retouched picture's original (`oel/media/…`, or a picture added in the editor).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orig: Option<String>,
 }
 
 #[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "oelpptx/", optional_fields))]

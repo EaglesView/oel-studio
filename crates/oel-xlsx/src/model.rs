@@ -582,6 +582,13 @@ pub struct Drawing {
     pub media: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mime: Option<String>,
+    /// Retouched picture (plan L-7): its `oel-img-recipe@1` recipe; `media` holds the rendering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>", optional))]
+    pub recipe: Option<serde_json::Value>,
+    /// Package path of the retouched picture's original (`oel/media/…`, or a picture added in the editor).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orig: Option<String>,
     /// Shape fill and outline, CSS.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fill: Option<String>,

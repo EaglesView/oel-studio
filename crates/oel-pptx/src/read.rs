@@ -92,6 +92,8 @@ pub struct Reader<'p> {
     media: RefCell<BTreeMap<String, String>>,
     fonts: RefCell<BTreeSet<String>>,
     preserved: RefCell<BTreeMap<&'static str, (&'static str, u32)>>,
+    /// Retouched pictures recorded by OEL (rendered part → original + recipe), still valid.
+    retouches: HashMap<String, oel_opc::retouch::RetouchEntry>,
 }
 
 fn on(v: Option<&str>) -> bool {
@@ -175,6 +177,7 @@ impl<'p> Reader<'p> {
             media: RefCell::new(BTreeMap::new()),
             fonts: RefCell::new(BTreeSet::new()),
             preserved: RefCell::new(BTreeMap::new()),
+            retouches: oel_opc::retouch::read(pkg),
         })
     }
 
@@ -657,7 +660,13 @@ impl<'p> Reader<'p> {
             // A filled picture placeholder shows the picture, not the placeholder's fill.
             out.look.fill = None;
         }
-        out.image = Some(Picture { mime: if media.is_empty() { String::new() } else { self.pkg.mime_of(&media) }, media, svg, crop: bf.and_then(crop_of), alpha });
+        // A picture retouched in OEL whose pixels PowerPoint left alone: its original and recipe.
+        let retouch = self.retouches.get(&media);
+        if let Some(r) = retouch {
+            self.media.borrow_mut().insert(r.original.clone(), self.pkg.mime_of(&r.original));
+        }
+        let (recipe, orig) = (retouch.map(|r| r.recipe.clone()), retouch.map(|r| r.original.clone()));
+        out.image = Some(Picture { mime: if media.is_empty() { String::new() } else { self.pkg.mime_of(&media) }, media, svg, crop: bf.and_then(crop_of), alpha, recipe, orig });
         Some(out)
     }
 

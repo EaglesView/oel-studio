@@ -25,6 +25,14 @@ cx?: number, cy?: number,
  */
 media?: string, mime?: string, 
 /**
+ * Retouched picture (plan L-7): its `oel-img-recipe@1` recipe; `media` holds the rendering.
+ */
+recipe?: Record<string, unknown>, 
+/**
+ * Package path of the retouched picture's original (`oel/media/…`, or a picture added in the editor).
+ */
+orig?: string, 
+/**
  * Shape fill and outline, CSS.
  */
 fill?: string, line?: string, 

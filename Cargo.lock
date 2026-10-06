@@ -913,6 +913,7 @@ dependencies = [
  "csv",
  "encoding_rs",
  "ironcalc_base",
+ "js-sys",
  "oel-chart",
  "oel-opc",
  "serde",

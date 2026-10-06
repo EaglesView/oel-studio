@@ -46,7 +46,25 @@ pub fn export_pptx(deck: &Deck, original: Option<&[u8]>, media: HashMap<String, 
         w.pkg.ensure_default(&ext, mime_for_ext(&ext));
     }
     w.write(deck)?;
+    // Retouched pictures: original + recipe beside the final pixels (plan L-7). Pictures added in
+    // the editor are already in the package, originals included.
+    let mut pics = Vec::new();
+    for s in &deck.slides {
+        retouched(&s.elements, &mut pics);
+    }
+    let items: Vec<oel_opc::retouch::Retouch> = pics.iter().map(|p| oel_opc::retouch::Retouch { rendered: &p.media, original: p.orig.as_deref().unwrap_or_default(), recipe: p.recipe.as_ref().unwrap() }).collect();
+    oel_opc::retouch::write(&mut w.pkg, &items, &HashMap::new());
     w.pkg.write()
+}
+
+/// Retouched pictures among `els` (groups included).
+fn retouched<'a>(els: &'a [Element], out: &mut Vec<&'a Picture>) {
+    for e in els {
+        if let Some(p) = e.image.as_ref().filter(|p| !p.media.is_empty() && p.orig.is_some() && p.recipe.as_ref().is_some_and(|r| r.as_object().is_some_and(|o| !o.is_empty()))) {
+            out.push(p);
+        }
+        retouched(&e.children, out);
+    }
 }
 
 struct Writer<'o> {
