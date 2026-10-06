@@ -10,6 +10,7 @@ const GROUPS: Array<{ title: string; rows: Array<[string[], string]> }> = [
       [['Entrée'], 'Ouvrir sur place'],
       [['Échap'], 'Désélectionner · reposer le fichier ouvert'],
       [['Alt', '← ↑ → ↓'], 'Déplacer la sélection (Maj : plus loin)'],
+      [['Alt', '= · −'], 'Agrandir · réduire la sélection (Maj : plus) — ou tirer ses poignées'],
       [['Maj', '← ↑ → ↓'], 'Faire défiler le bureau'],
       [['Suppr'], 'Retirer du bureau (annulable)'],
       [['Ctrl', 'Z'], 'Annuler · Ctrl+Maj+Z rétablir'],

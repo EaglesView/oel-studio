@@ -163,3 +163,37 @@ export function nearestInDirection<N extends Pick<DeskNode, 'id' | 'x' | 'y' | '
   }
   return best;
 }
+
+/** A resize handle: corners and edges. */
+export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+
+/**
+ * The rect after dragging `handle` of `start` by `d` (world px). `keepAspect` keeps the shape,
+ * `fromCenter` grows both sides (Alt), `min` is the smallest side.
+ */
+export function resizeRect(start: Rect, handle: ResizeHandle, d: Vec, { keepAspect = false, fromCenter = false, min = 1 } = {}): Rect {
+  const sx = handle.includes('e') ? 1 : handle.includes('w') ? -1 : 0;
+  const sy = handle.includes('s') ? 1 : handle.includes('n') ? -1 : 0;
+  const k = fromCenter ? 2 : 1;
+  // Dragged past the opposite edge: stop at the smallest size instead of flipping.
+  let w = Math.max(1e-3, start.w + sx * d.x * k);
+  let h = Math.max(1e-3, start.h + sy * d.y * k);
+  if (keepAspect) {
+    const ratio = start.w / start.h;
+    // Corners follow the larger change; edges drive their own side.
+    const byWidth = sy === 0 || (sx !== 0 && Math.abs(w / start.w - 1) >= Math.abs(h / start.h - 1));
+    if (byWidth) h = w / ratio;
+    else w = h * ratio;
+    const s = Math.max(min / w, min / h, 1);
+    w *= s;
+    h *= s;
+  } else {
+    w = Math.max(min, w);
+    h = Math.max(min, h);
+  }
+  const cx = start.x + start.w / 2;
+  const cy = start.y + start.h / 2;
+  const x = fromCenter || sx === 0 ? cx - w / 2 : sx > 0 ? start.x : start.x + start.w - w;
+  const y = fromCenter || sy === 0 ? cy - h / 2 : sy > 0 ? start.y : start.y + start.h - h;
+  return { x, y, w, h };
+}

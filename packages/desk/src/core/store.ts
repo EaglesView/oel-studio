@@ -12,7 +12,10 @@ import {
   overlapArea,
   readingOrder,
 } from './geometry';
-import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, Vec, Viewport, ZoomLimits } from './types';
+import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, ResizeMode, Vec, Viewport, ZoomLimits } from './types';
+
+/** Smallest side a resize leaves (world px). */
+export const MIN_NODE_SIZE = 48;
 
 type Listener = () => void;
 
@@ -50,6 +53,7 @@ export class DeskStore<D = unknown> {
       viewport: opts.viewport ?? { x: 0, y: 0, zoom: 1 },
       screen: { w: 0, h: 0 },
       openId: null,
+      enteredId: null,
       showLinks: true,
     };
     this.state.nodes = settle(this.state.nodes);
@@ -93,12 +97,21 @@ export class DeskStore<D = unknown> {
     return union(list.map(rectOf));
   }
 
-  /** Nodes in keyboard reading order; attached nodes come right after their target. */
+  /**
+   * Nodes in keyboard reading order; attached nodes come right after their target. Inside an
+   * entered container: its children only; outside: nodes that are not inside a container.
+   */
   ordered(): DeskNode<D>[] {
-    const all = this.nodes;
+    const scope = this.state.enteredId;
+    const all = this.nodes.filter((n) => (scope ? n.parent?.id === scope || (n.attach && this.state.nodes[n.attach.to]?.parent?.id === scope) : !n.parent && !(n.attach && this.state.nodes[n.attach.to]?.parent)));
     const out: DeskNode<D>[] = [];
-    for (const n of readingOrder(all.filter((n) => !n.attach))) out.push(n, ...this.attachedTo(n.id));
+    for (const n of readingOrder(all.filter((n) => !n.attach))) out.push(n, ...all.filter((a) => a.attach?.to === n.id));
     return out;
+  }
+
+  /** Nodes the keyboard and the lasso can reach now (see `ordered`). */
+  reachable(): DeskNode<D>[] {
+    return this.ordered();
   }
 
   /* ── attachments (Figma K) ────────────────────────────────────── */
@@ -113,7 +126,7 @@ export class DeskStore<D = unknown> {
     const { nodes } = this.state;
     const n = nodes[id];
     const t = nodes[to];
-    if (!n || !t || id === to || t.attach) return false;
+    if (!n || !t || id === to || t.attach || n.parent || n.container) return false;
     return !Object.values(nodes).some((c) => c.attach?.to === id);
   }
 
@@ -170,6 +183,108 @@ export class DeskStore<D = unknown> {
     if (history) this.commit(label, run);
     else run();
     return hit;
+  }
+
+  /* ── containers (Figma L: galleries) ─────────────────────────────── */
+
+  /** Nodes inside container `id`, in paint order. */
+  childrenOf(id: string): DeskNode<D>[] {
+    return this.nodes.filter((n) => n.parent?.id === id);
+  }
+
+  /** Whether `id` may go inside `container`: a container that is not `id`, and `id` is no container nor stuck. */
+  canParent(id: string, container: string): boolean {
+    const { nodes } = this.state;
+    const n = nodes[id];
+    const c = nodes[container];
+    return !!n && !!c && id !== container && !!c.container && !c.parent && !n.container && !n.attach;
+  }
+
+  /**
+   * Put nodes inside `container` (or take them out with `null`), where they are on the desk.
+   * Returns the ids that changed. Runs inside a gesture's undo step when one is open.
+   */
+  setParent(ids: string[], container: string | null, { label = container ? 'Rangement dans un dossier' : 'Sortie du dossier' } = {}): string[] {
+    const { nodes } = this.state;
+    const c = container ? nodes[container] : null;
+    const hit = ids.filter((id) => (container ? this.canParent(id, container) && nodes[id]!.parent?.id !== container : !!nodes[id]?.parent));
+    if (!hit.length) return [];
+    this.commit(label, () => {
+      const map = { ...this.state.nodes };
+      for (const id of hit) {
+        const n = map[id]!;
+        if (c) map[id] = { ...n, parent: { id: c.id, dx: n.x - c.x, dy: n.y - c.y } };
+        else {
+          const { parent: _, ...rest } = n;
+          map[id] = rest as DeskNode<D>;
+        }
+      }
+      this.set({ nodes: settle(map), order: withChildrenAbove(this.state.order, map) });
+    });
+    return hit;
+  }
+
+  /** Work inside a container (its children become selectable), or leave with `null`. */
+  enter(id: string | null) {
+    const prev = this.state.enteredId;
+    if (id && !this.state.nodes[id]?.container) return;
+    this.set({ enteredId: id, selection: id ? [] : prev ? [prev] : this.state.selection, focusedId: id ?? prev ?? this.state.focusedId });
+  }
+
+  /** The node a pointer on `id` acts on: outside an entered container, a child stands for its container. */
+  actsOn(id: string): string {
+    const { nodes, enteredId } = this.state;
+    const n = nodes[id];
+    // A note stuck to a picture inside a container belongs to that container too.
+    const owner = n?.parent?.id ?? (n?.attach ? nodes[n.attach.to]?.parent?.id : undefined);
+    return owner && owner !== enteredId ? owner : id;
+  }
+
+  /** Top-most container under world point `p` that `ids` may all go into. */
+  containerAt(p: Vec, ids: string[]): DeskNode<D> | null {
+    const list = this.nodes;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const c = list[i]!;
+      if (!c.container || ids.includes(c.id)) continue;
+      if (p.x < c.x || p.y < c.y || p.x > c.x + c.w || p.y > c.y + c.h) continue;
+      if (ids.every((id) => this.canParent(id, c.id) || this.state.nodes[id]?.parent?.id === c.id)) return c;
+    }
+    return null;
+  }
+
+  /* ── resize ───────────────────────────────────────────────────── */
+
+  /**
+   * Live resize (no history; wrap in begin/end for drags). `scale` nodes remember their
+   * natural size on the first resize. A container's children keep their place on the desk
+   * when its top or left edge moves, and the container never gets smaller than them.
+   */
+  resizeTo(id: string, r: Rect, { mode = 'free' as ResizeMode, min = MIN_NODE_SIZE } = {}) {
+    const n = this.state.nodes[id];
+    if (!n || n.locked || mode === 'none') return;
+    let { x, y, w, h } = r;
+    w = Math.max(min, w);
+    h = Math.max(min, h);
+    if (n.container) {
+      const kids = union(this.childrenOf(id).map(rectOf));
+      if (kids) {
+        x = Math.min(x, kids.x);
+        y = Math.min(y, kids.y);
+        w = Math.max(w, kids.x + kids.w - x);
+        h = Math.max(h, kids.y + kids.h - y);
+      }
+    }
+    const map = { ...this.state.nodes };
+    const base = mode === 'scale' ? (n.base ?? { w: n.w, h: n.h }) : n.base;
+    map[id] = { ...n, x, y, w, h, ...(base ? { base } : {}) };
+    if (n.container && (x !== n.x || y !== n.y))
+      for (const c of Object.values(map)) if (c.parent?.id === id) map[c.id] = { ...c, parent: { id, dx: c.x - x, dy: c.y - y } };
+    this.set({ nodes: settle(map) });
+  }
+
+  /** One-step resize (keyboard, toolbar). */
+  resize(id: string, r: Rect, opts: { mode?: ResizeMode; min?: number; label?: string } = {}) {
+    this.commit(opts.label ?? 'Redimensionnement', () => this.resizeTo(id, r, opts));
   }
 
   /* ── history ──────────────────────────────────────────────────── */
@@ -259,16 +374,19 @@ export class DeskStore<D = unknown> {
       // Moving an attached node moves it along its target.
       const t = next.attach && this.state.nodes[next.attach.to];
       if (t && !('attach' in patch) && (next.x !== n.x || next.y !== n.y)) next = { ...next, attach: { to: t.id, dx: next.x - t.x, dy: next.y - t.y } };
+      const c = next.parent && this.state.nodes[next.parent.id];
+      if (c && !('parent' in patch) && (next.x !== n.x || next.y !== n.y)) next = { ...next, parent: { id: c.id, dx: next.x - c.x, dy: next.y - c.y } };
       const nodes = settle({ ...this.state.nodes, [id]: next });
-      this.set({ nodes, ...('attach' in patch ? { order: withChildrenAbove(this.state.order, nodes) } : {}) });
+      this.set({ nodes, ...('attach' in patch || 'parent' in patch ? { order: withChildrenAbove(this.state.order, nodes) } : {}) });
     };
     if (history) this.commit(label, run);
     else run();
   }
 
   /**
-   * Delete nodes. Nodes stuck to a deleted one stay where they are, unstuck;
-   * their ids are returned (« 2 notes décollées »). Same undo step.
+   * Delete nodes. Nodes stuck to a deleted one stay where they are, unstuck, and nodes inside
+   * a deleted container are released onto the desk; their ids are returned (« 2 notes
+   * décollées »). Same undo step.
    */
   remove(ids: string[]): string[] {
     if (ids.length === 0) return [];
@@ -281,6 +399,10 @@ export class DeskStore<D = unknown> {
           const { attach: _, ...rest } = n;
           map[id] = rest as DeskNode<D>;
           freed.push(id);
+        } else if (n.parent && !map[n.parent.id]) {
+          const { parent: _, ...rest } = n;
+          map[id] = rest as DeskNode<D>;
+          freed.push(id);
         }
       }
       const remaining = this.state.order.filter((id) => map[id]);
@@ -290,6 +412,7 @@ export class DeskStore<D = unknown> {
         links: this.state.links.filter((l) => map[l.from] && map[l.to]),
         selection: [],
         focusedId: remaining.find((id) => !ids.includes(id)) ?? null,
+        enteredId: this.state.enteredId && map[this.state.enteredId] ? this.state.enteredId : null,
       });
     });
     return freed;
@@ -307,7 +430,8 @@ export class DeskStore<D = unknown> {
     for (const id of moving) {
       const n = map[id]!;
       const a = n.attach && !moving.has(n.attach.to) ? { ...n.attach, dx: n.attach.dx + d.x, dy: n.attach.dy + d.y } : n.attach;
-      map[id] = { ...n, x: n.x + d.x, y: n.y + d.y, ...(a ? { attach: a } : {}) };
+      const p = n.parent && !moving.has(n.parent.id) ? { ...n.parent, dx: n.parent.dx + d.x, dy: n.parent.dy + d.y } : n.parent;
+      map[id] = { ...n, x: n.x + d.x, y: n.y + d.y, ...(a ? { attach: a } : {}), ...(p ? { parent: p } : {}) };
     }
     this.set({ nodes: settle(map) });
   }
@@ -392,8 +516,9 @@ export class DeskStore<D = unknown> {
     this.set({ selection: next, focusedId: ids[ids.length - 1] ?? this.state.focusedId });
   }
 
+  /** Every node reachable now (inside the entered container, or the desk's own). */
   selectAll() {
-    this.set({ selection: [...this.state.order] });
+    this.set({ selection: this.ordered().map((n) => n.id) });
   }
 
   clearSelection() {
@@ -406,7 +531,7 @@ export class DeskStore<D = unknown> {
 
   /** Arrow-key navigation; falls back to reading order when nothing lies that way. */
   focusDirection(dir: Direction): DeskNode<D> | null {
-    const nodes = this.nodes;
+    const nodes = this.ordered();
     const cur = this.state.focusedId ? this.state.nodes[this.state.focusedId] : undefined;
     if (!cur) return this.ordered()[0] ?? null;
     return nearestInDirection(cur, nodes, dir);
@@ -498,40 +623,57 @@ export class DeskStore<D = unknown> {
   }
 }
 
-/** Put every attached node at its target + offset; drop attachments whose target is gone. */
+/**
+ * Put every contained node at its container + offset, then every attached node at its target
+ * + offset; drop links whose other end is gone or breaks the one-level rules.
+ */
 function settle<D>(nodes: Record<string, DeskNode<D>>): Record<string, DeskNode<D>> {
   let out = nodes;
-  for (const [id, n] of Object.entries(nodes)) {
-    if (!n.attach) continue;
-    const t = nodes[n.attach.to];
-    let next: DeskNode<D> = n;
-    if (!t || t.attach) {
-      const { attach: _, ...rest } = n;
-      next = rest as DeskNode<D>;
-    } else if (t.x + n.attach.dx !== n.x || t.y + n.attach.dy !== n.y) {
-      next = { ...n, x: t.x + n.attach.dx, y: t.y + n.attach.dy };
-    }
-    if (next === n) continue;
+  const put = (id: string, next: DeskNode<D>) => {
     if (out === nodes) out = { ...nodes };
     out[id] = next;
+  };
+  for (const [id, n] of Object.entries(nodes)) {
+    if (!n.parent) continue;
+    const c = nodes[n.parent.id];
+    if (!c || !c.container || c.parent || n.container) {
+      const { parent: _, ...rest } = n;
+      put(id, rest as DeskNode<D>);
+    } else if (c.x + n.parent.dx !== n.x || c.y + n.parent.dy !== n.y) put(id, { ...n, x: c.x + n.parent.dx, y: c.y + n.parent.dy });
+  }
+  for (const [id, n] of Object.entries(out)) {
+    if (!n.attach) continue;
+    const t = out[n.attach.to];
+    if (!t || t.attach || n.parent) {
+      const { attach: _, ...rest } = n;
+      put(id, rest as DeskNode<D>);
+    } else if (t.x + n.attach.dx !== n.x || t.y + n.attach.dy !== n.y) put(id, { ...n, x: t.x + n.attach.dx, y: t.y + n.attach.dy });
   }
   return out;
 }
 
-/** Paint order with each attached node drawn just above its target (children keep their relative order). */
+/**
+ * Paint order with each container's children just above it and each attached node just above
+ * its target (siblings keep their relative order).
+ */
 function withChildrenAbove<D>(order: string[], nodes: Record<string, DeskNode<D>>): string[] {
+  const owner = (id: string) => {
+    const n = nodes[id];
+    const o = n?.parent?.id ?? n?.attach?.to;
+    return o && nodes[o] ? o : null;
+  };
   const children = new Map<string, string[]>();
   for (const id of order) {
-    const to = nodes[id]?.attach?.to;
-    if (to && nodes[to]) children.set(to, [...(children.get(to) ?? []), id]);
+    const o = owner(id);
+    if (o) children.set(o, [...(children.get(o) ?? []), id]);
   }
   if (!children.size) return order;
   const out: string[] = [];
-  for (const id of order) {
-    const to = nodes[id]?.attach?.to;
-    if (to && nodes[to]) continue;
-    out.push(id, ...(children.get(id) ?? []));
-  }
+  const visit = (id: string) => {
+    out.push(id);
+    for (const c of children.get(id) ?? []) visit(c);
+  };
+  for (const id of order) if (!owner(id)) visit(id);
   return out;
 }
 

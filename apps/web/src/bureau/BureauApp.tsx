@@ -16,7 +16,7 @@ import { AppMenu, type MenuPane } from './AppMenu';
 import { ContextToolbar, type NoteActions } from './ContextToolbar';
 import { BottomBar, EmptyDesk, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
-import { KIND_TAB, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
+import { KIND_TAB, RESIZE_MODE, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper, type NoteEditing } from './Paper';
 import { migrateNote, startsNoteText } from './notes';
@@ -371,6 +371,7 @@ function BureauDesk() {
             describeNode={(n) => describePaper(n as PaperNode)}
             renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} editing={n.id === editingNote ? noteEditing : null} />}
             selectionOverhang={(n, zoom) => (KIND_TAB[n.kind as PaperKind] ? tabHeightOnScreen(zoom) - 4 : 0)}
+            resizeMode={(n) => RESIZE_MODE[n.kind as PaperKind] ?? 'aspect'}
             renderGroupLabel={(nodes) => {
               const kinds = new Set(nodes.map((n) => n.kind)).size;
               return `${nodes.length} fichiers · ${kinds} type${kinds > 1 ? 's' : ''}`;

@@ -33,7 +33,23 @@ export interface DeskNode<D = unknown> {
    * never itself attached.
    */
   attach?: { to: string; dx: number; dy: number };
+  /** Can hold other nodes (Figma L: a gallery). Set by the host app. */
+  container?: boolean;
+  /**
+   * Inside a container. `dx`/`dy` is this node's top-left relative to the container's: the
+   * position that is stored; `x`/`y` follow from it. One level: a container is never inside
+   * another, and a node inside a container is never stuck (`attach`) to anything.
+   */
+  parent?: { id: string; dx: number; dy: number };
+  /** Natural size of content drawn scaled (`ResizeMode` `scale`): set on the first resize. */
+  base?: { w: number; h: number };
 }
+
+/**
+ * How a node resizes (host app policy per kind): `scale` draws its content scaled (documents,
+ * slides: aspect kept), `aspect` keeps the shape (pictures), `free` reflows (notes), `none` cannot.
+ */
+export type ResizeMode = 'scale' | 'aspect' | 'free' | 'none';
 
 /** Figma G1: live and up to date, being updated, late (manual), frozen, broken, or not known yet (grey). */
 export type LinkState = 'fresh' | 'updating' | 'stale' | 'frozen' | 'broken' | 'waiting';
@@ -82,6 +98,8 @@ export interface DeskState<D = unknown> {
   screen: { w: number; h: number };
   /** A paper opened in place (Figma B4), or null. */
   openId: string | null;
+  /** The container being worked inside (its children are selectable), or null. */
+  enteredId: string | null;
   showLinks: boolean;
 }
 

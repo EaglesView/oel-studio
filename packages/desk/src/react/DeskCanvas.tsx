@@ -18,14 +18,17 @@ import {
   normalizeRect,
   rectOf,
   rectToScreen,
+  resizeRect,
   screenToWorld,
   threadPath,
   union,
   wheelZoomFactor,
   type Direction,
+  type ResizeHandle,
 } from '../core/geometry';
+import { MIN_NODE_SIZE } from '../core/store';
 import type { DeskStore } from '../core/store';
-import type { DeskNode, Lod, Rect, Vec } from '../core/types';
+import type { DeskNode, Lod, Rect, ResizeMode, Vec } from '../core/types';
 import { DeskContext, useDeskState } from './hooks';
 
 export interface DeskMessages {
@@ -53,6 +56,14 @@ export interface DeskMessages {
   onMoveEnd?: (ids: string[], modifiers: { altKey: boolean }) => void;
   /** A stuck node was dragged off its target. */
   detached: (count: number) => string;
+  resized: string;
+  /** Working inside a container (Figma L: a gallery). */
+  entered: (title: string) => string;
+  left: string;
+  /** Frame label around the entered container. */
+  insideLabel: (title: string) => string;
+  parented: (count: number, title: string) => string;
+  unparented: (count: number) => string;
 }
 
 export const defaultMessages: DeskMessages = {
@@ -60,7 +71,7 @@ export const defaultMessages: DeskMessages = {
   nodeRoleDescription: 'fichier',
   instructions:
     'Flèches : passer d’un fichier à l’autre. Espace : ajouter ou retirer de la sélection. Entrée : ouvrir. ' +
-    'Alt + flèches : déplacer la sélection. Maj + flèches : faire défiler le bureau. ' +
+    'Alt + flèches : déplacer la sélection. Alt + = et Alt + − : agrandir ou réduire. Maj + flèches : faire défiler le bureau. ' +
     '+ et − : zoom, 0 : zoom 100 %. Échap : désélectionner.',
   empty: 'Le bureau est vide. Déposez des fichiers ou créez-en un depuis la barre du bas.',
   zoom: (p) => `Zoom ${p} %`,
@@ -77,6 +88,12 @@ export const defaultMessages: DeskMessages = {
   pickNone: 'Aucun fichier à choisir',
   pickCancelled: 'Annulé',
   detached: (n) => (n === 1 ? 'Décollé' : `${n} décollés`),
+  resized: 'Taille modifiée',
+  entered: (t) => `Dans « ${t} ». Flèches : passer d’un élément à l’autre. Échap : sortir.`,
+  left: 'Sorti du dossier',
+  insideLabel: (t) => `${t} · Échap pour sortir`,
+  parented: (n, t) => (n === 1 ? `Rangé dans « ${t} »` : `${n} éléments rangés dans « ${t} »`),
+  unparented: (n) => (n === 1 ? 'Sorti du dossier' : `${n} éléments sortis du dossier`),
 };
 
 /**
@@ -134,6 +151,10 @@ export interface DeskCanvasProps<D> {
   onMoveEnd?: (ids: string[], modifiers: { altKey: boolean }) => void;
   /** A stuck node was dragged off its target (`store.detach` already ran inside the drag's undo step). */
   onDetach?: (ids: string[]) => void;
+  /** How a node resizes (handles on a single selection, Alt + = / −). Default: it does not. */
+  resizeMode?: (node: DeskNode<D>) => ResizeMode;
+  /** Whether `node` may be dropped into `container` (on top of `store.canParent`). */
+  canContain?: (container: DeskNode<D>, node: DeskNode<D>) => boolean;
   /** Wheel zoom speed (Ctrl/⌘ + wheel or pinch). Lower is gentler. Default 0.002. */
   wheelZoomSpeed?: number;
   /** Extra keys (return true when handled). Runs before the built-in map. */
@@ -161,10 +182,12 @@ type Gesture =
       hitId: string;
     }
   | { kind: 'pan'; pointerId: number; last: Vec }
+  | { kind: 'resize'; pointerId: number; id: string; handle: ResizeHandle; start: Vec; rect: Rect; mode: ResizeMode }
   | { kind: 'lasso'; pointerId: number; origin: Vec; base: string[]; rect: Rect };
 
 const NUDGE = 10;
 const NUDGE_BIG = 50;
+const HANDLES: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const PAN_STEP = 80;
 
 /**
@@ -192,6 +215,8 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     pickTarget = null,
     onDetach,
     onMoveEnd,
+    resizeMode = () => 'none',
+    canContain = () => true,
     wheelZoomSpeed = 0.002,
     onKeyDown,
     children,
@@ -221,6 +246,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   const focusedId = useDeskState(store, (s) => s.focusedId);
   const viewport = useDeskState(store, (s) => s.viewport);
   const openId = useDeskState(store, (s) => s.openId);
+  const enteredId = useDeskState(store, (s) => s.enteredId);
   const showLinks = useDeskState(store, (s) => s.showLinks);
 
   const lod = lodForZoom(viewport.zoom);
@@ -362,7 +388,34 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     if (target.closest('[data-desk-ui]') || openId) return;
     if (e.button === 2) return; // context menu handled separately
     const p = localPoint(e);
-    const nodeEl = target.closest<HTMLElement>('[data-node-id]');
+    const handle = target.closest<HTMLElement>('[data-resize-handle]');
+    if (handle && e.button === 0 && !pickTarget) {
+      const id = handle.dataset.resizeFor!;
+      const n = store.node(id);
+      if (!n) return;
+      store.begin('Redimensionnement');
+      gesture.current = { kind: 'resize', pointerId: e.pointerId, id, handle: handle.dataset.resizeHandle as ResizeHandle, start: p, rect: rectOf(n), mode: resizeMode(n) };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+    let nodeEl = target.closest<HTMLElement>('[data-node-id]');
+    // Inside a container, its own surface is empty space; anything outside it leaves the container.
+    const entered = store.getState().enteredId;
+    if (entered && nodeEl) {
+      const raw = nodeEl.dataset.nodeId!;
+      if (raw === entered) nodeEl = null;
+      else if (store.actsOn(raw) !== raw) {
+        store.enter(null);
+        announce(m.left);
+      }
+    } else if (entered && !nodeEl) {
+      const w = screenToWorld(p, viewport);
+      const c = store.node(entered);
+      if (!c || w.x < c.x || w.y < c.y || w.x > c.x + c.w || w.y > c.y + c.h) {
+        store.enter(null);
+        announce(m.left);
+      }
+    }
     const additive = e.shiftKey || e.metaKey || e.ctrlKey;
 
     if (pickTarget && e.button === 0 && !spaceHeld.current) {
@@ -379,8 +432,8 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       gesture.current = { kind: 'pan', pointerId: e.pointerId, last: p };
       setPanning(true);
     } else if (nodeEl) {
-      const id = nodeEl.dataset.nodeId!;
-      const wasSelected = selectedSet.has(id);
+      const id = store.actsOn(nodeEl.dataset.nodeId!);
+      const wasSelected = store.getState().selection.includes(id);
       if (additive) store.select([id], 'toggle');
       else if (!wasSelected) store.select([id]);
       store.focus(id);
@@ -428,6 +481,11 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     if (g.kind === 'pan') {
       store.panBy(p.x - g.last.x, p.y - g.last.y);
       g.last = p;
+    } else if (g.kind === 'resize') {
+      const z = store.getState().viewport.zoom;
+      const keepAspect = g.mode === 'scale' || g.mode === 'aspect' || e.shiftKey;
+      const r = resizeRect(g.rect, g.handle, { x: (p.x - g.start.x) / z, y: (p.y - g.start.y) / z }, { keepAspect, fromCenter: e.altKey, min: MIN_NODE_SIZE });
+      store.resizeTo(g.id, r, { mode: g.mode });
     } else if (g.kind === 'drag') {
       if (!g.moved) {
         if (Math.hypot(p.x - g.start.x, p.y - g.start.y) < 3) return;
@@ -459,7 +517,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       const w = screenToWorld(p, store.getState().viewport);
       g.rect = normalizeRect(g.origin, w);
       setLasso(g.rect);
-      const hits = store.nodes.filter((n) => intersects(g.rect, rectOf(n))).map((n) => n.id);
+      const hits = store.reachable().filter((n) => intersects(g.rect, rectOf(n))).map((n) => n.id);
       store.select([...new Set([...g.base, ...hits])]);
     }
   };
@@ -469,8 +527,13 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     if (!g || g.pointerId !== e.pointerId) return;
     gesture.current = null;
     if (g.kind === 'pan') setPanning(spaceHeld.current);
+    if (g.kind === 'resize') {
+      store.end();
+      announce(m.resized);
+    }
     if (g.kind === 'drag') {
       if (g.stuck.length) store.moveBy(g.stuck, { x: -g.stuckApplied.x, y: -g.stuckApplied.y });
+      if (g.moved && g.ids.length) dropInContainers(g.ids, screenToWorld(localPoint(e), store.getState().viewport));
       store.end();
       if (g.moved && g.ids.length) {
         announce(m.moved(g.ids.length));
@@ -485,11 +548,46 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     }
   };
 
+  /**
+   * After a drag (inside its undo step): nodes released over a container go in; nodes dragged
+   * out of their container come out (or into the container they were dropped on).
+   */
+  const dropInContainers = (ids: string[], at: Vec) => {
+    const movable = ids.filter((id) => !store.node(id)?.attach);
+    const target = store.containerAt(at, movable);
+    const accepted = target ? movable.filter((id) => canContain(target, store.node(id)!)) : [];
+    if (target && accepted.length) {
+      const moved = store.setParent(accepted, target.id);
+      if (moved.length) announce(m.parented(moved.length, target.title));
+    }
+    const out = movable.filter((id) => {
+      const parent = store.node(id)?.parent?.id;
+      const c = parent && store.node(parent);
+      return c && (at.x < c.x || at.y < c.y || at.x > c.x + c.w || at.y > c.y + c.h);
+    });
+    if (out.length) {
+      store.setParent(out, null);
+      announce(m.unparented(out.length));
+    }
+  };
+
+  const enterContainer = (id: string) => {
+    store.enter(id);
+    keyboardMove.current = true;
+    const first = store.ordered()[0];
+    if (first) store.focus(first.id);
+    announce(m.entered(store.node(id)?.title ?? ''));
+  };
+
   const onDoubleClick = (e: ReactMouseEvent) => {
     if (pickTarget || (e.target as HTMLElement).closest('[data-desk-ui]')) return;
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]');
-    const id = nodeEl?.dataset.nodeId;
-    if (id && onOpen && nodesMap[id]) onOpen(id);
+    const raw = nodeEl?.dataset.nodeId;
+    if (!raw || raw === store.getState().enteredId) return;
+    const id = store.actsOn(raw);
+    // Double-click a container: work inside it (its children are selectable).
+    if (nodesMap[id]?.container) return enterContainer(id);
+    if (onOpen && nodesMap[id]) onOpen(id);
   };
 
   const onContext = (e: ReactMouseEvent) => {
@@ -501,8 +599,8 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]');
     e.preventDefault();
     if (nodeEl) {
-      const id = nodeEl.dataset.nodeId!;
-      if (!selectedSet.has(id)) store.select([id]);
+      const id = store.actsOn(nodeEl.dataset.nodeId!);
+      if (!store.getState().selection.includes(id)) store.select([id]);
     }
     onContextMenu(store.getState().selection, localPoint(e));
   };
@@ -531,7 +629,20 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     const dir = dirs[e.key];
     let handled = true;
 
-    if (dir && e.altKey) {
+    const grow = e.altKey && !mod ? ({ Equal: 1, NumpadAdd: 1, Minus: -1, NumpadSubtract: -1 } as Record<string, number>)[e.code] : undefined;
+    if (grow) {
+      // Alt + = / − : 10 % bigger or smaller (Maj: 25 %), shape kept, around the centre.
+      const id = selection.length === 1 ? selection[0]! : null;
+      const n = id ? store.node(id) : undefined;
+      const mode = n ? resizeMode(n) : 'none';
+      if (n && mode !== 'none') {
+        const k = 1 + grow * (e.shiftKey ? 0.25 : 0.1);
+        const w = n.w * k;
+        const h = n.h * k;
+        store.resize(n.id, { x: n.x + (n.w - w) / 2, y: n.y + (n.h - h) / 2, w, h }, { mode });
+        announce(m.resized);
+      }
+    } else if (dir && e.altKey) {
       const step = e.shiftKey ? NUDGE_BIG : NUDGE;
       const d = { x: dir === 'left' ? -step : dir === 'right' ? step : 0, y: dir === 'up' ? -step : dir === 'down' ? step : 0 };
       store.nudge(selection, d);
@@ -547,9 +658,16 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       store.select([focusedId], 'toggle');
       announce(m.selection(store.getState().selection.length));
     } else if (e.key === 'Enter') {
-      if (focusedId && onOpen) onOpen(focusedId);
+      if (focusedId && nodesMap[focusedId]?.container && focusedId !== enteredId) enterContainer(focusedId);
+      else if (focusedId && onOpen) onOpen(focusedId);
     } else if (e.key === 'Escape') {
-      if (selection.length) {
+      if (enteredId) {
+        const id = enteredId;
+        store.enter(null);
+        keyboardMove.current = true;
+        store.focus(id);
+        announce(m.left);
+      } else if (selection.length) {
         store.clearSelection();
         announce(m.selection(0));
       } else handled = false;
@@ -699,6 +817,9 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                       data-dimmed={openId && openId !== n.id ? '' : undefined}
                       data-opened={openId === n.id || undefined}
                       data-attached={n.attach ? '' : undefined}
+                      data-container={n.container ? '' : undefined}
+                      data-entered={enteredId === n.id || undefined}
+                      data-outside={enteredId && enteredId !== n.id && store.actsOn(n.id) === enteredId ? '' : undefined}
                       data-pick={pickTarget ? (n.id === pickTarget.from ? 'from' : isCandidate(n.id) ? 'candidate' : 'no') : undefined}
                       onFocus={() => store.getState().focusedId !== n.id && store.focus(n.id)}
                       style={{
@@ -709,7 +830,14 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                         rotate: n.rotation ? `${n.rotation}deg` : undefined,
                       }}
                     >
-                      {renderNode(n, { lod, zoom: viewport.zoom, isSelected, isFocused, isOpen: openId === n.id })}
+                      {n.base && resizeMode(n) === 'scale' ? (
+                        // Content keeps its natural size and is drawn scaled (documents, slides).
+                        <div className="desk__scaled" style={{ width: n.base.w, height: n.base.h, transform: `scale(${n.w / n.base.w}, ${n.h / n.base.h})` }}>
+                          {renderNode(n, { lod, zoom: viewport.zoom, isSelected, isFocused, isOpen: openId === n.id })}
+                        </div>
+                      ) : (
+                        renderNode(n, { lod, zoom: viewport.zoom, isSelected, isFocused, isOpen: openId === n.id })
+                      )}
                     </div>
                   );
                 })}
@@ -772,6 +900,32 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                 />
               );
             })}
+          {(() => {
+            const id = selection.length === 1 ? selection[0]! : null;
+            const n = id ? nodesMap[id] : undefined;
+            if (!n || n.locked || openId || pickTarget || resizeMode(n) === 'none') return null;
+            const r = rectToScreen(rectOf(n), viewport);
+            return HANDLES.map((h) => (
+              <span
+                key={h}
+                className={`desk__handle desk__handle--${h}`}
+                data-resize-handle={h}
+                data-resize-for={n.id}
+                style={{
+                  left: r.x + (h.includes('w') ? 0 : h.includes('e') ? r.w : r.w / 2),
+                  top: r.y + (h.includes('n') ? 0 : h.includes('s') ? r.h : r.h / 2),
+                }}
+              />
+            ));
+          })()}
+          {enteredId && nodesMap[enteredId] && (() => {
+            const r = rectToScreen(rectOf(nodesMap[enteredId]!), viewport);
+            return (
+              <div className="desk__inside" style={{ left: r.x - 6, top: r.y - 6, width: r.w + 12, height: r.h + 12 }}>
+                <span className="desk__inside-label">{m.insideLabel(nodesMap[enteredId]!.title)}</span>
+              </div>
+            );
+          })()}
           {groupRect && (
             <GroupFrame rect={rectToScreen(groupRect, viewport)}>
               {renderGroupLabel

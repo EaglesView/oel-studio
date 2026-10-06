@@ -1,4 +1,4 @@
-import type { DeskNode, DeskStore } from '@oel/desk';
+import type { DeskNode, DeskStore, ResizeMode } from '@oel/desk';
 import { KIND_LABEL, type FileKind, type Preview } from '@oel/engine';
 import type { IconName, Tone } from '@oel/emboss';
 import type { FormDef } from '@oel/forms/model';
@@ -78,6 +78,21 @@ export function kindLabel(kind: string): string {
   if (kind === 'form') return 'Formulaire';
   return kind === 'file' ? 'Fichier' : (KIND_LABEL[kind as FileKind] ?? 'Fichier');
 }
+
+/**
+ * How each kind resizes on the desk (Figma L5): files draw their page scaled, pictures keep
+ * their shape, notes reflow their text.
+ */
+export const RESIZE_MODE: Record<PaperKind, ResizeMode> = {
+  document: 'scale',
+  slides: 'scale',
+  spreadsheet: 'scale',
+  pdf: 'scale',
+  form: 'scale',
+  file: 'scale',
+  image: 'aspect',
+  note: 'free',
+};
 
 /** Paper sizes per type (B1 · 3: each type has its shape). */
 export const PAPER_SIZE: Record<PaperKind, { w: number; h: number }> = {
