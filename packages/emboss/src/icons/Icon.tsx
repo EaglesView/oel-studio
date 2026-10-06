@@ -5,6 +5,7 @@ import {
   AlignRight,
   Archive,
   Asterisk,
+  AtSign,
   Attachment,
   BookStack,
   ChatBubble,
@@ -104,6 +105,8 @@ import {
   BellNotification,
   Square,
   TextBox,
+  Pin,
+  PinSlash,
   Play,
   PositionAlign,
   AlignHorizontalCenters,
@@ -275,6 +278,10 @@ const EXTRA = {
   'database': Database,
   'function': MathBook,
   'bell': Bell,
+  /** Notes collées (Figma K): « Coller », « Décoller », mentions. */
+  pin: Pin,
+  'pin-slash': PinSlash,
+  'at-sign': AtSign,
   'bell-dot': BellNotification,
   // Presentations (@oel/slides)
   shape: Square,
