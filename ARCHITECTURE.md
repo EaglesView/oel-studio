@@ -70,7 +70,7 @@ oel-studio/
     oel-opc/                 lossless XML DOM + OPC package          (from oel_opc_rs)
     oel-docx/                DOCX ↔ ProseMirror-JSON codec           (from oeldocx_rs/src/ooxml + fonts)
     oel-xlsx/                XLSX/CSV codec + IronCalc calc          (from oelxlsx_rs)
-    oel-img/                 image operations                        (from oelimg-rs, when wired)
+    oel-img/                 image recipe (oel-img-recipe@1) + CPU reference renderer; wgpu next (plan L)
     oel-pptx/                PPTX ↔ deck-JSON codec
     oel-chart/               DrawingML charts (c: and cx: chartSpace) ↔ ChartSpec, shared by the three codecs
   packages/
@@ -102,7 +102,8 @@ wasm = ["dep:wasm-bindgen", "dep:js-sys"]       # browser + Node bindings
 
 **Old repos.** `oeldocx_rs` stays on GitHub frozen with the legacy `DocxController` for the
 old site until that editor is retired; only the `ooxml` codec moves (it has no dependency
-on the legacy modules). `oelimg-rs` keeps its npm releases until it moves in (§7).
+on the legacy modules). `oelimg-rs` keeps its npm releases for the old site; `crates/oel-img` replaces it for OEL
+(a linear-light rewrite, not a move — `docs/plans/2026-10-images.md`).
 
 ## 4. The engine contract (Rust ↔ TS)
 
