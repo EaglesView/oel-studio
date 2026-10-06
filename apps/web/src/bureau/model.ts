@@ -2,6 +2,7 @@ import type { DeskNode, DeskStore } from '@oel/desk';
 import { KIND_LABEL, type FileKind, type Preview } from '@oel/engine';
 import type { IconName, Tone } from '@oel/emboss';
 import type { FormDef } from '@oel/forms/model';
+import type { Recipe } from '@oel/img';
 
 /**
  * Desk paper kinds = engine file kinds (minus "unsupported" which shows as a generic file),
@@ -31,8 +32,10 @@ export interface PaperData {
   editor?: string;
   /** Last change (ms since epoch), by `editor`: « Récents » in the menu (M-5), Ranger par date (M-3). */
   updatedAt?: number;
-  /** Object URL for imported images. */
+  /** Object URL for imported images (the original). */
   imageUrl?: string;
+  /** Retouched image (Figma L): original by content hash, its recipe, and the rendering shown on the desk. */
+  image?: { original?: string; recipe?: Recipe; rendered?: string };
   fileName?: string;
   /** Collaborative document (@oel/docs) or workbook (@oel/sheets) backing this paper, once created. */
   docId?: string;

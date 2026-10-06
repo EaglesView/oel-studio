@@ -38,9 +38,9 @@ export function createImageHandler(deps: HandlerDeps) {
     return { backend, original, preview, drag };
   };
 
-  const use = (v: Version) => {
+  const use = (v: Version, json = recipe) => {
     const { backend, original } = need();
-    backend.use(v.slot, recipe, scaleOf(v, original));
+    backend.use(v.slot, json, scaleOf(v, original));
   };
 
   async function upload(r: Raster): Promise<Version> {
@@ -113,15 +113,18 @@ export function createImageHandler(deps: HandlerDeps) {
         case 'export':
           return { id: m.id, op: 'blob', blob: await exportBlob(m.options) };
         case 'raster': {
-          const { backend, drag } = need();
-          use(drag);
+          const { backend, drag, preview } = need();
+          use(drag, m.json);
           const r = await shrink(await backend.render(), m.maxLong);
+          if (m.json) use(preview);
           return { id: m.id, op: 'raster', raster: r };
         }
         case 'histogram': {
           const { backend, preview } = need();
-          use(preview);
-          return { id: m.id, op: 'histogram', bins: await backend.histogram() };
+          use(preview, m.json);
+          const bins = await backend.histogram();
+          if (m.json) use(preview);
+          return { id: m.id, op: 'histogram', bins };
         }
       }
     } catch (e) {

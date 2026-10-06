@@ -247,7 +247,7 @@ function Content({ node }: { node: PaperNode }) {
       return (
         <div className="paper__photo">
           <div className="paper__photo-frame">
-            {data.imageUrl ? <img src={data.imageUrl} alt="" draggable={false} /> : <Icon name="image" size={40} />}
+            {data.image?.rendered || data.imageUrl ? <img src={data.image?.rendered ?? data.imageUrl} alt="" draggable={false} /> : <Icon name="image" size={40} />}
           </div>
           <span className="paper__caption">{data.fileName ?? node.title}</span>
         </div>

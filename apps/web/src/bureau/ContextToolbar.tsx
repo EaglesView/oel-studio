@@ -227,7 +227,13 @@ function TypeTools({
             unavailableReason={node.data.imageUrl ? undefined : 'Cette image n’a pas encore de fichier (exemple du bureau).'}
             onPress={() => activeLinks()?.setUi({ dialog: { kind: 'image', sourcePaperId: node.id, name: node.data.fileName ?? node.title } })}
           />
-          <ToolButton icon="crop" label="Rogner" unavailableReason={IMAGE_ENGINE_LATER} />
+          <ToolButton
+            icon="magic-wand"
+            label="Retoucher"
+            showLabel
+            description="Ouvrir l’atelier d’image : styles, lumière, couleur, recadrage (plein écran)"
+            onPress={() => onOpenFull(node.id)}
+          />
           <ToolButton icon="sparkle" label="Détourer" unavailableReason={IMAGE_ENGINE_LATER} />
           <ToolButton icon="search" label="Reconnaître le texte (OCR)" unavailableReason={IMAGE_ENGINE_LATER} />
         </>

@@ -676,10 +676,6 @@
 .pdf-page__stamp { position: absolute; right: 72px; bottom: 72px; scale: 1.4; }
 
 /* Image */
-.ws-photo { display: grid; gap: 12px; margin: 0; padding: 18px; border-radius: 4px; background: var(--emboss-sheet); box-shadow: var(--shadow-sheet); }
-.ws-photo img { display: block; max-width: min(900px, 100%); max-height: 70vh; }
-.ws-photo__placeholder { display: grid; place-items: center; width: min(640px, 70vw); aspect-ratio: 4 / 5; max-height: 70vh; background: var(--emboss-accent-soft); color: var(--emboss-ink); }
-.ws-photo figcaption { font: 500 14px/18px var(--font-sans); }
 
 /* ── List view ─────────────────────────────────────────────────────── */
 .list-view { height: 100%; overflow: auto; padding: 96px 32px 120px; background: var(--emboss-well); box-shadow: inset 0 2px 5px var(--emboss-shade); }
@@ -749,6 +745,8 @@
 .ws--slides-editor { display: block; height: 100%; min-height: 0; border-radius: var(--radius-xl); overflow: hidden; }
 .ws--slides-sheet { box-shadow: var(--shadow-sheet); border: 1px solid var(--emboss-edge); }
 .open-sheet--chromeless .ws--slides-editor { border-radius: 0; }
+/* L1 · l'atelier d'image brings its own bar and panel. */
+.ws--atelier { display: block; height: 100%; min-height: 0; overflow: hidden; }
 .open-sheet__actions { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
 .open-sheet__crumbs { display: flex; align-items: center; }
 

@@ -101,13 +101,14 @@ export class ImageEngine {
     return (await this.send<'blob'>({ op: 'export', options })).blob;
   }
 
-  /** The rendered image, long side at most `maxLong` (thumbnails). */
-  async raster(maxLong: number): Promise<Raster> {
-    return (await this.send<'raster'>({ op: 'raster', maxLong })).raster;
+  /** The rendered image, long side at most `maxLong` (thumbnails); `recipe` renders another look once. */
+  async raster(maxLong: number, recipe?: Recipe): Promise<Raster> {
+    return (await this.send<'raster'>({ op: 'raster', maxLong, json: recipe && JSON.stringify(recipe) })).raster;
   }
 
-  async histogram(): Promise<Histogram> {
-    const b = (await this.send<'histogram'>({ op: 'histogram' })).bins;
+  /** Histograms of the output; `recipe` measures another look once (Auto reads the unedited image). */
+  async histogram(recipe?: Recipe): Promise<Histogram> {
+    const b = (await this.send<'histogram'>({ op: 'histogram', json: recipe && JSON.stringify(recipe) })).bins;
     return { r: b.subarray(0, 256), g: b.subarray(256, 512), b: b.subarray(512, 768), luma: b.subarray(768, 1024) };
   }
 

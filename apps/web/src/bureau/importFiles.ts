@@ -7,6 +7,7 @@ import type { ArrivalRules } from './Chrome';
 import { createDocFromPayload } from './docs';
 import { createSheetFromPayload } from './sheets';
 import { createSlidesFromPayload } from './slides';
+import { originals } from '@oel/img';
 import { queueThumbnail } from './thumbnails';
 
 let host: EngineHost | null = null;
@@ -103,6 +104,8 @@ export async function importInto(store: Bureau, paperId: string, file: File): Pr
   const current = store.node(paperId);
   if (!current) return result;
   const kind = toPaperKind(result.kind);
+  // Pictures keep their original, untouched, by content hash: the atelier's recipes apply to it.
+  const original = kind === 'image' ? (await originals().put(file).catch(() => null))?.hash : undefined;
   const size = paperSizeFor(kind, result.preview);
   const scanned = result.preview.kind === 'pdf' && result.preview.scanned;
   store.update(
@@ -114,6 +117,7 @@ export async function importInto(store: Bureau, paperId: string, file: File): Pr
       data: {
         ...current.data,
         ...(docId ? { docId } : {}),
+        ...(original ? { image: { ...current.data.image, original } } : {}),
         preview: result.preview,
         status: result.readOnly ? { state: 'readonly', reason: result.reason ?? 'Lecture seule.' } : { state: 'ready' },
         stamp: scanned ? { label: 'À vérifier', tone: 'danger' } : current.data.stamp,

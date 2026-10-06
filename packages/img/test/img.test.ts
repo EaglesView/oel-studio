@@ -126,6 +126,11 @@ describe('image worker handler (CPU backend)', () => {
 
     const thumb = (await call({ op: 'raster', maxLong: 200 })) as Extract<FromImage, { op: 'raster' }>;
     expect(thumb.raster).toMatchObject({ width: 150, height: 200 });
+    // A one-off look (style thumbnail) does not change what is drawn next.
+    const other = (await call({ op: 'raster', maxLong: 200, json: JSON.stringify({ geometry: { crop: [0, 0, 1, 1] } }) })) as Extract<FromImage, { op: 'raster' }>;
+    expect(other.raster).toMatchObject({ width: 200, height: 133 });
+    await call({ op: 'draw', width: 400, height: 533, interactive: false });
+    expect(presented.at(-1)!.raster).toMatchObject({ width: 1280, height: 1707 });
 
     const h = (await call({ op: 'histogram' })) as Extract<FromImage, { op: 'histogram' }>;
     expect(h.bins.length).toBe(1024);

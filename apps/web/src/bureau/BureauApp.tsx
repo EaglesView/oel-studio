@@ -235,6 +235,8 @@ function BureauDesk() {
   const openAt = (id: string, level: 2 | 3) => {
     // K2 · a note never opens: Entrée, double-click or « Écrire » write in it on the desk.
     if (store.node(id)?.kind === 'note') return editNote(id);
+    // L1 · an image opens straight in the atelier (plein écran).
+    if (store.node(id)?.kind === 'image') level = 3;
     history.pushState({ oelDepth: 1 }, '', urlFor(id, false));
     if (level === 3) history.pushState({ oelDepth: 2 }, '', urlFor(id, true));
     apply(id, level === 3);
@@ -248,6 +250,8 @@ function BureauDesk() {
   const reduce = () => {
     const id = store.getState().openId;
     if (!id) return;
+    // The atelier has no « ouvert sur place »: Échap goes back to the desk.
+    if (store.node(id)?.kind === 'image') return toDesk();
     if (depth() >= 2) return history.back();
     history.replaceState({ oelDepth: 1 }, '', urlFor(id, false));
     apply(id, false);

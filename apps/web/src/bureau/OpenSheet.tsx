@@ -8,7 +8,7 @@ import { DocumentWorkspace } from './workspaces/DocumentWorkspace';
 import { SlidesWorkspace } from './workspaces/SlidesWorkspace';
 import { SheetWorkspace } from './workspaces/SheetWorkspace';
 import { PdfWorkspace } from './workspaces/PdfWorkspace';
-import { ImageWorkspace } from './workspaces/SimpleWorkspaces';
+import { ImageWorkspace } from './workspaces/ImageWorkspace';
 import { FormWorkspace } from './workspaces/FormWorkspace';
 
 /** 2 = ouvert sur place (floating sheet), 3 = plein écran (Editor — Behaviors · A1). */
@@ -39,7 +39,7 @@ export interface OpenSheetHandle {
 }
 
 /** Kinds whose workspace brings its own full-screen chrome (breadcrumb, « Réduire », status bar). */
-const OWN_CHROME = new Set(['document', 'spreadsheet', 'slides']);
+const OWN_CHROME = new Set(['document', 'spreadsheet', 'slides', 'image']);
 
 /**
  * B4 · Ouvrir sur place (level 2) and Plein écran (level 3).

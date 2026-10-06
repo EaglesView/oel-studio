@@ -28,8 +28,9 @@ export type ToImage =
   | { id: number; op: 'recipe'; json: string }
   | { id: number; op: 'draw'; width: number; height: number; interactive: boolean }
   | { id: number; op: 'export'; options: ExportOptions }
-  | { id: number; op: 'raster'; maxLong: number }
-  | { id: number; op: 'histogram' };
+  /** `json`: render this recipe instead of the current one, for this request only. */
+  | { id: number; op: 'raster'; maxLong: number; json?: string }
+  | { id: number; op: 'histogram'; json?: string };
 
 export type FromImage =
   | { id: number; op: 'ready'; capability: Capability; maxSize: number }
