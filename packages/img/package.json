@@ -6,13 +6,15 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./worker": "./src/worker/image.worker.ts"
+    "./worker": "./src/worker/image.worker.ts",
+    "./ui": "./src/ui/index.ts"
   },
   "dependencies": {
     "@oel/collab-client": "*",
     "@oel/engine": "*",
     "@oel/links": "*",
-    "oelimg-wasm": "file:../wasm/oel-img/web"
+    "oelimg-wasm": "file:../wasm/oel-img/web",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "oelimg-node": "file:../wasm/oel-img/node"
