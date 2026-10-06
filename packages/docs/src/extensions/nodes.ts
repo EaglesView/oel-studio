@@ -416,7 +416,8 @@ export const DocImage = Node.create<{ resolver: ImageResolver }>({
       const apply = (n: typeof node) => {
         const a = n.attrs;
         const path = a.path ?? (typeof a.src === 'string' && a.src.startsWith('media:') ? a.src.slice(6) : null);
-        const url = path ? this.options.resolver.url(path) : a.src;
+        // While the retouch panel is open, the picture shows its live rendering (L-7).
+        const url = dom.dataset.preview || (path ? this.options.resolver.url(path) : a.src);
         if (url && img.src !== url) img.src = url;
         img.alt = a.alt ?? '';
         if (a.cx) img.style.width = `${a.cx / EMU_PER_PX}px`;

@@ -57,6 +57,14 @@ function useFloatAbove(editor: Editor, scroller: HTMLElement | null, bar: RefObj
   return at;
 }
 
+/**
+ * Where the bars are mounted: inside the editor's scrolling canvas, not on `document.body`.
+ * In the desk the open document is a react-aria modal, which makes everything outside it
+ * inert: a bar on the body can't take focus and a click on it counts as a click outside.
+ * The bars keep `position: fixed` (no ancestor of the canvas is transformed).
+ */
+const floatRoot = (scroller: HTMLElement | null) => scroller ?? document.body;
+
 const placed = (at: { left: number; top: number } | null) => (at ? { left: at.left, top: at.top } : { visibility: 'hidden' as const });
 
 /**
@@ -122,7 +130,7 @@ export function TableFloat({ editor, scroller, onSend }: { editor: Editor; scrol
           {fill}
         </LinkedCopyBar>
       </div>,
-      document.body,
+      floatRoot(scroller),
     );
   return createPortal(
     <div ref={bar} className="oel-tablefloat" style={placed(at)} onMouseDown={(e) => e.preventDefault()}>
@@ -162,7 +170,7 @@ export function TableFloat({ editor, scroller, onSend }: { editor: Editor; scrol
         </MenuTrigger>
       </Toolbar>
     </div>,
-    document.body,
+    floatRoot(scroller),
   );
 }
 
@@ -221,16 +229,23 @@ export function ChartFloat({ editor, scroller, editable }: { editor: Editor; scr
         }
       />
     </div>,
-    document.body,
+    floatRoot(scroller),
   );
 }
 
+export interface PictureActions {
+  /** Opens the retouch panel (L3); `crop`: straight into the crop frame. Absent: no image engine here. */
+  onRetouch?: (crop: boolean) => void;
+  onReplace: () => void;
+  onAlt: () => void;
+}
+
 /**
- * The bar over a selected linked picture (Figma I1): where it comes from,
- * « Mettre à jour » when it's behind, the link popover. Its size stays its
- * own (the corner handle), so nothing else is needed here yet.
+ * The bar over a selected picture (Figma L3), one toolbar: Retoucher · Recadrer · Remplacer ·
+ * Habillage · Texte alternatif, then for a linked copy (Figma I1) where it comes from,
+ * « Mettre à jour » when it's behind and the link popover.
  */
-export function PictureFloat({ editor, scroller }: { editor: Editor; scroller: HTMLElement | null }) {
+export function PictureFloat({ editor, scroller, editable, actions }: { editor: Editor; scroller: HTMLElement | null; editable: boolean; actions: PictureActions }) {
   const bar = useRef<HTMLDivElement>(null);
   const oid = useEditorState({
     editor,
@@ -246,23 +261,42 @@ export function PictureFloat({ editor, scroller }: { editor: Editor; scroller: H
     const s = editor.state.selection;
     return s instanceof NodeSelection && s.node.type.name === 'image' ? (editor.view.nodeDOM(s.from) as Element | null) : null;
   });
-  if (!copy) return null;
+  const ro = editable ? undefined : 'Lecture seule';
+  const noEngine = actions.onRetouch ? undefined : 'La retouche n’est pas disponible ici.';
+  const tools = (
+    <>
+      <ToolButton icon="palette" label="Retoucher" showLabel unavailableReason={ro ?? noEngine} onPress={() => actions.onRetouch?.(false)} />
+      <ToolButton icon="crop" label="Recadrer" unavailableReason={ro ?? noEngine} onPress={() => actions.onRetouch?.(true)} />
+      <ToolButton icon="refresh" label="Remplacer" unavailableReason={ro} onPress={actions.onReplace} />
+      <ToolButton icon="wrap-text" label="Habillage" unavailableReason="Changer l’habillage arrive bientôt ; les images flottantes gardent leur position à l’export." />
+      <ToolButton icon="text-block" label="Texte alternatif" unavailableReason={ro} onPress={actions.onAlt} />
+    </>
+  );
   return createPortal(
     <div ref={bar} className="oel-docfloat" style={placed(at)}>
-      <LinkedCopyBar
-        label="Image liée"
-        link={{
-          source: copy.source,
-          stateLabel: copy.frozen ? 'Figé' : STATE_LABEL[copy.state],
-          stale: copy.state === 'stale',
-          frozen: copy.frozen,
-          onSource: () => void (host.openSource(copy.linkId) || toast({ title: 'Source introuvable', description: 'L’image source n’est pas sur ce bureau.', tone: 'warning' })),
-          onUpdate: () => host.update(copy.linkId),
-          onManage: (r) => host.manage(copy.linkId, r),
-        }}
-      />
+      {copy ? (
+        <LinkedCopyBar
+          label="Image liée"
+          link={{
+            source: copy.source,
+            stateLabel: copy.frozen ? 'Figé' : STATE_LABEL[copy.state],
+            stale: copy.state === 'stale',
+            frozen: copy.frozen,
+            onSource: () => void (host.openSource(copy.linkId) || toast({ title: 'Source introuvable', description: 'L’image source n’est pas sur ce bureau.', tone: 'warning' })),
+            onUpdate: () => host.update(copy.linkId),
+            onManage: (r) => host.manage(copy.linkId, r),
+          }}
+        >
+          {tools}
+        </LinkedCopyBar>
+      ) : (
+        // Same look and same guards as the linked bar: the picture stays selected while a tool is pressed.
+        <div className="oel-chart-bar" onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} onKeyDown={(e) => e.stopPropagation()}>
+          <Toolbar aria-label="Image">{tools}</Toolbar>
+        </div>
+      )}
     </div>,
-    document.body,
+    floatRoot(scroller),
   );
 }
 

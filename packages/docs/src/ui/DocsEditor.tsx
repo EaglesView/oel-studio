@@ -18,6 +18,7 @@ import { fontNoticeOnFirstOpen } from './fonts';
 import type { FontReport } from '@oel/fonts';
 import { DocsToolbar, ROLE_LABELS, ZOOMS, useToolbarState } from './DocsToolbar';
 import { ChartFloat, LinkedEditNotice, PictureFloat, TableFloat } from './Floats';
+import { RetouchPanel } from './RetouchPanel';
 import { ContextMenu, MenuBar, MoreMenu, type MenuEntry, type MenuSpec } from './MenuBar';
 import { NotesArea, PageView, usePages, type EditingStory } from './PageView';
 import { printPages } from './print';
@@ -72,6 +73,8 @@ export interface DocsEditorProps {
   onReduce?: () => void;
   /** Level 2 → 3 (« Agrandir », Ctrl+Maj+Entrée). */
   onExpand?: () => void;
+  /** The image worker (`@oel/img`): « Retoucher » on pictures (L3). Without it, retouching is unavailable. */
+  createImageWorker?: () => Worker;
 }
 
 type DialogName = 'link' | 'page' | 'words' | 'chars' | 'image' | 'share' | 'identity' | null;
@@ -124,6 +127,8 @@ export function DocsEditor(props: DocsEditorProps) {
   const [showAnchors, setShowAnchors] = useState(false);
   const [find, setFind] = useState<{ replace: boolean } | null>(null);
   const [dialog, setDialog] = useState<DialogName>(null);
+  /** L3 · the retouch panel on a picture (`crop`: open on the crop frame). */
+  const [retouch, setRetouch] = useState<{ editor: Editor; pos: number; crop: boolean } | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; editor: Editor } | null>(null);
   const [editingStory, setEditingStory] = useState<EditingStory | null>(null);
   const [french, setFrench] = useState(true);
@@ -855,7 +860,19 @@ export function DocsEditor(props: DocsEditorProps) {
       </div>
       {inTable && editable && target && <TableFloat editor={target} scroller={canvasRef.current} onSend={() => sendTableToSheet(target, session)} />}
       {toolbar?.chartAt != null && target && <ChartFloat key={toolbar.chartAt} editor={target} scroller={canvasRef.current} editable={editable} />}
-      {toolbar?.pictureAt != null && target && <PictureFloat key={toolbar.pictureAt} editor={target} scroller={canvasRef.current} />}
+      {toolbar?.pictureAt != null && target && !retouch && (
+        <PictureFloat
+          key={toolbar.pictureAt}
+          editor={target}
+          scroller={canvasRef.current}
+          editable={editable}
+          actions={{
+            onRetouch: props.createImageWorker ? (crop) => setRetouch({ editor: target, pos: toolbar.pictureAt!, crop }) : undefined,
+            onReplace: () => replacePicture(target, session, toolbar.pictureAt!),
+            onAlt: () => setDialog('image'),
+          }}
+        />
+      )}
       {editor && <LinkedEditNotice editor={editor} root={canvasRef.current} />}
       {ctxMenu && (
         <ContextMenu
@@ -912,6 +929,17 @@ export function DocsEditor(props: DocsEditorProps) {
           )}
         </div>
         {showVersions && <VersionPanel session={session} onClose={() => setShowVersions(false)} onRestored={() => editor.storage.pagination.relayout()} />}
+        {retouch && props.createImageWorker && (
+          <RetouchPanel
+            key={retouch.pos}
+            editor={retouch.editor}
+            session={session}
+            pos={retouch.pos}
+            crop={retouch.crop}
+            createWorker={props.createImageWorker}
+            onClose={() => setRetouch(null)}
+          />
+        )}
       </div>
 
       {dock.docked && (
@@ -1168,4 +1196,30 @@ function pasteLinkedValue(editor: Editor, session: DocSession, clip: LinkClip) {
       },
     },
   });
+}
+
+/** « Remplacer » (L3): another file in the same place and width; a retouch does not carry over. */
+function replacePicture(editor: Editor, session: DocSession, pos: number) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/gif,image/webp,image/bmp';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const path = await session.addImage(file);
+      const bmp = await createImageBitmap(file);
+      const ratio = bmp.height / bmp.width;
+      bmp.close();
+      const n = editor.state.doc.nodeAt(pos);
+      if (n?.type.name !== 'image') return;
+      const cx = (n.attrs.cx as number | null) ?? null;
+      editor.view.dispatch(
+        editor.state.tr.setNodeMarkup(pos, undefined, { ...n.attrs, src: `media:${path}`, path, rid: null, recipe: null, orig: null, cy: cx ? Math.round(cx * ratio) : n.attrs.cy }),
+      );
+    } catch {
+      toast({ title: 'Image non remplacée', tone: 'danger' });
+    }
+  };
+  input.click();
 }

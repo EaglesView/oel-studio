@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Logo, ToastRegion, toast } from '@oel/emboss';
 import { DocSession, DocsEditor, IdentityDialog, decodeToken, defaultIdentity, docsSchema, loadIdentity, tokenStore, type DocxJson, type Identity } from '@oel/docs';
 import '@oel/docs/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../bureau/images';
 import { asDocxPayload, type DocxPayload } from '@oel/engine';
 import { collabApi, exportDocx } from '../bureau/docs';
 import { engineHost } from '../bureau/importFiles';
@@ -148,6 +150,7 @@ export function DocumentPage() {
   } else if (docId && session) {
     body = (
       <DocsEditor
+        createImageWorker={createImageWorker}
         key={session.status.docId}
         session={session}
         title={title}

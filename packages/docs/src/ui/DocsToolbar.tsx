@@ -40,7 +40,7 @@ export interface ToolbarState {
   inTable: boolean;
   /** Position of the selected chart node, if a chart is selected. */
   chartAt: number | null;
-  /** Position of the selected linked picture (it has an `oid`), if any. */
+  /** Position of the selected picture, if any. */
   pictureAt: number | null;
 }
 
@@ -72,7 +72,7 @@ export function useToolbarState(editor: Editor | null, styles: DocStyle[], defau
         canUndo: e.can().undo(),
         canRedo: e.can().redo(),
         inTable: e.isActive('table'),
-        pictureAt: e.state.selection instanceof NodeSelection && e.state.selection.node.type.name === 'image' && e.state.selection.node.attrs.oid ? e.state.selection.from : null,
+        pictureAt: e.state.selection instanceof NodeSelection && e.state.selection.node.type.name === 'image' ? e.state.selection.from : null,
         chartAt: e.state.selection instanceof NodeSelection && e.state.selection.node.type.name === 'ooxmlInline' && e.state.selection.node.attrs.chart ? e.state.selection.from : null,
       };
     },

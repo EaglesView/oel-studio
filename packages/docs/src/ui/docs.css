@@ -80,8 +80,9 @@
 .oel-fontsize__input:focus { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
 .oel-docs__mode { flex-shrink: 0; }
 .oel-docs__mode-label { display: inline-flex; gap: 6px; align-items: center; font: 500 13px/1 var(--font-sans); color: var(--emboss-ink-muted); }
-.oel-tablefloat { position: fixed; z-index: 40; filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.12)); }
-.oel-docfloat { position: fixed; z-index: 40; }
+.oel-tablefloat { position: fixed; z-index: 70; filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.12)); }
+/* Mounted inside the editor's canvas (see Floats.tsx `floatRoot`): above the pages and their anchors. */
+.oel-docfloat { position: fixed; z-index: 70; }
 .oel-docfloat .oel-chart-bar { position: static; }
 /* « Ces valeurs viennent de … » (Figma I2): refused edit in a linked table. */
 .oel-linked-edit { display: grid; gap: 10px; max-width: 340px; padding: 14px 16px; }

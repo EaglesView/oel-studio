@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { DocsEditor, previewFromYDoc, type DocSession } from '@oel/docs';
 import '@oel/docs/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../images';
 import type { WorkspaceProps } from '../OpenSheet';
 import { exportDocx, identity, sessionFor } from '../docs';
 
@@ -33,6 +35,7 @@ export function DocumentWorkspace({ paper, level, onDraft, registerFlush, onPatc
   return (
     <div className={`ws ws--docs ws--docs-${level === 3 ? 'full' : 'sheet'}`}>
       <DocsEditor
+        createImageWorker={createImageWorker}
         session={session}
         variant={level === 3 ? 'full' : 'sheet'}
         title={paper.title}
