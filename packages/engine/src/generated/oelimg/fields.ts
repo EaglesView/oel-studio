@@ -533,6 +533,14 @@ export const RECIPE_FIELDS: readonly FieldSpec[] = [
     "step": 0.0
   },
   {
+    "path": "geometry.rotate",
+    "kind": "slider",
+    "min": 0.0,
+    "max": 3.0,
+    "default": 0.0,
+    "step": 1.0
+  },
+  {
     "path": "geometry.angle",
     "kind": "slider",
     "min": -45.0,

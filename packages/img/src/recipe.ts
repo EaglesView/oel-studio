@@ -72,10 +72,16 @@ export function leafValue(r: Recipe, path: string): unknown {
   return OTHER_DEFAULTS[path] ?? FIELDS.get(path)?.default;
 }
 
-/** Output size of a `w × h` source (the crop), as the renderer computes it. */
+/** The frame the crop is normalised to: the source after its quarter turns. */
+export function frameSize(r: Recipe, w: number, h: number): { width: number; height: number } {
+  return (Number(leafValue(r, 'geometry.rotate')) || 0) % 2 === 1 ? { width: h, height: w } : { width: w, height: h };
+}
+
+/** Output size of a `w × h` source (the crop of the turned frame), as the renderer computes it. */
 export function outputSize(r: Recipe, w: number, h: number): { width: number; height: number } {
+  const f = frameSize(r, w, h);
   const [x0, y0, x1, y1] = leafValue(r, 'geometry.crop') as [number, number, number, number];
-  return { width: Math.max(1, Math.round(Math.abs(x1 - x0) * w)), height: Math.max(1, Math.round(Math.abs(y1 - y0) * h)) };
+  return { width: Math.max(1, Math.round(Math.abs(x1 - x0) * f.width)), height: Math.max(1, Math.round(Math.abs(y1 - y0) * f.height)) };
 }
 
 /** No leaf set: the image looks like its original. */

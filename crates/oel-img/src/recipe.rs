@@ -213,11 +213,13 @@ group! {
 }
 
 group! {
-    /// Crop rectangle `[x0, y0, x1, y1]` normalised to the upright image, straightening angle in
-    /// degrees (positive = counter-clockwise), flips, and the aspect the crop tool keeps
-    /// (`original`, `libre` or `W:H`; the renderer ignores it).
+    /// Quarter turns clockwise (0–3, « Pivoter »), then flips, then the straightening angle in
+    /// degrees (positive = counter-clockwise); the crop rectangle `[x0, y0, x1, y1]` is normalised
+    /// to that turned frame. `aspect` is what the crop tool keeps (`original`, `libre` or `W:H`;
+    /// the renderer ignores it).
     GeometrySettings / Geometry {
         crop: [f32; 4] = [0.0, 0.0, 1.0, 1.0],
+        rotate: u32 = 0,
         angle: f32 = 0.0,
         flip_h: bool = false,
         flip_v: bool = false,
@@ -361,6 +363,7 @@ pub fn fields() -> Vec<FieldSpec> {
         slider("effects.grain.size", 0.0, 100.0, 25.0, 1.0),
         slider("effects.grain.roughness", 0.0, 100.0, 50.0, 1.0),
         other("geometry.crop", FieldKind::Rect),
+        slider("geometry.rotate", 0.0, 3.0, 0.0, 1.0),
         slider("geometry.angle", -45.0, 45.0, 0.0, 0.1),
         other("geometry.flipH", FieldKind::Toggle),
         other("geometry.flipV", FieldKind::Toggle),

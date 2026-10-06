@@ -34,9 +34,10 @@ describe('recipes', () => {
 
   it('computes the output size the renderer produces', () => {
     const src = new Uint8Array(37 * 23 * 4).fill(128);
-    const r: Recipe = { geometry: { crop: [0.13, 0.2, 0.71, 0.95] } };
-    const out = wasm.render_rgba(src, 37, 23, JSON.stringify(r), 1, false);
-    expect(outputSize(r, 37, 23)).toEqual({ width: out.width, height: out.height });
+    for (const r of [{ geometry: { crop: [0.13, 0.2, 0.71, 0.95] } }, { geometry: { rotate: 1, crop: [0.13, 0.2, 0.71, 0.95] } }, { geometry: { rotate: 3 } }] as Recipe[]) {
+      const out = wasm.render_rgba(src, 37, 23, JSON.stringify(r), 1, false);
+      expect(outputSize(r, 37, 23)).toEqual({ width: out.width, height: out.height });
+    }
   });
 });
 

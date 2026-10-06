@@ -58,6 +58,9 @@ fn recipes() -> Vec<(&'static str, serde_json::Value)> {
         ("vignette", json!({ "effects": { "vignette": { "amount": -60, "roundness": 40, "feather": 30 } } })),
         ("grain", json!({ "effects": { "grain": { "amount": 60, "size": 40, "roughness": 70 } } })),
         ("geometry", json!({ "geometry": { "crop": [0.1, 0.15, 0.85, 0.9], "angle": 7.5, "flipH": true } })),
+        ("quarter turn", json!({ "geometry": { "rotate": 1, "crop": [0.05, 0.1, 0.9, 0.95], "flipV": true, "effects": {} }, "effects": { "grain": { "amount": 40 } } })),
+        ("half turn", json!({ "geometry": { "rotate": 2, "angle": -4 } })),
+        ("three quarters", json!({ "geometry": { "rotate": 3 }, "effects": { "vignette": { "amount": -50 } } })),
         ("everything", json!({
             "exposure": 0.3, "contrast": 20, "highlights": -30, "shadows": 30, "whiteBalance": { "tempK": 5600 },
             "presence": { "clarity": 25, "vibrance": 20 }, "hsl": { "orange": { "sat": 20 } },
@@ -110,6 +113,30 @@ fn gpu_matches_cpu() {
         }
     }
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
+}
+
+/// A scaled render shows the whole output (not its top-left corner): compare with the CPU output
+/// sampled at the same points.
+#[test]
+fn scaled_render_covers_the_output() {
+    let Some(adapter) = adapters().into_iter().next() else { return };
+    let mut r = pollster::block_on(Renderer::from_adapter(&adapter)).unwrap();
+    let img = fixture("landscape.jpg");
+    r.set_source(&img).unwrap();
+    let s = serde_json::from_value::<Recipe>(json!({ "geometry": { "rotate": 1 } })).unwrap().resolve();
+    r.set_recipe(&s, &RenderOptions::default());
+    let full = render(&img, &s, &RenderOptions::default());
+    assert_eq!((full.width, full.height), (160, 240));
+    let half = pollster::block_on(r.render_image_sized((80, 120))).unwrap();
+    for (x, y) in [(5, 5), (75, 10), (40, 60), (10, 115), (78, 118)] {
+        // Output pixel (x, y) at half size samples frame point (2x + 1, 2y + 1): the corner shared
+        // by four full-size pixels, so their mean.
+        let a = &half.data[(y * 80 + x) * 4..][..3];
+        let b: Vec<u32> = (0..3)
+            .map(|c| [(0, 0), (1, 0), (0, 1), (1, 1)].iter().map(|(dx, dy)| full.data[((2 * y + dy) * 160 + 2 * x + dx) * 4 + c] as u32).sum::<u32>() / 4)
+            .collect();
+        assert!(a.iter().zip(&b).all(|(p, q)| (*p as u32).abs_diff(*q) <= 3), "({x},{y}) gpu {a:?} cpu {b:?}");
+    }
 }
 
 #[test]

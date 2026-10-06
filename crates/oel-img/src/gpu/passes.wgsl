@@ -11,7 +11,7 @@ struct Params {
     m_store: array<vec4<f32>, 3>,
     // shadows, highlights, contrast, whites (−1…1)
     tone: vec4<f32>,
-    // blacks, long edge (px), scale, _
+    // blacks, long edge (px), scale, frame pixels per output pixel (scaled renders)
     tone2: vec4<f32>,
     // has_shadows_highlights, has_contrast_whites_blacks, has_curve, has_hsl
     flags: vec4<f32>,
@@ -40,6 +40,8 @@ struct Params {
     geom: vec4<f32>,
     // flip_h, flip_v, output w, output h
     geom2: vec4<f32>,
+    // quarter turns clockwise, _, _, _
+    geom3: vec4<f32>,
 };
 
 struct Pass {
@@ -423,12 +425,19 @@ fn grain_noise(p: vec2<f32>) -> f32 {
 @fragment
 fn fs_final(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let dim = vec2<f32>(textureDimensions(t0));
+    let k = u32(P.geom3.x) % 4u;
+    let frame = select(dim, dim.yx, k % 2u == 1u);
     let o = floor(pos.xy);
-    let pp = P.geom.xy * dim + o + 0.5;
-    let d = pp - dim / 2.0;
-    var s = dim / 2.0 + vec2<f32>(P.geom.w * d.x - P.geom.z * d.y, P.geom.z * d.x + P.geom.w * d.y);
-    if (P.geom2.x > 0.0) { s.x = dim.x - s.x; }
-    if (P.geom2.y > 0.0) { s.y = dim.y - s.y; }
+    // Frame point → un-straighten about the centre → un-flip → un-turn → source (cpu finish).
+    let pp = P.geom.xy * frame + (o + 0.5) * P.tone2.w;
+    let d = pp - frame / 2.0;
+    var f = frame / 2.0 + vec2<f32>(P.geom.w * d.x - P.geom.z * d.y, P.geom.z * d.x + P.geom.w * d.y);
+    if (P.geom2.x > 0.0) { f.x = frame.x - f.x; }
+    if (P.geom2.y > 0.0) { f.y = frame.y - f.y; }
+    var s = f;
+    if (k == 1u) { s = vec2<f32>(f.y, dim.y - f.x); }
+    else if (k == 2u) { s = dim - f; }
+    else if (k == 3u) { s = vec2<f32>(dim.x - f.y, f.x); }
     var q = s - 0.5;
     if (q.x < -0.5 || q.y < -0.5 || q.x > dim.x - 0.5 || q.y > dim.y - 0.5) { return vec4<f32>(0.0); }
     q = clamp(q, vec2<f32>(0.0), dim - 1.0);

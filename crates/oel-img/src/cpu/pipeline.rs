@@ -348,13 +348,29 @@ fn sharpen(wk: &mut Working, s: &Settings, scale: f32) {
 
 // ── Final pass: geometry, vignette, grain, output ──────────────────────────────────────────
 
+/// Size of the frame the crop is normalised to: the source after its quarter turns.
+pub fn frame_size(s: &Settings, w: u32, h: u32) -> (u32, u32) {
+    if s.geometry.rotate % 2 == 1 { (h, w) } else { (w, h) }
+}
+
 /// Output size for a `w × h` source.
 pub fn output_size(s: &Settings, w: u32, h: u32) -> (u32, u32) {
+    let (fw, fh) = frame_size(s, w, h);
     let [x0, y0, x1, y1] = s.geometry.crop;
     (
-        (((x1 - x0).abs() * w as f32).round() as u32).max(1),
-        (((y1 - y0).abs() * h as f32).round() as u32).max(1),
+        (((x1 - x0).abs() * fw as f32).round() as u32).max(1),
+        (((y1 - y0).abs() * fh as f32).round() as u32).max(1),
     )
+}
+
+/// Frame point → source point for `k` clockwise quarter turns of a `w × h` source.
+pub fn unrotate(k: u32, fx: f32, fy: f32, w: f32, h: f32) -> (f32, f32) {
+    match k % 4 {
+        1 => (fy, h - fx),
+        2 => (w - fx, h - fy),
+        3 => (w - fy, fx),
+        _ => (fx, fy),
+    }
 }
 
 pub const GRAIN_K: f32 = 0.12;
@@ -401,6 +417,8 @@ pub fn vignette_distance(u: f32, v: f32, aspect: f32, roundness: f32) -> f32 {
 
 fn finish(wk: &Working, s: &Settings, o: &RenderOptions) -> Image {
     let (w, h) = (wk.w as f32, wk.h as f32);
+    let (fw, fh) = frame_size(s, wk.w as u32, wk.h as u32);
+    let (fw, fh) = (fw as f32, fh as f32);
     let (ow, oh) = output_size(s, wk.w as u32, wk.h as u32);
     let g = &s.geometry;
     let [x0, y0, ..] = g.crop;
@@ -413,16 +431,17 @@ fn finish(wk: &Working, s: &Settings, o: &RenderOptions) -> Image {
     let mut data = Vec::with_capacity((ow * oh * 4) as usize);
     for oy in 0..oh {
         for ox in 0..ow {
-            // Display frame (flipped, then rotated about the centre) → source pixel.
-            let (px, py) = (x0 * w + ox as f32 + 0.5, y0 * h + oy as f32 + 0.5);
-            let (dx, dy) = (px - w / 2.0, py - h / 2.0);
-            let (mut sx, mut sy) = (w / 2.0 + cos * dx - sin * dy, h / 2.0 + sin * dx + cos * dy);
+            // Frame point → un-straighten about the centre → un-flip → un-turn → source pixel.
+            let (px, py) = (x0 * fw + ox as f32 + 0.5, y0 * fh + oy as f32 + 0.5);
+            let (dx, dy) = (px - fw / 2.0, py - fh / 2.0);
+            let (mut qx, mut qy) = (fw / 2.0 + cos * dx - sin * dy, fh / 2.0 + sin * dx + cos * dy);
             if g.flip_h {
-                sx = w - sx;
+                qx = fw - qx;
             }
             if g.flip_v {
-                sy = h - sy;
+                qy = fh - qy;
             }
+            let (sx, sy) = unrotate(g.rotate, qx, qy, w, h);
             let Some((mut c, a)) = sample_bilinear(wk, sx - 0.5, sy - 0.5) else {
                 data.extend_from_slice(&[0, 0, 0, 0]);
                 continue;

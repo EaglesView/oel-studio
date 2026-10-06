@@ -52,6 +52,7 @@ struct Params {
     grain: [f32; 4],
     geom: [f32; 4],
     geom2: [f32; 4],
+    geom3: [f32; 4],
 }
 
 #[repr(C)]
@@ -134,6 +135,7 @@ impl Plan {
         p.geom = [ge.crop[0], ge.crop[1], sin, cos];
         let out = cpu::output_size(s, w, h);
         p.geom2 = [b(ge.flip_h), b(ge.flip_v), out.0 as f32, out.1 as f32];
+        p.geom3 = [(ge.rotate % 4) as f32, 0.0, 0.0, 0.0];
         Plan {
             params: p,
             luts,

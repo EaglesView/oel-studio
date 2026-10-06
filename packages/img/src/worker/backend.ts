@@ -4,6 +4,7 @@
  * `scale` tells the renderer how they relate to the original.
  */
 import type { Capability, Raster } from '../protocol';
+import { outputSize, type Recipe } from '../recipe';
 
 export interface Backend {
   readonly capability: Capability;
@@ -117,9 +118,7 @@ export class CpuBackend implements Backend {
   outputSize() {
     const s = this.sources[this.slot];
     if (!s) return { width: 0, height: 0 };
-    const crop = (JSON.parse(this.recipe) as { geometry?: { crop?: number[] } }).geometry?.crop ?? [0, 0, 1, 1];
-    const [x0 = 0, y0 = 0, x1 = 1, y1 = 1] = crop;
-    return { width: Math.max(1, Math.round(Math.abs(x1 - x0) * s.width)), height: Math.max(1, Math.round(Math.abs(y1 - y0) * s.height)) };
+    return outputSize(JSON.parse(this.recipe) as Recipe, s.width, s.height);
   }
   async draw(width: number, height: number) {
     this.present(await this.render(), width, height);

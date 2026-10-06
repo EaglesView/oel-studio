@@ -5,7 +5,7 @@ pub mod blur;
 mod pipeline;
 
 pub use pipeline::{
-    grain_noise, input_matrix, output_size, render, render_working, wheel_offset, CLARITY_SIGMA, DEHAZE_SIGMA, SHARPEN_K,
+    frame_size, grain_noise, input_matrix, output_size, unrotate, render, render_working, wheel_offset, CLARITY_SIGMA, DEHAZE_SIGMA, SHARPEN_K,
     TEXTURE_SIGMA, TONE_BASE_SIGMA,
 };
 

@@ -270,3 +270,21 @@ fn histogram_counts_opaque_pixels() {
     assert_eq!(h.luma.iter().sum::<u32>(), opaque);
     assert!(opaque < img.width * img.height);
 }
+
+#[test]
+fn quarter_turns() {
+    let img = fixture("landscape.jpg");
+    let px = |i: &Image, x: usize, y: usize| i.data[(y * i.width as usize + x) * 4..][..3].to_vec();
+    let r1 = run(&img, json!({ "geometry": { "rotate": 1 } }));
+    assert_eq!((r1.width, r1.height), (160, 240));
+    // Clockwise: the source's bottom-left corner becomes the top-left.
+    assert_eq!(px(&r1, 0, 0), px(&img, 0, 159));
+    assert_eq!(px(&r1, 159, 0), px(&img, 0, 0));
+    let r2 = run(&img, json!({ "geometry": { "rotate": 2 } }));
+    assert_eq!(px(&r2, 0, 0), px(&img, 239, 159));
+    let r3 = run(&img, json!({ "geometry": { "rotate": 3 } }));
+    assert_eq!(px(&r3, 0, 0), px(&img, 239, 0));
+    // The crop is normalised to the turned frame.
+    let c = run(&img, json!({ "geometry": { "rotate": 1, "crop": [0, 0, 0.5, 0.25] } }));
+    assert_eq!((c.width, c.height), (80, 60));
+}

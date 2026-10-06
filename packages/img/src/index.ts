@@ -6,6 +6,7 @@ export {
   RECIPE_FIELDS,
   RECIPE_FORMAT,
   fieldSpec,
+  frameSize,
   getLeaf,
   isEmptyRecipe,
   leafValue,
