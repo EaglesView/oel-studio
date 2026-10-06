@@ -186,6 +186,18 @@
   transform: translate(-50%, 4px);
   transition: opacity 180ms var(--ease-paper), transform 180ms var(--ease-paper);
 }
+.emb-slider__keys { display: contents; }
+
+/* Dense rows (tool panels): smaller type, thinner groove, smaller knob. */
+.emb-slider--sm { gap: 2px; min-width: 0; }
+.emb-slider--sm .emb-field__label { font: 500 13px/16px var(--font-sans); color: var(--emboss-text); }
+.emb-slider--sm .emb-slider__output { font: 600 13px/16px var(--font-sans); color: var(--emboss-ink-muted); }
+.emb-slider--sm .emb-slider__track { height: 18px; }
+.emb-slider--sm .emb-slider__groove,
+.emb-slider--sm .emb-slider__fill { height: 6px; border-radius: 3px; }
+.emb-slider--sm .emb-slider__knob { width: 14px; height: 14px; border-radius: 7px; }
+.emb-slider[data-disabled] { opacity: 0.5; }
+
 .emb-slider__knob[data-dragging] .emb-slider__slip,
 .emb-slider__knob[data-focus-visible] .emb-slider__slip {
   opacity: 1;

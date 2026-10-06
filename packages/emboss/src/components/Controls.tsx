@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import {
   Checkbox as RACCheckbox,
   Label,
@@ -123,35 +123,70 @@ export interface SliderProps extends RACSliderProps<number> {
   label?: ReactNode;
   /** Hide the label/value header (the label still names the thumb for AT). */
   hideHeader?: boolean;
+  /** Ink from this value instead of the start (centre-zero controls: 0). */
+  origin?: number;
+  /** Double-click resets to this value (and fires `onChangeEnd`). */
+  resetValue?: number;
+  /** Text of the value (header and slip), e.g. fr-CA « +0,35 ». */
+  valueLabel?: (value: number) => string;
+  /** Paint the groove (temperature, tint, hue ramps); no ink is drawn over it. */
+  trackStyle?: CSSProperties;
+  /** `sm`: the dense rows of tool panels (image atelier). */
+  size?: 'md' | 'sm';
 }
+
+const ARROWS: Record<string, number> = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 };
 
 /**
  * A groove pressed into the paper, inked up to the value, with an embossed knob.
  * While dragging, the knob sinks and a value slip appears above it.
+ * Arrows move one step, Maj + arrows ten.
  */
-export function Slider({ label, hideHeader, className, ...props }: SliderProps) {
+export function Slider({ label, hideHeader, className, origin, resetValue, valueLabel, trackStyle, size = 'md', ...props }: SliderProps) {
+  const step = props.step ?? 1;
   return (
-    <RACSlider {...props} className={composeRenderProps(className, (cls) => cx('emb-slider', cls))}>
-      <div className={cx('emb-slider__header', hideHeader && 'emb-visually-hidden')}>
-        {label && <Label className="emb-field__label">{label}</Label>}
-        <SliderOutput className="emb-slider__output" />
-      </div>
-      <SliderTrack className="emb-slider__track">
-        {({ state }) => (
+    <RACSlider {...props} className={composeRenderProps(className, (cls) => cx('emb-slider', size === 'sm' && 'emb-slider--sm', cls))}>
+      {({ state }) => {
+        const value = state.getThumbValue(0);
+        const text = valueLabel ? valueLabel(value) : state.getThumbValueLabel(0);
+        const set = (v: number) => {
+          state.setThumbValue(0, v);
+          props.onChangeEnd?.(state.getThumbValue(0));
+        };
+        const lo = state.getThumbMinValue(0);
+        const hi = state.getThumbMaxValue(0);
+        const from = origin === undefined ? 0 : state.getValuePercent(Math.min(Math.max(origin, lo), hi));
+        const at = state.getThumbPercent(0);
+        return (
           <>
-            <span className="emb-slider__groove" />
-            <span
-              className="emb-slider__fill"
-              style={{ width: `${state.getThumbPercent(0) * 100}%` }}
-            />
-            <SliderThumb className="emb-slider__knob">
-              <span className="emb-slider__slip" aria-hidden>
-                {state.getThumbValueLabel(0)}
-              </span>
-            </SliderThumb>
+            <div className={cx('emb-slider__header', hideHeader && 'emb-visually-hidden')}>
+              {label && <Label className="emb-field__label">{label}</Label>}
+              {valueLabel ? <output className="emb-slider__output">{text}</output> : <SliderOutput className="emb-slider__output" />}
+            </div>
+            {/* Maj + arrows: caught before the thumb's own one-step handling. */}
+            <div
+              className="emb-slider__keys"
+              onKeyDownCapture={(e) => {
+                const dir = ARROWS[e.key];
+                if (!e.shiftKey || !dir || state.isDisabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                set(value + dir * step * 10);
+              }}
+            >
+              <SliderTrack className="emb-slider__track" onDoubleClick={resetValue === undefined || state.isDisabled ? undefined : () => set(resetValue)}>
+                <span className="emb-slider__groove" style={trackStyle} />
+                {!trackStyle && <span className="emb-slider__fill" style={{ left: `${Math.min(from, at) * 100}%`, width: `${Math.abs(at - from) * 100}%` }} />}
+                <SliderThumb className="emb-slider__knob">
+                  <span className="emb-slider__slip" aria-hidden>
+                    {text}
+                  </span>
+                </SliderThumb>
+              </SliderTrack>
+            </div>
           </>
-        )}
-      </SliderTrack>
+        );
+      }}
     </RACSlider>
   );
 }

@@ -40,6 +40,7 @@ import {
   LinkSlash,
   List,
   Lock,
+  MagicWand,
   MediaImage,
   MediaImageList,
   MoreHoriz,
@@ -250,6 +251,8 @@ const EXTRA = {
   'media': MediaImage,
   /** Galerie (Figma L, M2 « Galerie vide »): Iconoir MediaImageList. */
   gallery: MediaImageList,
+  /** Auto (Figma L1, atelier d’image): Iconoir MagicWand. */
+  'magic-wand': MagicWand,
   'palette': Palette,
   'qr': QrCode,
   'send': Send,
