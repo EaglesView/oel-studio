@@ -3,6 +3,8 @@ import { Button, Logo, ToastRegion, toast } from '@oel/emboss';
 import { IdentityDialog, decodeToken, defaultIdentity, loadIdentity, tokenStore, type Identity } from '@oel/collab-client';
 import { SlideSession, SlidesEditor, type Deck } from '@oel/slides';
 import '@oel/slides/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../bureau/images';
 import { asDeckPayload, type DeckPayload } from '@oel/engine';
 import { collabApi } from '../bureau/docs';
 import { engineHost } from '../bureau/importFiles';
@@ -142,6 +144,7 @@ export function PresentationPage() {
   } else if (docId && session) {
     body = (
       <SlidesEditor
+        createImageWorker={createImageWorker}
         key={session.status.docId}
         session={session}
         title={title || 'Présentation'}

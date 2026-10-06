@@ -12,6 +12,9 @@ import { setLevel, setParaProps, setRunProps } from '../model/text';
 import { emu, pt, type Element, type Line, type Paint, type ParaProps, type RunProps, type TextBody } from '../model/types';
 import type { SlideSession } from '../collab/session';
 
+/** Recipe of a retouched picture (`oel-img-recipe@1`, see @oel/img). */
+type Recipe = Record<string, unknown>;
+
 /** What the active text editor (ProseMirror) offers the toolbar. */
 export interface TextEditorApi {
   elementId: string;
@@ -36,6 +39,10 @@ export class SlidesController {
   /** Element (or table cell `id:r:c`) whose text is being edited. */
   editing: string | null = null;
   textEditor: TextEditorApi | null = null;
+  /** L3 · the picture whose retouch panel is open (`crop`: opened on the crop frame). */
+  retouching: { slide: string; id: string; crop: boolean } | null = null;
+  /** Live renderings shown instead of a media part while a picture is retouched. */
+  private previews = new Map<string, string>();
   version = 0;
   private listeners = new Set<() => void>();
   private off: () => void;
@@ -87,6 +94,9 @@ export class SlidesController {
     this.version++;
     for (const l of this.listeners) l();
   }
+
+  /** Display URL of a media part: a retouch preview, else the session's file. */
+  mediaUrl = (path: string): string | null => this.previews.get(path) ?? this.session.media.url(path);
 
   get readOnly() {
     return this.session.status.readOnly;
@@ -282,6 +292,73 @@ export class SlidesController {
       return;
     }
     this.add(picture(path, file.type, at ? { ...at, cx, cy } : this.center(cx, cy), file.name.replace(/\.[^.]+$/, '')));
+  }
+
+  // -------------------------------------------------------------------------
+  // Pictures (L3): retouch, replace
+  // -------------------------------------------------------------------------
+
+  openRetouch(id: string, crop: boolean) {
+    if (this.readOnly) return;
+    this.endText();
+    this.retouching = { slide: this.current, id, crop };
+    this.bump();
+  }
+
+  closeRetouch() {
+    const r = this.retouching;
+    this.retouching = null;
+    if (r && this.doc.slides.has(r.slide)) {
+      this.current = r.slide;
+      this.selection = [r.id];
+    }
+    this.bump();
+  }
+
+  /** Show `url` in place of a picture's media while it is retouched (`null`: the file again). */
+  previewMedia(path: string, url: string | null) {
+    if (url) this.previews.set(path, url);
+    else this.previews.delete(path);
+    this.bump();
+  }
+
+  /**
+   * Store a retouch on a picture when its panel closes: the final rendering as a new media part,
+   * the original and the recipe kept on the picture for the .pptx (one undo step). `null`:
+   * nothing left of the recipe, back to the original.
+   */
+  async retouchPicture(slide: string, id: string, pixels: { blob: Blob; recipe: Recipe; width: number; height: number; before: { width: number; height: number } } | null) {
+    if (this.readOnly) return;
+    const find = () => this.doc.slide(slide)?.elements.find((e) => e.id === id);
+    const el = find();
+    if (!el?.image?.media) return;
+    const orig = el.image.orig ?? el.image.media;
+    if (!pixels) {
+      if (!el.image.orig) return;
+      const mime = this.session.media.index.get(orig)?.mime ?? el.image.mime;
+      const { recipe: _r, orig: _o, svg: _s, ...image } = el.image;
+      this.edit(() => this.doc.updateElement(slide, id, { image: { ...image, media: orig, mime } }));
+      return;
+    }
+    const path = await this.session.addPicture(pixels.blob);
+    const cur = find() ?? el;
+    // A crop changes the shape: keep the width, scale the height by the change of proportions
+    // (a picture stretched on the slide stays as stretched).
+    const k = pixels.height / pixels.width / (pixels.before.height / pixels.before.width);
+    const cy = Math.abs(k - 1) > 1e-3 ? Math.round(cur.cy * k) : cur.cy;
+    const { svg: _s, ...image } = cur.image!;
+    this.edit(() => this.doc.updateElement(slide, id, { cy, image: { ...image, media: path, mime: pixels.blob.type, recipe: pixels.recipe, orig } }));
+  }
+
+  /** « Remplacer »: another file in the same frame (same width, its own proportions); a retouch does not carry over. */
+  async replacePicture(id: string, file: File) {
+    const el = this.element(id);
+    if (this.readOnly || !el?.image) return;
+    const path = await this.session.addPicture(file);
+    const size = await imageSize(file).catch(() => null);
+    const cy = size ? Math.round((el.cx * size.h) / size.w) : el.cy;
+    const { recipe: _r, orig: _o, svg: _s, crop: _c, ...image } = el.image;
+    this.edit(() => this.doc.updateElement(this.current, id, { cy, image: { ...image, media: path, mime: file.type } }));
   }
 
   deleteSelection() {

@@ -19,6 +19,8 @@ import { Filmstrip } from './Filmstrip';
 import { ScaledSlide, type RenderCtx } from './render';
 import { SlidesToolbar } from './SlidesToolbar';
 import { Slideshow, openPresenterWindow } from './Slideshow';
+import type { Recipe } from '@oel/img';
+import { RetouchDock } from '@oel/img/ui';
 
 export interface ExportRequest {
   format: 'pptx';
@@ -47,6 +49,8 @@ export interface SlidesEditorProps {
   onExpand?: () => void;
   /** Start the slideshow as soon as the editor opens (« Présenter » from the desk). */
   autoPresent?: boolean;
+  /** The image worker (`@oel/img`): « Retoucher » on pictures (L3). Without it, retouching is unavailable. */
+  createImageWorker?: () => Worker;
 }
 
 const safeFileName = (t: string) => (t.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'presentation').slice(0, 120);
@@ -150,7 +154,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   }, [ctl.version, ctl.doc, onPreview]);
 
   const ctx: RenderCtx = useMemo(
-    () => ({ theme: info.theme, fonts: info.fonts, media: session.media.url, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
+    () => ({ theme: info.theme, fonts: info.fonts, media: ctl.mediaUrl, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [info, session, ctl.editing, ctl.index, ctl.version],
   );
@@ -419,7 +423,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
         <Filmstrip ctl={ctl} ctx={ctx} onPresent={present} />
         <div className="oel-slides__main">
           <div ref={stageBox} className="oel-slides__stage">
-            <Canvas ctl={ctl} ctx={ctx} zoom={k} label={`Diapositive ${ctl.index + 1} sur ${ctl.doc.slideIds().length}`} />
+            <Canvas ctl={ctl} ctx={ctx} zoom={k} canRetouch={!!props.createImageWorker} label={`Diapositive ${ctl.index + 1} sur ${ctl.doc.slideIds().length}`} />
           </div>
           {showNotes && notes && <NotesPane key={slide!.id} text={notes} ro={ro} />}
         </div>
@@ -432,6 +436,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
             renderPreview={(d: Y.Doc) => <VersionPreview doc={d} media={session.media.url} />}
           />
         )}
+        {ctl.retouching && props.createImageWorker && <SlideRetouch key={`${ctl.retouching.slide}/${ctl.retouching.id}`} ctl={ctl} createWorker={props.createImageWorker} />}
       </div>
 
       {dock.docked && (
@@ -607,5 +612,33 @@ function VersionPreview({ doc, media }: { doc: Y.Doc; media: (path: string) => s
         return s ? <ScaledSlide key={id} slide={s} info={info} ctx={{ ...ctx, slideNumber: i + 1 }} width={240} /> : null;
       })}
     </div>
+  );
+}
+
+const RETOUCH_NOTE = 'Le fichier PowerPoint garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
+
+/** L3 · the atelier docked at the right of the slide; the slide and the filmstrip show the live rendering. */
+function SlideRetouch({ ctl, createWorker }: { ctl: SlidesController; createWorker: () => Worker }) {
+  const { slide, id, crop } = ctl.retouching!;
+  const start = useMemo(() => ctl.doc.slide(slide)?.elements.find((e) => e.id === id) ?? null, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = start?.image?.media ?? '';
+  const original = start?.image?.orig ?? shown;
+  const loadOriginal = useCallback(async () => {
+    const url = ctl.session.media.url(original);
+    return url ? (await fetch(url)).blob() : null;
+  }, [ctl, original]);
+  if (!start?.image) return null;
+  return (
+    <RetouchDock
+      title={start.descr || start.name || 'Image'}
+      loadOriginal={loadOriginal}
+      recipe={(start.image.recipe as Recipe | undefined) ?? null}
+      crop={crop}
+      note={RETOUCH_NOTE}
+      createWorker={createWorker}
+      onPreview={(url) => ctl.previewMedia(shown, url)}
+      onCommit={(r) => ctl.retouchPicture(slide, id, r)}
+      onClose={() => ctl.closeRetouch()}
+    />
   );
 }

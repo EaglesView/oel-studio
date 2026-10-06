@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { SlidesEditor, toPreview, type SlideSession } from '@oel/slides';
 import '@oel/slides/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../images';
 import type { WorkspaceProps } from '../OpenSheet';
 import { identity } from '../docs';
 import { exportSlides, slideSessionFor, takePresent } from '../slides';
@@ -35,6 +37,7 @@ export function SlidesWorkspace({ paper, level, onDraft, registerFlush, onPatch,
   return (
     <div className={`ws ws--slides-editor ws--slides-${level === 3 ? 'full' : 'sheet'}`}>
       <SlidesEditor
+        createImageWorker={createImageWorker}
         session={session}
         variant={level === 3 ? 'full' : 'sheet'}
         title={paper.title}

@@ -24,7 +24,8 @@
     "yjs": "^13.6.33",
     "@oel/fonts": "*",
     "@oel/charts": "*",
-    "@oel/links": "*"
+    "@oel/links": "*",
+    "@oel/img": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
