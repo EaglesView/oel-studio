@@ -15,7 +15,7 @@ done — the skills describe the layout *as it is now*).
 |---|---|---|---|
 | Rust engines | `crates/oel-docx`, `crates/oel-xlsx`, `crates/oel-pptx`, `crates/oel-opc`, `crates/oel-chart`, `crates/oel-img` (WASM builds → `packages/wasm/`) | File formats (lossless), calc (IronCalc), image ops | Touch DOM, hold editor state, know about UI |
 | Engine contract | `packages/engine` | `FileKind`, `Preview`, `ImportResult`, payload formats, `EngineRegistry`, `EngineHost`, WASM adapters | Import React or editors |
-| Shared UI/infra | `packages/emboss` (kit), `packages/desk` (canvas), `packages/collab-client`, `packages/fonts` (fonts of opened files) | Kit components/tokens, desk scene, sync/links/versions | Know file types (desk, emboss) |
+| Shared UI/infra | `packages/emboss` (kit), `packages/desk` (canvas), `packages/collab-client`, `packages/fonts` (fonts of opened files), `packages/img` (image engine host + recipes; must stay React-free — import `@oel/collab-client/local`, not its index) | Kit components/tokens, desk scene, sync/links/versions | Know file types (desk, emboss) |
 | Editors | `packages/docs`, `packages/sheets`, `packages/slides`, `packages/forms` | `model/` (pure, Yjs), `ui/` (React), collab session | Import Bureau or `apps/*` |
 | Product | `apps/web/src/bureau`, pages in `apps/web/src/pages` | Desk papers, kind glue, levels (Bureau → sur place → plein écran) | Contain file-format logic |
 | Server | `apps/collab` | Yjs sync, share tokens, versions, media, exports, (forms/accounts next) | Be required for local-only editing |

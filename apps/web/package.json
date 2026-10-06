@@ -18,6 +18,7 @@
     "@oel/emboss": "*",
     "@oel/engine": "*",
     "@oel/forms": "*",
+    "@oel/img": "*",
     "@oel/links": "*",
     "@oel/sheets": "*",
     "@oel/slides": "*",

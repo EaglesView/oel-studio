@@ -79,6 +79,7 @@ oel-studio/
     engine/ emboss/ desk/ collab-client/ docs/ sheets/ slides/ forms/
     charts/                  @oel/charts: ChartSpec → scene of marks → SVG / Canvas (every Office chart type)
     links/                   @oel/links: linked copies between files — LinkDef in the target Y.Doc, backlinks in the source, states, cycles, desk threads
+    img/                     @oel/img: image engine host — oel-img (wgpu) in a worker on an OffscreenCanvas, WebGPU → WebGL2 → CPU; recipes, originals by hash
     platform/                NEW: platform seam (web impl now, tauri impl later)
   apps/
     web/  collab/

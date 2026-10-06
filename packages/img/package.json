@@ -1,0 +1,20 @@
+{
+  "name": "@oel/img",
+  "version": "0.1.0",
+  "description": "Image engine host: oel-img (wgpu) in a worker on an OffscreenCanvas, WebGPU → WebGL2 → CPU fallback, recipes (oel-img-recipe@1) and image originals by content hash.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker/image.worker.ts"
+  },
+  "dependencies": {
+    "@oel/collab-client": "*",
+    "@oel/engine": "*",
+    "@oel/links": "*",
+    "oelimg-wasm": "file:../wasm/oel-img/web"
+  },
+  "devDependencies": {
+    "oelimg-node": "file:../wasm/oel-img/node"
+  }
+}
