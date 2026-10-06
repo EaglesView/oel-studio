@@ -58,17 +58,32 @@ export function pictureOf(ydoc: Y.Doc, oid: string): PictureAttrs | null {
   return { path: el.getAttribute('path') as string, cx: Number(el.getAttribute('cx')), cy: Number(el.getAttribute('cy')), alt: (el.getAttribute('alt') as string) ?? '' };
 }
 
+/** The copy's own retouch (plan L-8), or null. */
+export function pictureRecipe(ydoc: Y.Doc, oid: string): Record<string, unknown> | null {
+  const r = findPicture(ydoc, oid)?.getAttribute('recipe') as unknown;
+  return r && typeof r === 'object' ? (r as Record<string, unknown>) : null;
+}
+
 /**
  * Point a linked picture at new bytes. The copy keeps its width (its own
- * size is local, Figma I1) and takes the new picture's proportions.
+ * size is local, Figma I1) and takes the new picture's proportions. With
+ * `retouch`, `path` is the copy's own retouch rendered over the source's
+ * pixels (`retouch.orig`), and the copy stays retouchable.
  */
-export function setPicture(ydoc: Y.Doc, oid: string, path: string, aspect: number, origin: unknown): boolean {
+export function setPicture(ydoc: Y.Doc, oid: string, path: string, aspect: number, origin: unknown, retouch?: { orig: string; recipe: Record<string, unknown> }): boolean {
   const el = findPicture(ydoc, oid);
   if (!el) return false;
   const cx = Number(el.getAttribute('cx')) || 0;
   ydoc.transact(() => {
     el.setAttribute('path', path);
     el.setAttribute('src', `media:${path}`);
+    if (retouch) {
+      el.setAttribute('orig', retouch.orig);
+      el.setAttribute('recipe', retouch.recipe as unknown as string);
+    } else {
+      el.removeAttribute('orig');
+      el.removeAttribute('recipe');
+    }
     // The original run no longer matches: the writer builds the picture again.
     el.removeAttribute('xml');
     el.removeAttribute('rid');

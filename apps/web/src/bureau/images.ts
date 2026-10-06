@@ -94,6 +94,53 @@ let engine: Promise<ImageEngine> | null = null;
 let engineSource: string | null = null;
 const renderEngine = () => (engine ??= ImageEngine.create({ createWorker: createImageWorker, canvas: document.createElement('canvas') }));
 
+/** The background engine, one job at a time (desk pictures, link copies, gallery exports). */
+let engineLock: Promise<unknown> = Promise.resolve();
+function withEngine<T>(fn: (e: ImageEngine) => Promise<T>): Promise<T> {
+  const run = engineLock.then(async () => fn(await renderEngine()));
+  engineLock = run.catch(() => {});
+  return run;
+}
+
+/** Longest side of the pixels a link carries (a picture in a document or a slide). */
+const LINK_LONG = 2400;
+
+/**
+ * `blob` rendered with `recipe`, as a file: what a linked copy shows (L-8: an image's look, or
+ * a copy's own retouch over its source). PNG and WebP stay PNG, anything else becomes JPEG.
+ */
+export function renderWithRecipe(blob: Blob, recipe: Recipe, maxLong = LINK_LONG): Promise<Blob> {
+  return withEngine(async (e) => {
+    await e.setSource(blob);
+    engineSource = null;
+    e.setRecipe(recipe);
+    const png = blob.type === 'image/png' || blob.type === 'image/webp';
+    return e.export({ mime: png ? 'image/png' : 'image/jpeg', quality: 0.92, maxLong });
+  });
+}
+
+/**
+ * The pixels an image paper's linked copies show (L-8): its original, or its rendering when it
+ * is retouched (its own settings over its gallery's style). `key` changes with either.
+ */
+export async function linkPictureOf(store: Bureau, id: string): Promise<{ key: string; blob: Blob } | null> {
+  const p = store.node(id) as Paper | undefined;
+  const key = linkPictureKey(store, id);
+  if (!p || key == null) return null;
+  const r = effectiveRecipe(store, id);
+  const blob = await originalOf(p);
+  if (!blob) return null;
+  return { key, blob: isEmptyRecipe(r) ? blob : await renderWithRecipe(blob, r) };
+}
+
+/** The key `linkPictureOf` would give now, without rendering (to notice changes). */
+export function linkPictureKey(store: Bureau, id: string): string | null {
+  const p = store.node(id) as Paper | undefined;
+  if (!p || p.kind !== 'image') return null;
+  const r = effectiveRecipe(store, id);
+  return `${p.data.image?.original ?? p.data.imageUrl ?? ''}\n${isEmptyRecipe(r) ? '' : JSON.stringify(r)}`;
+}
+
 const queue = new Set<string>();
 let running = false;
 
@@ -121,13 +168,15 @@ async function renderOne(store: Bureau, id: string) {
   if (!isEmptyRecipe(r)) {
     const blob = await originalOf(p);
     if (!blob) return;
-    const e = await renderEngine();
     const key = p.data.image?.original ?? p.data.imageUrl ?? id;
-    if (engineSource !== key) {
-      await e.setSource(blob);
-      engineSource = key;
-    }
-    rendered = await rasterUrl(await e.raster(640, r));
+    const raster = await withEngine(async (e) => {
+      if (engineSource !== key) {
+        await e.setSource(blob);
+        engineSource = key;
+      }
+      return e.raster(640, r);
+    });
+    rendered = await rasterUrl(raster);
   }
   const cur = store.node(id) as Paper | undefined;
   if (!cur) return;
@@ -203,7 +252,6 @@ export function bindImages(store: Bureau): () => void {
 export async function exportGallery(store: Bureau, galleryId: string, o: ExportOptions, ext: string) {
   const g = store.node(galleryId) as Paper | undefined;
   if (!g) return;
-  const e = await renderEngine();
   const files: Array<{ name: string; data: Uint8Array }> = [];
   const names = new Set<string>();
   for (const k of store.childrenOf(galleryId)) {
@@ -211,10 +259,12 @@ export async function exportGallery(store: Bureau, galleryId: string, o: ExportO
     const p = k as Paper;
     const blob = await originalOf(p);
     if (!blob) continue;
-    await e.setSource(blob);
-    engineSource = p.data.image?.original ?? p.data.imageUrl ?? p.id;
-    e.setRecipe(effectiveRecipe(store, p.id));
-    const out = await e.export(o);
+    const out = await withEngine(async (e) => {
+      await e.setSource(blob);
+      engineSource = p.data.image?.original ?? p.data.imageUrl ?? p.id;
+      e.setRecipe(effectiveRecipe(store, p.id));
+      return e.export(o);
+    });
     const base = (p.data.fileName ?? p.title).replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]+/g, '-') || 'image';
     let name = `${base}.${ext}`;
     for (let i = 2; names.has(name); i++) name = `${base} (${i}).${ext}`;

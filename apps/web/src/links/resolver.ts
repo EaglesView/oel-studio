@@ -327,7 +327,7 @@ export class LinkResolver implements LinkHost {
     if (t.adapter.prepare) {
       this.applying.add(l.id);
       try {
-        if (!(await t.adapter.prepare(value))) return;
+        if (!(await t.adapter.prepare(value, oid))) return;
       } finally {
         this.applying.delete(l.id);
       }

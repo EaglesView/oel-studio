@@ -2,7 +2,8 @@
 import type { ChartSpec } from '@oel/charts';
 import { pictureBytes, type LinkedValue } from '@oel/links';
 import { linkedTableContent, type SlideSession } from '@oel/slides';
-import { linkMedia, preparePicture, type LinkTarget } from '../kinds';
+import { renderWithRecipe } from '../../bureau/images';
+import { linkMedia, preparePicture, prepareLocalRetouch, type LocalRetouch, type LinkTarget } from '../kinds';
 
 export function slidesTarget(s: SlideSession): LinkTarget {
   const sd = s.slides;
@@ -11,6 +12,8 @@ export function slidesTarget(s: SlideSession): LinkTarget {
     const id = slideOf(objectId);
     return id ? sd.slide(id)!.elements.find((e) => e.id === objectId) : undefined;
   };
+  /** Copies' own retouches rendered over the incoming pixels, waiting for `write`. */
+  const retouched = new Map<string, LocalRetouch>();
   return {
     kind: 'slides',
     ydoc: s.ydoc,
@@ -19,7 +22,13 @@ export function slidesTarget(s: SlideSession): LinkTarget {
       const chart = element(objectId)?.chart;
       return chart ? { kind: 'chart', spec: chart } : null;
     },
-    prepare: (value) => preparePicture(s.ydoc, value, (blob) => s.addPicture(blob), pictureBytes),
+    async prepare(value, objectId) {
+      if (!(await preparePicture(s.ydoc, value, (blob) => s.addPicture(blob), pictureBytes))) return false;
+      const local = await prepareLocalRetouch(s.ydoc, value, element(objectId)?.image?.recipe, (blob) => s.addPicture(blob), pictureBytes, renderWithRecipe).catch(() => null);
+      if (local) retouched.set(objectId, local);
+      else retouched.delete(objectId);
+      return true;
+    },
     write(objectId, value, link) {
       const slideId = slideOf(objectId);
       if (!slideId) return false;
@@ -42,9 +51,14 @@ export function slidesTarget(s: SlideSession): LinkTarget {
         const path = linkMedia(s.ydoc).get(value.media.hash);
         const el = element(objectId);
         if (!path || !el) return false;
-        // The copy keeps its frame width (its size is its own) and takes the new picture's proportions.
-        const aspect = value.media.width / Math.max(1, value.media.height);
-        sd.updateElement(slideId, objectId, { image: { ...el.image, media: path, mime: value.media.mime }, cy: Math.round(el.cx / aspect) });
+        // The copy keeps its frame width (its size is its own) and takes the new picture's proportions;
+        // its own retouch (L-8) is made again over the new pixels.
+        const local = retouched.get(objectId);
+        retouched.delete(objectId);
+        const { recipe: _r, orig: _o, svg: _s, ...image } = el.image ?? { media: '', mime: '' };
+        const next = local ? { ...image, media: local.path, mime: local.mime, orig: local.orig, recipe: local.recipe } : { ...image, media: path, mime: value.media.mime };
+        const aspect = local?.aspect ?? value.media.width / Math.max(1, value.media.height);
+        sd.updateElement(slideId, objectId, { image: next, cy: Math.round(el.cx / aspect) });
         return true;
       }
       return false;
