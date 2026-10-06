@@ -14,34 +14,51 @@ export interface EngineState {
 }
 
 export function useImageEngine(host: RefObject<HTMLDivElement | null>, createWorker: () => Worker, original: Blob | null): EngineState & { canvas: RefObject<HTMLCanvasElement | null> } {
-  const [state, setState] = useState<EngineState>({ engine: null, source: null, error: null });
+  const [engine, setEngine] = useState<ImageEngine | null>(null);
+  const [source, setSource] = useState<{ width: number; height: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const canvas = useRef<HTMLCanvasElement | null>(null);
+  const ready = original !== null;
+
+  // One engine per atelier (a worker and its GPU context), created once a picture is known.
   useEffect(() => {
     const el = host.current;
-    if (!el || !original) return;
+    if (!el || !ready) return;
     let alive = true;
-    let engine: ImageEngine | null = null;
+    let made: ImageEngine | null = null;
     const c = document.createElement('canvas');
     c.className = 'atelier__canvas';
     el.append(c);
     canvas.current = c;
     ImageEngine.create({ createWorker, canvas: c })
-      .then(async (e) => {
-        engine = e;
-        if (!alive) return e.dispose();
-        const source = await e.setSource(original);
-        if (alive) setState({ engine: e, source, error: null });
+      .then((e) => {
+        made = e;
+        if (alive) setEngine(e);
+        else e.dispose();
       })
-      .catch((err: Error) => alive && setState({ engine: null, source: null, error: err.message }));
+      .catch((err: Error) => alive && setError(err.message));
     return () => {
       alive = false;
-      engine?.dispose();
+      made?.dispose();
       c.remove();
       canvas.current = null;
-      setState({ engine: null, source: null, error: null });
+      setEngine(null);
+      setSource(null);
     };
-  }, [host, createWorker, original]);
-  return { ...state, canvas };
+  }, [host, createWorker, ready]);
+
+  // Switching pictures (a gallery's filmstrip) keeps the engine and changes its source.
+  useEffect(() => {
+    if (!engine || !original) return;
+    let alive = true;
+    engine
+      .setSource(original)
+      .then((s) => alive && setSource(s))
+      .catch((err: Error) => alive && setError(err.message));
+    return () => void (alive = false);
+  }, [engine, original]);
+
+  return { engine, source, error, canvas };
 }
 
 /** CSS box of the canvas: the output's shape, as large as the stage allows. */

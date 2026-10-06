@@ -298,3 +298,73 @@
 }
 .atelier-export__title { margin: 0; font: 600 16px/20px var(--font-sans); }
 .atelier-export__actions { display: flex; justify-content: flex-end; gap: var(--spacing-2); }
+
+/* Gallery (Figma L2) */
+.atelier__chip {
+  padding: 2px var(--spacing-2);
+  border-radius: var(--radius-lg);
+  background: var(--emboss-accent-soft);
+  color: var(--emboss-fill-primary);
+  font: 600 11px/16px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.atelier__scope { display: flex; flex-direction: column; gap: var(--spacing-2); }
+.atelier__tablist--scope .emb-tab { font-size: 13px; }
+.atelier__stage--gallery { padding-bottom: 120px; }
+.atelier__filmstrip {
+  position: absolute;
+  left: var(--spacing-6);
+  bottom: var(--spacing-4);
+  max-width: calc(100% - 2 * var(--spacing-6));
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-5);
+  overflow-x: auto;
+  border-radius: var(--radius-2xl);
+  background: var(--emboss-sheet);
+  box-shadow: var(--shadow-raised-soft);
+}
+.atelier__film {
+  position: relative;
+  flex: none;
+  width: 128px;
+  height: 88px;
+  padding: 3px;
+  border: 3px solid transparent;
+  border-radius: var(--radius-lg);
+  background: none;
+  cursor: pointer;
+}
+.atelier__film img,
+.atelier__film-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+.atelier__film-empty {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--emboss-well);
+  color: var(--emboss-ink-muted);
+  font: 500 11px/14px var(--font-sans);
+}
+.atelier__film.is-picked { border-color: var(--emboss-accent-soft); }
+.atelier__film.is-current { border-color: var(--emboss-fill-primary); }
+.atelier__film:focus-visible { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
+.atelier__film-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--emboss-warning);
+  box-shadow: 0 0 0 2px var(--emboss-sheet);
+}
+.atelier__filmstrip .atelier-hint { white-space: nowrap; }

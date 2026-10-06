@@ -1,1 +1,1 @@
-export { Atelier, type AtelierProps } from './Atelier';
+export { Atelier, type AtelierGallery, type AtelierImage, type AtelierProps } from './Atelier';

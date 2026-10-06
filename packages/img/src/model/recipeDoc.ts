@@ -35,12 +35,22 @@ export class RecipeDoc {
     this.undo = new Y.UndoManager(map, { captureTimeout: 400 });
   }
 
-  /** A recipe in its own Y.Doc (until the desk itself lives in Yjs). */
+  /** A recipe in its own Y.Doc. */
   static create(initial: Recipe = {}): RecipeDoc {
-    const doc = new RecipeDoc(new Y.Doc().getMap('recipe'));
-    doc.map.doc!.transact(() => {
-      for (const [k, v] of Object.entries(flattenRecipe(initial))) doc.map.set(k, v);
-    });
+    return RecipeDoc.inDoc(new Y.Doc(), 'recipe', initial);
+  }
+
+  /**
+   * The recipe stored as map `key` of `ydoc`: recipes edited together (a gallery's style and
+   * its images) share a doc, so one `Y.UndoManager` can cover them all.
+   */
+  static inDoc(ydoc: Y.Doc, key: string, initial: Recipe = {}): RecipeDoc {
+    const doc = new RecipeDoc(ydoc.getMap(key));
+    if (!doc.map.size) {
+      ydoc.transact(() => {
+        for (const [k, v] of Object.entries(flattenRecipe(initial))) doc.map.set(k, v);
+      });
+    }
     doc.undo.clear();
     return doc;
   }

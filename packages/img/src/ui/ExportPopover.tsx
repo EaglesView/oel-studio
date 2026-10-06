@@ -10,7 +10,18 @@ const FORMATS = [
 ] as const;
 
 /** « Exporter » : format, taille, qualité. The full-resolution render runs in the worker. */
-export function ExportPopover({ size, onExport }: { size: { width: number; height: number }; onExport: (o: ExportOptions, ext: string) => Promise<void> }) {
+export function ExportPopover({
+  size,
+  onExport,
+  label = 'Exporter',
+  sizeIsSample = false,
+}: {
+  size: { width: number; height: number };
+  onExport: (o: ExportOptions, ext: string) => Promise<void>;
+  label?: string;
+  /** Several pictures: « Originale » is each one's own size. */
+  sizeIsSample?: boolean;
+}) {
   const [mime, setMime] = useState<string>('image/jpeg');
   const [long, setLong] = useState<string>('original');
   const [quality, setQuality] = useState(90);
@@ -18,13 +29,13 @@ export function ExportPopover({ size, onExport }: { size: { width: number; heigh
   const fmt = FORMATS.find((f) => f.mime === mime)!;
   const full = Math.max(size.width, size.height);
   const sizes = [
-    { id: 'original', label: `Originale (${size.width} × ${size.height})` },
+    { id: 'original', label: sizeIsSample ? 'Originale (chaque image)' : `Originale (${size.width} × ${size.height})` },
     ...[2048, 1280].filter((n) => n < full).map((n) => ({ id: String(n), label: `${n} px (côté long)` })),
   ];
   return (
     <DialogTrigger>
       <EmbButton variant="primary" size="sm" leadingIcon="download">
-        Exporter
+        {label}
       </EmbButton>
       <Popover placement="bottom end">
         <Dialog className="atelier-export" aria-label="Exporter l’image">
