@@ -26,3 +26,35 @@ fn demo_document_round_trips_with_its_logo() {
     assert!(has_image(&b.json["doc"]));
     assert_eq!(a.json["doc"], b.json["doc"]);
 }
+
+/// Plan solo MVP R1: a chart made in the editor (a linked copy: no XML, a spec) reaches the .docx.
+#[test]
+fn editor_made_chart_is_written() {
+    let charts = std::fs::read(format!("{}/../../fixtures/charts/generated-charts.docx", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let spec = {
+        fn first_chart(v: &serde_json::Value) -> Option<serde_json::Value> {
+            if v["type"] == "ooxmlInline" && !v["attrs"]["chart"].is_null() {
+                return Some(v["attrs"]["chart"].clone());
+            }
+            v["content"].as_array()?.iter().find_map(first_chart)
+        }
+        first_chart(&import_docx(&charts).unwrap().json["doc"]).expect("a chart in generated-charts.docx")
+    };
+    let bytes = demo();
+    let mut a = import_docx(&bytes).unwrap();
+    let node = serde_json::json!({ "type": "paragraph", "content": [{ "type": "ooxmlInline", "attrs": {
+        "xml": "", "label": "Graphique", "hidden": false, "field": null, "chart": spec, "cx": 5_400_000, "cy": 3_240_000, "floating": false, "oid": "c1" } }] });
+    a.json["doc"]["content"].as_array_mut().unwrap().push(node);
+    let out = export_docx(&a.json, Some(&bytes), HashMap::new()).unwrap();
+    let b = import_docx(&out).unwrap();
+    contract::check(&b.json).unwrap();
+    let count = |v: &serde_json::Value| -> usize {
+        fn walk(v: &serde_json::Value) -> usize {
+            usize::from(v["type"] == "ooxmlInline" && !v["attrs"]["chart"].is_null()) + v["content"].as_array().map(|c| c.iter().map(walk).sum()).unwrap_or(0)
+        }
+        walk(v)
+    };
+    assert_eq!(count(&b.json["doc"]), 1, "the chart comes back as a chart");
+    let pkg = oel_opc::package::Package::read(&out).unwrap();
+    assert!(pkg.has("word/charts/chart1.xml"));
+}
