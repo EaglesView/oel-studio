@@ -5,6 +5,7 @@ import '@oel/img/styles.css';
 import { createImageWorker } from '../images';
 import type { WorkspaceProps } from '../OpenSheet';
 import { exportDocx, identity, sessionFor } from '../docs';
+import { features } from '../../edition';
 
 /**
  * 01 · Feuille: the Docs-style editor (@oel/docs) on a collaborative,
@@ -40,6 +41,7 @@ export function DocumentWorkspace({ paper, level, onDraft, registerFlush, onPatc
         variant={level === 3 ? 'full' : 'sheet'}
         title={paper.title}
         identity={identity()}
+        collab={features.collab}
         onTitleChange={(title) => onPatch?.({ title })}
         onPreview={(p) => onDraft(p)}
         exportDocx={exportDocx}

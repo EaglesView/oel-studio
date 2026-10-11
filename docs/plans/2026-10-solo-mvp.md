@@ -240,4 +240,14 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   in the README so the old npm package is not mistaken for it.
 
 ## Status
-- Not started.
+- **S-0 done** (11 Oct 2026): branch `release/solo` from `feat/images`. Lockfile for the wasm-pack bump not
+  regenerated yet (stash kept).
+- **S-1 done** (11 Oct 2026): `apps/web/src/edition.ts` (`editionFrom`, `featuresOf`, `features`), typed
+  `PUBLIC_EDITION` / `PUBLIC_COLLAB_URL` in `env.d.ts`; `collabApi` is `null` in `solo`. `DocsEditor`,
+  `SheetsEditor`, `SlidesEditor` take `collab?: boolean` (default `true`): it hides « Partager » (button, menu, dialog),
+  `Peers`, versions (button, menu, Ctrl+Alt+Maj+H) and « Votre nom… »; `SyncStatus` takes `collab` to drop « Partagez-le
+  pour le mettre en ligne ». `MenuEntry.hidden` + `visibleItems` (collab-client) tidy separators and empty submenus.
+  Bureau workspaces and the standalone pages pass `features.collab`. `npm run dev` = web only; `npm run dev:equipe`
+  = web + collab with `PUBLIC_EDITION=equipe` (POSIX shells). Tests: `packages/collab-client/test/edition.test.ts`,
+  `apps/web/test/edition.test.ts`. No render test of a whole editor with `collab={false}` (sessions need IndexedDB,
+  absent in happy-dom); checked by typecheck + both builds instead. So S-5 no longer needs the editors row.

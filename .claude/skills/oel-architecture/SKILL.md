@@ -36,5 +36,6 @@ done — the skills describe the layout *as it is now*).
 - UI copy is French (fr-CA); spreadsheet formulas are English (`,` args, `.` decimal).
 - New icons come from Iconoir (`iconoir-react`), never hand-drawn; use `@oel/emboss` components and `--emboss-*` tokens, never raw colours.
 - Behaviour follows the Figma file `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behaviors" (sections A–F). If code must differ from the spec, say so to the user.
+- Editions: `apps/web/src/edition.ts` (`PUBLIC_EDITION=solo|equipe`, default `solo`) decides whether collaboration, forms and members show. Hide team features behind `features.*` in the app and a prop in packages (`collab={features.collab}`); never delete them, and never read the env var from a package.
 - `apps/web` stays static (`output: 'static'`, editors as `client:only` islands) so a Tauri desktop app can serve it later.
 - Anything a future native app would need to replace (file pickers, downloads, IndexedDB, worker creation, collab URL) should go through one small function, not be called inline in an editor.

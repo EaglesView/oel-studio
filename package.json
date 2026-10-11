@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "predev": "node scripts/build-wasm.mjs --if-stale",
-    "dev": "concurrently -k -n web,collab -c blue,magenta \"npm run dev -w @oel/web\" \"npm run dev -w @oel/collab\"",
+    "dev": "npm run dev -w @oel/web",
+    "predev:equipe": "node scripts/build-wasm.mjs --if-stale",
+    "dev:equipe": "PUBLIC_EDITION=equipe concurrently -k -n web,collab -c blue,magenta \"npm run dev -w @oel/web\" \"npm run dev -w @oel/collab\"",
     "prebuild": "node scripts/build-wasm.mjs --if-stale",
     "build": "npm run build -w @oel/web",
     "preview": "npm run preview -w @oel/web",

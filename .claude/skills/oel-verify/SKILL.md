@@ -26,10 +26,11 @@ A stale `packages/wasm/` is the most common cause of "works in Rust, broken in t
 ```bash
 npm test                         # cargo test --workspace, then vitest: desk, engine, docs (+LibreOffice if soffice exists), sheets, forms, collab
 npm run typecheck                # regenerates contract types (gen:types), then tsc per package; `astro check` cannot run under TypeScript 7 (known gap)
-npm run build                    # static site; catches app-level type errors stripped by tsc runs
+npm run build                    # static site (single-user `solo` edition); catches app-level type errors stripped by tsc runs
+PUBLIC_EDITION=equipe npm run build   # the team edition too, when a change touches collab, forms or members
 ```
 
-## Browser (`npm run dev` → http://localhost:4321, collab on :8787)
+## Browser (`npm run dev` → http://localhost:4321, single-user; `npm run dev:equipe` adds collab on :8787)
 
 Pick the rows your change touches; use the `run` skill or the browser tools to drive it.
 

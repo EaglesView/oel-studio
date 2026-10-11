@@ -6,6 +6,7 @@ import { createImageWorker } from '../images';
 import type { WorkspaceProps } from '../OpenSheet';
 import { identity } from '../docs';
 import { exportSlides, slideSessionFor, takePresent } from '../slides';
+import { features } from '../../edition';
 
 /**
  * 02 · Diapositives (C2): the presentation editor (@oel/slides) on a
@@ -42,6 +43,7 @@ export function SlidesWorkspace({ paper, level, onDraft, registerFlush, onPatch,
         variant={level === 3 ? 'full' : 'sheet'}
         title={paper.title}
         identity={identity()}
+        collab={features.collab}
         onTitleChange={(title) => onPatch?.({ title })}
         onPreview={(p) => onDraft(p)}
         exportFile={exportSlides}

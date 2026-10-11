@@ -7,6 +7,7 @@ import type { WorkspaceProps } from '../OpenSheet';
 import { identity } from '../docs';
 import { createCalcWorker, exportSheet, sheetSessionFor } from '../sheets';
 import { activeLinks } from '../../links/resolver';
+import { features } from '../../edition';
 
 /**
  * 03 · Grille (C3 · Tableur): the spreadsheet editor (@oel/sheets) on a
@@ -41,6 +42,7 @@ export function SheetWorkspace({ paper, level, onDraft, registerFlush, onPatch, 
         variant={level === 3 ? 'full' : 'sheet'}
         title={paper.title}
         identity={identity()}
+        collab={features.collab}
         createCalcWorker={createCalcWorker}
         createImageWorker={createImageWorker}
         onTitleChange={(title) => onPatch?.({ title })}

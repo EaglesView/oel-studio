@@ -7,6 +7,7 @@ import '@oel/img/styles.css';
 import { createImageWorker } from '../bureau/images';
 import { asDeckPayload, type DeckPayload } from '@oel/engine';
 import { collabApi } from '../bureau/docs';
+import { features } from '../edition';
 import { engineHost } from '../bureau/importFiles';
 import { exportSlides } from '../bureau/slides';
 import './document.css';
@@ -72,7 +73,7 @@ export function PresentationPage() {
           const p = r.payload ? asDeckPayload(r.payload) : undefined;
           return p ? { deck: JSON.parse(p.json) as Deck, original: pkg, media: p.media } : null;
         });
-        if (s.status.token) collabApi.info(s.status.docId, s.status.token).then((i) => alive && setTitle(i.title)).catch(() => {});
+        if (s.status.token) collabApi?.info(s.status.docId, s.status.token).then((i) => alive && setTitle(i.title)).catch(() => {});
         if (alive) setSession(s);
       })
       .catch((e: Error) => alive && setError(e.message));
@@ -150,6 +151,7 @@ export function PresentationPage() {
         title={title || 'Présentation'}
         onTitleChange={setTitle}
         identity={identity}
+        collab={features.collab}
         onIdentityChange={setIdentity}
         exportFile={exportSlides}
         onNewPresentation={create}
