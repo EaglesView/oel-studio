@@ -96,3 +96,16 @@ describe('local projects backend', () => {
     await expect(b.setSetting({ scope: 'project', projectId: 'demo' }, 'collab.historyDays', 1)).rejects.toBeInstanceOf(ProjectsError);
   });
 });
+
+describe('single-user edition (plan solo MVP, S-5)', () => {
+  it('has one project, « Mon bureau », and you alone in it, apart from the team demo', async () => {
+    const storage = memoryStorage();
+    const solo = createLocalProjectsBackend({ storage, channel: null, solo: true });
+    expect(await solo.currentProjectId()).toBe('mon-bureau');
+    const projects = await solo.listProjects();
+    expect(projects.map((p) => p.name)).toEqual(['Mon bureau']);
+    expect(projects[0]!.members).toEqual([expect.objectContaining({ id: solo.accountId(), name: 'Vous', role: 'owner' })]);
+    const team = createLocalProjectsBackend({ storage, channel: null });
+    expect((await team.listProjects()).length).toBeGreaterThan(1);
+  });
+});

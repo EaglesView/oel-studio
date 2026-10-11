@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { createLocalProjectsBackend, type ProjectsBackend, type SettingTarget } from './backend';
+import { features } from '../edition';
 import type { Project, ProjectContextValue } from './model';
 import { resolveSetting, type Resolved, type SettingKey, type SettingValue, type SettingValues } from './settings';
 
@@ -10,7 +11,7 @@ let backend: ProjectsBackend | null = null;
  * TODO(backend): swap the local stub for the accounts service (restructure Phase 5, plan N-3).
  */
 export function projectsBackend(): ProjectsBackend {
-  backend ??= createLocalProjectsBackend();
+  backend ??= createLocalProjectsBackend({ solo: !features.projects });
   return backend;
 }
 

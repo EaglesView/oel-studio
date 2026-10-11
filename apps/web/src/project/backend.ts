@@ -27,10 +27,17 @@ export interface LocalProjectsOptions {
   storage?: Pick<Storage, 'getItem' | 'setItem'>;
   /** Other tabs' changes; omit outside the browser. */
   channel?: Pick<BroadcastChannel, 'postMessage' | 'addEventListener' | 'removeEventListener'> | null;
+  /**
+   * Single-user edition (plan solo MVP, S-5): one project, « Mon bureau », whose only member is
+   * « Vous »; kept apart from the team edition's demo project and people.
+   */
+  solo?: boolean;
 }
 
 const KEY = 'oel-projects:v1';
+const SOLO_KEY = 'oel-projects:solo:v1';
 const ME = 'jb';
+const SOLO_ME = 'moi';
 
 /** The demo project the Bureau has always shown (seed papers); « Mon bureau » is the account's own. */
 const DEMO_MEMBERS: Member[] = [
@@ -45,7 +52,9 @@ interface Stored {
   account: Partial<SettingValues>;
 }
 
-function seed(): Stored {
+const SOLO_MEMBER: Member = { id: SOLO_ME, name: 'Vous', initials: 'V', color: 'var(--emboss-fill-primary)', role: 'owner' };
+
+function seed(solo: boolean): Stored {
   const project = (id: string, slug: string, name: string, members: Member[]): Project => ({
     id,
     slug,
@@ -55,6 +64,7 @@ function seed(): Stored {
     settings: {},
     fileSettings: {},
   });
+  if (solo) return { projects: [project('mon-bureau', 'mon-bureau', 'Mon bureau', [SOLO_MEMBER])], current: 'mon-bureau', account: {} };
   return {
     projects: [
       project('demo', 'lancement-automne-2026', 'Lancement automne 2026', DEMO_MEMBERS),
@@ -73,6 +83,9 @@ function seed(): Stored {
  */
 export function createLocalProjectsBackend(opts: LocalProjectsOptions = {}): ProjectsBackend {
   const storage = opts.storage ?? globalThis.localStorage;
+  const solo = !!opts.solo;
+  const key = solo ? SOLO_KEY : KEY;
+  const me = solo ? SOLO_ME : ME;
   const channel = opts.channel === undefined && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('oel-projects') : (opts.channel ?? null);
   const listeners = new Set<() => void>();
   const emit = () => listeners.forEach((l) => l());
@@ -80,26 +93,26 @@ export function createLocalProjectsBackend(opts: LocalProjectsOptions = {}): Pro
 
   const load = (): Stored => {
     try {
-      const raw = storage.getItem(KEY);
+      const raw = storage.getItem(key);
       if (raw) return JSON.parse(raw) as Stored;
     } catch {
       // Corrupt or blocked storage: start again from the seed.
     }
-    const s = seed();
+    const s = seed(solo);
     save(s);
     return s;
   };
   function save(s: Stored) {
     try {
-      storage.setItem(KEY, JSON.stringify(s));
+      storage.setItem(key, JSON.stringify(s));
     } catch {
       // Private window or full storage: keep working for this page.
     }
   }
-  const role = (p: Project): Role | null => p.members.find((m) => m.id === ME)?.role ?? null;
+  const role = (p: Project): Role | null => p.members.find((m) => m.id === me)?.role ?? null;
 
   return {
-    accountId: () => ME,
+    accountId: () => me,
     async listProjects() {
       return load().projects.filter((p) => role(p));
     },
