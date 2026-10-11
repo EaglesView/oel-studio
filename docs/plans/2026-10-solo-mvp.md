@@ -332,3 +332,23 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
     keyboard page reads `bureau/shortcuts.ts`, now the one bilingual list behind the Bureau's « ? » dialog too.
   - `SITE.repo` is null: the « Code source » links appear once the repository URL is set.
   - The Bureau's « Aide » pane links to /docs. Test: `apps/web/test/site.test.ts`.
+  - Captures (11 Oct 2026, by the user): seven 1680 × 1050 PNGs in `public/captures/<id>.png` (one set for both
+    languages); `Capture.astro` reads each file's real size. They still show the Astro dev toolbar in a corner (the user
+    keeps it for now). Phone-sized captures wait for the mobile layout.
+- **S-9 done** (11 Oct 2026):
+  - `LICENSE` (MPL-2.0 text), `license = "MPL-2.0"` in the Cargo workspace (each crate `license.workspace = true`) and
+    `"license": "MPL-2.0"` in every package.json, with the lockfile's workspace entries patched to match (no
+    `npm install`: the user's uncommitted wasm-pack bump stays out). Crate descriptions of `oel-opc` and `oel-img`
+    brought up to date. `repository` left unset until the URL is known (also `SITE.repo` on the site).
+  - `README.md` rewritten for newcomers: pitch and capture, highlights, try it, editions, repository map, Mermaid
+    architecture, the crates, status and next steps, a section for AI agents, contributing and licence. The previous
+    per-package detail moved verbatim to `docs/packages.md` (with a note on editions).
+  - `AGENTS.md` (canonical guide for any agent: commands, where a change goes, rules incl. editions and the saved desk,
+    verify, git, plans); `CLAUDE.md` is now `@AGENTS.md` plus two Claude notes.
+  - `THIRD_PARTY.md` (direct Rust and npm dependencies, fonts, own material), `CONTRIBUTING.md`, `SECURITY.md` (GitHub
+    private vulnerability reporting), `.github/ISSUE_TEMPLATE/{bug,idea}.md`.
+  - Skills: `oel-architecture` (Product and Site layers), `oel-collab-backend` (edition note), `oel-verify` (saved
+    desk and site checks, team-only pages, docs to update).
+  - Still to decide before publishing (R5): fixture provenance (`fixtures/pptx/Presentation *.pptx`,
+    `fixtures/docx/Document 4.docx`, `tesxte.docx`, `fixtures/xlsx/complex_sheet_graph.xlsx`), a secrets scan of the
+    history, the repository URL, and merging the branch chain into `main`.
