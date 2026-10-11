@@ -1,0 +1,34 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import Capture from '../../Capture.astro';
+---
+<DocsLayout lang="fr" id="liens" description="Mettre une copie liée d’un graphique, d’une plage ou d’une image dans une présentation ou un document, et la garder à jour.">
+  <p class="prose__lead">Un graphique, une plage de cellules ou une image peuvent avoir des copies ailleurs sur le bureau. La copie suit sa source ; un fil les relie.</p>
+  <Capture lang="fr" id="links" alt="La diapo 3 montre le graphique du tableur ; un fil violet les relie sur le bureau." />
+
+  <h2 id="lier">Lier dans…</h2>
+  <ul>
+    <li><strong>Un graphique</strong> : ouvrez le tableur, sélectionnez le graphique, « Lier dans… ».</li>
+    <li><strong>Une plage</strong> : sélectionnez les cellules, « Lier dans… » ; la copie est un vrai tableau.</li>
+    <li><strong>Une image</strong> : sélectionnez-la sur le bureau, « Lier dans… ».</li>
+  </ul>
+  <p>Choisissez ensuite la présentation (nouvelle diapo ou dernière diapo) ou le document (au début ou à la fin). La copie arrive aussitôt et un fil apparaît sur le bureau.</p>
+
+  <h2 id="etats">Les états d’un fil</h2>
+  <table>
+    <thead><tr><th>Fil</th><th>Ce qu’il veut dire</th></tr></thead>
+    <tbody>
+      <tr><td>Violet, pointillé</td><td><strong>À jour</strong> : la copie montre la source (mode « En direct », par défaut). Après un changement, la copie suit en moins d’une seconde.</td></tr>
+      <tr><td>Ambre</td><td><strong>En retard</strong> : en mode « Manuel », la source a changé ; « Mettre à jour » quand vous voulez.</td></tr>
+      <tr><td>Gris, pointillé serré</td><td><strong>Figé</strong> : une photo prise à une date ; la copie ne change plus.</td></tr>
+      <tr><td>Rouge, interrompu</td><td><strong>Rompu</strong> : la source a été supprimée ; la copie garde sa dernière valeur.</td></tr>
+    </tbody>
+  </table>
+  <p>Cliquez sur l’étiquette d’un fil (ou <kbd>Tab</kbd> jusqu’à elle, puis <kbd>Entrée</kbd>) : le mode, ce que la copie transporte, « Mettre à jour », ouvrir la source ou la copie, couper le lien. « Fils du bureau » (<kbd>Ctrl</kbd> <kbd>Maj</kbd> <kbd>L</kbd>) les liste tous.</p>
+
+  <h2 id="modifier">Modifier une copie</h2>
+  <p>Une copie garde sa taille et sa place. Ses changements de style (un tableau restylé, une image retouchée à part) restent sur la copie et sont listés dans le lien ; « Appliquer à la source » les reporte sur l’original. Les valeurs, elles, viennent toujours de la source : pour changer un chiffre, on change le tableur.</p>
+
+  <h2 id="exporter">À l’exportation</h2>
+  <p>Un document ou une présentation téléchargés contiennent leurs copies comme des graphiques, tableaux et images ordinaires, à leur dernière valeur. Le lien lui-même reste sur le bureau.</p>
+</DocsLayout>

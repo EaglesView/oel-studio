@@ -316,3 +316,19 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
     (`convertToEditable`, `onConvert` props) and the stand-in PDF pages; PDF tools are unavailable with a reason.
   - R3: first-run hint above the bottom bar (`FirstRunHint`, localStorage `oel-first-run-hint`).
   - R4: done in S-2 (storage used in « Ce bureau »).
+- **S-8 done** (11 Oct 2026), checked with headless Firefox screenshots (home fr desktop, en phone width, a docs page):
+  - i18n: Astro `i18n` (fr default, `/en`), `src/site/i18n.ts` (typed strings: `en` must match `fr`, `DOCS` list with
+    per-language slugs, `href` / `docHref` / `alternatePath`), `hreflang` links, `Base.astro` takes `lang`.
+  - Home (`src/site/Home.astro` + `home.ts`): Figma D2 bands — violet hero, documents (night), spreadsheets (paper),
+    charts (violet), presentations (night), images (paper), linked copies (sheet), « Et tout ce qui va avec » tiles,
+    open-source band with the six crates, FAQ, violet call to action, footer. Left out for the single-user release:
+    forms band, « Se connecter », the « Ensemble » tile; copy answers the brief's open items (no account, files on this
+    device, intact formats, MPL-2.0, Office names descriptive only).
+  - Captures: `src/site/captures.ts` lists the seven screenshots to take of the demo Bureau (2400 × 1500, light theme)
+    and where to put them (`public/captures/<lang>/<id>.webp`); until then `Capture.astro` draws a plain placeholder
+    (« Capture à venir »). **The user takes the captures** (no browser driving here).
+  - Docs (`/docs`, `/en/docs`): six pages per language from the Figma « Editor — Behaviors » sections (A levels, B/K/L/M
+    desk, F/H/L/J editors, G/I links, B3 keyboard, formats/limits), `DocsLayout.astro` (pages list, prev/next). The
+    keyboard page reads `bureau/shortcuts.ts`, now the one bilingual list behind the Bureau's « ? » dialog too.
+  - `SITE.repo` is null: the « Code source » links appear once the repository URL is set.
+  - The Bureau's « Aide » pane links to /docs. Test: `apps/web/test/site.test.ts`.

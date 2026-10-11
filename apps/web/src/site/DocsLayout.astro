@@ -1,0 +1,40 @@
+---
+/** A docs page: the pages list, the article, previous / next. */
+import SiteLayout from './SiteLayout.astro';
+import { DOCS, UI, docHref, type DocId, type Lang } from './i18n';
+
+interface Props {
+  lang: Lang;
+  id: DocId;
+  /** One sentence for search results and link previews. */
+  description: string;
+}
+const { lang, id, description } = Astro.props;
+const t = UI[lang];
+const i = DOCS.findIndex((d) => d.id === id);
+const prev = DOCS[i - 1];
+const next = DOCS[i + 1];
+const title = DOCS[i]![lang].title;
+---
+<SiteLayout lang={lang} title={`${title} · ${t.docsTitle} · Bureau`} description={description} docId={id}>
+  <div class="docs">
+    <nav class="docs__nav" aria-label={t.docsNav}>
+      <h2>{t.docsTitle}</h2>
+      <ol>
+        {DOCS.map((d) => (
+          <li><a href={docHref(lang, d.id)} aria-current={d.id === id ? 'page' : undefined}>{d[lang].title}</a></li>
+        ))}
+      </ol>
+    </nav>
+    <div>
+      <article class="prose">
+        <h1>{title}</h1>
+        <slot />
+      </article>
+      <nav class="docs__pager" aria-label={lang === 'fr' ? 'Pages voisines' : 'Neighbouring pages'}>
+        {prev && <a href={docHref(lang, prev.id)} rel="prev"><small>{t.prev}</small>{prev[lang].title}</a>}
+        {next && <a href={docHref(lang, next.id)} rel="next"><small>{t.next}</small>{next[lang].title}</a>}
+      </nav>
+    </div>
+  </div>
+</SiteLayout>

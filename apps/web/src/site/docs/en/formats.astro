@@ -1,0 +1,28 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+---
+<DocsLayout lang="en" id="formats" description="Where the Bureau keeps your files, what it keeps of Office formats, and what it can’t do yet.">
+  <p class="prose__lead">Your files stay in your browser. What you don’t change stays as it was in the file.</p>
+
+  <h2 id="where">Where your files are</h2>
+  <p>The desk, its files, their pictures and thumbnails are saved in this browser, on this device (IndexedDB), as you work. Nothing is sent to a server: the Bureau works without an account.</p>
+  <p class="note">Clearing the site’s data (or closing a private window) also clears the desk. To keep a copy: menu, “Ouvrir et importer”, “Exporter le bureau (.zip)”. “Importer un bureau” brings it back exactly as it was, on this device or another.</p>
+  <p>The menu’s “Ce bureau” section shows the space used; the browser may ask whether to keep the site’s data for good.</p>
+
+  <h2 id="lossless">Your formats, intact</h2>
+  <p>The engines that read and write .docx, .xlsx and .pptx are written in Rust and run in your browser as WebAssembly. They are lossless:</p>
+  <ul>
+    <li>what you don’t change is written back as it was in the file (package parts, styles, themes, unchanged charts);</li>
+    <li>what the Bureau can’t edit yet is kept and written back: Word fields, bookmarks, PowerPoint animations and transitions, SmartArt, newer charts (waterfall, histogram…);</li>
+    <li>what you change is written in the original format, for Word, Excel, PowerPoint and LibreOffice.</li>
+  </ul>
+
+  <h2 id="limits">What doesn’t work yet</h2>
+  <ul>
+    <li><strong>PDF</strong>: a PDF sits on the desk with its page count; viewing, annotating, signing and converting it to a document come with the PDF engine.</li>
+    <li><strong>Documents</strong>: footnotes are all shown at the end of the document; printing to PDF goes through the browser, without headers and footers; floating pictures are shown in the text (their position is kept on export); a file’s tracked changes are accepted when it opens.</li>
+    <li><strong>Presentations</strong>: animations, transitions, SmartArt, group contents and table structure are kept but not editable yet.</li>
+    <li><strong>Fonts</strong>: a font missing from the device is replaced on screen only; the file keeps its own.</li>
+    <li><strong>Working together</strong>: this version is for one person. Sharing, live presence, version history and forms come with the team edition.</li>
+  </ul>
+</DocsLayout>

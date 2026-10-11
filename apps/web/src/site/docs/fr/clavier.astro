@@ -1,0 +1,33 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import { shortcutGroups } from '../../../bureau/shortcuts';
+const groups = shortcutGroups('fr');
+---
+<DocsLayout lang="fr" id="clavier" description="Tous les raccourcis clavier du Bureau, et ce qui le rend utilisable sans souris et avec un lecteur d’écran.">
+  <p class="prose__lead">Tout ce que fait la souris se fait aussi au clavier. Dans le Bureau, <kbd>?</kbd> affiche cette liste.</p>
+
+  {groups.map((g) => (
+    <section>
+      <h2>{g.title}</h2>
+      <table>
+        <tbody>
+          {g.rows.map((r) => (
+            <tr>
+              <th scope="row">{r.keys.map((k) => <kbd>{k}</kbd>)}</th>
+              <td>{r.what}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  ))}
+
+  <h2 id="accessibilite">Accessibilité</h2>
+  <ul>
+    <li>Le bureau est une liste d’éléments que l’on parcourt aux flèches ; chaque papier s’annonce avec son titre, son type et son état. Les déplacements, la sélection, le zoom et l’annulation sont annoncés.</li>
+    <li>« Vue liste » montre les mêmes fichiers dans une liste ordinaire, avec la même sélection.</li>
+    <li>Chaque outil dit son nom, son raccourci et ce qu’il fait ; un outil indisponible reste atteignable et dit pourquoi.</li>
+    <li>Les contours de sélection et de focus restent visibles en mode contraste élevé ; « réduire les animations » du système coupe les animations.</li>
+    <li>Thème clair ou sombre : menu, « Affichage », ou celui du système.</li>
+  </ul>
+</DocsLayout>

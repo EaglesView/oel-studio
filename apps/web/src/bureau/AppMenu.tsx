@@ -281,6 +281,12 @@ function Pane(props: AppMenuProps) {
               Touche <kbd>?</kbd> : tous les raccourcis clavier. Touche <kbd>N</kbd> : une note. <kbd>Alt</kbd> + <kbd>N</kbd> : un
               nouveau fichier.
             </p>
+            <p>
+              <a href="/docs" target="_blank" rel="noopener">
+                Documentation du Bureau
+              </a>{' '}
+              (nouvel onglet) : le bureau, les éditeurs, les fils de liaison, les formats.
+            </p>
             {import.meta.env.DEV && (
               <p>
                 <a href="/composants">Composants du kit</a> (en développement seulement)
