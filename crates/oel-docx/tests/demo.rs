@@ -18,7 +18,8 @@ fn demo_document_round_trips_with_its_logo() {
     let a = import_docx(&bytes).unwrap();
     contract::check(&a.json).unwrap();
     assert!(has_image(&a.json["doc"]), "the logo is an inline picture");
-    assert!(!a.media.is_empty());
+    // `apps/web/src/bureau/demo.ts` (DOC_LOGO) links the desk's logo into this picture by its path.
+    assert!(a.media.iter().any(|m| m.path == "word/media/image1.png"), "the logo is word/media/image1.png");
     let out = export_docx(&a.json, Some(&bytes), HashMap::new()).unwrap();
     let b = import_docx(&out).unwrap();
     contract::check(&b.json).unwrap();

@@ -278,3 +278,11 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   deck still has a chart). The document ends with a closing paragraph (Word never ends a body on a table; the codec
   adds one otherwise). Rendered with LibreOffice and checked by eye. Tests: `crates/oel-{xlsx,pptx,docx}/tests/demo.rs`,
   desk preview in `packages/engine/test/engine.test.ts`.
+- **S-4 done** (11 Oct 2026), not yet checked in the browser: `bureau/demo.ts` replaces `seed.ts` (B1 sample papers)
+  and `seedFixtures.ts`. A new desk holds the workbook, the deck, the logo image and the document, imported for real,
+  plus a note stuck to the workbook; then two live links are made: « Résultats »'s chart → slide 3 in place of the
+  deck's chart « Graphique du tableur », and the logo image → the document's own picture (`word/media/image1.png`).
+  New placements `{ kind: 'slides', where: 'replace', name }` (charts) and `{ kind: 'document', where: 'replace',
+  path }` (pictures; `adoptPicture` in `@oel/docs` gives the file's picture an `oid`); other combinations say they
+  aren't supported yet. `DEMO_VERSION` = 1 is written on the desk. No gallery on the demo desk (would crowd it). A
+  desk saved before S-4 keeps its old papers: « Réinitialiser la démo » gives the new one.

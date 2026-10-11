@@ -220,7 +220,7 @@ Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock �
 | Tooltip, Popover, Dialog, Toast | `Tooltip`/`WithTooltip`, `Popover`, `SheetDialog`+`DialogOverlay`, `ToastRegion`/`toast()` |
 | Badge (Stamp/Tinted), Card, Sidebar/Nav Item, Pagination | same names |
 | Date Picker | not ported yet |
-| B1 desk (papers, pills, dock, minimap, cursors) | `apps/web/src/bureau/*` (`seed.ts` reproduces B1) |
+| B1 desk (papers, pills, dock, minimap, cursors) | `apps/web/src/bureau/*` (a new desk holds the demo: `bureau/demo.ts`, files in `fixtures/demo`) |
 
 ## Known gaps
 

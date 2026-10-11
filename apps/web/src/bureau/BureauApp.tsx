@@ -20,13 +20,12 @@ import { KIND_TAB, RESIZE_MODE, blankPaper, describePaper, kindLabel, type Burea
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper, type NoteEditing } from './Paper';
 import { migrateNote, startsNoteText } from './notes';
-import { SEED_PAPERS } from './seed';
+import { demoPapers, seedDemo } from './demo';
 import { LinkResolver, setActiveLinks } from '../links/resolver';
 import { LinksUI } from '../links/LinksUI';
 import { THREAD_PREFIX } from '@oel/links';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { convertToEditable, importFiles } from './importFiles';
-import { seedFixtures } from './seedFixtures';
 import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
@@ -79,7 +78,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const project = useProject();
   const store = useMemo<Bureau>(() => {
     const desk = createDesk<PaperData>({
-      nodes: (saved.content?.papers ?? (saved.seed === 'demo' ? SEED_PAPERS : [])).map(migrateNote),
+      nodes: (saved.content?.papers ?? (saved.seed === 'demo' ? demoPapers() : [])).map(migrateNote),
       links: saved.content?.links ?? [],
       viewport: saved.content?.viewport ?? { x: 0, y: 40, zoom: 0.9 },
       zoom: { min: MAX_ZOOM_OUT, max: 4 },
@@ -249,10 +248,10 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const openId = useDeskState(store, (s) => s.openId);
   const openPaper = useDeskState(store, (s) => (s.openId ? (s.nodes[s.openId] as PaperNode | undefined) : undefined));
 
-  // TEMPORARY: real fixture files in place of two sample papers (see seedFixtures.ts), on a new desk only.
+  // A new desk gets the demo: its files imported for real, then linked (demo.ts).
   useEffect(() => {
-    if (!saved.content && saved.seed === 'demo') seedFixtures(store);
-  }, [store, saved]);
+    if (!saved.content && saved.seed === 'demo') void seedDemo(store, links);
+  }, [store, saved, links]);
 
   // Fit a new desk once the canvas knows its size (a saved one comes back where it was left).
   useEffect(() => {

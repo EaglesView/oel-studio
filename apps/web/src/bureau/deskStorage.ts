@@ -13,6 +13,7 @@ import type { Paper } from './model';
 import { deskDbName, initDesk, readDesk, takeTrash, trashOf, type DeskContent } from './persist';
 import { DOC_KIND, deleteFiles } from './restore';
 import { packBackup, readBackup, type BackupParts } from './backup';
+import { DEMO_VERSION } from './demo';
 
 /** What the desk starts with when it is new: the demo (first visit, reset) or nothing (« Vider »). */
 export type Seed = 'demo' | 'none';
@@ -76,7 +77,7 @@ export async function openDesk(projectId: string): Promise<OpenedDesk> {
   }
   const device = await openDeviceDoc(deskDbName(projectId));
   const content = readDesk(device.doc);
-  if (!content) initDesk(device.doc, { demoVersion: seed === 'demo' ? 1 : null });
+  if (!content) initDesk(device.doc, { demoVersion: seed === 'demo' ? DEMO_VERSION : null });
   else void deleteFiles(takeTrash(device.doc));
   return { device, content, seed };
 }
