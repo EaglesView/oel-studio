@@ -11,10 +11,10 @@ interface Props {
   eager?: boolean;
 }
 const { lang, id, alt, eager = false } = Astro.props;
-const src = findCapture(lang, id);
+const found = findCapture(lang, id);
 ---
-{src ? (
-  <img class="capture" src={src} alt={alt} width="2400" height="1500" loading={eager ? 'eager' : 'lazy'} decoding="async" />
+{found ? (
+  <img class="capture" src={found.src} alt={alt} width={found.width} height={found.height} loading={eager ? 'eager' : 'lazy'} decoding="async" />
 ) : (
   <div class="capture capture--pending" role="img" aria-label={alt}>
     <span class="capture__paper capture__paper--a" />

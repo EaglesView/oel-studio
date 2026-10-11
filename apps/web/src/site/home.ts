@@ -75,7 +75,7 @@ const fr: HomeContent = {
       title: ['Présentez,', 'directement du navigateur.'],
       lead: 'Dispositions, formes, images, notes de l’orateur, vue présentateur dans une deuxième fenêtre — et le .pptx revient tel quel.',
       more: { doc: 'editeurs', hash: 'presentations' },
-      capture: { id: 'slides', alt: 'Une présentation ouverte : la pellicule à gauche, la diapo au centre.' },
+      capture: { id: 'slides', alt: 'La vue présentateur : la diapo en cours, la suivante, les notes de l’orateur et le temps écoulé.' },
     },
     {
       id: 'images',
@@ -84,7 +84,7 @@ const fr: HomeContent = {
       title: ['Simple pour tous.', 'Avancé quand il le faut.'],
       lead: 'Recadrez, redressez, retouchez. Chaque copie liée suit la retouche, partout.',
       more: { doc: 'editeurs', hash: 'images' },
-      capture: { id: 'image', alt: 'L’atelier d’image : styles, lumière et couleur à droite de la photo.' },
+      capture: { id: 'image', alt: 'L’atelier d’image en mode avancé : température, exposition, contraste et courbes à droite de l’image.' },
     },
     {
       id: 'liens',
@@ -93,7 +93,7 @@ const fr: HomeContent = {
       title: ['Liez un graphique.', 'Il suit le tableur.'],
       lead: 'Un graphique, une plage, une image : mettez-les dans une présentation ou un document, ils restent à jour. Sur le bureau, un fil relie la source à ses copies.',
       more: { doc: 'liens' },
-      capture: { id: 'links', alt: 'La diapo 3 montre le graphique du tableur ; un fil violet les relie sur le bureau.' },
+      capture: { id: 'links', alt: 'La diapo 3 montre le graphique du tableur, marqué « Lié · Chronos — tours de piste · À jour ».' },
     },
   ],
   extras: {
@@ -184,7 +184,7 @@ const en: HomeContent = {
       title: ['Present,', 'straight from the browser.'],
       lead: 'Layouts, shapes, pictures, speaker notes, a presenter view in a second window — and the .pptx comes back as it was.',
       more: { doc: 'editeurs', hash: 'presentations' },
-      capture: { id: 'slides', alt: 'A presentation open: the filmstrip on the left, the slide in the middle.' },
+      capture: { id: 'slides', alt: 'The presenter view: the current slide, the next one, speaker notes and elapsed time.' },
     },
     {
       id: 'images',
@@ -193,7 +193,7 @@ const en: HomeContent = {
       title: ['Simple for everyone.', 'Advanced when you need it.'],
       lead: 'Crop, straighten, retouch. Every linked copy follows the retouch, everywhere.',
       more: { doc: 'editeurs', hash: 'images' },
-      capture: { id: 'image', alt: 'The image workshop: styles, light and colour next to the photo.' },
+      capture: { id: 'image', alt: 'The image workshop in advanced mode: temperature, exposure, contrast and curves next to the picture.' },
     },
     {
       id: 'links',
@@ -202,7 +202,7 @@ const en: HomeContent = {
       title: ['Link a chart.', 'It follows the spreadsheet.'],
       lead: 'A chart, a range, an image: put them in a presentation or a document and they stay up to date. On the desk, a thread joins the source to its copies.',
       more: { doc: 'liens' },
-      capture: { id: 'links', alt: 'Slide 3 shows the spreadsheet’s chart; a violet thread joins them on the desk.' },
+      capture: { id: 'links', alt: 'Slide 3 shows the spreadsheet’s chart, marked “Linked · Chronos — tours de piste · Up to date”.' },
     },
   ],
   extras: {
