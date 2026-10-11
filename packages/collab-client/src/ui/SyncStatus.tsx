@@ -6,8 +6,11 @@ export function useSessionStatus(session: YSession): SessionStatus {
   return useSyncExternalStore(session.subscribe, session.getStatus, session.getStatus);
 }
 
-/** « Enregistré » / « Hors ligne… » chip, as in Docs' title bar. `noun`: « document », « classeur »… (masculine). */
-export function SyncStatus({ status, noun = 'document' }: { status: SessionStatus; noun?: string }) {
+/**
+ * « Enregistré » / « Hors ligne… » chip, as in Docs' title bar. `noun`: « document », « classeur »… (masculine).
+ * `collab: false` (single-user edition): no mention of sharing or of a server.
+ */
+export function SyncStatus({ status, noun = 'document', collab = true }: { status: SessionStatus; noun?: string; collab?: boolean }) {
   let icon: IconName = 'cloud-check';
   let text = 'Enregistré';
   let detail = 'Toutes les modifications sont enregistrées sur le serveur.';
@@ -18,7 +21,7 @@ export function SyncStatus({ status, noun = 'document' }: { status: SessionStatu
   } else if (status.connection === 'local') {
     icon = 'save';
     text = 'Enregistré sur cet appareil';
-    detail = `Le ${noun} est gardé dans ce navigateur. Partagez-le pour le mettre en ligne.`;
+    detail = collab ? `Le ${noun} est gardé dans ce navigateur. Partagez-le pour le mettre en ligne.` : `Le ${noun} est gardé dans ce navigateur.`;
   } else if (status.connection === 'offline') {
     icon = 'offline';
     text = 'Hors ligne';

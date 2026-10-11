@@ -1,6 +1,7 @@
 import { Fragment, useRef, type RefObject } from 'react';
 import { MenuTrigger, SubmenuTrigger } from 'react-aria-components';
 import { Button, Menu, MenuItem, MenuPopover, MenuSeparator, ToolButton, type IconName } from '@oel/emboss';
+import { visibleItems } from './menuItems';
 
 export interface MenuEntry {
   id: string;
@@ -10,12 +11,14 @@ export interface MenuEntry {
   disabled?: boolean;
   checked?: boolean;
   children?: MenuEntry[];
+  /** Left out of the menu (a feature this edition doesn't ship), separators tidied up. */
+  hidden?: boolean;
 }
 
 export type MenuSpec = Array<{ label: string; items: Array<MenuEntry | '-'> }>;
 
 function renderItems(items: Array<MenuEntry | '-'>, onAction: (id: string) => void) {
-  return items.map((it, i) => {
+  return visibleItems(items).map((it, i) => {
     if (it === '-') return <MenuSeparator key={`sep-${i}`} />;
     const label = it.checked != null ? `${it.checked ? '✓ ' : ' '}${it.label}` : it.label;
     if (it.children) {

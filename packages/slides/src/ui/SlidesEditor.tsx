@@ -40,6 +40,8 @@ export interface SlidesEditorProps {
   onOpenFile?: (file: File) => void;
   onNewPresentation?: () => void;
   shareOrigin?: string;
+  /** Sharing, people, server versions, identity; `false` in the single-user edition. Default `true`. */
+  collab?: boolean;
   identity: Identity;
   onIdentityChange?: (identity: Identity) => void;
   /** Editor — Behaviors A1: level 2 (`sheet`), level 3 (`full`), or the /presentation page. */
@@ -187,6 +189,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
 
   const layouts = info.layouts.map((l) => ({ id: `layout:${l.id}`, label: l.name || 'Disposition', checked: l.id === ctl.slide?.layout }));
   const local = status.connection === 'local';
+  const collab = props.collab ?? true;
   const spec: MenuSpec = [
     {
       label: 'Fichier',
@@ -196,9 +199,9 @@ export function SlidesEditor(props: SlidesEditorProps) {
         { id: 'dl-pptx', label: 'Télécharger en PowerPoint (.pptx)', icon: 'download', disabled: !props.exportFile },
         { id: 'print', label: 'Imprimer / PDF', icon: 'print', shortcut: 'Ctrl+P' },
         '-',
-        { id: 'share', label: 'Partager…', icon: 'share' },
-        { id: 'history', label: 'Historique des versions', icon: 'history', disabled: local || status.role === 'viewer' },
-        { id: 'identity', label: 'Votre nom et couleur…', icon: 'user' },
+        { id: 'share', label: 'Partager…', icon: 'share', hidden: !collab },
+        { id: 'history', label: 'Historique des versions', icon: 'history', disabled: local || status.role === 'viewer', hidden: !collab },
+        { id: 'identity', label: 'Votre nom et couleur…', icon: 'user', hidden: !collab },
       ],
     },
     {
@@ -344,7 +347,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       .pptx
     </Button>
   );
-  const shareButton = (
+  const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
       Partager
     </Button>
@@ -386,7 +389,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               />
               {ro && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
-              <SyncStatus status={status} noun="présentation" />
+              <SyncStatus status={status} noun="présentation" collab={collab} />
             </div>
             <MenuBar spec={spec} onAction={act} label="Menus de la présentation" />
           </div>
@@ -397,8 +400,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
                 Réduire
               </Button>
             )}
-            <Peers status={status} noun="présentation" />
-            <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />
+            {collab && <Peers status={status} noun="présentation" />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportButton}
             {shareButton}
           </div>
@@ -410,8 +413,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
         {compact && (
           <div className="oel-slides__sheet-actions">
             {preservedChip}
-            <SyncStatus status={status} noun="présentation" />
-            <Peers status={status} noun="présentation" />
+            <SyncStatus status={status} noun="présentation" collab={collab} />
+            {collab && <Peers status={status} noun="présentation" />}
             {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label="Plein écran (Ctrl+Maj+Entrée)" onPress={props.onExpand} />}
             {exportButton}
             {shareButton}
@@ -462,9 +465,9 @@ export function SlidesEditor(props: SlidesEditorProps) {
       {show != null && <Slideshow ctl={ctl} ctx={ctx} start={show} presenterWindow={presenterWin} onExit={() => (setShow(null), setPresenterWin(null))} />}
       {printing && <PrintDeck ctl={ctl} ctx={ctx} onDone={() => setPrinting(false)} />}
       <BackgroundDialog ctl={ctl} isOpen={dialog === 'background'} onClose={() => setDialog(null)} />
-      <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
+      {collab && <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />}
       {fontReport && <FontsDialog fonts={info.fonts} report={fontReport} isOpen={fontsOpen} onClose={() => setFontsOpen(false)} onChange={() => setFontsReady((n) => n + 1)} />}
-      <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
+      {collab && <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />}
     </div>
   );
 }

@@ -49,6 +49,8 @@ export interface SheetsEditorProps {
   onOpenFile?: (file: File) => void;
   onNewWorkbook?: () => void;
   shareOrigin?: string;
+  /** Sharing, people, server versions, identity; `false` in the single-user edition. Default `true`. */
+  collab?: boolean;
   identity: Identity;
   onIdentityChange?: (identity: Identity) => void;
   /** Editor — Behaviors A1: level 2 (`sheet`), level 3 (`full`), or the /tableur page. */
@@ -142,6 +144,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
   const source = ctl.doc.source();
   const preserved = (ctl.doc.doc.getMap('meta').get('preserved') as Array<{ kind: string; label: string }> | undefined) ?? [];
   const local = status.connection === 'local';
+  const collab = props.collab ?? true;
   const ro = status.readOnly;
 
   // Desk thumbnail, debounced.
@@ -428,7 +431,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
           ],
         },
         ...(source === 'csv' ? [{ id: 'csv-settings', label: 'Paramètres CSV…' }, { id: 'to-xlsx', label: 'Enregistrer en .xlsx' }] : []),
-        { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer' },
+        { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
         '-',
         { id: 'print', label: 'Imprimer', icon: 'print', shortcut: 'Ctrl+P' },
       ],
@@ -551,7 +554,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
     {
       label: 'Outils',
       items: [
-        { id: 'identity', label: 'Votre nom…', icon: 'user' },
+        { id: 'identity', label: 'Votre nom…', icon: 'user', hidden: !collab },
         { id: 'scripts', label: 'Scripts (Python, Lua) — bientôt', disabled: true },
       ],
     },
@@ -581,7 +584,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       return;
     }
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.altKey && e.shiftKey && e.key.toLowerCase() === 'h') {
+    if (mod && e.altKey && e.shiftKey && e.key.toLowerCase() === 'h' && collab) {
       e.preventDefault();
       act('history');
     }
@@ -610,7 +613,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       </MenuPopover>
     </MenuTrigger>
   );
-  const shareButton = (
+  const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
       Partager
     </Button>
@@ -650,7 +653,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
               />
               {ro && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
               {source === 'csv' && <Badge tone="neutral" dot={false}>CSV</Badge>}
-              <SyncStatus status={status} noun="classeur" />
+              <SyncStatus status={status} noun="classeur" collab={collab} />
             </div>
             <MenuBar spec={spec} onAction={act} label="Menus du classeur" />
           </div>
@@ -661,8 +664,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
                 Réduire
               </Button>
             )}
-            <Peers status={status} noun="classeur" />
-            <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />
+            {collab && <Peers status={status} noun="classeur" />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -674,8 +677,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
         {compact && (
           <div className="oel-sheets__sheet-actions">
             {preservedChip}
-            <SyncStatus status={status} noun="classeur" />
-            <Peers status={status} noun="classeur" />
+            <SyncStatus status={status} noun="classeur" collab={collab} />
+            {collab && <Peers status={status} noun="classeur" />}
             {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label="Plein écran (Ctrl+Maj+Entrée)" onPress={props.onExpand} />}
             {exportMenu}
             {shareButton}
@@ -767,8 +770,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
         onClose={() => setDialog(null)}
       />
       <SplitDialog isOpen={dialog === 'split'} onSave={(d) => ctl.splitText(d)} onClose={() => setDialog(null)} />
-      <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
-      <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
+      {collab && <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />}
+      {collab && <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />}
     </div>
   );
 }
