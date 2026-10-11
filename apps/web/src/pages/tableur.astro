@@ -1,6 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
+import { features } from '../edition';
 import { TableurPage } from '../document/TableurPage';
+// Share-link landing: single-user builds have no share links (plan solo MVP, S-5).
+if (!features.collab) return Astro.redirect('/bureau');
 ---
 <Base title="Tableur · OutilsEnLigne" description="Tableur collaboratif compatible Excel : formules, mise en forme, .xlsx et .csv." app>
   <!-- Yjs, IndexedDB, the calc worker and the engine worker: client only. The share token stays in the URL fragment. -->

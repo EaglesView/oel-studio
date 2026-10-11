@@ -20,6 +20,7 @@ import { sheetTotal } from './Paper';
 import { downloadSlides, requestPresent } from './slides';
 import { activeLinks } from '../links/resolver';
 import { exportGallery, layoutGallery } from './images';
+import { features } from '../edition';
 
 const nf = new Intl.NumberFormat('fr-CA');
 const ENGINE_LATER = 'Arrive avec le moteur de documents (WASM).';
@@ -110,7 +111,7 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
         ) : (
           <MultiTools store={store} ids={selection} kinds={kinds.size} />
         )}
-        <ToolbarSeparator />
+        {(single || features.collab) && <ToolbarSeparator />}
         {single?.kind === 'note' ? (
           <ToolButton icon="trash" label="Supprimer" shortcut={['Suppr']} description="Retire la note du bureau." onPress={() => onRemove([single.id])} />
         ) : single ? (
@@ -122,9 +123,9 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
             description="Ouvre le fichier sur place, le bureau reste visible."
             onPress={() => onOpen(single.id)}
           />
-        ) : (
+        ) : features.collab ? (
           <ToolButton icon="share" label="Partager" showLabel onPress={() => toast({ title: `${selected.length} fichiers prêts à partager`, tone: 'success' })} />
-        )}
+        ) : null}
       </Toolbar>
     </div>
   );

@@ -286,3 +286,15 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   path }` (pictures; `adoptPicture` in `@oel/docs` gives the file's picture an `oid`); other combinations say they
   aren't supported yet. `DEMO_VERSION` = 1 is written on the desk. No gallery on the demo desk (would crowd it). A
   desk saved before S-4 keeps its old papers: « Réinitialiser la démo » gives the new one.
+- **S-5 done** (11 Oct 2026), not yet checked in the browser. In `solo`:
+  - projects stub (`project/backend.ts`, `solo` option): one project « Mon bureau » (id `mon-bureau`, its own storage
+    key), you alone in it as « Vous »; the team demo project and its people stay in `equipe`. The desk saved under the
+    old `demo` project is not shown any more (a new « Mon bureau » desk gets the demo).
+  - desk: no `SharePill` (avatars, « Partager », notifications), no demo `PresenceCursors`, no « Projet » badge; the
+    project pill opens the menu's home; no multi-selection « Partager ».
+  - menu: no « Projets », « Partager et inviter », « Compte » panes; « Bonjour » without a name; no projects column
+    on the home pane; « Paramètres » instead of « Paramètres du projet »; no « par … » in file lists.
+  - list view: last change date instead of the editor's initials; link popover: no « (Anonyme 123) » author.
+  - `/document`, `/presentation`, `/tableur` (share-link landings) redirect to `/bureau` (Astro meta refresh).
+  - Not done: a render test of the Bureau chrome in `solo` (the Bureau needs its workers); both builds and the
+    typecheck cover it. Papers still record `editor` (the initials of « Vous ») for the team edition later.

@@ -32,6 +32,7 @@ export function ProjectPill({
   view,
   onToggleView,
   onProjects,
+  badge = true,
 }: {
   title: string;
   count: number;
@@ -39,6 +40,8 @@ export function ProjectPill({
   onToggleView: () => void;
   /** M3: the pill opens the menu on « Projets ». */
   onProjects: () => void;
+  /** The « Projet » badge (single-user edition: one desk, no projects to tell apart). */
+  badge?: boolean;
 }) {
   return (
     <header className="chrome-pill project-pill" data-desk-ui>
@@ -48,7 +51,7 @@ export function ProjectPill({
           {title}
         </RACButton>
       </h1>
-      <Badge tone="accent">Projet</Badge>
+      {badge && <Badge tone="accent">Projet</Badge>}
       <span className="project-pill__count">
         {count} fichier{count > 1 ? 's' : ''}
       </span>

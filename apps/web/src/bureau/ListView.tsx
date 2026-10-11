@@ -3,6 +3,9 @@ import { useDeskState } from '@oel/desk/react';
 import { readingOrder } from '@oel/desk';
 import { Badge, Checkbox, Icon } from '@oel/emboss';
 import { KIND_ICON, kindLabel, statusText, type Bureau, type Paper } from './model';
+import { features } from '../edition';
+
+const day = new Intl.DateTimeFormat('fr-CA', { day: 'numeric', month: 'short' });
 
 /**
  * List view (note on 05 · Bureau: "a canvas is harder to make accessible than a
@@ -48,7 +51,8 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
               {statusText(p) && <span className="list-row__status">{statusText(p)}</span>}
             </span>
             <span className="list-row__meta">
-              {p.data.editor ?? '—'}
+              {/* Who changed it last, or when (single-user: always you). */}
+              {features.projects ? (p.data.editor ?? '—') : p.data.updatedAt ? day.format(p.data.updatedAt) : '—'}
             </span>
             <RACButton className="emb-button emb-button--secondary emb-button--sm" onPress={() => onOpen(p.id)}>
               Ouvrir

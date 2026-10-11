@@ -21,6 +21,7 @@ import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper, type NoteEditing } from './Paper';
 import { migrateNote, startsNoteText } from './notes';
 import { demoPapers, seedDemo } from './demo';
+import { features } from '../edition';
 import { LinkResolver, setActiveLinks } from '../links/resolver';
 import { LinksUI } from '../links/LinksUI';
 import { THREAD_PREFIX } from '@oel/links';
@@ -495,7 +496,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
             }}
           >
             <AnnounceBridge target={announceRef} />
-            <PresenceCursors store={store} />
+            {features.collab && <PresenceCursors store={store} />}
             <ContextToolbar
               store={store}
               onOpen={open}
@@ -533,9 +534,10 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           count={count}
           view={view}
           onToggleView={() => setView((v) => (v === 'desk' ? 'list' : 'desk'))}
-          onProjects={() => openMenu('projects', { x: 60, y: 40 })}
+          onProjects={() => openMenu(features.projects ? 'projects' : 'home', { x: 60, y: 40 })}
+          badge={features.projects}
         />
-        <SharePill />
+        {features.collab && <SharePill />}
         <BottomBar
           onCreate={create}
           onImport={(files) => doImport(files)}
