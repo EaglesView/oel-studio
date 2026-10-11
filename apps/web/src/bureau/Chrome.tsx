@@ -69,6 +69,40 @@ export function ProjectPill({
   );
 }
 
+/* ── First visit ─────────────────────────────────────────────────────── */
+
+const HINT_KEY = 'oel-first-run-hint';
+
+/** Whether the first-run hint is still to show (until a paper is opened or it is closed). */
+export function firstRunHintPending(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) !== 'vu';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissFirstRunHint() {
+  try {
+    localStorage.setItem(HINT_KEY, 'vu');
+  } catch {
+    /* private window: it shows again next time */
+  }
+}
+
+/** The one thing to know on a first visit (plan solo MVP, R3), above the bottom bar. */
+export function FirstRunHint({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="chrome-pill first-run-hint" role="note" data-desk-ui>
+      <Icon name="info" size={16} />
+      <span>
+        Double-cliquez sur un papier pour l’ouvrir (ou Entrée) ; Échap le repose. <kbd>?</kbd> : tous les raccourcis.
+      </span>
+      <Button variant="ghost" size="sm" leadingIcon="close" aria-label="Fermer l’astuce" onPress={onDismiss} />
+    </div>
+  );
+}
+
 /* ── B1 · 2 Présence ────────────────────────────────────────────────── */
 
 /** Theme and shortcuts moved to the menu (Affichage, Raccourcis clavier); `?` still opens the shortcuts. */

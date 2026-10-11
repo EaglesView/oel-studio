@@ -14,7 +14,7 @@ import {
 } from '@oel/emboss';
 import { AppMenu, type MenuPane } from './AppMenu';
 import { ContextToolbar, type NoteActions } from './ContextToolbar';
-import { BottomBar, EmptyDesk, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
+import { BottomBar, EmptyDesk, FirstRunHint, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, dismissFirstRunHint, firstRunHintPending, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { KIND_TAB, RESIZE_MODE, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
@@ -247,6 +247,15 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
 
   const count = useDeskState(store, (s) => s.order.length);
   const openId = useDeskState(store, (s) => s.openId);
+  /** R3 · first visit: how to open a paper, until one is opened or the hint is closed. */
+  const [hint, setHint] = useState(firstRunHintPending);
+  const closeHint = useCallback(() => {
+    dismissFirstRunHint();
+    setHint(false);
+  }, []);
+  useEffect(() => {
+    if (openId && hint) closeHint();
+  }, [openId, hint, closeHint]);
   const openPaper = useDeskState(store, (s) => (s.openId ? (s.nodes[s.openId] as PaperNode | undefined) : undefined));
 
   // A new desk gets the demo: its files imported for real, then linked (demo.ts).
@@ -537,6 +546,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           badge={features.projects}
         />
         {features.collab && <SharePill />}
+        {hint && view === 'desk' && !openId && count > 0 && <FirstRunHint onDismiss={closeHint} />}
         <BottomBar
           onCreate={create}
           onImport={(files) => doImport(files)}
