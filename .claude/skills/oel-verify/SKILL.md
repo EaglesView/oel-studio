@@ -38,10 +38,12 @@ Pick the rows your change touches; use the `run` skill or the browser tools to d
 |---|---|
 | Bureau `/bureau` | Import a .docx, .xlsx, .csv, PDF, image by drop; papers show progress then preview; zoom out (thumbnails), select, contextual toolbar |
 | Levels | Double-click opens in place; Ctrl+Maj+Entrée full screen; Esc goes back one level at a time; URL per level |
-| Docs `/document` | Edit, export .docx, reopen; share link in a private window (editor/viewer roles); offline edit with collab stopped then resync |
-| Sheets `/tableur` | Formulas recalc, fill, copy/paste, export .xlsx/.csv and reopen |
-| Slides `/presentation` | Open the `fixtures/pptx` decks (look matches PowerPoint), move/resize/type, new slide from a layout, notes, F5 slideshow + presenter window, export .pptx and reopen it in PowerPoint/LibreOffice |
-| Forms | Create from sheet → publish → respond at `/f?s=…` → row appears in the sheet |
+| Docs (Bureau; `/document` in the team edition) | Edit, export .docx, reopen; team edition: share link in a private window (editor/viewer roles), offline edit with collab stopped then resync |
+| Sheets (Bureau; `/tableur` in the team edition) | Formulas recalc, fill, copy/paste, export .xlsx/.csv and reopen |
+| Slides (Bureau; `/presentation` in the team edition) | Open the `fixtures/pptx` decks (look matches PowerPoint), move/resize/type, new slide from a layout, notes, F5 slideshow + presenter window, export .pptx and reopen it in PowerPoint/LibreOffice |
+| Forms (team edition) | Create from sheet → publish → respond at `/f?s=…` → row appears in the sheet |
+| Saved desk | Move a paper, write a note, reload: all back, thumbnails at once; « Exporter / Importer un bureau », « Réinitialiser la démo » |
+| Site | `/`, `/en/`, `/docs`, `/en/docs`: language switch keeps the page, captures load, phone width has no horizontal scroll |
 | Themes | Light and dark (`ThemeToggle`), keyboard focus rings visible |
 
 Also check the browser console for errors.
@@ -49,6 +51,7 @@ Also check the browser console for errors.
 ## Before saying "done"
 
 - Copy is fr-CA, icons Iconoir, kit tokens only.
-- README tables ("What's real and what's stubbed", Figma ↔ code) updated if status changed.
+- `docs/packages.md` tables ("What's real and what's stubbed", Figma ↔ code), the README « Status » and the site's docs
+  (`apps/web/src/site/docs/{fr,en}`) updated if what users see changed.
 - If the change completes a step of `docs/plans/2026-10-restructure.md`, tick it and update the skills that phase lists.
 - Don't commit unless the user asked.

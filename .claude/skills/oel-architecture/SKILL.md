@@ -17,7 +17,8 @@ done — the skills describe the layout *as it is now*).
 | Engine contract | `packages/engine` | `FileKind`, `Preview`, `ImportResult`, payload formats, `EngineRegistry`, `EngineHost`, WASM adapters | Import React or editors |
 | Shared UI/infra | `packages/emboss` (kit), `packages/desk` (canvas), `packages/collab-client`, `packages/fonts` (fonts of opened files), `packages/img` (image engine host + recipes; must stay React-free — import `@oel/collab-client/local`, not its index) | Kit components/tokens, desk scene, sync/links/versions | Know file types (desk, emboss) |
 | Editors | `packages/docs`, `packages/sheets`, `packages/slides`, `packages/forms` | `model/` (pure, Yjs), `ui/` (React), collab session | Import Bureau or `apps/*` |
-| Product | `apps/web/src/bureau`, pages in `apps/web/src/pages` | Desk papers, kind glue, levels (Bureau → sur place → plein écran) | Contain file-format logic |
+| Product | `apps/web/src/bureau` (desk, kind glue, levels, saved desk `persist.ts` / `deskStorage.ts`, demo `demo.ts`), pages in `apps/web/src/pages` | Desk papers, kind glue, levels (Bureau → sur place → plein écran), the desk saved on the device | Contain file-format logic |
+| Site | `apps/web/src/site` (home, docs, `i18n.ts`), `src/pages/{index,en,docs}` | Bilingual site (fr at `/`, en at `/en`), documentation | Import the Bureau's runtime (shared data like `bureau/shortcuts.ts` is fine) |
 | Server | `apps/collab` | Yjs sync, share tokens, versions, media, exports, (forms/accounts next) | Be required for local-only editing |
 
 ## Decision shortcuts
