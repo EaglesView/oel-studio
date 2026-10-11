@@ -1,0 +1,32 @@
+---
+/** The site's pages (home, docs): nav, footer, both languages linked (hreflang). */
+import Base from '../layouts/Base.astro';
+import '../styles/site.css';
+import SiteNav from './SiteNav.astro';
+import SiteFooter from './SiteFooter.astro';
+import { HTML_LANG, alternatePath, type DocId, type Lang } from './i18n';
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description?: string;
+  /** For docs pages: the other language's address of the same page. */
+  docId?: DocId;
+}
+const { lang, title, description, docId } = Astro.props;
+const alt = alternatePath(lang, docId);
+---
+<Base title={title} description={description} lang={HTML_LANG[lang]}>
+  <Fragment slot="head">
+    <link rel="alternate" hreflang="fr-CA" href={alt.fr} />
+    <link rel="alternate" hreflang="en" href={alt.en} />
+    <link rel="alternate" hreflang="x-default" href={alt.fr} />
+  </Fragment>
+  <div class="site">
+    <SiteNav lang={lang} other={alt[lang === 'fr' ? 'en' : 'fr']} />
+    <main id="contenu" class="site-main">
+      <slot />
+    </main>
+    <SiteFooter lang={lang} />
+  </div>
+</Base>

@@ -1,0 +1,32 @@
+---
+/** Figma `Site/Nav` (207:9): brand, sections, language, « Ouvrir le Bureau ». No sign-in in the single-user release. */
+import { UI, href, docHref, type Lang } from './i18n';
+
+interface Props {
+  lang: Lang;
+  /** This page in the other language. */
+  other: string;
+}
+const { lang, other } = Astro.props;
+const t = UI[lang];
+const home = href(lang, '/');
+---
+<header class="site-nav">
+  <a class="site-nav__brand" href={home}>
+    <img src="/favicon.svg" alt="" width="28" height="28" />
+    <span>
+      <strong>{t.brand}</strong>
+      <small>{t.brandSub}</small>
+    </span>
+  </a>
+  <nav class="site-nav__links" aria-label={lang === 'fr' ? 'Sections du site' : 'Site sections'}>
+    <a href={`${home}#fonctionnalites`}>{t.nav.features}</a>
+    <a href={docHref(lang, 'index')}>{t.nav.docs}</a>
+    <a href={`${home}#code-ouvert`}>{t.nav.code}</a>
+    <a href={`${home}#questions`}>{t.nav.faq}</a>
+  </nav>
+  <div class="site-nav__end">
+    <a class="site-nav__lang" href={other} hreflang={lang === 'fr' ? 'en' : 'fr-CA'} lang={lang === 'fr' ? 'en' : 'fr-CA'} aria-label={t.otherLang.label}>{t.otherLang.short}</a>
+    <a class="site-button site-button--primary" href="/bureau">{t.open}</a>
+  </div>
+</header>

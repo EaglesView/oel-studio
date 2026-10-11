@@ -8,17 +8,20 @@ interface Props {
   description?: string;
   /** Full-viewport app pages lock body scroll. */
   app?: boolean;
+  /** Page language (the Bureau is fr-CA; the site also has English pages under /en). */
+  lang?: 'fr-CA' | 'en';
 }
-const { title, description = 'Un seul éditeur pour tous vos fichiers, directement dans le navigateur.', app = false } = Astro.props;
+const { title, description = 'Un seul éditeur pour tous vos fichiers, directement dans le navigateur.', app = false, lang = 'fr-CA' } = Astro.props;
 ---
 <!doctype html>
-<html lang="fr-CA">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    <slot name="head" />
     <script is:inline>
       // Apply the saved theme before first paint (no flash).
       try {
@@ -28,7 +31,7 @@ const { title, description = 'Un seul éditeur pour tous vos fichiers, directeme
     </script>
   </head>
   <body class={app ? 'is-app' : undefined}>
-    <a class="skip-link" href="#contenu">Aller au contenu</a>
+    <a class="skip-link" href="#contenu">{lang === 'en' ? 'Skip to content' : 'Aller au contenu'}</a>
     <slot />
   </body>
 </html>

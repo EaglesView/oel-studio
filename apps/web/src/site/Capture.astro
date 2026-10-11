@@ -1,0 +1,25 @@
+---
+/** A screenshot of the demo Bureau (`captures.ts`), or a plain placeholder until it exists. */
+import { findCapture, type CaptureId } from './captures';
+import { UI, type Lang } from './i18n';
+
+interface Props {
+  lang: Lang;
+  id: CaptureId;
+  alt: string;
+  /** The hero's capture loads first. */
+  eager?: boolean;
+}
+const { lang, id, alt, eager = false } = Astro.props;
+const src = findCapture(lang, id);
+---
+{src ? (
+  <img class="capture" src={src} alt={alt} width="2400" height="1500" loading={eager ? 'eager' : 'lazy'} decoding="async" />
+) : (
+  <div class="capture capture--pending" role="img" aria-label={alt}>
+    <span class="capture__paper capture__paper--a" />
+    <span class="capture__paper capture__paper--b" />
+    <span class="capture__paper capture__paper--c" />
+    <span class="capture__label">{UI[lang].capturePending}</span>
+  </div>
+)}

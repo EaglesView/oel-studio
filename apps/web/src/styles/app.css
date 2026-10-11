@@ -26,20 +26,6 @@ body.is-app { overflow: hidden; height: 100dvh; }
 .page h2 { margin: 56px 0 8px; font: 500 24px/32px var(--font-sans); color: var(--title); }
 .page p.lead { max-width: 720px; margin: 0 0 32px; font: 300 18px/28px var(--font-sans); color: var(--emboss-ink-muted); }
 .page a { color: var(--emboss-ink); }
-.home-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
-.home-cards a { text-decoration: none; }
-.home-card {
-  display: grid;
-  gap: 8px;
-  padding: 24px;
-  border-radius: var(--radius-2xl);
-  color: var(--emboss-text);
-}
-.home-card strong { font: 600 18px/24px var(--font-sans); color: var(--title); }
-.home-card span { font: 400 14px/20px var(--font-sans); color: var(--emboss-ink-muted); }
-.home-card:hover { box-shadow: var(--shadow-raised-hover); }
-.home-card:focus-visible { outline: 2px solid var(--emboss-focus); outline-offset: 3px; }
-
 /* Standalone form pages (/f, /connexion) */
 .form-standalone { min-height: 100dvh; background: var(--emboss-surface); }
 .form-standalone--center { display: grid; place-content: center; justify-items: center; gap: var(--spacing-3); padding: var(--spacing-8) var(--spacing-4); text-align: center; color: var(--emboss-text); }
