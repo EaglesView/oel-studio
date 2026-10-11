@@ -7,4 +7,4 @@ export { previewEngine } from './engines/preview';
 export { createWasmEngine, createOeldocxEngine, createOelpptxEngine, createOelxlsxEngine, deckPreview, type WasmEngineSpec } from './engines/wasm';
 export { serveEngines } from './worker/serve';
 export type { ToWorker, FromWorker } from './worker/protocol';
-export { crc32, readZipDirectory, readZipText, writeZip, type ZipEntry } from './zip';
+export { crc32, readZipBytes, readZipDirectory, readZipText, writeZip, type ZipEntry } from './zip';

@@ -60,6 +60,21 @@ export const localFiles = {
       /* ignore */
     }
   },
+  /** Keys starting with `prefix` (a document's files: `${docId}|`). */
+  async keys(prefix: string): Promise<string[]> {
+    try {
+      return ((await tx('readonly', (s) => s.getAllKeys())) as string[]).filter((k) => typeof k === 'string' && k.startsWith(prefix));
+    } catch {
+      return [];
+    }
+  },
+  async remove(key: string) {
+    try {
+      await tx('readwrite', (s) => s.delete(key));
+    } catch {
+      /* ignore */
+    }
+  },
 };
 
 export const packageKey = (docId: string) => `${docId}|package`;
