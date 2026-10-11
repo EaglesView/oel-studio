@@ -304,3 +304,15 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   arrivent avec la version en équipe… »; `/f` and `/connexion` redirect to `/`. `packages/forms` and its tests are
   untouched. Seen on the way, for S-7 (R2): the spreadsheet's desk toolbar still has B1 stubs (« Somme » of a
   « Montant » column, « Graphique » that only shows a toast).
+- **S-7 done** (11 Oct 2026), not yet checked in the browser:
+  - R1: `oel-pptx` writes a chart whose spec changed (a linked copy, even in a locked chart frame) to a new chart part
+    and writes new chart elements as graphic frames; `oel-docx` writes editor-made chart nodes (no XML, a spec) as
+    inline charts with a `word/charts` part. Untouched charts stay byte for byte; chartEx is only kept. On the way,
+    `oel-chart` read negative axis ids (python-pptx writes them) as 0, so a rewritten chart lost its axes: ids now keep
+    their 32 bits. Checked by rendering exports in LibreOffice (axes, values, new frames); LibreOffice also shows the
+    value-axis title under the category axis of a rewritten chart although the XML has it once — check in PowerPoint.
+    The link itself is not written into the file (plan links Phase 9).
+  - R2: removed the B1 spreadsheet stubs (Somme, Graphique toast, sketch « Total … $ »), the simulated PDF conversion
+    (`convertToEditable`, `onConvert` props) and the stand-in PDF pages; PDF tools are unavailable with a reason.
+  - R3: first-run hint above the bottom bar (`FirstRunHint`, localStorage `oel-first-run-hint`).
+  - R4: done in S-2 (storage used in « Ce bureau »).
