@@ -1,0 +1,51 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import Capture from '../../Capture.astro';
+import { docHref } from '../../i18n';
+---
+<DocsLayout lang="fr" id="editeurs" description="Ce que font les éditeurs de documents, de présentations, de tableurs, de graphiques et d’images du Bureau.">
+  <p class="prose__lead">Chaque type de fichier a son éditeur. Tous ouvrent les fichiers Office tels quels et les rendent dans le même format.</p>
+
+  <h2 id="documents">Documents (.docx)</h2>
+  <Capture lang="fr" id="document" alt="Un document Word ouvert en plein écran, avec son plan." />
+  <ul>
+    <li>Les styles du fichier (Titre 1, Normal…), polices, tailles, couleurs, surlignage, exposant et indice.</li>
+    <li>Listes à puces, numérotées et de contrôle sur plusieurs niveaux (<kbd>Tab</kbd>, <kbd>Maj</kbd> <kbd>Tab</kbd>).</li>
+    <li>Tableaux (fusionner, redimensionner, couleur des cellules), images (coller, glisser, texte de remplacement), liens.</li>
+    <li>Notes de bas de page et de fin, table des matières, en-têtes et pieds de page avec numéros de page.</li>
+    <li>Rechercher et remplacer (majuscules, mot entier, expressions régulières), reproduire la mise en forme, typographie française automatique.</li>
+    <li>Vue page par page ou sans pages, zoom, plan (<kbd>Ctrl</kbd> <kbd>Maj</kbd> <kbd>P</kbd>), mode concentration (<kbd>Ctrl</kbd> <kbd>Maj</kbd> <kbd>F</kbd>).</li>
+    <li>Télécharger en .docx, PDF (par l’impression du navigateur), HTML, Markdown ou texte.</li>
+  </ul>
+
+  <h2 id="presentations">Présentations (.pptx)</h2>
+  <Capture lang="fr" id="slides" alt="La vue présentateur : la diapo en cours, la suivante, les notes et le temps écoulé." />
+  <ul>
+    <li>La pellicule à gauche : ajouter, dupliquer, réordonner les diapos ; les dispositions du fichier.</li>
+    <li>Texte, formes, images, notes de l’orateur.</li>
+    <li>« Présenter » (<kbd>F5</kbd>) en plein écran, et une vue présentateur dans une deuxième fenêtre (notes, minuterie, diapo suivante).</li>
+    <li>Conservés sans être modifiables pour l’instant : animations, transitions, SmartArt, contenu des groupes, structure des tableaux.</li>
+  </ul>
+
+  <h2 id="tableurs">Tableurs (.xlsx, .csv)</h2>
+  <Capture lang="fr" id="sheet" alt="Un tableur de temps de course : résultats calculés à partir d’un autre onglet." />
+  <ul>
+    <li>Les formules s’écrivent en anglais, comme dans Excel : <code>=SUM(A1:A9)</code>, <code>=XLOOKUP(…)</code>, <code>=MINIFS(…)</code>, <code>=AVERAGEIFS(…)</code>, <code>=RANK.EQ(…)</code>… Séparateur <code>,</code> entre les arguments, point décimal. Le calcul se fait avec IronCalc, dans votre navigateur.</li>
+    <li>Plusieurs onglets, références entre onglets (<code>Tours!C2:C19</code>).</li>
+    <li>Formats de nombre, styles de cellule, tri, filtres, mise en forme conditionnelle, validation.</li>
+    <li>Un .csv garde son séparateur et son encodage ; « Enregistrer en .xlsx » le transforme.</li>
+  </ul>
+  <p class="note">Dans la démo, l’onglet « Résultats » lit l’onglet « Tours » avec <code>MINIFS</code>, <code>AVERAGEIFS</code>, <code>RANK.EQ</code> et <code>XLOOKUP</code>. Changez un temps : tout suit, jusqu’au graphique de la présentation.</p>
+
+  <h2 id="graphiques">Graphiques</h2>
+  <Capture lang="fr" id="chart" alt="Un graphique sélectionné dans le tableur, avec ses réglages." />
+  <p>Dans un tableur, sélectionnez des données puis <kbd>Alt</kbd> <kbd>F1</kbd> : une galerie montre chaque type de graphique avec vos données. Un graphique se déplace, se redimensionne, change de type, de couleurs et d’éléments (titres, légende, axes, étiquettes). Tous les types de graphiques Office s’ouvrent et se dessinent ; ceux du fichier qui ne sont pas modifiés sont réécrits tels quels.</p>
+  <p>Dans les présentations et les documents, les graphiques sont dessinés ; pour les modifier, on modifie leur tableur source avec un <a href={docHref('fr', 'liens')}>fil de liaison</a>.</p>
+
+  <h2 id="images">Images</h2>
+  <Capture lang="fr" id="image" alt="L’atelier d’image en mode avancé, réglages à droite de l’image." />
+  <p>« Retoucher » ouvre l’atelier : des styles prêts à appliquer, puis lumière, couleur, netteté, recadrage et redressement, en simple ou en avancé. L’original n’est jamais modifié : la retouche est une recette appliquée par-dessus, que l’on peut changer ou retirer. Les copies liées d’une image suivent ses retouches. « Exporter » enregistre l’image retouchée en pleine résolution.</p>
+
+  <h2 id="barres">Barres d’outils</h2>
+  <p>La barre d’outils de chaque éditeur s’adapte à la largeur : ce qui ne tient pas passe dans « Plus ». On peut aussi l’ancrer en bas de l’écran. Dans un éditeur ouvert sur place, les menus sont réunis dans « Plus » ; en plein écran, ils ont leur propre barre (Fichier, Édition, Affichage, Insertion, Format, Outils).</p>
+</DocsLayout>

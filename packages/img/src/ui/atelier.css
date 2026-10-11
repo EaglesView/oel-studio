@@ -407,3 +407,13 @@
 .atelier--panel .atelier__badge { top: var(--spacing-2); left: var(--spacing-2); }
 .atelier--panel .atelier__style-row { flex-wrap: wrap; }
 .atelier--panel .atelier__style-thumb { width: 72px; height: 54px; }
+
+/* L3 · « Texte alternatif » over a picture in Slides and Sheets. */
+.oel-alt-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-2);
+  width: 300px;
+}
+.oel-alt-form .emb-field { align-self: stretch; }

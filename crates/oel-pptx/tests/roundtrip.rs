@@ -284,3 +284,49 @@ fn chart_frames_carry_their_chart() {
         assert_eq!(Some(data), b.get(name), "{name}");
     }
 }
+
+/// Plan L-7: a picture retouched in OEL keeps its original and recipe in the .pptx; PowerPoint
+/// sees the rendered pixels; a picture changed outside OEL loses its recipe.
+#[test]
+fn retouched_pictures_round_trip() {
+    let bytes = fixture(1);
+    let imp = import_pptx(&bytes).unwrap();
+    let mut deck = imp.deck.clone();
+    let find = |d: &Deck| -> Option<(usize, usize)> {
+        d.slides.iter().enumerate().find_map(|(s, sl)| sl.elements.iter().position(|e| e.kind == ElementKind::Picture && e.image.as_ref().is_some_and(|i| !i.media.is_empty() && i.svg.is_none())).map(|i| (s, i)))
+    };
+    let (s, i) = find(&deck).expect("Presentation 1 has a picture");
+    let pic = deck.slides[s].elements[i].image.as_mut().unwrap();
+    let original = pic.media.clone();
+    let recipe = serde_json::json!({ "exposure": 0.4, "presence": { "vibrance": 20 } });
+    pic.media = "ppt/media/oel-retouche.png".into();
+    pic.mime = "image/png".into();
+    pic.recipe = Some(recipe.clone());
+    pic.orig = Some(original.clone());
+    let rendered = b"\x89PNG rendered pixels".to_vec();
+    let out = export_pptx(&deck, Some(&bytes), HashMap::from([("ppt/media/oel-retouche.png".to_string(), rendered)])).unwrap();
+
+    let back = import_pptx(&out).unwrap();
+    let img = back.deck.slides[s].elements[i].image.clone().unwrap();
+    assert_eq!(img.media, "ppt/media/oel-retouche.png");
+    assert_eq!(img.recipe, Some(recipe));
+    let orig = img.orig.unwrap();
+    assert!(orig.starts_with("oel/media/"), "{orig}");
+    let orig_bytes = &back.media.iter().find(|m| m.path == orig).expect("original travels with the media").bytes;
+    assert_eq!(orig_bytes.as_slice(), Package::read(&bytes).unwrap().get(&original).unwrap());
+
+    // Exporting the reopened deck unchanged keeps the retouch.
+    let again = export_pptx(&back.deck, Some(&out), HashMap::new()).unwrap();
+    assert!(import_pptx(&again).unwrap().deck.slides[s].elements[i].image.as_ref().unwrap().recipe.is_some());
+
+    // PowerPoint replaced the picture: the visible image becomes the new base.
+    let mut pkg = Package::read(&out).unwrap();
+    pkg.set("ppt/media/oel-retouche.png", b"edited in PowerPoint".to_vec());
+    let edited = import_pptx(&pkg.write().unwrap()).unwrap();
+    let img = edited.deck.slides[s].elements[i].image.as_ref().unwrap();
+    assert!(img.recipe.is_none() && img.orig.is_none());
+
+    // Without retouched pictures, nothing OEL-specific is written.
+    let plain = export_pptx(&imp.deck, Some(&bytes), HashMap::new()).unwrap();
+    assert!(!Package::read(&plain).unwrap().has(oel_opc::retouch::MANIFEST));
+}

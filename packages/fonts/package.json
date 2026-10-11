@@ -1,5 +1,6 @@
 {
   "name": "@oel/fonts",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Fonts of opened files in the browser: embedded faces as FontFaces, open substitutes (self-hosted Fontsource, SIL OFL) for missing fonts, loaded on demand. Shared by the editors.",
   "type": "module",

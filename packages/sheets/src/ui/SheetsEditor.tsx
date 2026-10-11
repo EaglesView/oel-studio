@@ -14,6 +14,9 @@ import { SheetController, NUMBER_FORMATS } from './controller';
 import { Grid } from './Grid';
 import { chartBlock, insertChart } from './charts';
 import { InsertChartDialog } from './ChartTools';
+import { replacePicture, retouchPicture } from './pictures';
+import type { Recipe } from '@oel/img';
+import { RetouchDock } from '@oel/img/ui';
 import { drawingImagePaths, drawingImageUrls } from './media';
 import { FormulaBar } from './FormulaBar';
 import { SheetTabs } from './SheetTabs';
@@ -24,6 +27,8 @@ export interface ExportRequest {
   format: 'xlsx' | 'csv' | 'tsv';
   json: Workbook;
   original: Uint8Array | null;
+  /** Pictures made in the editor (.xlsx). */
+  media?: Array<{ path: string; bytes: Uint8Array }>;
   /** Sheet index (CSV/TSV write one sheet). */
   sheet?: number;
 }
@@ -39,9 +44,13 @@ export interface SheetsEditorProps {
   exportFile?: (req: ExportRequest) => Promise<Uint8Array>;
   /** The calc worker (`@oel/sheets/calc-worker?worker`). */
   createCalcWorker: () => Worker;
+  /** The image worker (`@oel/img`): « Retoucher » on pictures (L3). Without it, retouching is unavailable. */
+  createImageWorker?: () => Worker;
   onOpenFile?: (file: File) => void;
   onNewWorkbook?: () => void;
   shareOrigin?: string;
+  /** Sharing, people, server versions, identity; `false` in the single-user edition. Default `true`. */
+  collab?: boolean;
   identity: Identity;
   onIdentityChange?: (identity: Identity) => void;
   /** Editor — Behaviors A1: level 2 (`sheet`), level 3 (`full`), or the /tableur page. */
@@ -135,6 +144,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
   const source = ctl.doc.source();
   const preserved = (ctl.doc.doc.getMap('meta').get('preserved') as Array<{ kind: string; label: string }> | undefined) ?? [];
   const local = status.connection === 'local';
+  const collab = props.collab ?? true;
   const ro = status.readOnly;
 
   // Desk thumbnail, debounced.
@@ -152,7 +162,19 @@ export function SheetsEditor(props: SheetsEditorProps) {
     return () => clearTimeout(t);
   }, [ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const media = useDrawingMedia(session, ctl, calc);
+  const fileMedia = useDrawingMedia(session, ctl, calc);
+  // L3 · the picture being retouched (by its stable id) and the live rendering shown in its place.
+  const [retouch, setRetouch] = useState<{ oid: string; crop: boolean } | null>(null);
+  const [preview, setPreview] = useState<{ path: string; url: string } | null>(null);
+  const media = useMemo(() => (preview ? new Map([...fileMedia, [preview.path, preview.url]]) : fileMedia), [fileMedia, preview]);
+  ctl.pictures = {
+    retouch: props.createImageWorker && !status.readOnly ? (index, crop) => {
+      const oid = ctl.doc.drawingId(ctl.sheetId, index);
+      if (oid) setRetouch({ oid, crop });
+    } : null,
+    replace: (index, file) => void replacePicture(ctl, session, index, file).catch(() => toast({ title: 'Image non remplacée', tone: 'danger' })),
+    open: !!retouch,
+  };
 
   // Focus the grid when the editor opens (typing goes straight into cells).
   useEffect(() => {
@@ -173,7 +195,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
     try {
       const input = await session.exportInput();
       if (format !== 'xlsx' && input.json.sheets.length > 1) toast({ title: `Seule la feuille « ${ctl.props.name} » est enregistrée`, description: 'Le format texte ne garde qu’une feuille, sans formules ni mise en forme.', tone: 'info' });
-      const bytes = await props.exportFile({ format, json: input.json, original: format === 'xlsx' ? input.original : null, sheet: ctl.sheetIndex });
+      const xlsx = format === 'xlsx';
+      const bytes = await props.exportFile({ format, json: input.json, original: xlsx ? input.original : null, media: xlsx ? input.media : [], sheet: ctl.sheetIndex });
       download(bytes, `${safeFileName(props.title)}.${format}`, MIME[format]);
     } catch (e) {
       toast({ title: 'Export impossible', description: (e as Error).message, tone: 'warning' });
@@ -408,7 +431,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
           ],
         },
         ...(source === 'csv' ? [{ id: 'csv-settings', label: 'Paramètres CSV…' }, { id: 'to-xlsx', label: 'Enregistrer en .xlsx' }] : []),
-        { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer' },
+        { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
         '-',
         { id: 'print', label: 'Imprimer', icon: 'print', shortcut: 'Ctrl+P' },
       ],
@@ -531,7 +554,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
     {
       label: 'Outils',
       items: [
-        { id: 'identity', label: 'Votre nom…', icon: 'user' },
+        { id: 'identity', label: 'Votre nom…', icon: 'user', hidden: !collab },
         { id: 'scripts', label: 'Scripts (Python, Lua) — bientôt', disabled: true },
       ],
     },
@@ -561,7 +584,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       return;
     }
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.altKey && e.shiftKey && e.key.toLowerCase() === 'h') {
+    if (mod && e.altKey && e.shiftKey && e.key.toLowerCase() === 'h' && collab) {
       e.preventDefault();
       act('history');
     }
@@ -590,7 +613,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       </MenuPopover>
     </MenuTrigger>
   );
-  const shareButton = (
+  const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
       Partager
     </Button>
@@ -630,7 +653,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
               />
               {ro && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
               {source === 'csv' && <Badge tone="neutral" dot={false}>CSV</Badge>}
-              <SyncStatus status={status} noun="classeur" />
+              <SyncStatus status={status} noun="classeur" collab={collab} />
             </div>
             <MenuBar spec={spec} onAction={act} label="Menus du classeur" />
           </div>
@@ -641,8 +664,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
                 Réduire
               </Button>
             )}
-            <Peers status={status} noun="classeur" />
-            <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />
+            {collab && <Peers status={status} noun="classeur" />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -654,8 +677,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
         {compact && (
           <div className="oel-sheets__sheet-actions">
             {preservedChip}
-            <SyncStatus status={status} noun="classeur" />
-            <Peers status={status} noun="classeur" />
+            <SyncStatus status={status} noun="classeur" collab={collab} />
+            {collab && <Peers status={status} noun="classeur" />}
             {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label="Plein écran (Ctrl+Maj+Entrée)" onPress={props.onExpand} />}
             {exportMenu}
             {shareButton}
@@ -689,6 +712,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
           hasList={hasList}
           onListOpen={(at) => setListMenu(at)}
           media={media}
+          fitted={preview?.url ?? null}
         />
         {showVersions && (
           <VersionPanel
@@ -697,6 +721,24 @@ export function SheetsEditor(props: SheetsEditorProps) {
             onRestored={() => ctl.bump()}
             restore={(id) => session.restoreVersion(id)}
             renderPreview={(d: Y.Doc) => <VersionPreview doc={d} />}
+          />
+        )}
+        {retouch && props.createImageWorker && (
+          <SheetRetouch
+            key={retouch.oid}
+            ctl={ctl}
+            session={session}
+            calc={calc}
+            oid={retouch.oid}
+            crop={retouch.crop}
+            createWorker={props.createImageWorker}
+            onPreview={setPreview}
+            onClose={() => {
+              setRetouch(null);
+              const at = ctl.doc.drawingById(retouch.oid);
+              if (at && at.sheet === ctl.sheetId) ctl.selectDrawing(at.index);
+              gridFocus();
+            }}
           />
         )}
       </div>
@@ -728,8 +770,8 @@ export function SheetsEditor(props: SheetsEditorProps) {
         onClose={() => setDialog(null)}
       />
       <SplitDialog isOpen={dialog === 'split'} onSave={(d) => ctl.splitText(d)} onClose={() => setDialog(null)} />
-      <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
-      <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
+      {collab && <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />}
+      {collab && <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />}
     </div>
   );
 }
@@ -854,3 +896,39 @@ function VersionPreview({ doc }: { doc: Y.Doc }) {
     </div>
   );
 }
+
+const RETOUCH_NOTE = 'Le fichier Excel garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
+
+/** L3 · the atelier docked at the right of the grid; the grid shows the live rendering. */
+function SheetRetouch(p: { ctl: SheetController; session: SheetSession; calc: CalcClient; oid: string; crop: boolean; createWorker: () => Worker; onPreview: (v: { path: string; url: string } | null) => void; onClose: () => void }) {
+  const { ctl, session, calc, oid } = p;
+  const start = useMemo(() => ctl.doc.drawingById(oid)?.drawing ?? null, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = start?.media ?? '';
+  const original = start?.orig ?? shown;
+  const loadOriginal = useCallback(async () => {
+    const url = session.media.url(original);
+    if (url) return (await fetch(url)).blob();
+    const pkg = await session.original().catch(() => null);
+    const file = pkg && (await calc.media(pkg, [original]))[0];
+    return file ? new Blob([file.bytes as Uint8Array<ArrayBuffer>], { type: session.media.index.get(original)?.mime ?? mimeFromPath(original) }) : null;
+  }, [session, calc, original]);
+  if (!start) return null;
+  return (
+    <RetouchDock
+      title={start.descr || start.name || 'Image'}
+      loadOriginal={loadOriginal}
+      recipe={(start.recipe as Recipe | undefined) ?? null}
+      crop={p.crop}
+      note={RETOUCH_NOTE}
+      createWorker={p.createWorker}
+      onPreview={(v) => p.onPreview(v ? { path: shown, url: v.url } : null)}
+      onCommit={(r) => retouchPicture(ctl, session, oid, r)}
+      onClose={p.onClose}
+    />
+  );
+}
+
+const mimeFromPath = (path: string) => {
+  const ext = path.split('.').pop()?.toLowerCase() ?? 'png';
+  return ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : `image/${ext}`;
+};

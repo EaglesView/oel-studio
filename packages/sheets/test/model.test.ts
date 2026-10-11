@@ -9,7 +9,7 @@ import type { Workbook } from '../src/model/types';
 const require = createRequire(import.meta.url);
 const codec = require('oelxlsx-node') as {
   xlsx_to_model(b: Uint8Array): string;
-  model_to_xlsx(json: string, original?: Uint8Array): Uint8Array;
+  model_to_xlsx(json: string, original?: Uint8Array, media?: Array<{ path: string; bytes: Uint8Array }>): Uint8Array;
   XlsxParts: new (b: Uint8Array) => { part(p: string): Uint8Array | undefined };
   WasmCalc: new (json: string) => { values(s: number, r0: number, c0: number, r1: number, c1: number): string; structural(op: string): void; evaluate(): string; free(): void };
 };
@@ -205,5 +205,26 @@ describe('charts through the Y.Doc and back to .xlsx', () => {
     const out2 = codec.model_to_xlsx(JSON.stringify(d.toWorkbook()), bytes);
     expect(part(out2)).toContain('Dépenses 2027');
     expect(part(out2)).toContain('<c:numCache>');
+  });
+});
+
+describe('retouched pictures (L3) through the Y.Doc and back to .xlsx', () => {
+  it('the rendering shows in Excel, the recipe and original come back', () => {
+    const bytes = new Uint8Array(readFileSync(new URL('../../../fixtures/xlsx/complex_sheet_graph.xlsx', import.meta.url)));
+    const d = new SheetDoc(new Y.Doc());
+    d.seed(JSON.parse(codec.xlsx_to_model(bytes)));
+    const id = d.sheetIds()[0]!;
+    const i = d.drawings(id).findIndex((x) => x.kind === 'picture');
+    const recipe = { exposure: 0.3 };
+    d.updateDrawing(id, i, (x) => ({ ...x, media: 'xl/media/oel-r.png', mime: 'image/png', recipe, orig: 'xl/media/image1.png', descr: 'Logo' }));
+    // Through a second client, as a shared workbook would.
+    const other = new SheetDoc(new Y.Doc());
+    Y.applyUpdate(other.doc, Y.encodeStateAsUpdate(d.doc));
+    const out = codec.model_to_xlsx(JSON.stringify(other.toWorkbook()), bytes, [{ path: 'xl/media/oel-r.png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]) }]);
+    const back = (JSON.parse(codec.xlsx_to_model(out)) as Workbook).sheets[0]!.drawings![i]!;
+    expect(back.media).toBe('xl/media/oel-r.png');
+    expect(back.recipe).toEqual(recipe);
+    expect(back.orig).toMatch(/^oel\/media\/[0-9a-f]{16}\.png$/);
+    expect(back.descr).toBe('Logo');
   });
 });

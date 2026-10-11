@@ -132,6 +132,26 @@ describe('oelpptx engine', () => {
   });
 });
 
+describe('demo Bureau files (plan solo MVP, S-3)', () => {
+  it('the workbook lands on the desk with its computed results', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { createOelxlsxEngine, EngineRegistry, previewEngine } = await import('../src');
+    const mod = createRequire(import.meta.url)('oelxlsx-node');
+    const registry = new EngineRegistry().register(previewEngine).register(createOelxlsxEngine(async () => mod));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../fixtures/demo/Chronos — tours de piste.xlsx', import.meta.url))));
+    const res = await registry.import({ name: 'Chronos — tours de piste.xlsx', type: '', bytes });
+    expect(res.engine).toBe('oelxlsx-rs');
+    expect(res.preview.kind).toBe('spreadsheet');
+    if (res.preview.kind !== 'spreadsheet') return;
+    expect(res.preview.sheets).toEqual(['Résultats', 'Tours']);
+    const maya = res.preview.rows.find((r) => r[0] === 'Maya');
+    expect(maya?.slice(0, 2)).toEqual(['Maya', '58.1']);
+    expect(res.preview.rows.some((r) => r.includes('Maya') && r.includes('Par'))).toBe(true);
+  });
+});
+
 describe('zip writer', () => {
   it('writes archives the reader reads back', async () => {
     const { writeZip, readZipDirectory, readZipText, crc32 } = await import('../src/zip');

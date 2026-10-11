@@ -18,10 +18,14 @@ description: Add a new file/paper kind to the OutilsEnLigne Bureau (e.g. slides/
 5. **Thumbnail** — `apps/web/src/bureau/Paper.tsx` `Content` switch (+ `paper--<kind>` styles in `bureau.css`). Thumbnails must stay cheap: they re-render every 15 s when zoomed out.
 6. **Contextual toolbar (B2)** — `apps/web/src/bureau/ContextToolbar.tsx`. Unavailable tools stay visible with `unavailableReason` instead of disappearing.
 7. **Open in place / full screen (B4, levels 2–3)** — workspace component in `apps/web/src/bureau/workspaces/`, wired in `OpenSheet.tsx`. Respect Esc one level at a time (inner layers `stopPropagation`) and a URL per level.
-8. **Import glue** — `apps/web/src/bureau/importFiles.ts` (payload → collab doc → `docId` on the paper), plus a `bureau/<kind>.ts` helper like `docs.ts` / `sheets.ts`.
-9. **Standalone page** (optional) — `apps/web/src/pages/<route>.astro` mounting a page component (`document.astro` / `tableur.astro` are the patterns).
-10. **Collaboration** (optional) — editor package `packages/<kind>` with `model/` (pure, Yjs) + `ui/`, session built on `@oel/collab-client` (`MediaStore` for pictures); `DocKind` in `packages/collab-client/src/api.ts` (+ `SHARE_PATH`, IDB prefix and package mime in `session.ts`) and `apps/collab/src/db.ts`; the `KINDS` table and an `export.<ext>` route in `apps/collab/src/server.ts`. Slides (`bureau/slides.ts`, `SlidesWorkspace`, `/presentation`) is the most recent complete example.
-11. **Docs** — README "What's real and what's stubbed" table and the Figma ↔ code table.
+8. **Saved desk** — papers are saved on the device (`bureau/persist.ts`, one desk Y.Doc per project; S-2 of the solo
+   MVP plan). A new `PaperData` field holding an object URL or anything tab-only must be dropped in `storedPaper` and
+   rebuilt in `bureau/restore.ts` (`restoreMedia`); a kind backed by an editing session goes in `DOC_KIND` there so
+   removing it trashes its files and bureau backups (`deskStorage.ts`, `backup.ts`) carry them.
+9. **Import glue** — `apps/web/src/bureau/importFiles.ts` (payload → collab doc → `docId` on the paper), plus a `bureau/<kind>.ts` helper like `docs.ts` / `sheets.ts`.
+10. **Standalone page** (optional) — `apps/web/src/pages/<route>.astro` mounting a page component (`document.astro` / `tableur.astro` are the patterns).
+11. **Collaboration** (optional) — editor package `packages/<kind>` with `model/` (pure, Yjs) + `ui/`, session built on `@oel/collab-client` (`MediaStore` for pictures); `DocKind` in `packages/collab-client/src/api.ts` (+ `SHARE_PATH`, IDB prefix and package mime in `session.ts`) and `apps/collab/src/db.ts`; the `KINDS` table and an `export.<ext>` route in `apps/collab/src/server.ts`. Slides (`bureau/slides.ts`, `SlidesWorkspace`, `/presentation`) is the most recent complete example.
+12. **Docs** — README "What's real and what's stubbed" table and the Figma ↔ code table.
 
 ## Checklist
 

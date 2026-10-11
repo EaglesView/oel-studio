@@ -1,10 +1,12 @@
 /** Bureau ↔ @oel/docs: one collaborative session per document paper. */
 import { CollabApi, DocSession, blankDocxJson, defaultIdentity, docFromPreview, docsSchema, loadIdentity, saveIdentity, type DocxJson, type Identity } from '@oel/docs';
 import { asDocxPayload } from '@oel/engine';
+import { features } from '../edition';
 import { engineHost } from './importFiles';
 import type { Paper } from './model';
 
-export const collabApi = new CollabApi(import.meta.env.PUBLIC_COLLAB_URL ?? 'http://localhost:8787');
+/** The collab server; `null` in the single-user edition, so every document stays local (y-indexeddb). */
+export const collabApi: CollabApi | null = features.collab ? new CollabApi(import.meta.env.PUBLIC_COLLAB_URL ?? 'http://localhost:8787') : null;
 
 export function identity(): Identity {
   let id = loadIdentity();

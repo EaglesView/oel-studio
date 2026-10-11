@@ -1,5 +1,6 @@
 {
   "name": "@oel/charts",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Office-compatible chart renderer: ChartSpec (from the oel-chart codec) → scene of marks → SVG or Canvas. Every Office chart type, 2-D, 3-D and chartEx.",
   "type": "module",

@@ -421,7 +421,10 @@ export const DocImage = Node.create<{ resolver: ImageResolver }>({
         if (url && img.src !== url) img.src = url;
         img.alt = a.alt ?? '';
         if (a.cx) img.style.width = `${a.cx / EMU_PER_PX}px`;
-        if (a.cy) img.style.height = `${a.cy / EMU_PER_PX}px`;
+        // A retouch preview has its own shape (crop, quarter turn) until the panel closes.
+        const ratio = Number(dom.dataset.previewRatio);
+        if (a.cx && ratio) img.style.height = `${(a.cx / EMU_PER_PX) * ratio}px`;
+        else if (a.cy) img.style.height = `${a.cy / EMU_PER_PX}px`;
         dom.classList.toggle('is-floating', !!a.floating);
         dom.title = a.floating ? 'Image flottante (position conservée à l’export)' : '';
       };

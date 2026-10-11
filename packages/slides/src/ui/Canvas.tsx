@@ -5,7 +5,8 @@
  * commit once, so a move is one undo step and one sync message.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react';
-import { MenuItem, MenuPopover, MenuTrigger, Menu, MenuSeparator, ToolButton, toast } from '@oel/emboss';
+import { MenuItem, MenuPopover, MenuTrigger, Menu, MenuSeparator, Toolbar, ToolButton, toast } from '@oel/emboss';
+import { PictureTools, RETOUCHABLE, pickImageFile } from '@oel/img/ui';
 import type { ChartSpec } from '@oel/charts';
 import { CopyChartBar } from '@oel/charts/ui';
 import { LinkedCopyBar } from '@oel/collab-client';
@@ -82,7 +83,7 @@ function snap(moving: Box, others: Box[], slide: { w: number; h: number }, tol: 
   return { dx: best.gx != null ? best.dx : 0, dy: bestY.gy != null ? bestY.dy : 0, guides };
 }
 
-export function Canvas({ ctl, ctx, zoom, onContext, label }: { ctl: SlidesController; ctx: RenderCtx; zoom: number; onContext?: (ids: string[]) => void; label: string }) {
+export function Canvas({ ctl, ctx, zoom, onContext, label, canRetouch }: { ctl: SlidesController; ctx: RenderCtx; zoom: number; onContext?: (ids: string[]) => void; label: string; canRetouch?: boolean }) {
   const slide = ctl.slide;
   const info = ctl.info;
   const stage = useRef<HTMLDivElement>(null);
@@ -350,7 +351,7 @@ export function Canvas({ ctl, ctx, zoom, onContext, label }: { ctl: SlidesContro
           </div>
         </div>
         {single?.kind === 'graphic' && single.chart && !ctl.editing && !drag && <ChartBar ctl={ctl} el={single} k={k} />}
-        {single?.kind === 'picture' && !ctl.editing && !drag && <PictureBar ctl={ctl} el={single} k={k} />}
+        {single?.kind === 'picture' && single.image?.media && !ctl.editing && !drag && !ctl.retouching && <PictureBar ctl={ctl} el={single} k={k} canRetouch={!!canRetouch} />}
         {single?.kind === 'table' && !ctl.editing && !drag && <TableBar ctl={ctl} el={single} k={k} />}
       </div>
       {menu && <ContextMenu ctl={ctl} at={menu} onClose={() => (setMenu(null), stage.current?.focus())} />}
@@ -451,16 +452,44 @@ function TableBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: numbe
   );
 }
 
-/** The bar over a selected linked picture (Figma I1), above it in the frame. */
-function PictureBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: number }) {
+/**
+ * The bar over a selected picture (Figma L3), above it in the frame: Retoucher · Recadrer ·
+ * Remplacer · Texte alternatif, then for a linked copy (Figma I1) where it comes from and its link.
+ */
+function PictureBar({ ctl, el, k, canRetouch }: { ctl: SlidesController; el: Element; k: number; canRetouch: boolean }) {
   const { host, link, state } = useCopyLink(ctl, el);
-  if (!link) return null;
   const b = boxOf(el);
   const above = b.y * k > 52;
+  const style: CSSProperties = { left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' };
+  const img = el.image!;
+  const noRetouch = !canRetouch
+    ? 'La retouche n’est pas disponible ici.'
+    : img.svg || !RETOUCHABLE.test(img.mime)
+      ? 'Les images vectorielles ne se retouchent pas.'
+      : el.locked
+        ? 'Cette image ne se modifie pas ici.'
+        : undefined;
+  const tools = (
+    <PictureTools
+      readOnly={ctl.readOnly ? 'Lecture seule' : undefined}
+      noRetouch={noRetouch}
+      onRetouch={(crop) => ctl.openRetouch(el.id, crop)}
+      onReplace={el.locked ? undefined : () => pickImageFile((f) => void ctl.replacePicture(el.id, f).catch(() => toast({ title: 'Image non remplacée', tone: 'danger' })))}
+      alt={el.descr ?? ''}
+      onAlt={(descr) => ctl.update(el.id, { descr })}
+    />
+  );
+  if (!link)
+    return (
+      // Same guards as the linked bar: the picture stays selected while a tool is pressed.
+      <div className="oel-chart-bar oel-slide-chartbar" style={style} onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} onKeyDown={(e) => e.stopPropagation()}>
+        <Toolbar aria-label="Image">{tools}</Toolbar>
+      </div>
+    );
   return (
     <LinkedCopyBar
       className="oel-slide-chartbar"
-      style={{ left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' }}
+      style={style}
       label="Image liée"
       link={{
         source: link.source.title,
@@ -471,7 +500,9 @@ function PictureBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: num
         onUpdate: () => host.update(link.id),
         onManage: (r) => host.manage(link.id, r),
       }}
-    />
+    >
+      {tools}
+    </LinkedCopyBar>
   );
 }
 

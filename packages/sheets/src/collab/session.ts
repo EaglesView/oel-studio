@@ -1,10 +1,11 @@
 /**
  * A spreadsheet session: the shared Y.Doc session of @oel/collab-client
  * (offline copy, sync, links, versions) plus seeding from the codec JSON,
- * the original .xlsx for round trips, export input and version restore.
+ * the original .xlsx for round trips, pictures made in the editor (retouched ones), export input
+ * and version restore.
  */
 import type * as Y from 'yjs';
-import { CollabApi, YSession, createRemoteDoc, type Identity } from '@oel/collab-client';
+import { CollabApi, MediaStore, YSession, createRemoteDoc, type Identity, type MediaEntry } from '@oel/collab-client';
 import { SheetDoc } from '../model/ydoc';
 import type { Workbook } from '../model/types';
 
@@ -17,10 +18,18 @@ export interface SheetSeed {
 
 export class SheetSession extends YSession {
   readonly sheet: SheetDoc;
+  /** Pictures made in the editor (imported ones stay in the original .xlsx). */
+  readonly media: MediaStore;
 
   private constructor(docId: string, token: string | null, api: CollabApi | null, identity: Identity) {
     super('sheet', docId, token, api, identity);
     this.sheet = new SheetDoc(this.ydoc);
+    this.media = new MediaStore(this.ydoc.getMap<MediaEntry>('media'), () => ({
+      docId: this.status.docId,
+      token: this.status.token,
+      api: this.api,
+      canUpload: !this.status.readOnly && this.status.connection !== 'local',
+    }));
   }
 
   /** Open an existing workbook (or a new local one when `docId` is empty). */
@@ -29,6 +38,7 @@ export class SheetSession extends YSession {
     const s = new SheetSession(docId, token, o.api ?? null, o.identity);
     await s.start();
     if (o.seed) await s.seed(o.seed);
+    await s.media.preload();
     return s;
   }
 
@@ -55,10 +65,19 @@ export class SheetSession extends YSession {
     this.sheet.seed(seed.workbook, seed.title);
   }
 
+  protected override onAuthenticated() {
+    void this.media.sync();
+  }
+
+  /** Store a picture made in the editor; returns its package path. */
+  addPicture(file: Blob): Promise<string> {
+    return this.media.add(file, 'xl/media');
+  }
+
   /** What the codec needs to write the file. */
-  async exportInput(): Promise<{ json: Workbook; original: Uint8Array | null }> {
+  async exportInput(): Promise<{ json: Workbook; original: Uint8Array | null; media: Array<{ path: string; bytes: Uint8Array }> }> {
     const json = this.sheet.toWorkbook();
-    return { json, original: json.source === 'xlsx' ? await this.original() : null };
+    return { json, original: json.source === 'xlsx' ? await this.original() : null, media: await this.media.added() };
   }
 
   /** Restore a version as a new change (a "before restore" version is kept first). */
@@ -66,5 +85,9 @@ export class SheetSession extends YSession {
     const source: Y.Doc = await this.loadVersion(id);
     await this.createVersion('Avant la restauration', true).catch(() => null);
     this.sheet.replaceWith(new SheetDoc(source).toWorkbook());
+  }
+
+  protected override onDestroy() {
+    this.media.destroy();
   }
 }

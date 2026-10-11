@@ -14,25 +14,28 @@ import {
 } from '@oel/emboss';
 import { AppMenu, type MenuPane } from './AppMenu';
 import { ContextToolbar, type NoteActions } from './ContextToolbar';
-import { BottomBar, EmptyDesk, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, type ArrivalRules } from './Chrome';
+import { BottomBar, EmptyDesk, FirstRunHint, NEW_KINDS, PresenceCursors, ProjectPill, SharePill, ZoomControl, dismissFirstRunHint, firstRunHintPending, type ArrivalRules } from './Chrome';
 import { ListView } from './ListView';
 import { KIND_TAB, RESIZE_MODE, blankPaper, describePaper, kindLabel, type Bureau, type Paper as PaperNode, type PaperData, type PaperKind } from './model';
 import { OpenSheet, type OpenSheetHandle } from './OpenSheet';
 import { Paper, type NoteEditing } from './Paper';
 import { migrateNote, startsNoteText } from './notes';
-import { SEED_PAPERS } from './seed';
+import { demoPapers, seedDemo } from './demo';
+import { features } from '../edition';
 import { LinkResolver, setActiveLinks } from '../links/resolver';
 import { LinksUI } from '../links/LinksUI';
 import { THREAD_PREFIX } from '@oel/links';
 import { ShortcutsDialog } from './ShortcutsDialog';
-import { convertToEditable, importFiles } from './importFiles';
-import { seedFixtures } from './seedFixtures';
+import { importFiles } from './importFiles';
 import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
 import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms';
 import { ProjectProvider, useProject, useSetting } from '../project/ProjectContext';
 import { bindImages, createGallery } from './images';
+import { bindDesk, type DeskBinding } from './persist';
+import { openDesk, type OpenedDesk } from './deskStorage';
+import { askPersistentStorage, bindThumbnails, restoreMedia } from './restore';
 import './bureau.css';
 
 /** Furthest you can zoom out: papers are small thumbnails, never piles or a full overview. */
@@ -46,21 +49,70 @@ const MAX_ZOOM_OUT = 0.25;
 export function BureauApp() {
   return (
     <ProjectProvider>
-      <BureauDesk />
+      <DeskLoader />
     </ProjectProvider>
   );
 }
 
-function BureauDesk() {
+/** Opens the project's desk saved on this device (plan solo MVP, S-2) before showing it. */
+function DeskLoader() {
+  const project = useProject();
+  const [opened, setOpened] = useState<{ projectId: string; desk: OpenedDesk } | { projectId: string; error: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    openDesk(project.id).then(
+      (desk) => (live ? setOpened({ projectId: project.id, desk }) : void desk.device.close()),
+      (e: Error) => live && setOpened({ projectId: project.id, error: e.message }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [project.id]);
+  // Stop saving the previous project's desk when another one opens.
+  useEffect(() => () => void (opened && 'desk' in opened && opened.desk.device.close()), [opened]);
+  if (!opened || opened.projectId !== project.id) return <p className="bureau-loading" role="status">Ouverture du bureau…</p>;
+  if ('error' in opened) return <p className="bureau-loading" role="alert">Impossible d’ouvrir le bureau : {opened.error}</p>;
+  return <BureauDesk key={opened.projectId} saved={opened.desk} />;
+}
+
+function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const project = useProject();
   const store = useMemo<Bureau>(() => {
     const desk = createDesk<PaperData>({
-      nodes: SEED_PAPERS.map(migrateNote),
-      viewport: { x: 0, y: 40, zoom: 0.9 },
+      nodes: (saved.content?.papers ?? (saved.seed === 'demo' ? demoPapers() : [])).map(migrateNote),
+      links: saved.content?.links ?? [],
+      viewport: saved.content?.viewport ?? { x: 0, y: 40, zoom: 0.9 },
       zoom: { min: MAX_ZOOM_OUT, max: 4 },
     });
     return desk;
-  }, []);
+  }, [saved]);
+  /** The desk saved on this device: written a moment after each change. */
+  const persistence = useRef<DeskBinding | null>(null);
+  useEffect(() => {
+    let asked = false;
+    const binding = bindDesk(store, saved.device.doc, saved.content, {
+      // On a returning visit, the first change asks the browser to keep this site's data
+      // (Chrome decides silently; Firefox asks the person, so not on a first look at the demo).
+      onWrite: () => {
+        if (asked || !saved.content) return;
+        asked = true;
+        void askPersistentStorage();
+      },
+    });
+    persistence.current = binding;
+    const unthumb = bindThumbnails(store);
+    if (saved.content) void restoreMedia(store);
+    const onHide = () => binding.flush();
+    window.addEventListener('pagehide', onHide);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      document.removeEventListener('visibilitychange', onHide);
+      unthumb();
+      binding.dispose();
+      persistence.current = null;
+    };
+  }, [store, saved]);
   const [view, setView] = useState<'desk' | 'list'>('desk');
   /** K2 · the note being written on the desk (one undo step per writing session). */
   const [editingNote, setEditingNote] = useState<string | null>(null);
@@ -169,7 +221,7 @@ function BureauDesk() {
   const announce = useCallback((m: string) => announceRef.current(m), []);
   /** E2 · 1 « Nouveau formulaire » (from the « + » menu, or from a selected spreadsheet). */
   const [newForm, setNewForm] = useState<{ sheetId: string | null } | null>(null);
-  useFormSync(store, formsBackend, announce);
+  useFormSync(store, formsBackend, announce, features.forms);
   // Figma L: recipes mirrored on papers, desk pictures re-rendered, galleries kept in step.
   useEffect(() => bindImages(store), [store]);
 
@@ -195,13 +247,25 @@ function BureauDesk() {
 
   const count = useDeskState(store, (s) => s.order.length);
   const openId = useDeskState(store, (s) => s.openId);
+  /** R3 · first visit: how to open a paper, until one is opened or the hint is closed. */
+  const [hint, setHint] = useState(firstRunHintPending);
+  const closeHint = useCallback(() => {
+    dismissFirstRunHint();
+    setHint(false);
+  }, []);
+  useEffect(() => {
+    if (openId && hint) closeHint();
+  }, [openId, hint, closeHint]);
   const openPaper = useDeskState(store, (s) => (s.openId ? (s.nodes[s.openId] as PaperNode | undefined) : undefined));
 
-  // TEMPORARY: real fixture files in place of two sample papers (see seedFixtures.ts).
-  useEffect(() => seedFixtures(store), [store]);
-
-  // Fit the seeded desk once the canvas knows its size.
+  // A new desk gets the demo: its files imported for real, then linked (demo.ts).
   useEffect(() => {
+    if (!saved.content && saved.seed === 'demo') void seedDemo(store, links);
+  }, [store, saved, links]);
+
+  // Fit a new desk once the canvas knows its size (a saved one comes back where it was left).
+  useEffect(() => {
+    if (saved.content) return;
     if (store.getState().screen.w > 0) {
       store.zoomToFit(undefined, 0.92);
       return;
@@ -213,7 +277,7 @@ function BureauDesk() {
       }
     });
     return unsub;
-  }, [store]);
+  }, [store, saved]);
 
   // ── Levels (Editor — Behaviors · A1/A2) ─────────────────────────────
   // 1 desk · 2 ouvert sur place (?f=id) · 3 plein écran (&vue=plein-ecran).
@@ -298,7 +362,7 @@ function BureauDesk() {
     } else openAt(id, 2);
   };
   const create = (kind: PaperKind) => {
-    if (kind === 'form') return setNewForm({ sheetId: null });
+    if (kind === 'form') return features.forms ? setNewForm({ sheetId: null }) : undefined;
     const p = blankPaper(kind, store.viewCenter());
     store.add([p]);
     announceRef.current(`${kindLabel(kind)} créé au centre de la vue`);
@@ -441,11 +505,10 @@ function BureauDesk() {
             }}
           >
             <AnnounceBridge target={announceRef} />
-            <PresenceCursors store={store} />
+            {features.collab && <PresenceCursors store={store} />}
             <ContextToolbar
               store={store}
               onOpen={open}
-              onConvert={(id) => convertToEditable(store, id, announceRef.current)}
               onCreateForm={(sheetId) => setNewForm({ sheetId })}
               onOpenFull={(id) => openAt(id, 3)}
               notes={notes}
@@ -479,9 +542,11 @@ function BureauDesk() {
           count={count}
           view={view}
           onToggleView={() => setView((v) => (v === 'desk' ? 'list' : 'desk'))}
-          onProjects={() => openMenu('projects', { x: 60, y: 40 })}
+          onProjects={() => openMenu(features.projects ? 'projects' : 'home', { x: 60, y: 40 })}
+          badge={features.projects}
         />
-        <SharePill />
+        {features.collab && <SharePill />}
+        {hint && view === 'desk' && !openId && count > 0 && <FirstRunHint onDismiss={closeHint} />}
         <BottomBar
           onCreate={create}
           onImport={(files) => doImport(files)}
@@ -509,14 +574,10 @@ function BureauDesk() {
           onReduce={reduce}
           onRepose={toDesk}
           onBureau={toDesk}
-          onConvert={(id) => {
-            toDesk();
-            convertToEditable(store, id, announceRef.current);
-          }}
           onOpenPaper={(id) => openAt(id, 2)}
         />
       )}
-      {newForm && (
+      {features.forms && newForm && (
         <NewFormDialog
           isOpen
           onOpenChange={(o) => !o && setNewForm(null)}
@@ -544,6 +605,7 @@ function BureauDesk() {
         onViewChange={setView}
         minimap={minimap}
         onMinimapChange={setMinimap}
+        desk={{ projectId: project.id, title: project.name, doc: saved.device.doc, flush: () => persistence.current?.flush() }}
       />
       <LinksUI resolver={links} store={store} />
       <ShortcutsDialog isOpen={help} onOpenChange={setHelp} />

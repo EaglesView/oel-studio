@@ -19,6 +19,8 @@ import { Filmstrip } from './Filmstrip';
 import { ScaledSlide, type RenderCtx } from './render';
 import { SlidesToolbar } from './SlidesToolbar';
 import { Slideshow, openPresenterWindow } from './Slideshow';
+import type { Recipe } from '@oel/img';
+import { RetouchDock } from '@oel/img/ui';
 
 export interface ExportRequest {
   format: 'pptx';
@@ -38,6 +40,8 @@ export interface SlidesEditorProps {
   onOpenFile?: (file: File) => void;
   onNewPresentation?: () => void;
   shareOrigin?: string;
+  /** Sharing, people, server versions, identity; `false` in the single-user edition. Default `true`. */
+  collab?: boolean;
   identity: Identity;
   onIdentityChange?: (identity: Identity) => void;
   /** Editor — Behaviors A1: level 2 (`sheet`), level 3 (`full`), or the /presentation page. */
@@ -47,6 +51,8 @@ export interface SlidesEditorProps {
   onExpand?: () => void;
   /** Start the slideshow as soon as the editor opens (« Présenter » from the desk). */
   autoPresent?: boolean;
+  /** The image worker (`@oel/img`): « Retoucher » on pictures (L3). Without it, retouching is unavailable. */
+  createImageWorker?: () => Worker;
 }
 
 const safeFileName = (t: string) => (t.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'presentation').slice(0, 120);
@@ -150,7 +156,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   }, [ctl.version, ctl.doc, onPreview]);
 
   const ctx: RenderCtx = useMemo(
-    () => ({ theme: info.theme, fonts: info.fonts, media: session.media.url, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
+    () => ({ theme: info.theme, fonts: info.fonts, media: ctl.mediaUrl, previewing: ctl.previewing, editing: true, editingText: ctl.editing, slideNumber: ctl.index + 1, links: linksOf(session.ydoc) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [info, session, ctl.editing, ctl.index, ctl.version],
   );
@@ -183,6 +189,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
 
   const layouts = info.layouts.map((l) => ({ id: `layout:${l.id}`, label: l.name || 'Disposition', checked: l.id === ctl.slide?.layout }));
   const local = status.connection === 'local';
+  const collab = props.collab ?? true;
   const spec: MenuSpec = [
     {
       label: 'Fichier',
@@ -192,9 +199,9 @@ export function SlidesEditor(props: SlidesEditorProps) {
         { id: 'dl-pptx', label: 'Télécharger en PowerPoint (.pptx)', icon: 'download', disabled: !props.exportFile },
         { id: 'print', label: 'Imprimer / PDF', icon: 'print', shortcut: 'Ctrl+P' },
         '-',
-        { id: 'share', label: 'Partager…', icon: 'share' },
-        { id: 'history', label: 'Historique des versions', icon: 'history', disabled: local || status.role === 'viewer' },
-        { id: 'identity', label: 'Votre nom et couleur…', icon: 'user' },
+        { id: 'share', label: 'Partager…', icon: 'share', hidden: !collab },
+        { id: 'history', label: 'Historique des versions', icon: 'history', disabled: local || status.role === 'viewer', hidden: !collab },
+        { id: 'identity', label: 'Votre nom et couleur…', icon: 'user', hidden: !collab },
       ],
     },
     {
@@ -340,7 +347,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       .pptx
     </Button>
   );
-  const shareButton = (
+  const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
       Partager
     </Button>
@@ -382,7 +389,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               />
               {ro && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
-              <SyncStatus status={status} noun="présentation" />
+              <SyncStatus status={status} noun="présentation" collab={collab} />
             </div>
             <MenuBar spec={spec} onAction={act} label="Menus de la présentation" />
           </div>
@@ -393,8 +400,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
                 Réduire
               </Button>
             )}
-            <Peers status={status} noun="présentation" />
-            <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />
+            {collab && <Peers status={status} noun="présentation" />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportButton}
             {shareButton}
           </div>
@@ -406,8 +413,8 @@ export function SlidesEditor(props: SlidesEditorProps) {
         {compact && (
           <div className="oel-slides__sheet-actions">
             {preservedChip}
-            <SyncStatus status={status} noun="présentation" />
-            <Peers status={status} noun="présentation" />
+            <SyncStatus status={status} noun="présentation" collab={collab} />
+            {collab && <Peers status={status} noun="présentation" />}
             {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label="Plein écran (Ctrl+Maj+Entrée)" onPress={props.onExpand} />}
             {exportButton}
             {shareButton}
@@ -419,7 +426,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
         <Filmstrip ctl={ctl} ctx={ctx} onPresent={present} />
         <div className="oel-slides__main">
           <div ref={stageBox} className="oel-slides__stage">
-            <Canvas ctl={ctl} ctx={ctx} zoom={k} label={`Diapositive ${ctl.index + 1} sur ${ctl.doc.slideIds().length}`} />
+            <Canvas ctl={ctl} ctx={ctx} zoom={k} canRetouch={!!props.createImageWorker} label={`Diapositive ${ctl.index + 1} sur ${ctl.doc.slideIds().length}`} />
           </div>
           {showNotes && notes && <NotesPane key={slide!.id} text={notes} ro={ro} />}
         </div>
@@ -432,6 +439,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
             renderPreview={(d: Y.Doc) => <VersionPreview doc={d} media={session.media.url} />}
           />
         )}
+        {ctl.retouching && props.createImageWorker && <SlideRetouch key={`${ctl.retouching.slide}/${ctl.retouching.id}`} ctl={ctl} createWorker={props.createImageWorker} />}
       </div>
 
       {dock.docked && (
@@ -457,9 +465,9 @@ export function SlidesEditor(props: SlidesEditorProps) {
       {show != null && <Slideshow ctl={ctl} ctx={ctx} start={show} presenterWindow={presenterWin} onExit={() => (setShow(null), setPresenterWin(null))} />}
       {printing && <PrintDeck ctl={ctl} ctx={ctx} onDone={() => setPrinting(false)} />}
       <BackgroundDialog ctl={ctl} isOpen={dialog === 'background'} onClose={() => setDialog(null)} />
-      <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
+      {collab && <ShareDialog session={session} title={props.title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />}
       {fontReport && <FontsDialog fonts={info.fonts} report={fontReport} isOpen={fontsOpen} onClose={() => setFontsOpen(false)} onChange={() => setFontsReady((n) => n + 1)} />}
-      <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
+      {collab && <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />}
     </div>
   );
 }
@@ -607,5 +615,33 @@ function VersionPreview({ doc, media }: { doc: Y.Doc; media: (path: string) => s
         return s ? <ScaledSlide key={id} slide={s} info={info} ctx={{ ...ctx, slideNumber: i + 1 }} width={240} /> : null;
       })}
     </div>
+  );
+}
+
+const RETOUCH_NOTE = 'Le fichier PowerPoint garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
+
+/** L3 · the atelier docked at the right of the slide; the slide and the filmstrip show the live rendering. */
+function SlideRetouch({ ctl, createWorker }: { ctl: SlidesController; createWorker: () => Worker }) {
+  const { slide, id, crop } = ctl.retouching!;
+  const start = useMemo(() => ctl.doc.slide(slide)?.elements.find((e) => e.id === id) ?? null, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = start?.image?.media ?? '';
+  const original = start?.image?.orig ?? shown;
+  const loadOriginal = useCallback(async () => {
+    const url = ctl.session.media.url(original);
+    return url ? (await fetch(url)).blob() : null;
+  }, [ctl, original]);
+  if (!start?.image) return null;
+  return (
+    <RetouchDock
+      title={start.descr || start.name || 'Image'}
+      loadOriginal={loadOriginal}
+      recipe={(start.image.recipe as Recipe | undefined) ?? null}
+      crop={crop}
+      note={RETOUCH_NOTE}
+      createWorker={createWorker}
+      onPreview={(p) => ctl.previewMedia(shown, p?.url ?? null)}
+      onCommit={(r) => ctl.retouchPicture(slide, id, r)}
+      onClose={() => ctl.closeRetouch()}
+    />
   );
 }

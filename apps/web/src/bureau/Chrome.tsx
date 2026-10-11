@@ -23,6 +23,7 @@ import {
 } from '@oel/emboss';
 import { useProject } from '../project/ProjectContext';
 import { type Bureau, type PaperKind } from './model';
+import { features } from '../edition';
 
 /* ── B1 · 1 Projet ──────────────────────────────────────────────────── */
 
@@ -32,6 +33,7 @@ export function ProjectPill({
   view,
   onToggleView,
   onProjects,
+  badge = true,
 }: {
   title: string;
   count: number;
@@ -39,6 +41,8 @@ export function ProjectPill({
   onToggleView: () => void;
   /** M3: the pill opens the menu on « Projets ». */
   onProjects: () => void;
+  /** The « Projet » badge (single-user edition: one desk, no projects to tell apart). */
+  badge?: boolean;
 }) {
   return (
     <header className="chrome-pill project-pill" data-desk-ui>
@@ -48,7 +52,7 @@ export function ProjectPill({
           {title}
         </RACButton>
       </h1>
-      <Badge tone="accent">Projet</Badge>
+      {badge && <Badge tone="accent">Projet</Badge>}
       <span className="project-pill__count">
         {count} fichier{count > 1 ? 's' : ''}
       </span>
@@ -62,6 +66,40 @@ export function ProjectPill({
         {view === 'desk' ? 'Vue liste' : 'Vue bureau'}
       </Button>
     </header>
+  );
+}
+
+/* ── First visit ─────────────────────────────────────────────────────── */
+
+const HINT_KEY = 'oel-first-run-hint';
+
+/** Whether the first-run hint is still to show (until a paper is opened or it is closed). */
+export function firstRunHintPending(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) !== 'vu';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissFirstRunHint() {
+  try {
+    localStorage.setItem(HINT_KEY, 'vu');
+  } catch {
+    /* private window: it shows again next time */
+  }
+}
+
+/** The one thing to know on a first visit (plan solo MVP, R3), above the bottom bar. */
+export function FirstRunHint({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="chrome-pill first-run-hint" role="note" data-desk-ui>
+      <Icon name="info" size={16} />
+      <span>
+        Double-cliquez sur un papier pour l’ouvrir (ou Entrée) ; Échap le repose. <kbd>?</kbd> : tous les raccourcis.
+      </span>
+      <Button variant="ghost" size="sm" leadingIcon="close" aria-label="Fermer l’astuce" onPress={onDismiss} />
+    </div>
   );
 }
 
@@ -124,7 +162,8 @@ export const NEW_KINDS: { kind: PaperKind; label: string; icon: IconName }[] = [
   { kind: 'document', label: 'Document', icon: 'file' },
   { kind: 'slides', label: 'Présentation', icon: 'slide' },
   { kind: 'spreadsheet', label: 'Tableur', icon: 'table' },
-  { kind: 'form', label: 'Formulaire', icon: 'form' },
+  // Single-user edition: no forms (plan solo MVP, S-6).
+  ...(features.forms ? [{ kind: 'form' as const, label: 'Formulaire', icon: 'form' as const }] : []),
 ];
 
 export const SOON = 'Bientôt.';
@@ -182,7 +221,7 @@ export function BottomBar({
         <ToolButton icon="grid" label="Étaler" showLabel shortcut={['E']} description="Voir tout le projet en grille, sans rien déplacer." unavailableReason={SOON} />
         <ToolbarSeparator />
         <MenuTrigger isOpen={newMenuOpen} onOpenChange={onNewMenuOpenChange}>
-          <WithTooltip label="Nouveau" shortcut={['Alt', 'N']} description="Document, présentation, tableur ou formulaire, au centre de la vue.">
+          <WithTooltip label="Nouveau" shortcut={['Alt', 'N']} description={`Document, présentation, tableur${features.forms ? ' ou formulaire' : ''}, au centre de la vue.`}>
             <RACButton className="bottom-bar__new" aria-label="Nouveau" aria-keyshortcuts="Alt+N">
               <Icon name="plus" size={20} />
             </RACButton>

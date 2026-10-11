@@ -16,10 +16,11 @@ const SCHEME: [&str; 12] = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "a
 /// `fonts` are the theme's body and heading fonts (charts use them for `+mn-lt`).
 pub fn read_drawings(pkg: &Package, sheet_part: &str, theme: &[String], fonts: &(Option<String>, Option<String>)) -> Vec<Drawing> {
     let mut out = Vec::new();
+    let retouches = oel_opc::retouch::read(pkg);
     for rel in pkg.rels(sheet_part).into_iter().filter(|r| r.rel_type == REL_DRAWING) {
         let part = resolve_target(sheet_part, &rel.target);
         let Some(doc) = pkg.get_xml(&part) else { continue };
-        let ctx = Ctx { pkg, part: &part, theme, fonts };
+        let ctx = Ctx { pkg, part: &part, theme, fonts, retouches: &retouches };
         for (i, anchor) in doc.root.elements().enumerate() {
             if let Some(mut d) = ctx.anchor(anchor) {
                 d.src = Some(i as u32);
@@ -74,6 +75,8 @@ struct Ctx<'a> {
     part: &'a str,
     theme: &'a [String],
     fonts: &'a (Option<String>, Option<String>),
+    /// Retouched pictures recorded by OEL (rendered part → original + recipe), still valid.
+    retouches: &'a std::collections::HashMap<String, oel_opc::retouch::RetouchEntry>,
 }
 
 fn num(e: &XElement, k: &str) -> Option<i64> {
@@ -164,6 +167,11 @@ impl Ctx<'_> {
                     let path = svg.or_else(|| self.media(blip));
                     if let Some(p) = path {
                         d.mime = Some(self.pkg.mime_of(&p)).filter(|m| m.starts_with("image/"));
+                        // A picture retouched in OEL whose pixels Excel left alone: its original and recipe.
+                        if let Some(r) = self.retouches.get(&p) {
+                            d.recipe = Some(r.recipe.clone());
+                            d.orig = Some(r.original.clone());
+                        }
                         d.media = Some(p);
                     }
                 }

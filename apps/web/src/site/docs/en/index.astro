@@ -1,0 +1,42 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import Capture from '../../Capture.astro';
+import { docHref } from '../../i18n';
+---
+<DocsLayout lang="en" id="index" description="Open the Bureau, drop your files, open a paper in place or full screen, and go back to the desk.">
+  <p class="prose__lead">The Bureau lays every file of a project side by side, like paper on a table. The tools follow what you touch.</p>
+  <Capture lang="en" id="desk" alt="The demo desk: a spreadsheet, a presentation, an image and a document, joined by threads." />
+  <p class="note">The Bureau itself is in French for now; this page gives the French names of buttons and menus in quotes.</p>
+
+  <h2 id="open">Open the Bureau</h2>
+  <p>Go to <a href="/bureau">/bureau</a>. No account is needed. The first time, the desk holds a demo: a spreadsheet of race times, a welcome presentation, a logo and a document. Everything you do there stays in this browser.</p>
+
+  <h2 id="drop">Drop files</h2>
+  <p>Drag files onto the desk, or use <kbd>Ctrl</kbd> <kbd>O</kbd> (“Importer” in the bottom bar). They land where you drop them, fanned out, and each shows how far along it is: reading, converting, ready.</p>
+  <table>
+    <thead><tr><th>Format</th><th>On the desk</th></tr></thead>
+    <tbody>
+      <tr><td>Word (.docx)</td><td>Editable document</td></tr>
+      <tr><td>Excel (.xlsx), .csv, .tsv</td><td>Editable spreadsheet, formulas calculated</td></tr>
+      <tr><td>PowerPoint (.pptx)</td><td>Editable presentation</td></tr>
+      <tr><td>Images (PNG, JPEG, WebP…)</td><td>Retouchable image</td></tr>
+      <tr><td>PDF</td><td>Kept with its page count (viewing to come)</td></tr>
+      <tr><td>.odt, .ods, .odp, .txt, .md</td><td>Text preview</td></tr>
+    </tbody>
+  </table>
+  <p>A file can be up to 100 MB.</p>
+
+  <h2 id="levels">Three levels, one way back</h2>
+  <ol>
+    <li><strong>The desk</strong>: every paper, at whatever size you like.</li>
+    <li><strong>Open in place</strong>: double-click a paper (or <kbd>Enter</kbd>). It opens over the desk, which stays visible around it.</li>
+    <li><strong>Full screen</strong>: <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd>, or “Agrandir”. Full menus, outline, status bar.</li>
+  </ol>
+  <p><kbd>Esc</kbd> goes back one level at a time; it first ends what is in progress (a menu, a search). The browser’s Back button does the same: each level has its own address. Back on the desk, the paper returns to its place, selected, with an up-to-date thumbnail.</p>
+
+  <h2 id="create">Create</h2>
+  <p>The round “+” at the right end of the bottom bar (<kbd>Alt</kbd> <kbd>N</kbd>) creates a document, a presentation or a spreadsheet in the middle of the view. <kbd>N</kbd> puts down a note.</p>
+
+  <h2 id="keep">Keep your work</h2>
+  <p>The desk saves itself on this device. To keep a copy elsewhere, open the menu (the logo, bottom left), “Ouvrir et importer”, then “Exporter le bureau (.zip)”. Each file also downloads in its original format from its own menu. See <a href={docHref('en', 'formats')}>Formats and privacy</a>.</p>
+</DocsLayout>

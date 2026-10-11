@@ -1,5 +1,6 @@
 {
   "name": "@oel/collab-client",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Client side of apps/collab shared by the editors (@oel/docs, @oel/sheets): HTTP API, share tokens, anonymous identity, offline files, the Y.Doc session base, and the sync / share / version UI.",
   "type": "module",

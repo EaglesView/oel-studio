@@ -62,6 +62,9 @@ export const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(9
 /** IndexedDB name per kind (docs keep the name they always had). */
 const IDB_PREFIX: Record<DocKind, string> = { doc: 'oel-doc', sheet: 'oel-sheet', slides: 'oel-slides' };
 
+/** The IndexedDB database holding a document's offline copy (backups and clean-up read it directly). */
+export const docDbName = (kind: DocKind, docId: string) => `${IDB_PREFIX[kind]}:${docId}`;
+
 const PACKAGE_MIME: Record<DocKind, string> = {
   doc: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   sheet: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -109,7 +112,7 @@ export class YSession {
       error: null,
       peers: [],
     };
-    this.idb = new IndexeddbPersistence(`${IDB_PREFIX[kind]}:${docId}`, this.ydoc);
+    this.idb = new IndexeddbPersistence(docDbName(kind, docId), this.ydoc);
   }
 
   /** Resolve the id and token a session opens with (a new local id when none). */
@@ -238,7 +241,7 @@ export class YSession {
     await localFiles.rekey(oldId, docId);
     // Keep the offline copy under the new id, then sync to the server.
     const old = this.idb;
-    this.idb = new IndexeddbPersistence(`${IDB_PREFIX[this.kind]}:${docId}`, this.ydoc);
+    this.idb = new IndexeddbPersistence(docDbName(this.kind, docId), this.ydoc);
     await this.idb.whenSynced;
     void old.clearData();
     this.set({ docId, token: ownerToken, role: 'owner', connection: 'connecting' });

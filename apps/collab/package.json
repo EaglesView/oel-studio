@@ -1,5 +1,6 @@
 {
   "name": "@oel/collab",
+  "license": "MPL-2.0",
   "private": true,
   "type": "module",
   "description": "Collaboration server for @oel/docs, @oel/sheets and @oel/slides: Hocuspocus (Yjs) sync, share links, versions, media, .docx/.xlsx/.csv/.pptx export.",

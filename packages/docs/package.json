@@ -1,5 +1,6 @@
 {
   "name": "@oel/docs",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Google-Docs-like DOCX editor: Tiptap/ProseMirror schema mirroring the oeldocx-rs codec, Yjs collaboration, offline, share links, version history.",
   "type": "module",

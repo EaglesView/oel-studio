@@ -13,4 +13,12 @@ svg?: string, crop?: Crop,
 /**
  * Opacity 0–1 (`alphaModFix`).
  */
-alpha?: number, };
+alpha?: number, 
+/**
+ * Retouched picture (plan L-7): its `oel-img-recipe@1` recipe; `media` holds the rendering.
+ */
+recipe?: Record<string, unknown>, 
+/**
+ * Media path of the retouched picture's original (`oel/media/…`, or a picture added in the editor).
+ */
+orig?: string, };

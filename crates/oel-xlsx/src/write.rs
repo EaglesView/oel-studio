@@ -566,12 +566,23 @@ fn new_sheet_part(pkg: &Package) -> String {
 /// Write the workbook. Formula results are recomputed first so the cached
 /// values other readers show are current.
 pub fn export_xlsx(wb: &Workbook, original: Option<&[u8]>) -> Result<Vec<u8>, String> {
+    export_xlsx_with_media(wb, original, HashMap::new())
+}
+
+/// [`export_xlsx`] with the pictures made in the editor (`xl/media/oel-….png` → bytes): the
+/// renderings and originals of retouched pictures (plan L-7).
+pub fn export_xlsx_with_media(wb: &Workbook, original: Option<&[u8]>, media: HashMap<String, Vec<u8>>) -> Result<Vec<u8>, String> {
     let mut wb = wb.clone();
     crate::engine::recalc(&mut wb)?;
     let mut pkg = match original {
         Some(b) if !b.is_empty() => Package::read(b)?,
         _ => crate::template::new_package(),
     };
+    for (path, bytes) in &media {
+        let ext = path.rsplit('.').next().unwrap_or("png").to_ascii_lowercase();
+        pkg.ensure_default(&ext, oel_opc::package::mime_for_ext(&ext));
+        pkg.set(path, bytes.clone());
+    }
     let wb_part = workbook_part(&pkg);
     let mut wdoc = pkg.get_xml(&wb_part).ok_or("classeur introuvable")?;
 
@@ -706,5 +717,12 @@ pub fn export_xlsx(wb: &Workbook, original: Option<&[u8]>) -> Result<Vec<u8>, St
     };
     pkg.set_xml(&ss_part, &sst.to_doc());
     pkg.ensure_override(&ss_part, CT_SHARED_STRINGS);
+
+    // Retouched pictures: original + recipe beside the final pixels (plan L-7).
+    let retouched = wb.sheets.iter().flat_map(|s| &s.drawings).filter(|d| d.recipe.as_ref().is_some_and(|r| r.as_object().is_some_and(|o| !o.is_empty())));
+    let items: Vec<oel_opc::retouch::Retouch> = retouched
+        .filter_map(|d| Some(oel_opc::retouch::Retouch { rendered: d.media.as_deref()?, original: d.orig.as_deref()?, recipe: d.recipe.as_ref()? }))
+        .collect();
+    oel_opc::retouch::write(&mut pkg, &items, &media);
     pkg.write()
 }

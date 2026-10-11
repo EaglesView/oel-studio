@@ -1,5 +1,6 @@
 {
   "name": "@oel/emboss",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "OutilsEnLigne blind-emboss paper UI kit, built on react-aria-components.",
   "type": "module",

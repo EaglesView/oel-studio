@@ -111,6 +111,9 @@ const NO_STYLE = RecipeDoc.create();
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 const geometryOf = (r: Recipe): Recipe => unflattenRecipe(Object.entries(flattenRecipe(r)).filter(([k]) => isGeometryPath(k)));
+/** `r` with the crop being drawn. */
+const withCrop = (r: Recipe, crop: Rect): Recipe =>
+  unflattenRecipe([...Object.entries(flattenRecipe(r)).filter(([k]) => k !== 'geometry.crop'), ...(sameRect(crop, [0, 0, 1, 1]) ? [] : [['geometry.crop', crop] as [string, unknown]])]);
 const withLook = (look: Recipe, r: Recipe): Recipe => unflattenRecipe([...Object.entries(lookOf(look)), ...Object.entries(flattenRecipe(geometryOf(r)))]);
 
 export function Atelier({ title, original, missing, doc, createWorker, onBureau, onExport, onRendered, gallery, variant = 'full', onClose, note, startInCrop }: AtelierProps) {
@@ -191,15 +194,26 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
+  useDraw(engineState, css, shown, dragging, setBins);
+
+  // The result as the host shows it (desk thumbnail, the picture on the page), a while after edits
+  // settle: the recipe with the crop being drawn, so the page follows the frame while cropping.
+  const result = useMemo(() => (crop ? withCrop(recipe, crop) : recipe), [recipe, crop]);
+  const resultJson = JSON.stringify(result);
   const rendered = useRef(onRendered);
   rendered.current = onRendered;
-  const renderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useDraw(engineState, css, shown, dragging, setBins, () => {
-    if (!rendered.current || !engine || crop || before || hoverStyle) return;
-    if (renderTimer.current) clearTimeout(renderTimer.current);
-    renderTimer.current = setTimeout(() => void engine.raster(640).then((r) => rendered.current?.(r)).catch(() => {}), 600);
-  });
-  useEffect(() => () => void (renderTimer.current && clearTimeout(renderTimer.current)), []);
+  useEffect(() => {
+    if (!rendered.current || !engine || !source || dragging) return;
+    const t = setTimeout(() => void engine.raster(640, JSON.parse(resultJson) as Recipe).then((r) => rendered.current?.(r)).catch(() => {}), 500);
+    return () => clearTimeout(t);
+  }, [engine, source, resultJson, dragging]);
+
+  /** Closing keeps a crop still being drawn, and the engine renders exactly what is kept. */
+  const close = () => {
+    if (crop) finishCrop();
+    engine?.setRecipe(result);
+    void onClose?.(engine);
+  };
 
   // One drag (or one click) = one undo step, rendered from the half-size proxy while it lasts.
   const startEdit = useCallback(() => {
@@ -488,7 +502,7 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
           <Button variant="ghost" size="icon-sm" leadingIcon="undo" aria-label="Annuler" aria-keyshortcuts="Control+Z" isDisabled={!canUndo} onPress={() => undo.undo()} />
           <Button variant="ghost" size="icon-sm" leadingIcon="redo" aria-label="Rétablir" aria-keyshortcuts="Control+Shift+Z" isDisabled={!canRedo} onPress={() => undo.redo()} />
           <Button variant="ghost" size="icon-sm" leadingIcon="eye" aria-label="Avant / après" aria-pressed={before} aria-keyshortcuts="\" onPress={() => setBefore(!before)} />
-          <Button variant="ghost" size="icon-sm" leadingIcon="close" aria-label="Fermer" onPress={() => void onClose?.(engine)} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="close" aria-label="Fermer" onPress={close} />
         </header>
         {stageEl}
         {controls}

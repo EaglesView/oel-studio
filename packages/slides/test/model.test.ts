@@ -110,3 +110,22 @@ describe('SlidesDoc ↔ oelpptx', () => {
     expect(load(out).slides).toHaveLength(1);
   });
 });
+
+describe('retouched pictures (L3) through the Y.Doc and back to .pptx', () => {
+  it('the rendering shows in PowerPoint, the recipe and original come back', () => {
+    const bytes = fixture(1);
+    const d = live(load(bytes));
+    const at = d.slideIds().flatMap((s) => d.slide(s)!.elements.filter((e) => e.kind === 'picture' && e.image?.media && !e.image.svg).map((e) => ({ s, e })))[0]!;
+    const recipe = { exposure: 0.3 };
+    d.edit(() => d.updateElement(at.s, at.e.id, { image: { ...at.e.image!, media: 'ppt/media/oel-r.png', mime: 'image/png', recipe, orig: at.e.image!.media } }));
+    const other = new SlidesDoc(new Y.Doc());
+    Y.applyUpdate(other.doc, Y.encodeStateAsUpdate(d.doc));
+    const out = codec.deck_to_pptx(JSON.stringify(other.toDeck()), bytes, [{ path: 'ppt/media/oel-r.png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]) }]);
+    const imp = codec.pptx_to_deck(out);
+    const pic = (JSON.parse(imp.json) as Deck).slides.flatMap((s) => s.elements).find((e) => e.image?.media === 'ppt/media/oel-r.png')!;
+    expect(pic.image!.recipe).toEqual(recipe);
+    expect(pic.image!.orig).toMatch(/^oel\/media\/[0-9a-f]{16}\./);
+    // The original travels with the media the editor gets.
+    expect(imp.media.some((m) => m.path === pic.image!.orig)).toBe(true);
+  });
+});

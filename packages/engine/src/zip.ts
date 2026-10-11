@@ -40,16 +40,20 @@ export function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
   return entries;
 }
 
-export async function readZipText(bytes: Uint8Array, entry: ZipEntry): Promise<string> {
+export async function readZipBytes(bytes: Uint8Array, entry: ZipEntry): Promise<Uint8Array> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const nameLen = view.getUint16(entry.offset + 26, true);
   const extraLen = view.getUint16(entry.offset + 28, true);
   const start = entry.offset + 30 + nameLen + extraLen;
   const data = bytes.subarray(start, start + entry.compressedSize);
-  if (entry.method === 0) return new TextDecoder().decode(data);
+  if (entry.method === 0) return data;
   if (entry.method !== 8) throw new Error(`Compression ZIP ${entry.method} non prise en charge`);
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Response(stream).text();
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+export async function readZipText(bytes: Uint8Array, entry: ZipEntry): Promise<string> {
+  return new TextDecoder().decode(await readZipBytes(bytes, entry));
 }
 
 const CRC_TABLE = (() => {

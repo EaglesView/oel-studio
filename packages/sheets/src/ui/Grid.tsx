@@ -6,6 +6,7 @@ import { chartPainter, chartRanges } from '../grid/charts';
 import { drawingFrame } from '../grid/drawings';
 import { deleteDrawing, duplicateDrawing, frameOf, insertChart, moveDrawing } from './charts';
 import { ChartBar } from './ChartTools';
+import { PictureBar } from './PictureBar';
 import { pxToColWidth } from '../grid/geometry';
 import { current, extendTo, single, type Pos } from '../grid/selection';
 import type { SheetController } from './controller';
@@ -24,6 +25,8 @@ export interface GridProps {
   onListOpen?: (at: { x: number; y: number }) => void;
   /** Object URLs of drawing images, by package path. */
   media?: ReadonlyMap<string, string>;
+  /** The image URL of a retouch preview, drawn whole inside its frame (L3). */
+  fitted?: string | null;
 }
 
 /** Scrollable height/width is capped (browsers cap element sizes); past it the scrollbar scales. */
@@ -59,7 +62,7 @@ function dragged(f: Box, h: Handle, dx: number, dy: number): Box {
 
 const NO_MEDIA: ReadonlyMap<string, string> = new Map();
 
-export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, onCommand, hasList, onListOpen, media = NO_MEDIA }: GridProps) {
+export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, onCommand, hasList, onListOpen, media = NO_MEDIA, fitted = null }: GridProps) {
   useSyncExternalStore(ctl.subscribe, ctl.getVersion, ctl.getVersion);
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,20 +98,32 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
 
   const drawings = useMemo(() => ctl.doc.drawings(ctl.sheetId), [ctl, ctl.sheetId, ctl.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const charts = useMemo(() => chartPainter(ctl), [ctl, ctl.sheetId]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Decoded images for the canvas; each one repaints the grid when it is ready.
+  // Decoded images for the canvas; each one repaints the grid when it is ready. Images whose URL
+  // did not change are reused (a retouch preview swaps one URL at a time).
+  const decoded = useRef(new Map<string, HTMLImageElement>());
   const images = useMemo(() => {
     const out = new Map<string, HTMLImageElement>();
+    const keep = new Map<string, HTMLImageElement>();
     for (const [path, url] of media) {
+      const ready = decoded.current.get(url);
+      if (ready) {
+        out.set(path, ready);
+        keep.set(url, ready);
+        continue;
+      }
       const img = new Image();
       img.decoding = 'async';
+      if (url === fitted) img.dataset.fit = 'contain';
       img.onload = () => {
         out.set(path, img);
+        decoded.current.set(url, img);
         ctl.bump();
       };
       img.src = url;
     }
+    decoded.current = keep;
     return out;
-  }, [media, ctl]);
+  }, [media, ctl]); // eslint-disable-line react-hooks/exhaustive-deps -- `fitted` is one of `media`'s URLs
 
   // ----- painting --------------------------------------------------------------
 
@@ -855,7 +870,14 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
       {(() => {
         const di = ctl.selectedDrawing;
         const d = di != null ? drawings[di] : undefined;
-        if (!d?.chart || drag?.kind === 'drawing') return null;
+        if (!d || drag?.kind === 'drawing') return null;
+        if (d.kind === 'picture' && d.media && !ctl.pictures?.open) {
+          const f = drawingFrame(d, layout);
+          if (!f) return null;
+          const top = Math.max(HEADER_H * zoom + 4, f.y * zoom - 50);
+          return <PictureBar ctl={ctl} index={di!} drawing={d} style={{ top, left: Math.max(8, Math.min(f.x * zoom, size.w - 360)) }} />;
+        }
+        if (!d.chart) return null;
         const f = drawingFrame(d, layout);
         if (!f) return null;
         const top = Math.max(HEADER_H * zoom + 4, f.y * zoom - 50);

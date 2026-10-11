@@ -3,7 +3,8 @@ name = "oel-img"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Non-destructive image editing: oel-img-recipe@1, CPU reference pipeline (wgpu pipeline next)"
+license.workspace = true
+description = "Non-destructive image editing: oel-img-recipe@1, CPU reference pipeline and a wgpu pipeline (WebGPU, WebGL2, native)"
 
 [lib]
 name = "oelimg"

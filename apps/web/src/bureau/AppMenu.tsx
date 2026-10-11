@@ -24,25 +24,40 @@ import { useProject } from '../project/ProjectContext';
 import { can, firstName, type ProjectContextValue } from '../project/model';
 import { ROLE_LABEL } from '../project/settings';
 import { useThemeChoice, type ThemeChoice } from './ThemeToggle';
+import { DeskBackup, type DeskActions } from './DeskBackup';
+import { features } from '../edition';
 
 /** Panes of the full-screen menu (Figma M2). */
 export type MenuPane = 'home' | 'new' | 'open' | 'projects' | 'share' | 'settings' | 'display' | 'shortcuts' | 'help' | 'account';
 
-const RAIL: Array<Array<{ pane: MenuPane; icon: IconName; label: string } | 'links'>> = [
+/** « Paramètres du projet », or just « Paramètres » with a single desk. */
+const SETTINGS_LABEL = features.projects ? 'Paramètres du projet' : 'Paramètres';
+
+/** Single-user edition: no projects to switch, no one to invite, no account (plan solo MVP, S-5). */
+const HIDDEN: ReadonlySet<MenuPane> = new Set([
+  ...(features.projects ? [] : (['projects'] as const)),
+  ...(features.collab ? [] : (['share', 'account'] as const)),
+]);
+
+type RailEntry = { pane: MenuPane; icon: IconName; label: string } | 'links';
+
+const RAIL: RailEntry[][] = (
   [
-    { pane: 'home', icon: 'home', label: 'Accueil' },
-    { pane: 'new', icon: 'plus', label: 'Nouveau' },
-    { pane: 'open', icon: 'upload', label: 'Ouvrir et importer' },
-    { pane: 'projects', icon: 'folder', label: 'Projets' },
-  ],
-  [{ pane: 'share', icon: 'share', label: 'Partager et inviter' }, { pane: 'settings', icon: 'settings', label: 'Paramètres du projet' }, 'links'],
-  [
-    { pane: 'display', icon: 'eye', label: 'Affichage' },
-    { pane: 'shortcuts', icon: 'keyboard', label: 'Raccourcis clavier' },
-    { pane: 'help', icon: 'info', label: 'Aide' },
-    { pane: 'account', icon: 'user', label: 'Compte' },
-  ],
-];
+    [
+      { pane: 'home', icon: 'home', label: 'Accueil' },
+      { pane: 'new', icon: 'plus', label: 'Nouveau' },
+      { pane: 'open', icon: 'upload', label: 'Ouvrir et importer' },
+      { pane: 'projects', icon: 'folder', label: 'Projets' },
+    ],
+    [{ pane: 'share', icon: 'share', label: 'Partager et inviter' }, { pane: 'settings', icon: 'settings', label: SETTINGS_LABEL }, 'links'],
+    [
+      { pane: 'display', icon: 'eye', label: 'Affichage' },
+      { pane: 'shortcuts', icon: 'keyboard', label: 'Raccourcis clavier' },
+      { pane: 'help', icon: 'info', label: 'Aide' },
+      { pane: 'account', icon: 'user', label: 'Compte' },
+    ],
+  ] satisfies RailEntry[][]
+).map((group) => group.filter((item) => item === 'links' || !HIDDEN.has(item.pane)));
 
 export interface AppMenuProps {
   isOpen: boolean;
@@ -67,6 +82,8 @@ export interface AppMenuProps {
   onViewChange: (v: 'desk' | 'list') => void;
   minimap: boolean;
   onMinimapChange: (v: boolean) => void;
+  /** The desk saved on this device: export, import, reset (« Ce bureau »). */
+  desk: DeskActions;
 }
 
 /**
@@ -134,7 +151,7 @@ function Pane(props: AppMenuProps) {
       return (
         <>
           <Heading slot="title" level={2} className="app-menu__hello">
-            Bonjour, {firstName(me)}
+            {features.projects ? `Bonjour, ${firstName(me)}` : 'Bonjour'}
           </Heading>
           <NewRow {...props} title={`Nouveau dans « ${props.project} »`} />
           <div className="app-menu__columns">
@@ -142,7 +159,7 @@ function Pane(props: AppMenuProps) {
               <h3 id="menu-recent" className="app-menu__h3">Récents dans ce projet</h3>
               <FileList {...props} limit={4} />
             </section>
-            <ProjectsSection {...props} />
+            {features.projects && <ProjectsSection {...props} />}
           </div>
         </>
       );
@@ -171,6 +188,7 @@ function Pane(props: AppMenuProps) {
             </Button>
           </FileTrigger>
           <p className="app-menu__note">PDF, Word, PowerPoint, Excel, images · 100 Mo max. Ctrl + O depuis le bureau.</p>
+          <DeskBackup store={props.store} desk={props.desk} />
           <section className="app-menu__section app-menu__section--narrow" aria-labelledby="menu-files">
             <h3 id="menu-files" className="app-menu__h3">Tous les fichiers du projet</h3>
             <FileList {...props} />
@@ -218,7 +236,7 @@ function Pane(props: AppMenuProps) {
     case 'settings':
       return (
         <>
-          <PaneTitle>Paramètres du projet</PaneTitle>
+          <PaneTitle>{SETTINGS_LABEL}</PaneTitle>
           <section className="app-menu__section app-menu__section--narrow" aria-labelledby="menu-import">
             <h3 id="menu-import" className="app-menu__h3">Import</h3>
             <div className="app-menu__switches">
@@ -262,6 +280,12 @@ function Pane(props: AppMenuProps) {
             <p>
               Touche <kbd>?</kbd> : tous les raccourcis clavier. Touche <kbd>N</kbd> : une note. <kbd>Alt</kbd> + <kbd>N</kbd> : un
               nouveau fichier.
+            </p>
+            <p>
+              <a href="/docs" target="_blank" rel="noopener">
+                Documentation du Bureau
+              </a>{' '}
+              (nouvel onglet) : le bureau, les éditeurs, les fils de liaison, les formats.
             </p>
             {import.meta.env.DEV && (
               <p>
@@ -346,7 +370,8 @@ function ago(t: number): string {
 }
 
 function byWhom(initials: string | undefined, { me, members }: Pick<ProjectContextValue, 'me' | 'members'>): string | null {
-  if (!initials) return null;
+  // Single user: it is always you.
+  if (!initials || !features.projects) return null;
   if (initials === me.initials) return 'vous';
   return members.find((p) => p.initials === initials)?.name ?? initials;
 }

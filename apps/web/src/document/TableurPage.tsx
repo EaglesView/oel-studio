@@ -3,8 +3,11 @@ import { Button, Logo, ToastRegion, toast } from '@oel/emboss';
 import { IdentityDialog, decodeToken, defaultIdentity, loadIdentity, tokenStore, type Identity } from '@oel/collab-client';
 import { SheetSession, SheetsEditor, type Workbook } from '@oel/sheets';
 import '@oel/sheets/styles.css';
+import '@oel/img/styles.css';
+import { createImageWorker } from '../bureau/images';
 import { asWorkbookPayload, type WorkbookPayload } from '@oel/engine';
 import { collabApi } from '../bureau/docs';
+import { features } from '../edition';
 import { engineHost } from '../bureau/importFiles';
 import { createCalcWorker, exportSheet } from '../bureau/sheets';
 import './document.css';
@@ -69,7 +72,7 @@ export function TableurPage() {
           const p = r.payload ? asWorkbookPayload(r.payload) : undefined;
           return p ? { workbook: JSON.parse(p.json) as Workbook, original: pkg } : null;
         });
-        if (s.status.token) collabApi.info(s.status.docId, s.status.token).then((i) => alive && setTitle(i.title)).catch(() => {});
+        if (s.status.token) collabApi?.info(s.status.docId, s.status.token).then((i) => alive && setTitle(i.title)).catch(() => {});
         if (alive) setSession(s);
       })
       .catch((e: Error) => alive && setError(e.message));
@@ -146,8 +149,10 @@ export function TableurPage() {
         title={title || 'Classeur'}
         onTitleChange={setTitle}
         identity={identity}
+        collab={features.collab}
         onIdentityChange={setIdentity}
         createCalcWorker={createCalcWorker}
+        createImageWorker={createImageWorker}
         exportFile={exportSheet}
         onNewWorkbook={create}
         onOpenFile={(f) => open(f)}

@@ -39,6 +39,7 @@ there first (load `figma-use` before `use_figma`), using kit instances and `embo
 ### Sheets (`packages/sheets`)
 - Cells live in a Y.Doc keyed by stable row/col ids; formulas are stored with id refs (`model/formula.ts`) and shown as A1 (`model/a1.ts`). Never store A1 refs in Yjs.
 - Calc runs in a worker (`calc/calc.worker.ts` → `WasmCalc` from oelxlsx). New functions = IronCalc support + `model/functions.ts` list for autocomplete.
+- Pictures: imported ones are read out of the original .xlsx by the calc worker (`ui/media.ts`); pictures made in the editor (retouched, replaced) go to `SheetSession.media` (`xl/media/oel-…`) and reach the codec through `exportInput().media`. Picture commands: `ui/pictures.ts`; retouching uses `RetouchDock` / `PictureTools` from `@oel/img/ui` (also used by Slides).
 - Grid is canvas (`grid/render.ts`, `geometry.ts`, `selection.ts`); interaction in `ui/controller.ts`. Keep the a11y mirror in `Grid.tsx` in sync.
 - Tests: `test/{model,calc,fill}.test.ts`.
 

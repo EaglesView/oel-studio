@@ -5,6 +5,15 @@
   height: 100dvh;
   overflow: hidden;
 }
+/* While the saved desk opens (IndexedDB), or when it can't. */
+.bureau-loading {
+  display: grid;
+  place-items: center;
+  height: 100dvh;
+  margin: 0;
+  color: var(--emboss-ink-muted);
+  background: var(--emboss-surface);
+}
 .bureau__main {
   position: relative;
   flex: 1;
@@ -53,6 +62,18 @@
 }
 .project-pill__count { font: 400 12px/16px var(--font-sans); color: var(--emboss-ink-muted); white-space: nowrap; }
 .share-pill { position: absolute; top: 20px; right: 24px; z-index: 20; padding-left: 10px; }
+/* R3 · the first-run hint, above the bottom bar. */
+.first-run-hint {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  z-index: 20;
+  translate: -50% 0;
+  max-width: calc(100% - 32px);
+  font: 500 14px/20px var(--font-sans);
+  color: var(--emboss-ink);
+}
+.first-run-hint kbd { font: inherit; padding: 0 5px; border: 1px solid var(--emboss-edge); border-radius: 4px; }
 
 .bottom-bar {
   position: absolute;
@@ -507,8 +528,6 @@
 .paper__sheet th { width: 36px; background: var(--emboss-well); color: var(--emboss-ink-muted); font-weight: 500; }
 .paper__sheet td { padding: 0 8px; border-left: 1px solid color-mix(in srgb, var(--emboss-placeholder) 30%, transparent); }
 .paper__sheet td.num { text-align: right; font-variant-numeric: tabular-nums; }
-.paper__sheet-total td { font-weight: 700; }
-.paper__sheet-total td.num { color: var(--emboss-ink); }
 
 .paper__photo { display: grid; grid-template-rows: 1fr auto; height: 100%; padding: 15px; gap: 14px; }
 .paper__photo-frame {

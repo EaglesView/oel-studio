@@ -10,6 +10,7 @@ import { CARRIES_LABEL, MODE_HINT, MODE_LABEL, STATE_LABEL, THEME_LABEL, ago, fu
 import { useDeskState } from '@oel/desk/react';
 import { KIND_ICON, kindLabel, type Bureau, type Paper } from '../bureau/model';
 import { TARGET_KINDS, type LinkResolver, type Placement, type SendChoice } from './resolver';
+import { features } from '../edition';
 import './links.css';
 
 const TONE: Record<LinkState, Tone> = { fresh: 'success', updating: 'accent', stale: 'warning', frozen: 'neutral', broken: 'danger', waiting: 'neutral' };
@@ -79,7 +80,8 @@ function FileCard({ paper, fallback, sub }: { paper: Paper | undefined; fallback
 function statusLine(state: LinkState, at: number, by: string, mode: LinkMode): string {
   switch (state) {
     case 'fresh':
-      return `À jour · mis à jour ${ago(at)} (${by})`;
+      // Single user: no one else to name.
+      return `À jour · mis à jour ${ago(at)}${features.collab ? ` (${by})` : ''}`;
     case 'updating':
       return 'Mise à jour…';
     case 'stale':
@@ -180,7 +182,7 @@ function ThreadPopover({ resolver, linkId, anchor, onCut }: { resolver: LinkReso
                       <span>
                         <strong>{e.label}</strong>
                         <small>
-                          {e.by} · {ago(e.at)}
+                          {features.collab ? `${e.by} · ${ago(e.at)}` : ago(e.at)}
                         </small>
                       </span>
                       <Button

@@ -3,6 +3,7 @@ name = "oel-docx"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
 description = "Lossless DOCX <-> ProseMirror JSON codec for the @oel/docs editor"
 
 [lib]

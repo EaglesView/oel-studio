@@ -16,19 +16,19 @@ import {
 } from '@oel/emboss';
 import { copyLink } from '@oel/forms';
 import { NOTE_COLORS, kindLabel, uid, type Bureau, type NoteColor, type Paper } from './model';
-import { sheetTotal } from './Paper';
 import { downloadSlides, requestPresent } from './slides';
 import { activeLinks } from '../links/resolver';
 import { exportGallery, layoutGallery } from './images';
+import { features } from '../edition';
 
-const nf = new Intl.NumberFormat('fr-CA');
 const ENGINE_LATER = 'Arrive avec le moteur de documents (WASM).';
 const IMAGE_ENGINE_LATER = 'Arrive avec le moteur d’images oelimg-rs (WASM).';
+/** PDFs show their page count only, until a PDF engine draws, annotates and converts them. */
+const PDF_ENGINE_LATER = 'Arrive avec le moteur PDF : pour l’instant, le bureau garde le PDF et son nombre de pages.';
 
 interface Props {
   store: Bureau;
   onOpen: (id: string) => void;
-  onConvert: (id: string) => void;
   /** E2 · 1 « Créer un formulaire » from a selected spreadsheet. */
   onCreateForm: (sheetId: string) => void;
   /** Open a paper straight in full screen (form → Réponses lives there). */
@@ -52,7 +52,7 @@ export interface NoteActions {
  * B7 · several types selected:
  * only actions every type supports (arrange, produce, share).
  */
-export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenFull, notes, onRemove, toolbarRef }: Props) {
+export function ContextToolbar({ store, onOpen, onCreateForm, onOpenFull, notes, onRemove, toolbarRef }: Props) {
   const { announce } = useDesk();
   const rect = useSelectionScreenRect(store);
   const selection = useDeskState(store, (s) => s.selection);
@@ -106,11 +106,11 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
         {single?.kind === 'note' ? (
           <NoteTools node={single} store={store} notes={notes} />
         ) : single ? (
-          <TypeTools node={single} store={store} onConvert={onConvert} onCreateForm={onCreateForm} onOpenFull={onOpenFull} />
+          <TypeTools node={single} store={store} onCreateForm={onCreateForm} onOpenFull={onOpenFull} />
         ) : (
           <MultiTools store={store} ids={selection} kinds={kinds.size} />
         )}
-        <ToolbarSeparator />
+        {(single || features.collab) && <ToolbarSeparator />}
         {single?.kind === 'note' ? (
           <ToolButton icon="trash" label="Supprimer" shortcut={['Suppr']} description="Retire la note du bureau." onPress={() => onRemove([single.id])} />
         ) : single ? (
@@ -122,9 +122,9 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
             description="Ouvre le fichier sur place, le bureau reste visible."
             onPress={() => onOpen(single.id)}
           />
-        ) : (
+        ) : features.collab ? (
           <ToolButton icon="share" label="Partager" showLabel onPress={() => toast({ title: `${selected.length} fichiers prêts à partager`, tone: 'success' })} />
-        )}
+        ) : null}
       </Toolbar>
     </div>
   );
@@ -133,17 +133,14 @@ export function ContextToolbar({ store, onOpen, onConvert, onCreateForm, onOpenF
 function TypeTools({
   node,
   store,
-  onConvert,
   onCreateForm,
   onOpenFull,
 }: {
   node: Paper;
   store: Bureau;
-  onConvert: (id: string) => void;
   onCreateForm: (sheetId: string) => void;
   onOpenFull: (id: string) => void;
 }) {
-  const readOnly = node.data.status.state === 'readonly';
   const importing = node.data.status.state === 'importing';
   if (importing) {
     return <ToolButton icon="sparkle" label="Import en cours" unavailableReason="Patientez : le fichier est en cours de lecture." />;
@@ -183,18 +180,15 @@ function TypeTools({
           />
         </>
       );
-    case 'spreadsheet': {
-      const rows = node.data.preview.kind === 'spreadsheet' ? node.data.preview.rows : [];
-      const total = sheetTotal(rows);
+    case 'spreadsheet':
       return (
         <>
-          <ToolButton icon="sum" label="Somme" description="Somme de la colonne Montant." value={total != null ? `${nf.format(total)} $` : '—'} />
-          <ToolButton icon="chart" label="Graphique" description="Crée un graphique lié sur une diapo." onPress={() => toast({ title: 'Graphique lié créé', description: 'Le fil de liaison apparaît sur le bureau.', tone: 'success' })} />
-          <ToolButton icon="table" label="Format nombre" unavailableReason="Sélectionnez une plage de cellules (ouvrez le tableur)." />
-          <ToolButton icon="form" label="Créer un formulaire" description="Une question par colonne ; les réponses arrivent dans ce tableur." onPress={() => onCreateForm(node.id)} />
+          <ToolButton icon="table" label="Modifier" description="Ouvre le tableur sur place (Entrée)." onPress={() => store.open(node.id)} />
+          <ToolButton icon="chart" label="Graphique" unavailableReason="Ouvrez le tableur (Entrée), sélectionnez des données, puis Alt + F1." />
+          <ToolButton icon="link" label="Lier dans…" unavailableReason="Ouvrez le tableur et sélectionnez un graphique ou une plage : « Lier dans… » les met dans une présentation ou un document." />
+          {features.forms && <ToolButton icon="form" label="Créer un formulaire" description="Une question par colonne ; les réponses arrivent dans ce tableur." onPress={() => onCreateForm(node.id)} />}
         </>
       );
-    }
     case 'form': {
       const pub = node.data.form?.publication;
       return (
@@ -261,17 +255,9 @@ function TypeTools({
     case 'pdf':
       return (
         <>
-          {readOnly && (
-            <ToolButton
-              icon="sparkle"
-              label="Convertir pour modifier"
-              showLabel
-              description="Crée une version modifiable à côté de l’original."
-              onPress={() => onConvert(node.id)}
-            />
-          )}
-          <ToolButton icon="highlight" label="Surligner" description="Ouvre le PDF en annotation." onPress={() => store.open(node.id)} />
-          <ToolButton icon="pen" label="Signer" description="Ajoute votre signature." onPress={() => store.update(node.id, { data: { ...node.data, stamp: { label: 'Signé', tone: 'success' } } }, { label: 'Signature' })} />
+          <ToolButton icon="sparkle" label="Convertir pour modifier" unavailableReason={PDF_ENGINE_LATER} />
+          <ToolButton icon="highlight" label="Surligner" unavailableReason={PDF_ENGINE_LATER} />
+          <ToolButton icon="pen" label="Signer" unavailableReason={PDF_ENGINE_LATER} />
         </>
       );
     case 'note':

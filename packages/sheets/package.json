@@ -1,5 +1,6 @@
 {
   "name": "@oel/sheets",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Excel-compatible spreadsheet editor: canvas grid, IronCalc engine (oelxlsx-rs WASM) in a worker, Yjs collaboration with id-based references, lossless .xlsx and .csv round trips.",
   "type": "module",
@@ -24,7 +25,8 @@
     "react-aria-components": "^1.21.1",
     "yjs": "^13.6.33",
     "@oel/charts": "*",
-    "@oel/links": "*"
+    "@oel/links": "*",
+    "@oel/img": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

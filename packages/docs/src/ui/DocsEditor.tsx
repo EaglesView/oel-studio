@@ -58,6 +58,11 @@ export interface DocsEditorProps {
   onNewDocument?: () => void;
   /** Origin used in share links (`https://outilsenligne.ca`). */
   shareOrigin?: string;
+  /**
+   * Collaboration features: sharing, people in the document, server version history, « Votre nom… ».
+   * `false` in the single-user edition (the document stays in this browser). Default `true`.
+   */
+  collab?: boolean;
   identity: Identity;
   onIdentityChange?: (identity: Identity) => void;
   /**
@@ -505,6 +510,7 @@ export function DocsEditor(props: DocsEditorProps) {
   const imageSelected = !!editor?.isActive('image');
   const ro = !editable;
   const local = status.connection === 'local';
+  const collab = props.collab ?? true;
   const spec: MenuSpec = useMemo(
     () => [
       {
@@ -513,7 +519,7 @@ export function DocsEditor(props: DocsEditorProps) {
           { id: 'new', label: 'Nouveau document', icon: 'new-page', disabled: !props.onNewDocument },
           { id: 'open', label: 'Ouvrir un fichier .docx…', icon: 'upload', disabled: !props.onOpenFile },
           '-',
-          { id: 'share', label: 'Partager…', icon: 'share' },
+          { id: 'share', label: 'Partager…', icon: 'share', hidden: !collab },
           {
             id: 'download',
             label: 'Télécharger',
@@ -527,8 +533,8 @@ export function DocsEditor(props: DocsEditorProps) {
             ],
           },
           '-',
-          { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer' },
-          { id: 'name-version', label: 'Nommer la version actuelle', disabled: local || ro },
+          { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
+          { id: 'name-version', label: 'Nommer la version actuelle', disabled: local || ro, hidden: !collab },
           '-',
           { id: 'page-setup', label: 'Configuration de la page…', icon: 'page', disabled: ro },
           { id: 'print', label: 'Imprimer', icon: 'print', shortcut: 'Ctrl+P' },
@@ -688,12 +694,12 @@ export function DocsEditor(props: DocsEditorProps) {
         items: [
           { id: 'words', label: 'Nombre de mots', icon: 'word-count', shortcut: 'Ctrl+Maj+C' },
           { id: 'french', label: 'Typographie française automatique', icon: 'translate', checked: french },
-          { id: 'identity', label: 'Votre nom…', icon: 'user' },
+          { id: 'identity', label: 'Votre nom…', icon: 'user', hidden: !collab },
         ],
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, paginated, showOutline, showMarks, tableGrid, showAnchors, zoom, ro, local, inTable, imageSelected, french, focusMode, sheet, status.readOnly, status.role],
+    [mode, paginated, showOutline, showMarks, tableGrid, showAnchors, zoom, ro, local, collab, inTable, imageSelected, french, focusMode, sheet, status.readOnly, status.role],
   );
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
@@ -742,7 +748,7 @@ export function DocsEditor(props: DocsEditorProps) {
     if (e.shiftKey && k === 'c') return run('words');
     if (e.shiftKey && !e.altKey && k === 'p') return run('outline');
     if (e.shiftKey && !e.altKey && k === 'f') return run('focus');
-    if (e.altKey && e.shiftKey && k === 'h') return run('history');
+    if (e.altKey && e.shiftKey && k === 'h' && collab) return run('history');
   };
 
   if (!editor || !toolbar) {
@@ -769,7 +775,7 @@ export function DocsEditor(props: DocsEditorProps) {
       </MenuPopover>
     </MenuTrigger>
   );
-  const shareButton = (
+  const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
       Partager
     </Button>
@@ -820,7 +826,7 @@ export function DocsEditor(props: DocsEditorProps) {
                 onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), editor.commands.focus())}
               />
               {status.readOnly && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
-              <SyncStatus status={status} />
+              <SyncStatus status={status} collab={collab} />
             </div>
             <MenuBar spec={spec} onAction={act} />
           </div>
@@ -830,8 +836,8 @@ export function DocsEditor(props: DocsEditorProps) {
                 Réduire
               </Button>
             )}
-            <Peers status={status} />
-            <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />
+            {collab && <Peers status={status} />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -851,8 +857,8 @@ export function DocsEditor(props: DocsEditorProps) {
         </div>
         {sheet && (
           <div className="oel-docs__sheet-actions">
-            <SyncStatus status={status} />
-            <Peers status={status} />
+            <SyncStatus status={status} collab={collab} />
+            {collab && <Peers status={status} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -965,9 +971,9 @@ export function DocsEditor(props: DocsEditorProps) {
       <WordCountDialog editor={editor} pages={pages} isOpen={dialog === 'words'} onClose={() => setDialog(null)} />
       <SpecialCharsDialog editor={target!} isOpen={dialog === 'chars'} onClose={() => setDialog(null)} />
       <ImageDialog editor={editor} isOpen={dialog === 'image'} onClose={() => setDialog(null)} onFile={(f) => addImage(f)} />
-      <ShareDialog session={session} title={title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />
+      {collab && <ShareDialog session={session} title={title} origin={props.shareOrigin ?? (typeof location !== 'undefined' ? location.origin : '')} isOpen={dialog === 'share'} onClose={() => setDialog(null)} />}
       {fontReport && <FontsDialog fonts={docMeta.fonts} report={fontReport} isOpen={fontsOpen} onClose={() => setFontsOpen(false)} onChange={() => editor?.storage.pagination.relayout()} />}
-      <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />
+      {collab && <IdentityDialog identity={identity} isOpen={dialog === 'identity'} onClose={() => setDialog(null)} onSave={(i) => (session.setIdentity(i), props.onIdentityChange?.(i))} />}
     </div>
   );
 }

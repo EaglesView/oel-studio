@@ -16,7 +16,7 @@
 import * as Y from 'yjs';
 import { chartName, keepLook, type ChartSpec } from '@oel/charts';
 import { chartBoxOn, chartFrame, chartSlide, linkedTableFrame, picture, type SlideSession } from '@oel/slides';
-import { insertChartParagraph, insertLinkedTable, insertPictureParagraph, type DocSession } from '@oel/docs';
+import { adoptPicture, insertChartParagraph, insertLinkedTable, insertPictureParagraph, setPicture, type DocSession } from '@oel/docs';
 import {
   LINK_ORIGIN,
   THREAD_PREFIX,
@@ -89,7 +89,13 @@ export interface RangeRequest {
 
 export type LinkRequest = ChartRequest | ImageRequest | RangeRequest;
 
-export type Placement = { kind: 'slides'; where: 'new-slide' | 'last-slide' } | { kind: 'document'; where: 'end' | 'start' };
+export type Placement =
+  | { kind: 'slides'; where: 'new-slide' | 'last-slide' }
+  /** A chart in place of the deck's element with this name, in its frame (the demo deck's slide 3). */
+  | { kind: 'slides'; where: 'replace'; name: string }
+  | { kind: 'document'; where: 'end' | 'start' }
+  /** A picture in place of the document's own picture at this package path (the demo's logo). */
+  | { kind: 'document'; where: 'replace'; path: string };
 
 export interface UiState {
   /** G3 popover: which link, next to what (viewport pixels). */
@@ -327,7 +333,7 @@ export class LinkResolver implements LinkHost {
     if (t.adapter.prepare) {
       this.applying.add(l.id);
       try {
-        if (!(await t.adapter.prepare(value))) return;
+        if (!(await t.adapter.prepare(value, oid))) return;
       } finally {
         this.applying.delete(l.id);
       }
@@ -721,7 +727,17 @@ export class LinkResolver implements LinkHost {
         snapshot: { rev, at: Date.now(), by: identity().name },
       });
       // One transaction: the copy and its link arrive together for everyone.
-      if (placement.kind === 'slides' && placement.where === 'last-slide' && last) {
+      if (placement.kind === 'slides' && placement.where === 'replace') {
+        const index = ids.findIndex((sid) => sd.slide(sid)?.elements.some((e) => e.name === placement.name));
+        const el = index >= 0 ? sd.slide(ids[index]!)!.elements.find((e) => e.name === placement.name) : undefined;
+        if (!el) throw new Error(`« ${placement.name} » est introuvable dans « ${targetPaper.title} ».`);
+        objectId = el.id;
+        where = `diapo ${index + 1}`;
+        s.ydoc.transact(() => {
+          sd.updateElement(ids[index]!, objectId, { chart: value });
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      } else if (placement.kind === 'slides' && placement.where === 'last-slide' && last) {
         const el = chartFrame(value, chartBoxOn(info, sd.slide(last)?.elements ?? []), name);
         objectId = el.id;
         where = `diapo ${ids.length}`;
@@ -739,6 +755,7 @@ export class LinkResolver implements LinkHost {
         }, 'person');
       }
     } else {
+      if (placement.kind === 'document' && placement.where === 'replace') throw new Error('Un graphique ne remplace pas encore un objet d’un document.');
       const s = await sessionFor(targetPaper, (docId) => this.patchDocId(targetPaperId, docId));
       targetDocId = s.status.docId;
       objectId = `c${id}`;
@@ -770,6 +787,7 @@ export class LinkResolver implements LinkHost {
 
   /** « Lier dans… » on a range (Figma I2): a real table in a slide or a document. */
   private async createRangeLink(req: RangeRequest, targetPaperId: string, placement: Placement, theme: 'source' | 'target'): Promise<{ linkId: string; where: string } | null> {
+    if (placement.where === 'replace') throw new Error('Un tableau lié ne remplace pas encore un objet.');
     const sourcePaper = this.store.node(req.sourcePaperId) as Paper | undefined;
     const targetPaper = this.store.node(targetPaperId) as Paper | undefined;
     if (!sourcePaper?.data.docId || !targetPaper) return null;
@@ -868,6 +886,7 @@ export class LinkResolver implements LinkHost {
     let objectId = '';
     let where = '';
     if (targetPaper.kind === 'slides') {
+      if (placement.kind === 'slides' && placement.where === 'replace') throw new Error('Une image ne remplace pas encore un objet d’une présentation.');
       const s = await slideSessionFor(targetPaper, (d) => this.patchDocId(targetPaperId, d));
       if (!(await preparePicture(s.ydoc, value, (b) => s.addPicture(b), pictureBytes))) throw new Error('Cette image ne peut pas être copiée.');
       const path = linkMedia(s.ydoc).get(value.media.hash)!;
@@ -906,14 +925,24 @@ export class LinkResolver implements LinkHost {
       if (!(await preparePicture(s.ydoc, value, (b) => s.addImage(b), pictureBytes))) throw new Error('Cette image ne peut pas être copiée.');
       const path = linkMedia(s.ydoc).get(value.media.hash)!;
       objectId = `p${id}`;
-      const atStart = placement.kind === 'document' && placement.where === 'start';
-      where = atStart ? 'début' : `§ ${s.fragment.length + 1}`;
-      // 15 cm wide at most, keeping the picture's proportions.
-      const cx = Math.min(5_400_000, Math.round(value.media.width * 9525));
-      s.ydoc.transact(() => {
-        insertPictureParagraph(s.ydoc, objectId, { path, cx, cy: Math.round(cx / aspect), alt: req.name }, atStart ? 'start' : 'end', 'person');
-        linksOf(s.ydoc).put(def(objectId, where), 'person');
-      }, 'person');
+      if (placement.kind === 'document' && placement.where === 'replace') {
+        // The file's own picture becomes the copy: same place and width, the source's pixels.
+        where = 'image';
+        s.ydoc.transact(() => {
+          if (!adoptPicture(s.ydoc, placement.path, objectId, 'person')) throw new Error(`L’image « ${placement.path} » est introuvable dans « ${targetPaper.title} ».`);
+          setPicture(s.ydoc, objectId, path, aspect, 'person');
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      } else {
+        const atStart = placement.kind === 'document' && placement.where === 'start';
+        where = atStart ? 'début' : `§ ${s.fragment.length + 1}`;
+        // 15 cm wide at most, keeping the picture's proportions.
+        const cx = Math.min(5_400_000, Math.round(value.media.width * 9525));
+        s.ydoc.transact(() => {
+          insertPictureParagraph(s.ydoc, objectId, { path, cx, cy: Math.round(cx / aspect), alt: req.name }, atStart ? 'start' : 'end', 'person');
+          linksOf(s.ydoc).put(def(objectId, where), 'person');
+        }, 'person');
+      }
     }
     if (targetPaper.data.docId) void this.ensureTarget(this.store.node(targetPaperId) as Paper);
     this.queueRefresh();

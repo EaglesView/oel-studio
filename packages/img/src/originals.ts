@@ -17,7 +17,9 @@ export interface OriginalStore {
   get(hash: string): Promise<Blob | null>;
 }
 
-const key = (hash: string) => `img|original|${hash}`;
+/** Where an original lies in the device's file store (bureau backups copy it). */
+export const originalKey = (hash: string) => `img|original|${hash}`;
+const key = originalKey;
 
 class DeviceOriginals implements OriginalStore {
   private memory = new Map<string, Blob>();

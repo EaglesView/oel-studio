@@ -38,6 +38,26 @@ export function insertPictureParagraph(ydoc: Y.Doc, oid: string, a: PictureAttrs
   }, origin);
 }
 
+/**
+ * Give the file's own picture at `path` (one without an `oid`) this `oid`, so a link can update it
+ * in place (the demo's logo becomes a linked copy of the desk image). False when there is none.
+ */
+export function adoptPicture(ydoc: Y.Doc, path: string, oid: string, origin: unknown): boolean {
+  const walk = (n: Y.XmlFragment | Y.XmlElement): Y.XmlElement | null => {
+    for (const c of n.toArray()) {
+      if (!(c instanceof Y.XmlElement)) continue;
+      if (c.nodeName === 'image' && c.getAttribute('path') === path && !c.getAttribute('oid')) return c;
+      const hit = walk(c);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  const el = walk(ydoc.getXmlFragment(BODY));
+  if (!el) return false;
+  ydoc.transact(() => el.setAttribute('oid', oid), origin);
+  return true;
+}
+
 /** The picture node with this `oid`, anywhere in the body. */
 export function findPicture(ydoc: Y.Doc, oid: string): Y.XmlElement | null {
   const walk = (n: Y.XmlFragment | Y.XmlElement): Y.XmlElement | null => {
@@ -58,17 +78,32 @@ export function pictureOf(ydoc: Y.Doc, oid: string): PictureAttrs | null {
   return { path: el.getAttribute('path') as string, cx: Number(el.getAttribute('cx')), cy: Number(el.getAttribute('cy')), alt: (el.getAttribute('alt') as string) ?? '' };
 }
 
+/** The copy's own retouch (plan L-8), or null. */
+export function pictureRecipe(ydoc: Y.Doc, oid: string): Record<string, unknown> | null {
+  const r = findPicture(ydoc, oid)?.getAttribute('recipe') as unknown;
+  return r && typeof r === 'object' ? (r as Record<string, unknown>) : null;
+}
+
 /**
  * Point a linked picture at new bytes. The copy keeps its width (its own
- * size is local, Figma I1) and takes the new picture's proportions.
+ * size is local, Figma I1) and takes the new picture's proportions. With
+ * `retouch`, `path` is the copy's own retouch rendered over the source's
+ * pixels (`retouch.orig`), and the copy stays retouchable.
  */
-export function setPicture(ydoc: Y.Doc, oid: string, path: string, aspect: number, origin: unknown): boolean {
+export function setPicture(ydoc: Y.Doc, oid: string, path: string, aspect: number, origin: unknown, retouch?: { orig: string; recipe: Record<string, unknown> }): boolean {
   const el = findPicture(ydoc, oid);
   if (!el) return false;
   const cx = Number(el.getAttribute('cx')) || 0;
   ydoc.transact(() => {
     el.setAttribute('path', path);
     el.setAttribute('src', `media:${path}`);
+    if (retouch) {
+      el.setAttribute('orig', retouch.orig);
+      el.setAttribute('recipe', retouch.recipe as unknown as string);
+    } else {
+      el.removeAttribute('orig');
+      el.removeAttribute('recipe');
+    }
     // The original run no longer matches: the writer builds the picture again.
     el.removeAttribute('xml');
     el.removeAttribute('rid');

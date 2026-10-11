@@ -3,6 +3,7 @@ name = "oel-chart"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
 description = "DrawingML charts (c:chartSpace, cx:chartSpace) <-> ChartSpec JSON, shared by the xlsx, pptx and docx codecs"
 
 [lib]

@@ -10,7 +10,8 @@
 //! A picture whose pixels changed outside OEL (hash mismatch) loses its recipe on reading: the
 //! visible image becomes the new base.
 
-use crate::package::{mime_for_ext, Package};
+use crate::package::{mime_for_ext, rels_path, Package};
+use crate::xml::XNode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -79,7 +80,15 @@ pub fn write(pkg: &mut Package, items: &[Retouch], media: &HashMap<String, Vec<u
         pkg.remove(&n);
     }
     if entries.is_empty() {
-        pkg.remove(MANIFEST);
+        if pkg.has(MANIFEST) {
+            pkg.remove(MANIFEST);
+            // No dangling relationship to the manifest.
+            let rels = rels_path("");
+            if let Some(mut doc) = pkg.get_xml(&rels) {
+                doc.root.children.retain(|n| !matches!(n, XNode::Element(e) if e.attr("Type") == Some(OEL_RETOUCH_REL)));
+                pkg.set_xml(&rels, &doc);
+            }
+        }
         return;
     }
     pkg.ensure_override(MANIFEST, "application/json");
@@ -138,6 +147,7 @@ mod tests {
         assert_eq!(p.parts.iter().filter(|(n, _)| n.starts_with("oel/media/")).count(), 1);
         write(&mut p, &[], &media);
         assert!(!p.has(MANIFEST));
+        assert!(!p.rels("").iter().any(|r| r.rel_type == OEL_RETOUCH_REL));
         assert_eq!(p.parts.iter().filter(|(n, _)| n.starts_with("oel/media/")).count(), 0);
     }
 }

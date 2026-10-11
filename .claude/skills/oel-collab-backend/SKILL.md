@@ -5,6 +5,11 @@ description: Server-side work for OutilsEnLigne in apps/collab (Hocuspocus/Yjs +
 
 # Server work (`apps/collab`)
 
+> Edition note: the server only runs in the **team edition** (`PUBLIC_EDITION=equipe`, `npm run dev:equipe`). The
+> default single-user build (`solo`) never contacts it: `collabApi` is null and every document stays in IndexedDB.
+> Front-end parts of a server feature hide behind `features.collab` / `features.forms` / `features.projects`
+> (`apps/web/src/edition.ts`) and an editor prop, never deleted (AGENTS.md « Rules »).
+
 > Layout note: plan Phase 5 splits `src/server.ts` into `src/domains/*` with a `storage/`
 > interface and a `kinds.ts` table. If `apps/collab/src/domains/` exists, add code there
 > and update this skill.

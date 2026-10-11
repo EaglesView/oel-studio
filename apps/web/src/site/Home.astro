@@ -1,0 +1,81 @@
+---
+/** The home page (Figma D2), in one language. */
+import { Icon } from '@oel/emboss';
+import SiteLayout from './SiteLayout.astro';
+import Capture from './Capture.astro';
+import { HOME } from './home';
+import { SITE, UI, docHref, type Lang } from './i18n';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const c = HOME[lang];
+const t = UI[lang];
+---
+<SiteLayout lang={lang} title={c.title} description={c.description}>
+  <section class="band band--violet hero" aria-labelledby="hero-title">
+    <h1 id="hero-title" class="hero__title" data-reveal>{c.hero.title}</h1>
+    <p class="band__lead" data-reveal style="--d: 90ms">{c.hero.lead}</p>
+    <p class="hero__actions" data-reveal style="--d: 180ms">
+      <a class="site-button site-button--paper" href="/bureau">{c.hero.primary} <Icon name="arrow-right" size={16} /></a>
+      <a class="site-button site-button--ghost" href={docHref(lang, 'index')}>{c.hero.secondary}</a>
+    </p>
+    <div class="reveal-capture" data-reveal style="--d: 280ms"><Capture lang={lang} id={c.hero.capture.id} alt={c.hero.capture.alt} eager /></div>
+  </section>
+
+  <div id="fonctionnalites">
+    {c.features.map((f) => (
+      <section class={`band band--${f.band}`} id={f.id} aria-labelledby={`${f.id}-title`}>
+        <p class="band__overline" data-reveal>{f.overline}</p>
+        <h2 id={`${f.id}-title`} class="band__title" data-reveal style="--d: 60ms">{f.title.map((line) => <span>{line}</span>)}</h2>
+        <p class="band__lead" data-reveal style="--d: 120ms">{f.lead}</p>
+        <p data-reveal style="--d: 160ms"><a class="band__more" href={docHref(lang, f.more.doc, f.more.hash)}>{t.more} <Icon name="arrow-right" size={16} /></a></p>
+        <div class="reveal-capture" data-reveal style="--d: 120ms"><Capture lang={lang} id={f.capture.id} alt={f.capture.alt} /></div>
+      </section>
+    ))}
+  </div>
+
+  <section class="band band--paper" aria-labelledby="extras-title">
+    <h2 id="extras-title" class="band__title" data-reveal>{c.extras.title}</h2>
+    <ul class="tiles">
+      {c.extras.tiles.map((tile, i) => (
+        <li class="tile" data-reveal style={`--d: ${i * 70}ms`}>
+          <span class="tile__icon"><Icon name={tile.icon} size={20} /></span>
+          <h3>{tile.title}</h3>
+          <p>{tile.text}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="band band--night" id="code-ouvert" aria-labelledby="code-title">
+    <p class="band__overline" data-reveal>{c.code.overline}</p>
+    <h2 id="code-title" class="band__title band__title--md" data-reveal style="--d: 60ms">{c.code.title}</h2>
+    <p class="band__lead" data-reveal style="--d: 120ms">{c.code.lead}</p>
+    <ul class="crates">
+      {c.code.crates.map((k, i) => (
+        <li data-reveal style={`--d: ${i * 50}ms`}><code>{k.name}</code><span>{k.text}</span></li>
+      ))}
+    </ul>
+    <p class="band__foot">{c.code.foot}</p>
+    {SITE.repo && <p><a class="band__more" href={SITE.repo}>{c.code.source} <Icon name="arrow-right" size={16} /></a></p>}
+  </section>
+
+  <section class="band band--sheet" id="questions" aria-labelledby="faq-title">
+    <h2 id="faq-title" class="band__title band__title--md" data-reveal>{c.faq.title}</h2>
+    <div class="faq" data-reveal style="--d: 80ms">
+      {c.faq.items.map((item) => (
+        <details>
+          <summary>{item.q}</summary>
+          <p>{item.a}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <section class="band band--violet cta" aria-labelledby="cta-title">
+    <h2 id="cta-title" class="band__title" data-reveal>{c.cta.title}</h2>
+    <p data-reveal style="--d: 100ms"><a class="site-button site-button--paper" href="/bureau">{c.cta.button} <Icon name="arrow-right" size={16} /></a></p>
+  </section>
+</SiteLayout>

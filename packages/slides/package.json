@@ -1,5 +1,6 @@
 {
   "name": "@oel/slides",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "PowerPoint-compatible presentation editor: slides drawn from the oelpptx-rs deck JSON (layouts, themes, DrawingML shapes), Yjs collaboration, offline, lossless .pptx round trips, slideshow and presenter view.",
   "type": "module",
@@ -24,7 +25,8 @@
     "yjs": "^13.6.33",
     "@oel/fonts": "*",
     "@oel/charts": "*",
-    "@oel/links": "*"
+    "@oel/links": "*",
+    "@oel/img": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

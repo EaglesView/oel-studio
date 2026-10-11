@@ -22,6 +22,8 @@ const CT_SLIDE: &str = "application/vnd.openxmlformats-officedocument.presentati
 const CT_NOTES: &str = "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml";
 const NS_DECL: &str = r#"xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main""#;
 const LANG: &str = "fr-CA";
+const NS_C: &str = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+const NS_R: &str = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
 /// Children of `a:rPr` in schema order.
 const RPR_ORDER: &[&str] = &["ln", "noFill", "solidFill", "gradFill", "blipFill", "pattFill", "grpFill", "effectLst", "effectDag", "highlight", "uLnTx", "uLn", "uFillTx", "uFill", "latin", "ea", "cs", "sym", "hlinkClick", "hlinkMouseOver", "rtl", "extLst"];
@@ -46,7 +48,25 @@ pub fn export_pptx(deck: &Deck, original: Option<&[u8]>, media: HashMap<String, 
         w.pkg.ensure_default(&ext, mime_for_ext(&ext));
     }
     w.write(deck)?;
+    // Retouched pictures: original + recipe beside the final pixels (plan L-7). Pictures added in
+    // the editor are already in the package, originals included.
+    let mut pics = Vec::new();
+    for s in &deck.slides {
+        retouched(&s.elements, &mut pics);
+    }
+    let items: Vec<oel_opc::retouch::Retouch> = pics.iter().map(|p| oel_opc::retouch::Retouch { rendered: &p.media, original: p.orig.as_deref().unwrap_or_default(), recipe: p.recipe.as_ref().unwrap() }).collect();
+    oel_opc::retouch::write(&mut w.pkg, &items, &HashMap::new());
     w.pkg.write()
+}
+
+/// Retouched pictures among `els` (groups included).
+fn retouched<'a>(els: &'a [Element], out: &mut Vec<&'a Picture>) {
+    for e in els {
+        if let Some(p) = e.image.as_ref().filter(|p| !p.media.is_empty() && p.orig.is_some() && p.recipe.as_ref().is_some_and(|r| r.as_object().is_some_and(|o| !o.is_empty()))) {
+            out.push(p);
+        }
+        retouched(&e.children, out);
+    }
 }
 
 struct Writer<'o> {
@@ -400,7 +420,19 @@ impl<'o> Writer<'o> {
     // -----------------------------------------------------------------------
 
     fn patch(&mut self, part: &str, x: &mut XElement, o: &Element, n: &Element) {
-        if n.locked || o == n {
+        if o == n {
+            return;
+        }
+        // A chart whose data changed in the editor (a linked copy; chart frames are otherwise
+        // locked): written to a new part, so a part another frame shares keeps its own chart.
+        // chartEx stays as it came.
+        if o.chart != n.chart
+            && let Some(spec) = n.chart.as_ref().filter(|c| !c.ex)
+            && let Some(c) = find_local_mut(x, "chart")
+        {
+            c.set_attr("r:id", self.chart_rel(part, spec));
+        }
+        if n.locked {
             return;
         }
         if let Some(c) = nv_mut(x).and_then(|nv| nv.child_local_mut("cNvPr")) {
@@ -472,6 +504,14 @@ impl<'o> Writer<'o> {
         {
             patch_table(tbl, ot, nt);
         }
+    }
+
+    /// A new chart part for `spec`, related from `part`; returns the relationship id.
+    fn chart_rel(&mut self, part: &str, spec: &oelchart::ChartSpec) -> String {
+        let chart_part = oelchart::next_chart_part(&self.pkg, "ppt/charts");
+        self.pkg.set(&chart_part, oelchart::write_chart(spec, None).into_bytes());
+        self.pkg.ensure_override(&chart_part, oelchart::read::CT_CHART);
+        self.pkg.add_rel(part, oelchart::read::REL_CHART, &rel_path(part, &chart_part), false)
     }
 
     /// XML for an element the editor created.
@@ -547,7 +587,17 @@ impl<'o> Writer<'o> {
                 }
                 Some(XElement::new("p:pic").with_child(nv).with_child(blip_fill).with_child(sp))
             }
-            // Groups, tables and graphics are only ever copied, never created.
+            // A chart made in the editor (a linked copy, « Lier dans… »).
+            ElementKind::Graphic => {
+                let spec = el.chart.as_ref().filter(|c| !c.ex)?;
+                let rid = self.chart_rel(part, spec);
+                let locks = XElement::new("p:cNvGraphicFramePr").with_child(XElement::new("a:graphicFrameLocks").with_attr("noGrp", "1"));
+                let nv = XElement::new("p:nvGraphicFramePr").with_child(c_nv).with_child(locks).with_child(nv_pr);
+                let chart = XElement::new("c:chart").with_attr("xmlns:c", NS_C).with_attr("xmlns:r", NS_R).with_attr("r:id", rid);
+                let graphic = XElement::new("a:graphic").with_child(XElement::new("a:graphicData").with_attr("uri", NS_C).with_child(chart));
+                Some(XElement::new("p:graphicFrame").with_child(nv).with_child(xfrm_el("p:xfrm", el)).with_child(graphic))
+            }
+            // Groups and tables are only ever copied, never created.
             _ => None,
         }
     }
@@ -643,6 +693,14 @@ impl<'o> Writer<'o> {
 fn max_id(x: &XElement) -> Option<f64> {
     let own = c_nv_pr(x).and_then(|c| num(c, "id"));
     x.elements().filter_map(max_id).chain(own).reduce(f64::max)
+}
+
+/// The first element named `name` (any prefix) in `x`, `x` included.
+fn find_local_mut<'a>(x: &'a mut XElement, name: &str) -> Option<&'a mut XElement> {
+    if x.local() == name {
+        return Some(x);
+    }
+    x.elements_mut().find_map(|c| find_local_mut(c, name))
 }
 
 fn nv_mut(x: &mut XElement) -> Option<&mut XElement> {

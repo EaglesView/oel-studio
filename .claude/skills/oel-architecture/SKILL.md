@@ -17,7 +17,8 @@ done — the skills describe the layout *as it is now*).
 | Engine contract | `packages/engine` | `FileKind`, `Preview`, `ImportResult`, payload formats, `EngineRegistry`, `EngineHost`, WASM adapters | Import React or editors |
 | Shared UI/infra | `packages/emboss` (kit), `packages/desk` (canvas), `packages/collab-client`, `packages/fonts` (fonts of opened files), `packages/img` (image engine host + recipes; must stay React-free — import `@oel/collab-client/local`, not its index) | Kit components/tokens, desk scene, sync/links/versions | Know file types (desk, emboss) |
 | Editors | `packages/docs`, `packages/sheets`, `packages/slides`, `packages/forms` | `model/` (pure, Yjs), `ui/` (React), collab session | Import Bureau or `apps/*` |
-| Product | `apps/web/src/bureau`, pages in `apps/web/src/pages` | Desk papers, kind glue, levels (Bureau → sur place → plein écran) | Contain file-format logic |
+| Product | `apps/web/src/bureau` (desk, kind glue, levels, saved desk `persist.ts` / `deskStorage.ts`, demo `demo.ts`), pages in `apps/web/src/pages` | Desk papers, kind glue, levels (Bureau → sur place → plein écran), the desk saved on the device | Contain file-format logic |
+| Site | `apps/web/src/site` (home, docs, `i18n.ts`), `src/pages/{index,en,docs}` | Bilingual site (fr at `/`, en at `/en`), documentation | Import the Bureau's runtime (shared data like `bureau/shortcuts.ts` is fine) |
 | Server | `apps/collab` | Yjs sync, share tokens, versions, media, exports, (forms/accounts next) | Be required for local-only editing |
 
 ## Decision shortcuts
@@ -36,5 +37,6 @@ done — the skills describe the layout *as it is now*).
 - UI copy is French (fr-CA); spreadsheet formulas are English (`,` args, `.` decimal).
 - New icons come from Iconoir (`iconoir-react`), never hand-drawn; use `@oel/emboss` components and `--emboss-*` tokens, never raw colours.
 - Behaviour follows the Figma file `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behaviors" (sections A–F). If code must differ from the spec, say so to the user.
+- Editions: `apps/web/src/edition.ts` (`PUBLIC_EDITION=solo|equipe`, default `solo`) decides whether collaboration, forms and members show. Hide team features behind `features.*` in the app and a prop in packages (`collab={features.collab}`); never delete them, and never read the env var from a package.
 - `apps/web` stays static (`output: 'static'`, editors as `client:only` islands) so a Tauri desktop app can serve it later.
 - Anything a future native app would need to replace (file pickers, downloads, IndexedDB, worker creation, collab URL) should go through one small function, not be called inline in an editor.

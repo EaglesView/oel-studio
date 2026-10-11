@@ -6,6 +6,7 @@ import '@oel/img/styles.css';
 import { createImageWorker } from '../bureau/images';
 import { asDocxPayload, type DocxPayload } from '@oel/engine';
 import { collabApi, exportDocx } from '../bureau/docs';
+import { features } from '../edition';
 import { engineHost } from '../bureau/importFiles';
 import './document.css';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -155,6 +156,7 @@ export function DocumentPage() {
         session={session}
         title={title}
         identity={identity}
+        collab={features.collab}
         onIdentityChange={setIdentity}
         exportDocx={exportDocx}
         onNewDocument={create}

@@ -1,5 +1,6 @@
 {
   "name": "@oel/desk",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Accessible infinite-desk canvas: framework-free scene/viewport/selection core plus a React DOM renderer.",
   "type": "module",

@@ -1,5 +1,6 @@
 {
   "name": "@oel/forms",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Forms: builder (questions, linked spreadsheet, appearance, publishing) and respondent page (steps, errors, drafts, attachments). Backend calls go through FormsBackend; the local stub stands in until the server exists.",
   "type": "module",

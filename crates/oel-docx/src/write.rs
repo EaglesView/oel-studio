@@ -447,8 +447,11 @@ impl Writer<'_> {
                 let a = &n["attrs"];
                 let xml = s(&a["xml"]).unwrap_or("");
                 let label = s(&a["label"]).unwrap_or("");
+                // A chart made in the editor (a linked copy, « Lier dans… »): a new chart part.
+                if xml.is_empty() && !a["chart"].is_null() {
+                    self.new_chart(a, &marks, in_link, out);
                 // Made in the editor with no XML (a linked value, plan I-6): Word gets its text as a plain run.
-                if xml.is_empty() && a["chart"].is_null() && !a["hidden"].as_bool().unwrap_or(false) && !label.is_empty() {
+                } else if xml.is_empty() && a["chart"].is_null() && !a["hidden"].as_bool().unwrap_or(false) && !label.is_empty() {
                     let rpr = self.rpr(&marks, in_link);
                     out.push_str("<w:r>");
                     out.push_str(&rpr);
@@ -609,6 +612,31 @@ impl Writer<'_> {
 <a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"{id}\" name=\"{name}\"/><pic:cNvPicPr/></pic:nvPicPr>\
 <pic:blipFill><a:blip r:embed=\"{rid}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"{cx}\" cy=\"{cy}\"/></a:xfrm>\
 <a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
+        );
+    }
+
+    /// An inline chart for a chart node made in the editor: its part written from the spec
+    /// (data caches included), related from the story being written. chartEx is not written.
+    fn new_chart(&mut self, a: &Value, marks: &[Value], in_link: bool, out: &mut String) {
+        let Ok(spec) = serde_json::from_value::<oelchart::ChartSpec>(a["chart"].clone()) else { return };
+        if spec.ex {
+            return;
+        }
+        let chart_part = oelchart::next_chart_part(&self.pkg, "word/charts");
+        self.pkg.set(&chart_part, oelchart::write_chart(&spec, None).into_bytes());
+        self.pkg.ensure_override(&chart_part, oelchart::read::CT_CHART);
+        let part = self.part.clone();
+        let rid = self.pkg.add_rel(&part, oelchart::read::REL_CHART, &relative_target(&part, &chart_part), false);
+        // 15 × 9 cm when the node has no size (the editor's default chart size).
+        let cx = a["cx"].as_i64().unwrap_or(5_400_000);
+        let cy = a["cy"].as_i64().unwrap_or(3_240_000);
+        let id = self.fresh_doc_pr();
+        let rpr = self.rpr(marks, in_link);
+        let _ = write!(
+            out,
+            "<w:r>{rpr}<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"{cx}\" cy=\"{cy}\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>\
+<wp:docPr id=\"{id}\" name=\"Graphique {id}\"/><wp:cNvGraphicFramePr/>\
+<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"{rid}\"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>"
         );
     }
 

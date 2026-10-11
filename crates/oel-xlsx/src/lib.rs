@@ -19,7 +19,7 @@ pub mod template;
 pub mod write;
 
 pub use read::import_xlsx;
-pub use write::export_xlsx;
+pub use write::{export_xlsx, export_xlsx_with_media};
 
 /// A blank workbook (one sheet, « Feuille 1 »), as JSON.
 pub fn new_workbook() -> model::Workbook {

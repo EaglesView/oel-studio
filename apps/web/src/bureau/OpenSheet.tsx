@@ -10,6 +10,7 @@ import { SheetWorkspace } from './workspaces/SheetWorkspace';
 import { PdfWorkspace } from './workspaces/PdfWorkspace';
 import { ImageWorkspace } from './workspaces/ImageWorkspace';
 import { FormWorkspace } from './workspaces/FormWorkspace';
+import { features } from '../edition';
 
 /** 2 = ouvert sur place (floating sheet), 3 = plein écran (Editor — Behaviors · A1). */
 export type OpenLevel = 2 | 3;
@@ -21,7 +22,6 @@ export interface WorkspaceProps {
   onDraft: (preview: Preview) => void;
   /** Workspaces with live state register a function giving their latest preview, called on close. */
   registerFlush: (flush: () => Preview | null) => void;
-  onConvert: (id: string) => void;
   /** Immediate update of the paper (title, linked document), outside the draft. */
   onPatch?: (patch: Partial<Paper>) => void;
   onExpand: () => void;
@@ -61,7 +61,6 @@ export function OpenSheet({
   onReduce,
   onRepose,
   onBureau,
-  onConvert,
   onOpenPaper,
   handle,
 }: {
@@ -72,7 +71,6 @@ export function OpenSheet({
   onReduce: () => void;
   onRepose: () => void;
   onBureau: () => void;
-  onConvert: (id: string) => void;
   onOpenPaper?: (id: string) => void;
   handle: Ref<OpenSheetHandle>;
 }) {
@@ -132,7 +130,6 @@ export function OpenSheet({
     level,
     onDraft: (p) => (draft.current = p),
     registerFlush: (fn) => (flush.current = fn),
-    onConvert,
     onPatch: (patch) => store.update(paper.id, patch, { history: false }),
     onExpand,
     onReduce,
@@ -215,7 +212,13 @@ export function OpenSheet({
               {paper.kind === 'spreadsheet' && <SheetWorkspace {...props} />}
               {paper.kind === 'pdf' && <PdfWorkspace {...props} />}
               {(paper.kind === 'image' || paper.kind === 'gallery') && <ImageWorkspace {...props} />}
-              {paper.kind === 'form' && <FormWorkspace {...props} />}
+              {paper.kind === 'form' && features.forms && <FormWorkspace {...props} />}
+              {paper.kind === 'form' && !features.forms && (
+                <div className="workspace-empty">
+                  <Icon name="form" size={40} />
+                  <p>Les formulaires arrivent avec la version en équipe : celui-ci reste sur le bureau, tel quel.</p>
+                </div>
+              )}
               {paper.kind === 'file' && (
                 <div className="workspace-empty">
                   <Icon name="file" size={40} />
