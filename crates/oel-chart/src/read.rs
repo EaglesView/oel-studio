@@ -64,6 +64,13 @@ fn num(e: &XElement, child: &str) -> Option<f64> {
     val(e, child).and_then(|v| v.trim().trim_end_matches('%').parse().ok())
 }
 
+/// An axis id. The schema says unsigned, but python-pptx and others write negative ones
+/// (`-2113994440`): kept as the same 32 bits, so every id stays distinct.
+fn ax_id(v: &str) -> Option<u32> {
+    let v = v.trim();
+    v.parse::<u32>().ok().or_else(|| v.parse::<i64>().ok().map(|n| n as u32))
+}
+
 /// `<c:x val="1"/>`: present without `val` means true (CT_Boolean default).
 fn flag(e: &XElement, child: &str) -> Option<bool> {
     e.child_local(child).map(|c| !matches!(c.attr("val"), Some("0") | Some("false")))
@@ -448,7 +455,7 @@ impl Ctx<'_> {
             down: u.child_local("downBars").and_then(|b| self.shape(b.child_local("spPr"))),
         });
         out.labels = self.labels(g.child_local("dLbls"));
-        out.axis_ids = g.children_local("axId").filter_map(|a| a.attr("val")).filter_map(|v| v.parse().ok()).collect();
+        out.axis_ids = g.children_local("axId").filter_map(|a| a.attr("val")).filter_map(ax_id).collect();
         out.series = g.children_local("ser").map(|s| self.series(s)).collect();
         out
     }
@@ -456,11 +463,11 @@ impl Ctx<'_> {
     fn axis(&self, a: &XElement, kind: &str) -> Axis {
         let scaling = a.child_local("scaling");
         Axis {
-            id: num(a, "axId").unwrap_or(0.0) as u32,
+            id: val(a, "axId").and_then(ax_id).unwrap_or(0),
             kind: kind.to_string(),
             delete: flag(a, "delete").unwrap_or(false),
             pos: val(a, "axPos").map(String::from),
-            cross_ax: num(a, "crossAx").map(|v| v as u32),
+            cross_ax: val(a, "crossAx").and_then(ax_id),
             crosses: val(a, "crosses").map(String::from),
             crosses_at: num(a, "crossesAt"),
             cross_between: val(a, "crossBetween").map(String::from),

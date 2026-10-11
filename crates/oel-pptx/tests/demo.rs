@@ -28,3 +28,16 @@ fn demo_deck_imports_and_round_trips() {
     let b = import_pptx(&out).unwrap();
     check(&b.deck, &b.media);
 }
+
+/// python-pptx writes negative axis ids: they are read as distinct ids, so a rewritten chart keeps its axes.
+#[test]
+fn negative_axis_ids_stay_distinct() {
+    let a = import_pptx(&demo()).unwrap();
+    let spec = a.deck.slides[2].elements.iter().find(|e| e.name == "Graphique du tableur").unwrap().chart.as_ref().unwrap();
+    let ids: Vec<u32> = spec.axes.iter().map(|x| x.id).collect();
+    assert_eq!(ids.len(), 2);
+    assert_ne!(ids[0], ids[1]);
+    assert!(ids.iter().all(|&i| i != 0));
+    assert_eq!(spec.groups[0].axis_ids, ids);
+    assert_eq!(spec.axes[0].cross_ax, Some(ids[1]));
+}
