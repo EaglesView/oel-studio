@@ -1,5 +1,6 @@
 {
   "name": "@oel/img",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Image engine host: oel-img (wgpu) in a worker on an OffscreenCanvas, WebGPU → WebGL2 → CPU fallback, recipes (oel-img-recipe@1) and image originals by content hash.",
   "type": "module",

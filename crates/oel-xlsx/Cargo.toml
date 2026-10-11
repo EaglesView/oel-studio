@@ -3,6 +3,7 @@ name = "oel-xlsx"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
 description = "Lossless XLSX/CSV codec and IronCalc-based calc engine"
 
 [lib]

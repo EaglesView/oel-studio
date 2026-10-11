@@ -3,6 +3,7 @@ name = "oel-pptx"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+license.workspace = true
 description = "Lossless PPTX <-> deck JSON codec for the @oel/slides editor"
 
 [lib]

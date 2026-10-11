@@ -3,7 +3,8 @@ name = "oel-opc"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Lossless OOXML plumbing shared by oel-docx and oel-xlsx: XML DOM and OPC package (zip, rels, content types)"
+license.workspace = true
+description = "Lossless OOXML plumbing shared by oel-docx, oel-xlsx and oel-pptx: XML DOM and OPC package (zip, rels, content types)"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

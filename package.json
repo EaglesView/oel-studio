@@ -1,5 +1,6 @@
 {
   "name": "oel-studio",
+  "license": "MPL-2.0",
   "private": true,
   "type": "module",
   "workspaces": [
