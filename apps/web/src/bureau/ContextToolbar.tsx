@@ -192,7 +192,7 @@ function TypeTools({
           <ToolButton icon="sum" label="Somme" description="Somme de la colonne Montant." value={total != null ? `${nf.format(total)} $` : '—'} />
           <ToolButton icon="chart" label="Graphique" description="Crée un graphique lié sur une diapo." onPress={() => toast({ title: 'Graphique lié créé', description: 'Le fil de liaison apparaît sur le bureau.', tone: 'success' })} />
           <ToolButton icon="table" label="Format nombre" unavailableReason="Sélectionnez une plage de cellules (ouvrez le tableur)." />
-          <ToolButton icon="form" label="Créer un formulaire" description="Une question par colonne ; les réponses arrivent dans ce tableur." onPress={() => onCreateForm(node.id)} />
+          {features.forms && <ToolButton icon="form" label="Créer un formulaire" description="Une question par colonne ; les réponses arrivent dans ce tableur." onPress={() => onCreateForm(node.id)} />}
         </>
       );
     }

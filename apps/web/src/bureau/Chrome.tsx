@@ -23,6 +23,7 @@ import {
 } from '@oel/emboss';
 import { useProject } from '../project/ProjectContext';
 import { type Bureau, type PaperKind } from './model';
+import { features } from '../edition';
 
 /* ── B1 · 1 Projet ──────────────────────────────────────────────────── */
 
@@ -127,7 +128,8 @@ export const NEW_KINDS: { kind: PaperKind; label: string; icon: IconName }[] = [
   { kind: 'document', label: 'Document', icon: 'file' },
   { kind: 'slides', label: 'Présentation', icon: 'slide' },
   { kind: 'spreadsheet', label: 'Tableur', icon: 'table' },
-  { kind: 'form', label: 'Formulaire', icon: 'form' },
+  // Single-user edition: no forms (plan solo MVP, S-6).
+  ...(features.forms ? [{ kind: 'form' as const, label: 'Formulaire', icon: 'form' as const }] : []),
 ];
 
 export const SOON = 'Bientôt.';
@@ -185,7 +187,7 @@ export function BottomBar({
         <ToolButton icon="grid" label="Étaler" showLabel shortcut={['E']} description="Voir tout le projet en grille, sans rien déplacer." unavailableReason={SOON} />
         <ToolbarSeparator />
         <MenuTrigger isOpen={newMenuOpen} onOpenChange={onNewMenuOpenChange}>
-          <WithTooltip label="Nouveau" shortcut={['Alt', 'N']} description="Document, présentation, tableur ou formulaire, au centre de la vue.">
+          <WithTooltip label="Nouveau" shortcut={['Alt', 'N']} description={`Document, présentation, tableur${features.forms ? ' ou formulaire' : ''}, au centre de la vue.`}>
             <RACButton className="bottom-bar__new" aria-label="Nouveau" aria-keyshortcuts="Alt+N">
               <Icon name="plus" size={20} />
             </RACButton>

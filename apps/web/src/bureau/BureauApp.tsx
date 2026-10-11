@@ -221,7 +221,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const announce = useCallback((m: string) => announceRef.current(m), []);
   /** E2 · 1 « Nouveau formulaire » (from the « + » menu, or from a selected spreadsheet). */
   const [newForm, setNewForm] = useState<{ sheetId: string | null } | null>(null);
-  useFormSync(store, formsBackend, announce);
+  useFormSync(store, formsBackend, announce, features.forms);
   // Figma L: recipes mirrored on papers, desk pictures re-rendered, galleries kept in step.
   useEffect(() => bindImages(store), [store]);
 
@@ -353,7 +353,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     } else openAt(id, 2);
   };
   const create = (kind: PaperKind) => {
-    if (kind === 'form') return setNewForm({ sheetId: null });
+    if (kind === 'form') return features.forms ? setNewForm({ sheetId: null }) : undefined;
     const p = blankPaper(kind, store.viewCenter());
     store.add([p]);
     announceRef.current(`${kindLabel(kind)} créé au centre de la vue`);
@@ -572,7 +572,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           onOpenPaper={(id) => openAt(id, 2)}
         />
       )}
-      {newForm && (
+      {features.forms && newForm && (
         <NewFormDialog
           isOpen
           onOpenChange={(o) => !o && setNewForm(null)}

@@ -298,3 +298,9 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   - `/document`, `/presentation`, `/tableur` (share-link landings) redirect to `/bureau` (Astro meta refresh).
   - Not done: a render test of the Bureau chrome in `solo` (the Bureau needs its workers); both builds and the
     typecheck cover it. Papers still record `editor` (the initials of « Vous ») for the team edition later.
+- **S-6 done** (11 Oct 2026), not yet checked in the browser. In `solo`: no « Formulaire » in « + » (the Alt+N tooltip
+  and the menu's « Nouveau » follow `NEW_KINDS`), no « Créer un formulaire » on a spreadsheet, no `NewFormDialog`,
+  `useFormSync(…, enabled)` off; a `form` paper (only from a zip made by the team edition) opens on « Les formulaires
+  arrivent avec la version en équipe… »; `/f` and `/connexion` redirect to `/`. `packages/forms` and its tests are
+  untouched. Seen on the way, for S-7 (R2): the spreadsheet's desk toolbar still has B1 stubs (« Somme » of a
+  « Montant » column, « Graphique » that only shows a toast).

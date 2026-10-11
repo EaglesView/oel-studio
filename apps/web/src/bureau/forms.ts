@@ -92,14 +92,16 @@ export function writeHeaders(store: Bureau, link: SheetLink) {
 /**
  * Keeps every published form's linked sheet in step with its responses, for
  * the whole desk (not only while the form is open), and keeps the published
- * copy's quota ranges in step with the sheets they come from.
+ * copy's quota ranges in step with the sheets they come from. Off (`enabled` false) in the
+ * single-user edition, which has no forms.
  */
-export function useFormSync(store: Bureau, backend: () => FormsBackend, announce: (m: string) => void) {
+export function useFormSync(store: Bureau, backend: () => FormsBackend, announce: (m: string) => void, enabled = true) {
   const watching = useRef(new Map<string, () => void>());
   const known = useRef(new Map<string, Set<string>>());
   const rangeKeys = useRef(new Map<string, string>());
 
   useEffect(() => {
+    if (!enabled) return;
     const apply = (paperId: string, responses: FormResponse[]) => {
       const paper = store.node(paperId) as Paper | undefined;
       const form = paper?.data.form;
@@ -187,5 +189,5 @@ export function useFormSync(store: Bureau, backend: () => FormsBackend, announce
       map.forEach((stop) => stop());
       map.clear();
     };
-  }, [store, backend, announce]);
+  }, [store, backend, announce, enabled]);
 }

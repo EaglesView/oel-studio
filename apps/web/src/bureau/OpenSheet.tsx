@@ -10,6 +10,7 @@ import { SheetWorkspace } from './workspaces/SheetWorkspace';
 import { PdfWorkspace } from './workspaces/PdfWorkspace';
 import { ImageWorkspace } from './workspaces/ImageWorkspace';
 import { FormWorkspace } from './workspaces/FormWorkspace';
+import { features } from '../edition';
 
 /** 2 = ouvert sur place (floating sheet), 3 = plein écran (Editor — Behaviors · A1). */
 export type OpenLevel = 2 | 3;
@@ -215,7 +216,13 @@ export function OpenSheet({
               {paper.kind === 'spreadsheet' && <SheetWorkspace {...props} />}
               {paper.kind === 'pdf' && <PdfWorkspace {...props} />}
               {(paper.kind === 'image' || paper.kind === 'gallery') && <ImageWorkspace {...props} />}
-              {paper.kind === 'form' && <FormWorkspace {...props} />}
+              {paper.kind === 'form' && features.forms && <FormWorkspace {...props} />}
+              {paper.kind === 'form' && !features.forms && (
+                <div className="workspace-empty">
+                  <Icon name="form" size={40} />
+                  <p>Les formulaires arrivent avec la version en équipe : celui-ci reste sur le bureau, tel quel.</p>
+                </div>
+              )}
               {paper.kind === 'file' && (
                 <div className="workspace-empty">
                   <Icon name="file" size={40} />
