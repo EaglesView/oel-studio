@@ -599,6 +599,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
         onViewChange={setView}
         minimap={minimap}
         onMinimapChange={setMinimap}
+        desk={{ projectId: project.id, title: project.name, doc: saved.device.doc, flush: () => persistence.current?.flush() }}
       />
       <LinksUI resolver={links} store={store} />
       <ShortcutsDialog isOpen={help} onOpenChange={setHelp} />

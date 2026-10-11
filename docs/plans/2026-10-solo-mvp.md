@@ -251,3 +251,23 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   = web + collab with `PUBLIC_EDITION=equipe` (POSIX shells). Tests: `packages/collab-client/test/edition.test.ts`,
   `apps/web/test/edition.test.ts`. No render test of a whole editor with `collab={false}` (sessions need IndexedDB,
   absent in happy-dom); checked by typecheck + both builds instead. So S-5 no longer needs the editors row.
+- **S-2 done** (11 Oct 2026), not yet checked in the browser:
+  - `bureau/persist.ts` (pure): desk Y.Doc `papers` + `meta` (format, order, desk-only links — threads derived from
+    files are not saved —, viewport, demoVersion, trash); `storedPaper` drops object URLs and flashes,
+    `restoredPaper` turns an interrupted import into an error; `bindDesk` writes only papers whose saved form changed,
+    400 ms after the last change, and on `pagehide` / hidden tab.
+  - `@oel/collab-client` `device.ts`: `openDeviceDoc`, `readDeviceDoc`, `writeDeviceDoc`, `deleteDeviceDoc`,
+    `deviceDocNames` (the IndexedDB seam), `docDbName`; `localFiles.keys` / `remove`; `@oel/img` `originalKey`;
+    `@oel/engine` `readZipBytes`.
+  - `bureau/restore.ts`: thumbnails saved on the device and shown at once on the next visit (else redrawn), image
+    originals and retouched renderings rebuilt; removed papers' files deleted on a later visit (trash, so undo works).
+  - `bureau/deskStorage.ts` + `backup.ts`: `openDesk` (new desk → demo seed and fit; saved desk → its view),
+    « Exporter le bureau (.zip) » (lossless: desk + every file's Y.Doc + binary files), « Importer un bureau »,
+    « Réinitialiser la démo », « Vider le bureau ». Replacing actions are recorded and carried out on reload before any
+    document opens (IndexedDB refuses to delete open databases); an unreadable backup leaves the desk untouched.
+  - UI: « Ce bureau » section in the menu pane « Ouvrir et importer » (`DeskBackup.tsx`) with storage used and
+    confirmations; `navigator.storage.persist()` asked on the first change of a returning visit.
+  - Changed from the plan: no Office copies inside the backup (each file still downloads on its own); no automatic
+    sweep of the orphan documents earlier versions left in IndexedDB (they are unreachable but not deleted: a manual
+    « Nettoyer » can come with R4); image originals of removed pictures stay (shared by content hash).
+  - Tests: `apps/web/test/persist.test.ts`, `apps/web/test/backup.test.ts`.

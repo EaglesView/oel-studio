@@ -24,6 +24,7 @@ import { useProject } from '../project/ProjectContext';
 import { can, firstName, type ProjectContextValue } from '../project/model';
 import { ROLE_LABEL } from '../project/settings';
 import { useThemeChoice, type ThemeChoice } from './ThemeToggle';
+import { DeskBackup, type DeskActions } from './DeskBackup';
 
 /** Panes of the full-screen menu (Figma M2). */
 export type MenuPane = 'home' | 'new' | 'open' | 'projects' | 'share' | 'settings' | 'display' | 'shortcuts' | 'help' | 'account';
@@ -67,6 +68,8 @@ export interface AppMenuProps {
   onViewChange: (v: 'desk' | 'list') => void;
   minimap: boolean;
   onMinimapChange: (v: boolean) => void;
+  /** The desk saved on this device: export, import, reset (« Ce bureau »). */
+  desk: DeskActions;
 }
 
 /**
@@ -171,6 +174,7 @@ function Pane(props: AppMenuProps) {
             </Button>
           </FileTrigger>
           <p className="app-menu__note">PDF, Word, PowerPoint, Excel, images · 100 Mo max. Ctrl + O depuis le bureau.</p>
+          <DeskBackup store={props.store} desk={props.desk} />
           <section className="app-menu__section app-menu__section--narrow" aria-labelledby="menu-files">
             <h3 id="menu-files" className="app-menu__h3">Tous les fichiers du projet</h3>
             <FileList {...props} />
