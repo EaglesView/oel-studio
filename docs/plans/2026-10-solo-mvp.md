@@ -216,6 +216,20 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   `oel-file-kind` (demo seed), `oel-verify` (solo + equipe builds).
 - `CONTRIBUTING.md`, `SECURITY.md`, issue templates; `.gitignore` covers `apps/collab/data/`.
 
+## S-10 · Subtle motion on the site (added 11 Oct 2026)
+
+Calm, paper-like motion with the kit's easing (`--ease-paper`), never in the way, and none at all with
+`prefers-reduced-motion`:
+- navbar links to sections scroll smoothly (sticky-nav offset kept); the link of the section in view is marked
+  (`aria-current="location"`); the nav gets a soft shadow once the page scrolls; « Documentation » is marked on docs pages;
+- hero: title, lead, buttons and capture rise in on load, staggered;
+- bands: overline, title, lead and capture fade and rise in as they enter the view (once); captures settle from 97 %;
+- tiles and buttons lift a little on hover; FAQ answers open with a height transition where the browser supports it;
+- page changes within the site (home ↔ docs, docs ↔ docs) cross-fade with view transitions where supported, the nav
+  staying put;
+- content is never hidden without JavaScript: the hidden starting state only applies once a head script has run, and
+  a timer shows everything if the reveal script never loads.
+
 ---
 
 ## Recommendations and insights
@@ -352,3 +366,9 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
   - Still to decide before publishing (R5): fixture provenance (`fixtures/pptx/Presentation *.pptx`,
     `fixtures/docx/Document 4.docx`, `tesxte.docx`, `fixtures/xlsx/complex_sheet_graph.xlsx`), a secrets scan of the
     history, the repository URL, and merging the branch chain into `main`.
+- **S-10 done** (11 Oct 2026): `src/site/motion.ts` (reveal on view, active section in the nav, nav shadow once
+  scrolled), a head script in `SiteLayout.astro` that enables motion only without `prefers-reduced-motion` (and shows
+  everything after 3 s if the script never runs), `data-reveal` with staggered `--d` delays on the home page, smooth
+  scrolling and cross-document view transitions in `site.css`, hover lifts, FAQ height transition
+  (`::details-content`, Chromium). Built and checked that the script runs (headless screenshot shows the first
+  frame of the hero); the finished motion is to be checked by eye in a browser.

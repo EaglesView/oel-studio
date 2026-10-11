@@ -167,6 +167,62 @@
 .docs__pager small { font: 400 12px/16px var(--font-sans); color: var(--emboss-ink-muted); }
 .docs__pager a:last-child { text-align: right; margin-left: auto; }
 
+/* ── Motion (S-10): calm, paper-like, none with reduced motion ────────── */
+/* Navbar links glide to their section; the sticky nav's height is left above it (`scroll-margin-top` on bands). */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.site) { scroll-behavior: smooth; }
+  /* Page changes within the site cross-fade (browsers with cross-document view transitions); the nav stays put. */
+  @view-transition { navigation: auto; }
+  .site-nav { view-transition-name: site-nav; }
+  .docs__nav { view-transition-name: docs-nav; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: var(--ease-paper); }
+}
+
+/* Reveal: hidden only once the head script has set `motion` (never without JavaScript). */
+.motion [data-reveal] {
+  opacity: 0;
+  translate: 0 22px;
+  transition: opacity 700ms var(--ease-paper) var(--d, 0ms), translate 800ms var(--ease-paper) var(--d, 0ms), scale 900ms var(--ease-paper) var(--d, 0ms);
+}
+.motion .reveal-capture[data-reveal] { translate: 0 40px; scale: 0.97; }
+.motion [data-reveal].is-in { opacity: 1; translate: 0 0; scale: 1; }
+
+/* The nav: a soft shadow once the page has scrolled; the section in view (or « Documentation ») is marked. */
+.site-nav { transition: box-shadow 240ms var(--ease-paper), background-color 240ms var(--ease-paper); }
+.site-nav.is-scrolled { box-shadow: 0 6px 24px #1b18221a; }
+.site-nav__links a { position: relative; transition: color var(--dur-hover) var(--ease-paper); }
+.site-nav__links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--emboss-ink);
+  scale: 0 1;
+  transition: scale 320ms var(--ease-paper);
+}
+.site-nav__links a[aria-current]::after { scale: 1 1; }
+.site-nav__links a[aria-current] { color: var(--emboss-ink); }
+
+/* Things you can press lift a little. */
+.site-button, .tile, .crates li { transition: translate var(--dur-hover) var(--ease-paper), box-shadow var(--dur-hover) var(--ease-paper), background-color var(--dur-hover) var(--ease-paper); }
+.site-button:hover { translate: 0 -1px; }
+.site-button:active { translate: 0 0; }
+.tile:hover { translate: 0 -3px; box-shadow: var(--shadow-raised-hover); }
+.band__more svg, .site-button svg { transition: translate var(--dur-hover) var(--ease-paper); }
+.band__more:hover svg, .site-button:hover svg { translate: 3px 0; }
+
+/* FAQ answers open with a height transition where the browser can animate to `auto`. */
+@media (prefers-reduced-motion: no-preference) {
+  .faq { interpolate-size: allow-keywords; }
+  .faq details::details-content { block-size: 0; overflow: clip; transition: block-size 320ms var(--ease-paper), content-visibility 320ms allow-discrete; }
+  .faq details[open]::details-content { block-size: auto; }
+}
+.faq summary { transition: color var(--dur-hover) var(--ease-paper); }
+.faq summary:hover { color: var(--emboss-ink); }
+
 /* ── Phone widths ────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .site-nav__links { display: none; }
@@ -184,5 +240,5 @@
   .site-footer__grid { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .site-button { transition: none; }
+  .site-button, .tile, .crates li, .site-nav, .site-nav__links a::after { transition: none; }
 }

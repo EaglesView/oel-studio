@@ -14,6 +14,7 @@ interface Props {
   docId?: DocId;
 }
 const { lang, title, description, docId } = Astro.props;
+const current = docId ? 'docs' : 'home';
 const alt = alternatePath(lang, docId);
 ---
 <Base title={title} description={description} lang={HTML_LANG[lang]}>
@@ -21,12 +22,24 @@ const alt = alternatePath(lang, docId);
     <link rel="alternate" hreflang="fr-CA" href={alt.fr} />
     <link rel="alternate" hreflang="en" href={alt.en} />
     <link rel="alternate" hreflang="x-default" href={alt.fr} />
+    <script is:inline>
+      // S-10 · motion only when welcome; if the reveal script never runs, show everything after 3 s.
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('motion');
+        setTimeout(() => {
+          if (!document.documentElement.dataset.motionReady) document.documentElement.classList.remove('motion');
+        }, 3000);
+      }
+    </script>
   </Fragment>
   <div class="site">
-    <SiteNav lang={lang} other={alt[lang === 'fr' ? 'en' : 'fr']} />
+    <SiteNav lang={lang} other={alt[lang === 'fr' ? 'en' : 'fr']} current={current} />
     <main id="contenu" class="site-main">
       <slot />
     </main>
     <SiteFooter lang={lang} />
   </div>
+  <script>
+    import './motion';
+  </script>
 </Base>
