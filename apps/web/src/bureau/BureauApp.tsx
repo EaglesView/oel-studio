@@ -26,7 +26,7 @@ import { LinkResolver, setActiveLinks } from '../links/resolver';
 import { LinksUI } from '../links/LinksUI';
 import { THREAD_PREFIX } from '@oel/links';
 import { ShortcutsDialog } from './ShortcutsDialog';
-import { convertToEditable, importFiles } from './importFiles';
+import { importFiles } from './importFiles';
 import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
 import { formsBackend } from '../forms/backend';
@@ -500,7 +500,6 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
             <ContextToolbar
               store={store}
               onOpen={open}
-              onConvert={(id) => convertToEditable(store, id, announceRef.current)}
               onCreateForm={(sheetId) => setNewForm({ sheetId })}
               onOpenFull={(id) => openAt(id, 3)}
               notes={notes}
@@ -565,10 +564,6 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           onReduce={reduce}
           onRepose={toDesk}
           onBureau={toDesk}
-          onConvert={(id) => {
-            toDesk();
-            convertToEditable(store, id, announceRef.current);
-          }}
           onOpenPaper={(id) => openAt(id, 2)}
         />
       )}

@@ -7,12 +7,6 @@ import { KIND_ICON, KIND_TAB, type Paper as PaperNode } from './model';
 
 const nf = new Intl.NumberFormat('fr-CA');
 
-export function sheetTotal(rows: string[][]): number | null {
-  const values = rows.slice(1).map((r) => Number((r[1] ?? '').replace(/\s/g, '').replace(',', '.')));
-  const nums = values.filter((v) => Number.isFinite(v) && !Number.isNaN(v));
-  return nums.length ? nums.reduce((a, b) => a + b, 0) : null;
-}
-
 /** How often a zoomed-out thumbnail catches up with live edits. */
 export const THUMBNAIL_REFRESH_MS = 15_000;
 
@@ -218,7 +212,6 @@ function Content({ node }: { node: PaperNode }) {
     }
     case 'spreadsheet': {
       const rows = p.kind === 'spreadsheet' ? p.rows : [];
-      const total = sheetTotal(rows);
       return (
         <div className="paper__sheet">
           <table>
@@ -231,14 +224,6 @@ function Content({ node }: { node: PaperNode }) {
                   <td />
                 </tr>
               ))}
-              {total != null && (
-                <tr className="paper__sheet-total">
-                  <th />
-                  <td>Total</td>
-                  <td className="num">{nf.format(total)} $</td>
-                  <td />
-                </tr>
-              )}
             </tbody>
           </table>
         </div>

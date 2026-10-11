@@ -22,7 +22,6 @@ export interface WorkspaceProps {
   onDraft: (preview: Preview) => void;
   /** Workspaces with live state register a function giving their latest preview, called on close. */
   registerFlush: (flush: () => Preview | null) => void;
-  onConvert: (id: string) => void;
   /** Immediate update of the paper (title, linked document), outside the draft. */
   onPatch?: (patch: Partial<Paper>) => void;
   onExpand: () => void;
@@ -62,7 +61,6 @@ export function OpenSheet({
   onReduce,
   onRepose,
   onBureau,
-  onConvert,
   onOpenPaper,
   handle,
 }: {
@@ -73,7 +71,6 @@ export function OpenSheet({
   onReduce: () => void;
   onRepose: () => void;
   onBureau: () => void;
-  onConvert: (id: string) => void;
   onOpenPaper?: (id: string) => void;
   handle: Ref<OpenSheetHandle>;
 }) {
@@ -133,7 +130,6 @@ export function OpenSheet({
     level,
     onDraft: (p) => (draft.current = p),
     registerFlush: (fn) => (flush.current = fn),
-    onConvert,
     onPatch: (patch) => store.update(paper.id, patch, { history: false }),
     onExpand,
     onReduce,
