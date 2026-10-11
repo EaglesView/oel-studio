@@ -1,0 +1,243 @@
+# Single-user MVP and open-source release — plan
+
+Goal: ship the Bureau as a **single-user, in-the-browser editor** very soon, and open the repository (apps,
+packages and every Rust crate). Written 11 Oct 2026, to execute phase by phase (S-0 → S-9), each phase ending with
+`oel-verify` and its own commits.
+
+Starting point: branch `feat/images` (latest product branch; `feat/backend` B-0/B-1 is set aside and untouched).
+`main` is 138 first-parent commits behind; every feature branch (`dev` → … → `feat/bottom-bar` → `feat/images`) is
+one linear chain.
+
+## Decisions (11 Oct 2026)
+
+| # | Decision |
+|---|---|
+| D1 | Single user. Collaboration and forms leave the **front end only**; their code (`apps/collab`, `packages/forms`, `@oel/collab-client` share/versions UI, `/f`, `/connexion`) stays in the repo and is described in the README. |
+| D2 | The desk is **saved on the device** (IndexedDB), with a demo Bureau seeded on first visit, « Réinitialiser la démo », and export/import of the whole bureau as a `.zip`. |
+| D3 | Licence **MPL-2.0** for the repo and every crate (file-level copyleft: the crates can be embedded elsewhere, changes to our files stay open). |
+| D4 | Home page = Figma direction **D · « Média d’abord »** (page « Site — bureau.outilsenligne.ca (explorations) », frames D1 `212:1893`, D2 `212:19294`), built from the site components (`Site/Nav` 207:9, `Site/Feature Tile` 207:84, `Site/Footer` 208:39, `Site/Desk Mock` 208:77). |
+| D5 | The **site** (home + docs) is bilingual: French at `/`, English at `/en/…`. The Bureau UI itself stays fr-CA for this release (see R6). |
+
+Defaults taken without asking (change here if wrong): one switch `PUBLIC_EDITION=solo|equipe` rather than deleting
+UI; demo content in French with English formulas; README and AGENTS.md in English; `CLAUDE.md` becomes a pointer to
+`AGENTS.md`.
+
+---
+
+## S-0 · Release branch and housekeeping
+
+- Branch `release/solo` from `feat/images`. L-8's remaining scope switch (« Cette copie / Style de la galerie ») stays
+  on `feat/images`; nothing in this plan depends on it.
+- The user's wasm-pack 0.15 bump is applied to the working tree (`package.json`); the matching lockfile diff made on
+  `feat/backend` is in `git stash` « wasm-pack 0.15 bump (made on feat/backend) ». Regenerate the lockfile on this
+  branch with `npm install` when the user wants it committed, in its own commit.
+- Delete `apps/web/src/bureau/seedFixtures.ts` only in S-4 (it is replaced by the demo).
+
+## S-1 · Edition switch
+
+One place decides what the front end shows: `apps/web/src/edition.ts`.
+
+```ts
+export const EDITION = (import.meta.env.PUBLIC_EDITION ?? 'solo') as 'solo' | 'equipe';
+export const features = {
+  collab: EDITION === 'equipe',   // server sync, share links, presence, versions, identity
+  forms: EDITION === 'equipe',    // form papers, « Formulaire » in « + », /f, /connexion
+  projects: EDITION === 'equipe', // members, roles, invitations (project *settings* stay)
+} as const;
+```
+
+- Layer rule: packages never read env. Editors get props instead: `DocsEditor`, `SheetsEditor`, `SlidesEditor`
+  take `collab?: boolean` (default `true` so `/document` etc. keep working in `equipe`); the Bureau passes
+  `features.collab`.
+- `collabApi` (`bureau/docs.ts`) is `null` when `!features.collab`: `createRemoteDoc` already returns `null`
+  without an api, so sessions stay `local-…` in y-indexeddb and nothing pings `:8787`.
+- `npm run dev` starts only the web app in `solo` (`dev:collab` / `npm run dev:equipe` start both).
+- Test: vitest on `edition.ts` + a render test that the editors hide share/versions with `collab={false}`.
+
+## S-2 · Desk saved on the device (D2)
+
+Today `BureauDesk` builds the desk from `SEED_PAPERS` in memory and `seedFixtures` re-imports three files on every
+load, so the desk is lost on reload and every visit leaves orphan documents in IndexedDB.
+
+- **Desk Y.Doc**, the shape the backend's B-5 / N-2 will sync later: `Y.Map papers` (id → paper JSON),
+  `Y.Map threads`, `Y.Map meta` (viewport, `demoVersion`). Persisted with `y-indexeddb` as `oel-desk:<projectId>`
+  (`« Mon bureau »` from the local project stub).
+- Binding in `apps/web/src/bureau/persist.ts`: DeskStore → Y (debounced, one transaction per gesture end, history
+  stays DeskStore's) and Y → DeskStore on load. `@oel/desk` stays free of Yjs (binding lives in the app).
+- Papers keep only references (`docId`, image ids, recipe ids); file bytes already live in the editors'
+  y-indexeddb + `oel-docs-files`.
+- First visit (empty desk Y.Doc) → seed the demo (S-4). `navigator.storage.persist()` on the first real edit, with a
+  one-time note in the menu if refused.
+- Menu (Figma M) « Bureau » section: « Nouveau bureau vide », « Réinitialiser la démo » (confirm dialog), « Exporter
+  le bureau (.zip) » (one Office file per paper via each kind's export + `bureau.json` for layout, notes, links,
+  recipes), « Importer un bureau (.zip) ».
+- Deleting a paper deletes its IndexedDB documents after the undo window (or on « Vider la corbeille » later); a
+  one-shot cleanup removes `local-…` docs no paper references (the orphans left by `seedFixtures`).
+- Tests: vitest round trip desk → Y.Doc → desk; zip export → import gives the same papers and links.
+
+## S-3 · Demo files
+
+Generated, committed, reproducible: `fixtures/demo/make_demo.py` (same venv as `fixtures/charts/make_charts.py`:
+openpyxl, python-pptx, python-docx) + `fixtures/demo/README.md`. Logo: `fixtures/demo/logo.png` rasterised from
+`packages/emboss/src/icons/Logo.tsx` (1024 px, transparent) and `logo.svg`.
+
+**Tableur « Chronos — tours de piste.xlsx »** (French text, English formulas)
+- Sheet `Tours`: table `Tours` (A1:D19) — `Coureur`, `Tour` (1–3), `Temps (s)`, `Date`; six fictional runners
+  (Léa, Samuel, Maya, Noah, Zoé, Félix) × 3 laps, plausible 400 m times (58–75 s).
+- Sheet `Résultats` (first tab, the one the desk shows): one row per runner, reading the other sheet:
+  - `Meilleur tour` `=MINIFS(Tours!C:C,Tours!A:A,A2)`
+  - `Moyenne` `=AVERAGEIFS(Tours!C:C,Tours!A:A,A2)`
+  - `Écart au meilleur` `=B2-MIN($B$2:$B$7)`
+  - `Rang` `=RANK.EQ(B2,$B$2:$B$7,1)`
+  - Summary cells: `Tour le plus rapide` `=MIN(Tours!C:C)`, `Par` `=XLOOKUP(MIN(Tours!C:C),Tours!C:C,Tours!A:A)`,
+    `Tours enregistrés` `=COUNTA(Tours!A2:A100)`.
+  - Clustered bar chart « Meilleur tour par coureur » from `Résultats!A1:B7` (+ `Moyenne` as a second series).
+- IronCalc 0.8.3 supports every function above (checked in `ironcalc_base/src/functions/mod.rs`).
+- **Risk:** openpyxl writes formulas without cached values, and the chart cache is empty. Bake values by
+  round-tripping through `oel-xlsx` (IronCalc evaluates, the codec writes `<v>` and the chart cache): a small
+  `cargo run -p oel-xlsx --example recalc` step called by the script. Verify the desk thumbnail shows numbers
+  before the sheet is opened.
+
+**Présentation « Bienvenue dans le Bureau.pptx »** (16:9, four slides)
+1. Intro: logo centred, « OutilsEnLigne · Bureau », subtitle « Tous vos fichiers sur un seul bureau ».
+2. « Comment l’utiliser », three points: « Double-cliquez sur un texte pour le modifier » · « Ajoutez une diapo avec
+   + dans la pellicule » · « Changez un temps dans le tableur : le graphique de la diapo 3 suit ».
+3. « Résultats de la course »: placeholder that S-4 replaces by the **linked** chart from the spreadsheet.
+4. « Merci ! », white text on black (`bg1` = black on that slide, not a theme change).
+
+**Document « À propos du Bureau.docx »**: title, the logo as an inline picture (S-4 makes it a linked copy of the
+image paper), three short paragraphs (what the Bureau is, that files stay in the browser, how to export), a small
+« Raccourcis » table.
+
+- Tests: `crates/*/tests/contract.rs` include the three demo files (import → export → re-import lossless); a vitest
+  case loads the xlsx through the engine and checks `Résultats!B2` and the XLOOKUP cell.
+
+## S-4 · Demo Bureau seed
+
+`apps/web/src/bureau/demo/` replaces `seed.ts` (B1 papers) and `seedFixtures.ts`:
+- `layout.ts`: the papers and their positions — spreadsheet (left), presentation (top right), document (bottom
+  right), image paper « logo.png » (between doc and deck), one note collée on the spreadsheet: « Modifiez un temps
+  dans l’onglet Tours : le graphique de la diapo 3 se met à jour. », a gallery is optional (skip if it crowds).
+- `seedDemo(store)`: imports the files through `importInto` once, then creates the links through `LinkResolver`:
+  - chart `Résultats` → slide 3. Needs a new placement `{ kind: 'slides', where: 'slide', index: 2, replace:
+    '<placeholder id>' }` in `links/resolver.ts` + `links/targets/slides.ts` (today only `new-slide` / `last-slide`).
+  - image paper (logo) → the document's picture (`links/sources/image.ts`, image link generalisation I): placement
+    `{ kind: 'document', where: 'replace', target: '<picture id>' }`, or `start` if replacing is too much for now.
+- `meta.demoVersion = 1` so a later demo update can offer « Nouvelle version de la démo » without touching user work.
+- Check by hand: edit a lap time in `Tours` → `Résultats` + chart update → slide 3 copy updates within a second →
+  thread pulses on the desk; retouch the logo → the doc's copy follows (L-8).
+
+## S-5 · Collaboration out of the front end (D1)
+
+Every surface below is hidden behind `features.collab` / `features.projects`, never deleted:
+
+| Where | What hides in `solo` |
+|---|---|
+| `bureau/Chrome.tsx` | `AvatarStack` + `SharePill` « Partager », `PresenceCursors` (static demo cursors) |
+| `bureau/AppMenu.tsx` | pane « Partager et inviter » (members, « Inviter par courriel »), « par qui » in history rows |
+| `bureau/ContextToolbar.tsx` | multi-selection « Partager » (toast stub) |
+| `bureau/Paper.tsx`, `seed` | editor initials (« JB », « MC ») on papers; `@Nom` mentions in notes (`notes.ts` assignee) |
+| `project/` | members and roles UI; `ProjectProvider` keeps a single « Mon bureau » with role `owner` |
+| `@oel/docs` · `@oel/sheets` · `@oel/slides` | « Partager » button + menu entry, `ShareDialog`, `Peers`, `IdentityDialog`, « Historique des versions » (server-only today), `SyncStatus` → replaced by a local status « Enregistré sur cet appareil » |
+| Pages | `/document`, `/presentation`, `/tableur` (share-link landings) redirect to `/bureau` in `solo` |
+
+- Settings that only make sense with a team (project « Collaboration », « Invitations et partage ») hide too.
+- `rg -n "features\.(collab|projects)"` should list every hook; the README links to that search.
+- Tests: existing collab tests unchanged (`equipe` build); add a smoke render of the Bureau chrome in `solo`.
+
+## S-6 · Forms out of the front end (D1)
+
+| Where | What hides in `solo` |
+|---|---|
+| `bureau/Chrome.tsx` `NEW_KINDS` | « Formulaire » in « + » (and the Alt+N tooltip wording « … ou formulaire ») |
+| `bureau/ContextToolbar.tsx` | « Créer un formulaire » on a spreadsheet; the `form` case |
+| `bureau/BureauApp.tsx` | `NewFormDialog`, `useFormSync(formsBackend)`, `createForm` |
+| `bureau/OpenSheet.tsx`, `Paper.tsx` | `form` papers render as « Formulaires : bientôt disponibles » if one is ever imported from a zip |
+| Pages | `/f`, `/connexion` redirect to `/` in `solo` (static meta refresh) |
+
+`packages/forms` keeps compiling and its tests keep running; the README's « Built, not shipped yet » section
+points to it and to `TODO(backend)`.
+
+## S-7 · Release polish (recommended, see R1–R4)
+
+- R1: write linked charts into `.pptx` / `.docx` exports (plan `2026-10-links-and-charts.md` Phase 6/9), or at least
+  export the copy's last rendered picture, so exporting the demo deck keeps slide 3.
+- R2: remove or relabel stubs that pretend: simulated « PDF → document » progress, disabled crop/OCR/export tools
+  (keep « why unavailable » tooltips, drop fake progress).
+- R3: first-run hint on the demo desk (dismissable): « Double-cliquez sur un papier pour l’ouvrir ».
+- R4: `navigator.storage` estimate in the menu (« 42 Mo utilisés sur cet appareil ») next to export.
+
+## S-8 · Site: bilingual home and docs (D4, D5)
+
+**i18n**: Astro i18n routing, `defaultLocale: 'fr'`, `locales: ['fr', 'en']`, `prefixDefaultLocale: false`.
+Strings in `apps/web/src/site/i18n/{fr,en}.ts` (typed: `en` must have every `fr` key), `Site/Nav` language switch
+keeps the same page, `<link rel="alternate" hreflang>` on every page. The Bureau link goes to `/bureau` from both
+languages.
+
+**Home (direction D, `/` and `/en/`)**: rebuild `index.astro` from the D1/D2 frames: nav, hero with a real capture of
+the demo Bureau, one section per capture (desk, document, deck + linked chart, spreadsheet, image retouch, links),
+« Code ouvert » band listing the six crates (as in frame A's open-code block), FAQ, footer. Captures:
+`apps/web/public/captures/{fr,en}/…` taken from the demo Bureau in both themes (`scripts/` note on how, by hand).
+Drop the « Travaillez ensemble » / invite copy (solo). Answer the Figma brief's « À valider » items in the copy:
+« traité dans votre navigateur » is now true in `solo`; « gratuit, hors ligne, sans perte » scoped per type; Word,
+Excel, PowerPoint named descriptively only, no logos.
+
+**Docs section `/docs` (`/en/docs`)**: a synthesis of the Figma « Editor — Behaviors » page in six pages,
+content written for users (not specs), each page with screenshots from the demo Bureau:
+
+| Page | Synthesises (Figma sections) |
+|---|---|
+| `/docs` Prise en main | A Niveaux et retour (Bureau → sur place → plein écran → présentation, Échap = Retour, Ctrl+Maj+Entrée), import (C/B8), the demo |
+| `/docs/bureau` Le bureau | desk gestures, zoom limits, list view, K Notes collées, L galleries, M barre du bas et menu, saving / export zip |
+| `/docs/editeurs` Les éditeurs | F Documents, slides + presenter view, sheets + H Graphiques, L image retouch, J barres d’outils |
+| `/docs/liens` Fils de liaison | G + I: « Lier dans… », live / manuel / figé / rompu (colours and dashes from frame E's legend), « Appliquer à la source » |
+| `/docs/clavier` Clavier et accessibilité | every shortcut, generated from the same data as `ShortcutsDialog.tsx` (move it to a shared module so they never drift); B3 tooltips; list view; reduced motion |
+| `/docs/formats` Formats et confidentialité | lossless codecs, what is kept but not editable, D Cas particuliers, Known gaps, where data lives |
+
+Excluded for now: E Formulaires, N Projets, collaboration parts of A/B/F — listed on a short « À venir » block.
+Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with the i18n helper), static, kit tokens.
+
+## S-9 · README, AGENTS.md, licence
+
+- `LICENSE` (MPL-2.0 text), `license = "MPL-2.0"` + `repository`/`description` in every `crates/*/Cargo.toml` and
+  `"license"` in every `package.json`; `THIRD_PARTY.md` (IronCalc MIT/Apache-2.0, wgpu, Tiptap, Yjs, Hocuspocus,
+  react-aria, Iconoir MIT, fonts and their OFL notices, fixture provenance).
+- **README.md** (rewritten for newcomers): one-paragraph pitch + hero capture, « Try it » (demo link, `npm i && npm
+  run dev`), what works today (table trimmed from the current one, solo-first), architecture diagram (Rust crates →
+  WASM → worker → editors → Bureau), the six crates with one line each and how to use one alone, « Built, not
+  shipped yet » (collab server, forms, projects; `PUBLIC_EDITION=equipe`), roadmap, contributing, licence. The current
+  long per-package detail moves to `ARCHITECTURE.md` / package READMEs.
+- **AGENTS.md** (new, canonical for every agent): the content of `CLAUDE.md` + layer rules summary, commands
+  (`build:wasm`, `test`, `typecheck` — use `tsc -p apps/web --noEmit`, `astro check` is broken on TS 7),
+  conventions (fr-CA UI, English formulas, Iconoir, emboss tokens, never run prettier), the edition switch and where
+  collab/forms hooks are, skills index (`.claude/skills/oel-*`, readable by any agent), plans index. `CLAUDE.md`
+  becomes `@AGENTS.md` plus Claude-only notes.
+- Skills: `oel-architecture` (edition switch, desk persistence layer), `oel-collab-backend` (solo/equipe),
+  `oel-file-kind` (demo seed), `oel-verify` (solo + equipe builds).
+- `CONTRIBUTING.md`, `SECURITY.md`, issue templates; `.gitignore` covers `apps/collab/data/`.
+
+---
+
+## Recommendations and insights
+
+- **R5 · Before the repo goes public**: audit `fixtures/` (`Presentation 1–5.pptx`, `Document 4.docx`,
+  `tesxte.docx`, `complex_sheet_graph.xlsx` look like personal or downloaded files: check content and licence, or
+  replace them with generated ones), scan history for secrets (`gitleaks`), decide whether the Figma file link in
+  docs is public (it is private today), and squash nothing: merge the linear chain into `main` and publish from there.
+- **R6 · App translation**: UI strings are inline French across the packages. If an English Bureau is wanted after
+  the site, extract strings to catalogues *before* more UI lands; the site's typed `fr`/`en` modules are a start.
+- **R7 · CI** (restructure Phase 6) is still missing: GitHub Actions running `cargo test`, `vitest`, the typecheck
+  and both `solo` and `equipe` builds is the minimum for outside contributors.
+- **R8 · Local version history**: in `solo`, versions are hidden because they live on the server. Snapshots of the
+  Y.Doc in IndexedDB (same `VersionPanel`) would be a cheap win after release.
+- **R9 · Crates on crates.io**: the crates are the most reusable part (lossless OOXML in Rust is rare). Publish
+  `oel-opc`, `oel-docx`, `oel-xlsx`, `oel-pptx`, `oel-chart`, `oel-img` once their APIs have doc comments and a
+  README each; check name availability now.
+- **R10 · Hosting the solo build**: it is fully static (`output: 'static'`), so any static host works; Canada hosting
+  (backend plan) matters only when `equipe` returns. A strict CSP and `Cross-Origin-*` headers will be needed if
+  WASM threads are used later.
+- **R11 · Unconfirmed**: `crates/oel-img` is a rewrite of oelimg-rs rather than a move (images plan Status); say so
+  in the README so the old npm package is not mistaken for it.
+
+## Status
+- Not started.
