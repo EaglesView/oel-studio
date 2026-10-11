@@ -271,3 +271,10 @@ Docs are Astro pages (MDX if `@astrojs/mdx` is acceptable, else `.astro` with th
     sweep of the orphan documents earlier versions left in IndexedDB (they are unreachable but not deleted: a manual
     « Nettoyer » can come with R4); image originals of removed pictures stay (shared by content hash).
   - Tests: `apps/web/test/persist.test.ts`, `apps/web/test/backup.test.ts`.
+- **S-3 done** (11 Oct 2026): `fixtures/demo/` (`make_demo.py`, `README.md`, `logo.svg` = the favicon mark,
+  `logo.png` 1024 px via ImageMagick). Workbook baked by the new `cargo run -p oel-xlsx --example recalc` (IronCalc
+  results + chart caches): Maya 58.1 s best lap, XLOOKUP → « Maya », COUNTA 18. Deck slide 3 holds a native chart
+  named « Graphique du tableur » with the same numbers (S-4 swaps it for the linked copy; until R1 lands, an exported
+  deck still has a chart). The document ends with a closing paragraph (Word never ends a body on a table; the codec
+  adds one otherwise). Rendered with LibreOffice and checked by eye. Tests: `crates/oel-{xlsx,pptx,docx}/tests/demo.rs`,
+  desk preview in `packages/engine/test/engine.test.ts`.
