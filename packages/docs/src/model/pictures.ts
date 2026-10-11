@@ -38,6 +38,26 @@ export function insertPictureParagraph(ydoc: Y.Doc, oid: string, a: PictureAttrs
   }, origin);
 }
 
+/**
+ * Give the file's own picture at `path` (one without an `oid`) this `oid`, so a link can update it
+ * in place (the demo's logo becomes a linked copy of the desk image). False when there is none.
+ */
+export function adoptPicture(ydoc: Y.Doc, path: string, oid: string, origin: unknown): boolean {
+  const walk = (n: Y.XmlFragment | Y.XmlElement): Y.XmlElement | null => {
+    for (const c of n.toArray()) {
+      if (!(c instanceof Y.XmlElement)) continue;
+      if (c.nodeName === 'image' && c.getAttribute('path') === path && !c.getAttribute('oid')) return c;
+      const hit = walk(c);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  const el = walk(ydoc.getXmlFragment(BODY));
+  if (!el) return false;
+  ydoc.transact(() => el.setAttribute('oid', oid), origin);
+  return true;
+}
+
 /** The picture node with this `oid`, anywhere in the body. */
 export function findPicture(ydoc: Y.Doc, oid: string): Y.XmlElement | null {
   const walk = (n: Y.XmlFragment | Y.XmlElement): Y.XmlElement | null => {
