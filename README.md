@@ -203,7 +203,7 @@ Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock �
 | PDF → editable document (06) | **Simulated progress**; the new document says so |
 | Crop/OCR/cut-out, themes, export, "one PDF from selection" | Disabled tools that explain why (engines not wired) |
 | Presence (avatars, named cursors) | Desk: static demo data. Documents: live avatars (no cursors yet) |
-| Persistence | Documents: IndexedDB + collab server. Desk layout: none yet (in memory) |
+| Persistence | Everything in this browser (IndexedDB): the desk (one Y.Doc per project, `bureau/persist.ts`), documents, workbooks, decks, originals and thumbnails; « Exporter / Importer un bureau » (.zip, lossless). Team edition: documents also on the collab server |
 | Projects (Figma N): project context (name, members, four roles), settings cascade OEL → compte → projet → fichier (`apps/web/src/project/`), import rules saved as project settings | **Local stub backend** (localStorage, one demo project + « Mon bureau »); no switching, routes or server yet (plan N-2 → N-6) |
 | Forms: builder, linked sheet, publishing, respondent page, drafts, quotas, held responses | Working UI on a **local stub backend** (localStorage); server, emails, OAuth, uploads, Turnstile are `TODO(backend)` |
 

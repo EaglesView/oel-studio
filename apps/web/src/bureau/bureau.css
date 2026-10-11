@@ -5,6 +5,15 @@
   height: 100dvh;
   overflow: hidden;
 }
+/* While the saved desk opens (IndexedDB), or when it can't. */
+.bureau-loading {
+  display: grid;
+  place-items: center;
+  height: 100dvh;
+  margin: 0;
+  color: var(--emboss-ink-muted);
+  background: var(--emboss-surface);
+}
 .bureau__main {
   position: relative;
   flex: 1;
