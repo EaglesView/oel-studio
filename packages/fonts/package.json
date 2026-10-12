@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@oel/i18n": "*",
     "@fontsource/arimo": "^5.3.0",
     "@fontsource/caladea": "^5.3.0",
     "@fontsource/carlito": "^5.3.0",

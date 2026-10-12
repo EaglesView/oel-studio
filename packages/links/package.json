@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@oel/i18n": "*",
     "yjs": "^13.6.33"
   }
 }

@@ -10,6 +10,9 @@
     "./react": "./src/react/index.ts",
     "./desk.css": "./src/react/desk.css"
   },
+  "dependencies": {
+    "@oel/i18n": "*"
+  },
   "peerDependencies": {
     "react": "^19.0.0"
   },

@@ -16,6 +16,7 @@
   "dependencies": {
     "@oel/collab-client": "*",
     "@oel/engine": "*",
+    "@oel/i18n": "*",
     "@oel/links": "*",
     "oelimg-wasm": "file:../wasm/oel-img/web",
     "yjs": "^13.6.33",

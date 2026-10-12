@@ -17,6 +17,7 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@oel/i18n": "*",
     "iconoir-react": "^7.12.1",
     "react-aria-components": "^1.21.1"
   },
