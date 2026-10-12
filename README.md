@@ -172,5 +172,3 @@ finish. Plans with their status live in `docs/plans/`.
 - Licensed under the [Mozilla Public License 2.0](LICENSE): use the crates and packages in your own projects; changes
   to these files stay open.
 - Third-party code, fonts and icons: [`THIRD_PARTY.md`](THIRD_PARTY.md).
-- Design source: the Figma file *OutilsEnLigne.ca* (`Y3vDuuW4jfyTOjreIwDp6P`), pages « Editor — Behaviors » and
-  « Site — bureau.outilsenligne.ca ».
