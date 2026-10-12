@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Build the static site (home, docs, /bureau) on a host that has Node but maybe not Rust — e.g. a
-# DigitalOcean App Platform static site on the Node buildpack (.do/app.yaml). Dependencies are already
-# installed (npm ci) by the buildpack; this adds Rust + the wasm32 target when missing, builds only the
-# browser WASM targets, then the site into apps/web/dist.
+# Build the static site (home, docs, /bureau) on a host that has Node but maybe not Rust — e.g. the
+# DigitalOcean App Platform image (.do/site.Dockerfile, .do/app.yaml). Run after `npm ci`; adds Rust + the
+# wasm32 target when missing, builds only the browser WASM targets, then the site into apps/web/dist.
 set -euo pipefail
 
 if ! command -v cargo >/dev/null 2>&1; then
