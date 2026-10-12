@@ -93,10 +93,11 @@ function useZoom(box: RefObject<HTMLDivElement | null>, zoom: string, width: num
   useLayoutEffect(() => {
     const node = box.current;
     if (!node) return;
+    // Layout size, not getBoundingClientRect: the desk opens the sheet with a scale-up
+    // (OpenSheet's FLIP), and a transform neither shows in the layout size nor wakes the observer.
     const measure = () => {
-      const r = node.getBoundingClientRect();
       const pad = 40;
-      setFit(Math.max(0.05, Math.min((r.width - pad) / pt(width), (r.height - pad) / pt(height))));
+      setFit(Math.max(0.05, Math.min((node.clientWidth - pad) / pt(width), (node.clientHeight - pad) / pt(height))));
     };
     measure();
     const ro = new ResizeObserver(measure);
