@@ -4,6 +4,7 @@ import { Button, Icon, ProgressBar, cx } from '@oel/emboss';
 import type { FormsBackend } from '../api/backend';
 import { acceptAttribute, acceptedLabel, fileProblem, formatSize } from '../model/validate';
 import type { Question, UploadedFile } from '../model/types';
+import { tr } from '@oel/i18n';
 
 type Entry =
   | { key: string; state: 'sending'; name: string; size: number; progress: number; abort: AbortController }
@@ -70,7 +71,7 @@ export function FileQuestion({
       const problem = fileProblem(file, rules, kept);
       if (problem) {
         update((l) => [...l, { key, state: 'refused', name: file.name, size: file.size, reason: problem }]);
-        announce(`${file.name} refusé. ${problem}`);
+        announce(tr(`${file.name} refusé. ${problem}`, `${file.name} refused. ${problem}`));
         continue;
       }
       kept++;
@@ -88,11 +89,11 @@ export function FileQuestion({
         })
         .then((uploaded) => {
           update((l) => l.map((e) => (e.key === key ? { key, state: 'sent', file: uploaded } : e)));
-          announce(`${file.name} envoyé.`);
+          announce(tr(`${file.name} envoyé.`, `${file.name} sent.`));
         })
         .catch((err: Error) => {
           if (abort.signal.aborted) return;
-          update((l) => l.map((e) => (e.key === key ? { key, state: 'refused', name: file.name, size: file.size, reason: `L’envoi a échoué (${err.message}). Réessayez.` } : e)));
+          update((l) => l.map((e) => (e.key === key ? { key, state: 'refused', name: file.name, size: file.size, reason: tr(`L’envoi a échoué (${err.message}). Réessayez.`, `Sending failed (${err.message}). Try again.`) } : e)));
         });
     }
   };
@@ -101,16 +102,16 @@ export function FileQuestion({
     if (e.state === 'sending') e.abort.abort();
     if (e.state === 'sent' && backend && !preview) void backend.removeUpload(slug, e.file.id);
     update((l) => l.filter((x) => x.key !== e.key));
-    announce(`${e.state === 'sent' ? e.file.name : e.name} retiré.`);
+    announce(tr(`${e.state === 'sent' ? e.file.name : e.name} retiré.`, `${e.state === 'sent' ? e.file.name : e.name} removed.`));
   };
 
-  const limits = `${acceptedLabel(rules.families)} · ${rules.maxSizeMb} Mo au plus par fichier · ${rules.maxFiles} fichier${rules.maxFiles > 1 ? 's' : ''}`;
+  const limits = tr(`${acceptedLabel(rules.families)} · ${rules.maxSizeMb} Mo au plus par fichier · ${rules.maxFiles} fichier${rules.maxFiles > 1 ? 's' : ''}`, `${acceptedLabel(rules.families)} · ${rules.maxSizeMb} MB at most per file · ${rules.maxFiles} file${rules.maxFiles > 1 ? 's' : ''}`);
   const id = `q-${q.id}`;
 
   return (
     <fieldset className="form-q form-file" data-question={q.id} aria-describedby={`${id}-limits${error ? ` ${id}-err` : ''}`}>
       <legend className="emb-field__label">
-        {q.title || 'Question sans titre'}
+        {q.title || tr('Question sans titre', 'Untitled question')}
         {q.required && <span className="form-required" aria-hidden> *</span>}
       </legend>
       {q.help && <p className="emb-field__helper">{q.help}</p>}
@@ -127,14 +128,14 @@ export function FileQuestion({
                     <span>
                       {formatSize(e.size)} · {Math.round(e.progress * 100)} %
                     </span>
-                    <ProgressBar aria-label={`Envoi de ${e.name}`} value={e.progress * 100} />
+                    <ProgressBar aria-label={tr(`Envoi de ${e.name}`, `Sending ${e.name}`)} value={e.progress * 100} />
                   </>
                 )}
-                {e.state === 'sent' && <span>{formatSize(e.file.size)} · envoyé</span>}
+                {e.state === 'sent' && <span>{formatSize(e.file.size)} · {tr('envoyé', 'sent')}</span>}
                 {e.state === 'refused' && <span className="form-file__reason">{e.reason}</span>}
               </div>
-              <Button variant="ghost" size="sm" onPress={() => remove(e)} aria-label={`${e.state === 'sending' ? 'Annuler' : 'Retirer'} ${e.state === 'sent' ? e.file.name : e.name}`}>
-                {e.state === 'sending' ? 'Annuler' : 'Retirer'}
+              <Button variant="ghost" size="sm" onPress={() => remove(e)} aria-label={tr(`${e.state === 'sending' ? tr('Annuler', 'Cancel') : tr('Retirer', 'Remove')} ${e.state === 'sent' ? e.file.name : e.name}`, `${e.state === 'sending' ? 'Cancel' : 'Remove'} ${e.state === 'sent' ? e.file.name : e.name}`)}>
+                {e.state === 'sending' ? tr('Annuler', 'Cancel') : tr('Retirer', 'Remove')}
               </Button>
             </li>
           ))}
@@ -155,9 +156,9 @@ export function FileQuestion({
         }}
       >
         <Icon name="upload" size={22} />
-        <span>Glissez vos fichiers ici ou</span>
+        <span>{tr('Glissez vos fichiers ici ou', 'Drag your files here or')}</span>
         <FileTrigger allowsMultiple={rules.maxFiles > 1} acceptedFileTypes={acceptAttribute(rules.families).split(',')} onSelect={(list) => list && add([...list])}>
-          <Button size="sm">Parcourir…</Button>
+          <Button size="sm">{tr('Parcourir…', 'Browse…')}</Button>
         </FileTrigger>
         <span id={`${id}-limits`} className="form-file__limits">
           {limits}

@@ -3,6 +3,8 @@ import { Button, Icon, Logo } from '@oel/emboss';
 import { FormFiller, FormsError, editLinks, type Answers, type PublishedForm } from '@oel/forms';
 import '@oel/forms/styles.css';
 import { formsBackend } from './backend';
+import { messages, tr } from '@oel/i18n';
+import { LocaleRoot } from '../LocaleRoot';
 
 type State =
   | { kind: 'loading' }
@@ -16,6 +18,14 @@ type State =
  * the fragment and is dropped from the address bar).
  */
 export function FormPage() {
+  return (
+    <LocaleRoot>
+      <FormPageContent />
+    </LocaleRoot>
+  );
+}
+
+function FormPageContent() {
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   useEffect(() => {
@@ -25,7 +35,7 @@ export function FormPage() {
     const editKey = new URLSearchParams(url.hash.slice(1)).get('k');
     if (url.hash) history.replaceState(null, '', url.pathname + url.search);
     if (!slug) {
-      setState({ kind: 'error', message: 'Ce lien est incomplet : il manque le nom du formulaire.' });
+      setState({ kind: 'error', message: tr('Ce lien est incomplet : il manque le nom du formulaire.', 'This link is incomplete: the form’s name is missing.') });
       return;
     }
     const backend = formsBackend();
@@ -35,14 +45,14 @@ export function FormPage() {
         document.title = `${published.form.title} · OutilsEnLigne`;
         if (responseId) {
           const key = editKey ?? (editLinks.load(slug)?.responseId === responseId ? editLinks.load(slug)!.editKey : null);
-          if (!key) throw new FormsError('not-found', 'Ce lien de modification est incomplet.');
+          if (!key) throw new FormsError('not-found', tr('Ce lien de modification est incomplet.', 'This edit link is incomplete.'));
           const r = await backend.loadForEdit(slug, responseId, key);
           setState({ kind: 'ready', slug, published, editing: { responseId, editKey: key, answers: r.answers, email: r.email } });
         } else {
           setState({ kind: 'ready', slug, published });
         }
       } catch (e) {
-        setState({ kind: 'error', message: e instanceof FormsError ? e.message : 'Le formulaire n’a pas pu être chargé. Vérifiez votre connexion et réessayez.' });
+        setState({ kind: 'error', message: e instanceof FormsError ? e.message : tr('Le formulaire n’a pas pu être chargé. Vérifiez votre connexion et réessayez.', 'The form could not be loaded. Check your connection and try again.') });
       }
     })();
   }, []);
@@ -51,7 +61,7 @@ export function FormPage() {
     return (
       <main id="contenu" className="form-standalone form-standalone--center" aria-busy="true">
         <Logo size={32} />
-        <p role="status">Chargement du formulaire…</p>
+        <p role="status">{tr('Chargement du formulaire…', 'Loading the form…')}</p>
       </main>
     );
   }
@@ -59,9 +69,9 @@ export function FormPage() {
     return (
       <main id="contenu" className="form-standalone form-standalone--center">
         <Icon name="alert" size={32} />
-        <h1>Formulaire introuvable</h1>
+        <h1>{tr('Formulaire introuvable', 'Form not found')}</h1>
         <p>{state.message}</p>
-        <Button onPress={() => location.reload()}>Réessayer</Button>
+        <Button onPress={() => location.reload()}>{tr('Réessayer', 'Try again')}</Button>
       </main>
     );
   }
@@ -70,8 +80,8 @@ export function FormPage() {
     <main id="contenu" className="form-standalone">
       {remembered && (
         <p className="form-standalone__notice" role="note">
-          Vous avez déjà répondu depuis cet appareil.{' '}
-          <a href={`?s=${encodeURIComponent(state.slug)}&r=${encodeURIComponent(remembered.responseId)}#k=${encodeURIComponent(remembered.editKey)}`}>Modifier ma réponse</a>
+          {tr('Vous avez déjà répondu depuis cet appareil.', 'You already answered from this device.')}{' '}
+          <a href={`?s=${encodeURIComponent(state.slug)}&r=${encodeURIComponent(remembered.responseId)}#k=${encodeURIComponent(remembered.editKey)}`}>{tr('Modifier ma réponse', 'Edit my response')}</a>
         </p>
       )}
       <FormFiller backend={formsBackend()} slug={state.slug} published={state.published} editing={state.editing} />

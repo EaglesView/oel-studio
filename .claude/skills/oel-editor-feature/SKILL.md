@@ -22,7 +22,7 @@ there first (load `figma-use` before `use_figma`), using kit instances and `embo
 | Folder | Contains | Rules |
 |---|---|---|
 | `model/` | Pure data + Yjs mapping (`ydoc.ts`), preview for the desk, blank doc | No React, no DOM: imported by `apps/collab` on the server |
-| `ui/` | React components, toolbar, menus, dialogs, CSS | `@oel/emboss` components, `--emboss-*` tokens, Iconoir icons, fr-CA copy |
+| `ui/` | React components, toolbar, menus, dialogs, CSS | `@oel/emboss` components, `--emboss-*` tokens, Iconoir icons, copy in fr-CA and English (`@oel/i18n`) |
 | `collab/` | Session on `@oel/collab-client` | Sharing/versions/sync UI comes from `@oel/collab-client`, don't fork it |
 
 ### Docs (`packages/docs`)

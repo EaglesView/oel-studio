@@ -9,12 +9,41 @@ import { createSheetFromPayload } from './sheets';
 import { createSlidesFromPayload } from './slides';
 import { originals } from '@oel/img';
 import { queueThumbnail } from './thumbnails';
+import { messages, plural } from '@oel/i18n';
+import { namedWorker } from '../lang';
+
+const t = messages(
+  {
+    ignored: (n: number) => `${n} ${plural(n, 'fichier ignoré', 'fichiers ignorés')}`,
+    maxSize: 'Taille maximale : 100 Mo.',
+    reading: 'Lecture du fichier',
+    importing: (n: number) => `${n} ${plural(n, 'fichier', 'fichiers')} en cours d’import`,
+    readOnly: (n: number) => `${n} en lecture seule`,
+    errors: (n: number) => `${n} ${plural(n, 'erreur', 'erreurs')}`,
+    added: (n: number) => `${n} ${plural(n, 'fichier ajouté', 'fichiers ajoutés')}`,
+    ready: 'Prêts à modifier.',
+    readOnlyReason: 'Lecture seule.',
+    toCheck: 'À vérifier',
+  },
+  {
+    ignored: (n) => `${n} ${plural(n, 'file', 'files')} skipped`,
+    maxSize: 'Maximum size: 100 MB.',
+    reading: 'Reading the file',
+    importing: (n) => `${n} ${plural(n, 'file', 'files')} importing`,
+    readOnly: (n) => `${n} read-only`,
+    errors: (n) => `${n} ${plural(n, 'error', 'errors')}`,
+    added: (n) => `${n} ${plural(n, 'file', 'files')} added`,
+    ready: 'Ready to edit.',
+    readOnlyReason: 'Read-only.',
+    toCheck: 'To check',
+  },
+);
 
 let host: EngineHost | null = null;
 
 /** One engine worker per tab, created on first import. */
 export function engineHost(): EngineHost {
-  host ??= new EngineHost(() => new EngineWorker());
+  host ??= new EngineHost(() => namedWorker(EngineWorker, 'oel-engine'));
   return host;
 }
 
@@ -28,7 +57,7 @@ const toPaperKind = (k: ImportResult['kind']): PaperKind => (k === 'unsupported'
 export async function importFiles(store: Bureau, files: File[], at: Vec | null, rules: ArrivalRules, announce: (m: string) => void) {
   const accepted = files.filter((f) => f.size <= MAX_IMPORT_BYTES);
   const tooBig = files.length - accepted.length;
-  if (tooBig) toast({ title: `${tooBig} fichier${tooBig > 1 ? 's' : ''} ignoré${tooBig > 1 ? 's' : ''}`, description: 'Taille maximale : 100 Mo.', tone: 'warning' });
+  if (tooBig) toast({ title: t.ignored(tooBig), description: t.maxSize, tone: 'warning' });
   if (!accepted.length) return;
 
   const origin = at ?? store.viewCenter();
@@ -56,7 +85,7 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
       rotation: (i % 2 ? 1 : -1) * (1 + (i % 3)),
       data: {
         preview: { kind: 'unsupported' },
-        status: { state: 'importing', progress: 0, stage: 'Lecture du fichier' },
+        status: { state: 'importing', progress: 0, stage: t.reading },
         editor: 'JB',
         updatedAt: Date.now(),
         fileName: file.name,
@@ -66,7 +95,7 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
   });
 
   store.add(papers);
-  announce(`${papers.length} fichier${papers.length > 1 ? 's' : ''} en cours d’import`);
+  announce(t.importing(papers.length));
 
   const results = await Promise.allSettled(accepted.map((file, i) => importInto(store, papers[i]!.id, file)));
 
@@ -80,10 +109,10 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
     }
   });
   const readOnly = ok.filter((r) => r.readOnly).length;
-  const parts = [readOnly && `${readOnly} en lecture seule`, failed && `${failed} erreur${failed > 1 ? 's' : ''}`].filter(Boolean);
+  const parts = [readOnly && t.readOnly(readOnly), failed && t.errors(failed)].filter(Boolean);
   toast({
-    title: `${ok.length} fichier${ok.length > 1 ? 's' : ''} ajouté${ok.length > 1 ? 's' : ''}`,
-    description: parts.length ? parts.join(' · ') : 'Prêts à modifier.',
+    title: t.added(ok.length),
+    description: parts.length ? parts.join(' · ') : t.ready,
     tone: failed ? 'danger' : readOnly ? 'warning' : 'success',
   });
 }
@@ -119,8 +148,8 @@ export async function importInto(store: Bureau, paperId: string, file: File): Pr
         ...(docId ? { docId } : {}),
         ...(original ? { image: { ...current.data.image, original } } : {}),
         preview: result.preview,
-        status: result.readOnly ? { state: 'readonly', reason: result.reason ?? 'Lecture seule.' } : { state: 'ready' },
-        stamp: scanned ? { label: 'À vérifier', tone: 'danger' } : current.data.stamp,
+        status: result.readOnly ? { state: 'readonly', reason: result.reason ?? t.readOnlyReason } : { state: 'ready' },
+        stamp: scanned ? { label: t.toCheck, tone: 'danger' } : current.data.stamp,
       },
     },
     { history: false },

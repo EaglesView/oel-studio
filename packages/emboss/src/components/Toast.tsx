@@ -15,6 +15,26 @@ import { Icon } from '../icons/Icon';
 import { cx } from '../utils';
 import { Button } from './Button';
 import { Popover } from './Overlays';
+import { locale, messages, plural } from '@oel/i18n';
+
+const t = messages(
+  {
+    close: 'Fermer',
+    notifications: 'Notifications',
+    justNow: 'à l’instant',
+    unread: (n: number) => `Notifications, ${n} ${plural(n, 'non lue', 'non lues')}`,
+    clear: 'Tout effacer',
+    empty: 'Aucune notification pour l’instant.',
+  },
+  {
+    close: 'Close',
+    notifications: 'Notifications',
+    justNow: 'just now',
+    unread: (n) => `Notifications, ${n} unread`,
+    clear: 'Clear all',
+    empty: 'No notifications yet.',
+  },
+);
 
 /* ── Toast (kit 67:568) ────────────────────────────────────────────── */
 
@@ -177,7 +197,7 @@ function Face({ data, live, onAction }: { data: ToastData; live: boolean; onActi
       <Seal />
       {live ? <ToastContent className="emb-toast__content">{body}</ToastContent> : <div className="emb-toast__content">{body}</div>}
       {live ? (
-        <RACButton slot="close" className="emb-button emb-button--ghost emb-button--icon-sm emb-toast__close" aria-label="Fermer">
+        <RACButton slot="close" className="emb-button emb-button--ghost emb-button--icon-sm emb-toast__close" aria-label={t.close}>
           <Icon name="close" size={20} />
         </RACButton>
       ) : (
@@ -305,8 +325,8 @@ export function ToastRegion() {
 
   return (
     <>
-      <RACToastRegion ref={regionRef} queue={toastQueue} className="emb-toast-region" style={regionVars} aria-label="Notifications">
-        {({ toast: t }) => <LiveToast toast={t} back={keys.indexOf(t.key) > 0} style={styleOf(t.key)} onHeight={onHeight} />}
+      <RACToastRegion ref={regionRef} queue={toastQueue} className="emb-toast-region" style={regionVars} aria-label={t.notifications}>
+        {({ toast: item }) => <LiveToast toast={item} back={keys.indexOf(item.key) > 0} style={styleOf(item.key)} onHeight={onHeight} />}
       </RACToastRegion>
       {ghosts.length > 0 && (
         <div className="emb-toast-ghosts" aria-hidden>
@@ -325,11 +345,11 @@ export function ToastRegion() {
 
 /* ── Notifications: the list of past toasts ───────────────────────── */
 
-const rtf = new Intl.RelativeTimeFormat('fr-CA', { numeric: 'auto' });
+const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: 'auto' });
 
 function ago(at: number, now: number) {
   const s = Math.round((at - now) / 1000);
-  if (s > -45) return 'à l’instant';
+  if (s > -45) return t.justNow;
   const m = Math.round(s / 60);
   if (m > -60) return rtf.format(m, 'minute');
   const h = Math.round(m / 60);
@@ -355,7 +375,7 @@ export function NotificationsButton() {
           variant="ghost"
           size="icon-sm"
           leadingIcon={unread ? 'bell-dot' : 'bell'}
-          aria-label={unread ? `Notifications, ${unread} non lue${unread > 1 ? 's' : ''}` : 'Notifications'}
+          aria-label={unread ? t.unread(unread) : t.notifications}
         />
         {unread > 0 && (
           <span className="emb-notif-trigger__count" aria-hidden>
@@ -364,19 +384,19 @@ export function NotificationsButton() {
         )}
       </span>
       <Popover placement="bottom end" showArrow={false} className="emb-notif-popover">
-        <RACDialog className="emb-notif" aria-label="Notifications">
+        <RACDialog className="emb-notif" aria-label={t.notifications}>
           <header className="emb-notif__header">
             <Heading slot="title" className="emb-notif__title">
-              Notifications
+              {t.notifications}
             </Heading>
             {items.length > 0 && (
               <Button variant="ghost" size="sm" onPress={() => toastHistory.clear()}>
-                Tout effacer
+                {t.clear}
               </Button>
             )}
           </header>
           {items.length === 0 ? (
-            <p className="emb-notif__empty">Aucune notification pour l’instant.</p>
+            <p className="emb-notif__empty">{t.empty}</p>
           ) : (
             <ol className="emb-notif__list">
               {items.map((n) => (

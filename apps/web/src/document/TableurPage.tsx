@@ -12,6 +12,8 @@ import { engineHost } from '../bureau/importFiles';
 import { createCalcWorker, exportSheet } from '../bureau/sheets';
 import './document.css';
 import { ErrorBoundary } from './ErrorBoundary';
+import { tr } from '@oel/i18n';
+import { LocaleRoot } from '../LocaleRoot';
 
 /** Read `?d=<id>#t=<token>`, keep the token locally and drop it from the address bar. */
 function readLocation(): { docId: string | null } {
@@ -30,6 +32,14 @@ const go = (docId: string) => history.pushState(null, '', `?d=${encodeURICompone
  * desk), and it doubles as a "new workbook / open a .xlsx or .csv" page.
  */
 export function TableurPage() {
+  return (
+    <LocaleRoot>
+      <TableurPageContent />
+    </LocaleRoot>
+  );
+}
+
+function TableurPageContent() {
   const [docId, setDocId] = useState<string | null>(() => readLocation().docId);
   const [session, setSession] = useState<SheetSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +95,7 @@ export function TableurPage() {
 
   useEffect(() => {
     if (session && !session.isSeeded && (session.status.connection === 'local' || session.status.readOnly)) {
-      setError('Ce classeur n’est pas disponible ici. Demandez un nouveau lien de partage.');
+      setError(tr('Ce classeur n’est pas disponible ici. Demandez un nouveau lien de partage.', 'This workbook is not available here. Ask for a new share link.'));
     }
   }, [session]);
 
@@ -102,10 +112,10 @@ export function TableurPage() {
   const create = async () => {
     setBusy(true);
     try {
-      const r = await engineHost().create('spreadsheet', 'Tableur sans titre');
+      const r = await engineHost().create('spreadsheet', tr('Tableur sans titre', 'Untitled spreadsheet'));
       await start(asWorkbookPayload(r.payload), r.title);
     } catch (e) {
-      toast({ title: 'Création impossible', description: (e as Error).message, tone: 'danger' });
+      toast({ title: tr('Création impossible', 'Could not create'), description: (e as Error).message, tone: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -116,10 +126,10 @@ export function TableurPage() {
       setBusy(true);
       try {
         const r = await engineHost().import(f);
-        if (r.kind !== 'spreadsheet' || !r.payload) throw new Error('Seuls les fichiers .xlsx, .xlsm, .csv et .tsv peuvent être modifiés ici.');
+        if (r.kind !== 'spreadsheet' || !r.payload) throw new Error(tr('Seuls les fichiers .xlsx, .xlsm, .csv et .tsv peuvent être modifiés ici.', 'Only .xlsx, .xlsm, .csv and .tsv files can be edited here.'));
         await start(asWorkbookPayload(r.payload), r.title);
       } catch (e) {
-        toast({ title: 'Ouverture impossible', description: (e as Error).message, tone: 'danger' });
+        toast({ title: tr('Ouverture impossible', 'Could not open'), description: (e as Error).message, tone: 'danger' });
       } finally {
         setBusy(false);
       }
@@ -136,9 +146,9 @@ export function TableurPage() {
   if (error) {
     body = (
       <div className="docpage__center">
-        <h1>Classeur inaccessible</h1>
+        <h1>{tr('Classeur inaccessible', 'Workbook unavailable')}</h1>
         <p>{error}</p>
-        <Button onPress={() => (history.pushState(null, '', location.pathname), setDocId(null), setError(null))}>Nouveau classeur</Button>
+        <Button onPress={() => (history.pushState(null, '', location.pathname), setDocId(null), setError(null))}>{tr('Nouveau classeur', 'New workbook')}</Button>
       </div>
     );
   } else if (docId && session) {
@@ -146,7 +156,7 @@ export function TableurPage() {
       <SheetsEditor
         key={session.status.docId}
         session={session}
-        title={title || 'Classeur'}
+        title={title || tr('Classeur', 'Workbook')}
         onTitleChange={setTitle}
         identity={identity}
         collab={features.collab}
@@ -161,7 +171,7 @@ export function TableurPage() {
       />
     );
   } else if (docId) {
-    body = <p className="docpage__center" aria-busy>Ouverture du classeur…</p>;
+    body = <p className="docpage__center" aria-busy>{tr('Ouverture du classeur…', 'Opening the workbook…')}</p>;
   } else {
     body = (
       <div
@@ -174,13 +184,13 @@ export function TableurPage() {
         }}
       >
         <Logo />
-        <h1>Tableurs</h1>
-        <p>Calculez à plusieurs, hors ligne ou en ligne, et gardez vos classeurs Excel intacts : formules, mise en forme, graphiques.</p>
+        <h1>{tr('Tableurs', 'Spreadsheets')}</h1>
+        <p>{tr('Calculez à plusieurs, hors ligne ou en ligne, et gardez vos classeurs Excel intacts : formules, mise en forme, graphiques.', 'Calculate together, offline or online, and keep your Excel workbooks intact: formulas, formatting, charts.')}</p>
         <div className="docpage__actions">
-          <Button variant="primary" leadingIcon="plus" onPress={create} isDisabled={busy}>Nouveau classeur</Button>
-          <Button leadingIcon="upload" onPress={() => open()} isDisabled={busy}>Ouvrir un fichier .xlsx ou .csv</Button>
+          <Button variant="primary" leadingIcon="plus" onPress={create} isDisabled={busy}>{tr('Nouveau classeur', 'New workbook')}</Button>
+          <Button leadingIcon="upload" onPress={() => open()} isDisabled={busy}>{tr('Ouvrir un fichier .xlsx ou .csv', 'Open an .xlsx or .csv file')}</Button>
         </div>
-        <p className="docpage__hint">ou déposez un fichier ici</p>
+        <p className="docpage__hint">{tr('ou déposez un fichier ici', 'or drop a file here')}</p>
       </div>
     );
   }

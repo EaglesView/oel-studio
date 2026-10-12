@@ -8,6 +8,7 @@
  */
 import type { DocSettings, HeaderFooterKind, PageSetup, Section, SectionKind, StorySide } from './types';
 import { DEFAULT_PAGE } from './types';
+import { tr } from '@oel/i18n';
 
 /** Id of the final section (the body's own `w:sectPr`). */
 export const BODY_SECTION = 'body';
@@ -194,9 +195,9 @@ export const sectionLabel = (i: number) => `Section ${i + 1}`;
 export function sectionsPhrase(indexes: number[]): string {
   const n = [...indexes].sort((a, b) => a - b).map((i) => i + 1);
   if (n.length === 0) return '';
-  if (n.length === 1) return `la section ${n[0]}`;
+  if (n.length === 1) return tr(`la section ${n[0]}`, `section ${n[0]}`);
   const contiguous = n.every((v, k) => k === 0 || v === n[k - 1]! + 1);
-  return contiguous ? `les sections ${n[0]} à ${n[n.length - 1]}` : `les sections ${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}`;
+  return contiguous ? tr(`les sections ${n[0]} à ${n[n.length - 1]}`, `sections ${n[0]} to ${n[n.length - 1]}`) : tr(`les sections ${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}`, `sections ${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`);
 }
 
 // ---------------------------------------------------------------------------

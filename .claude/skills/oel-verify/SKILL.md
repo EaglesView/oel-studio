@@ -50,7 +50,7 @@ Also check the browser console for errors.
 
 ## Before saying "done"
 
-- Copy is fr-CA, icons Iconoir, kit tokens only.
+- Copy in fr-CA and English (`@oel/i18n`; check the Bureau with the language set to English in « Paramètres »), icons Iconoir, kit tokens only.
 - `docs/packages.md` tables ("What's real and what's stubbed", Figma ↔ code), the README « Status » and the site's docs
   (`apps/web/src/site/docs/{fr,en}`) updated if what users see changed.
 - If the change completes a step of `docs/plans/2026-10-restructure.md`, tick it and update the skills that phase lists.

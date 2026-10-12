@@ -8,6 +8,7 @@ import { identity } from '../docs';
 import { createCalcWorker, exportSheet, sheetSessionFor } from '../sheets';
 import { activeLinks } from '../../links/resolver';
 import { features } from '../../edition';
+import { tr } from '@oel/i18n';
 
 /**
  * 03 · Grille (C3 · Tableur): the spreadsheet editor (@oel/sheets) on a
@@ -33,8 +34,8 @@ export function SheetWorkspace({ paper, level, onDraft, registerFlush, onPatch, 
     registerFlush(() => (session ? toPreview(session.sheet, (si, r, c) => session.sheet.inputText(session.sheet.sheetIds()[si]!, r, c).replace(/^=.*/, '')) : null));
   }, [session, registerFlush]);
 
-  if (error) return <p className="workspace-empty">Impossible d’ouvrir le classeur : {error}</p>;
-  if (!session) return <p className="workspace-empty">Ouverture du classeur…</p>;
+  if (error) return <p className="workspace-empty">{tr('Impossible d’ouvrir le classeur :', 'Could not open the workbook:')} {error}</p>;
+  if (!session) return <p className="workspace-empty">{tr('Ouverture du classeur…', 'Opening the workbook…')}</p>;
   return (
     <div className={`ws ws--sheets ws--sheets-${level === 3 ? 'full' : 'sheet'}`}>
       <SheetsEditor

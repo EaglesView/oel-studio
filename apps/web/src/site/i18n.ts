@@ -1,7 +1,8 @@
 /**
  * The site around the Bureau (home and docs), in French at / and English at /en (plan solo MVP,
  * S-8). Strings live here, typed: an English entry is required for every French one. The Bureau
- * itself stays fr-CA for now.
+ * has its own tables (`@oel/i18n`) and opens in the language of the site page it was opened from
+ * (`bureauHref`).
  */
 export type Lang = 'fr' | 'en';
 export const LANGS: Lang[] = ['fr', 'en'];
@@ -18,6 +19,9 @@ export function href(lang: Lang, path: string): string {
   if (lang === 'fr') return path;
   return path === '/' ? '/en/' : `/en${path}`;
 }
+
+/** « Ouvrir le Bureau »: the Bureau opens in this page's language and remembers it (`src/lang.ts`). */
+export const bureauHref = (lang: Lang) => `/bureau?lang=${lang}`;
 
 /** Docs pages, in reading order: one id, a slug and a title per language. */
 export const DOCS = [

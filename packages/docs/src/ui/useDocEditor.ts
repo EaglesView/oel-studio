@@ -8,6 +8,7 @@ import { defaultSection, BODY_SECTION } from '../model/sections';
 import type { DocFont, DocSettings, DocStyle, NumberingDefs, PageSetup, Section } from '../model/types';
 import { loadDocumentFonts } from './fonts';
 import { sanitizeStylesheet } from '../model/format';
+import { tr } from '@oel/i18n';
 
 export const PAGE_GAP = 24;
 
@@ -100,7 +101,7 @@ export function useDocEditor(session: DocSession, docMeta: DocMeta, opts: { edit
       immediatelyRender: false,
       shouldRerenderOnTransaction: false,
       editorProps: {
-        attributes: { class: 'oel-body', spellcheck: 'true', lang: 'fr-CA', 'aria-label': 'Texte du document', 'aria-multiline': 'true', role: 'textbox' },
+        attributes: { class: 'oel-body', spellcheck: 'true', lang: 'fr-CA', 'aria-label': tr('Texte du document', 'Document text'), 'aria-multiline': 'true', role: 'textbox' },
       },
     },
     [extensions],

@@ -14,6 +14,7 @@
     "./generated/oelimg": "./src/generated/oelimg/index.ts"
   },
   "dependencies": {
+    "@oel/i18n": "*",
     "oeldocx-rs": "file:../wasm/oel-docx/web",
     "oelxlsx-rs": "file:../wasm/oel-xlsx/web",
     "oelpptx-rs": "file:../wasm/oel-pptx/web"

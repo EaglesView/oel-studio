@@ -2,6 +2,7 @@ import type { Preview } from '@oel/engine';
 import { plainText } from './text';
 import type { SlidesDoc } from './ydoc';
 import { paintColor } from './ops';
+import { tr } from '@oel/i18n';
 
 /** Desk preview: titles and first lines, slide shape, first slide's colours. */
 export function toPreview(d: SlidesDoc): Extract<Preview, { kind: 'slides' }> {
@@ -12,7 +13,7 @@ export function toPreview(d: SlidesDoc): Extract<Preview, { kind: 'slides' }> {
     const title = s.elements.find((e) => e.ph && /title/i.test(e.ph.type));
     const lines = s.elements.filter((e) => e !== title && e.text).flatMap((e) => plainText(e.text).split('\n')).map((l) => l.trim()).filter(Boolean);
     const t = plainText(title?.text).replace(/\s+/g, ' ').trim();
-    return { title: t || lines[0] || `Diapositive ${i + 1}`, body: lines.slice(t ? 0 : 1, 3).join(' · ') || undefined };
+    return { title: t || lines[0] || tr(`Diapositive ${i + 1}`, `Slide ${i + 1}`), body: lines.slice(t ? 0 : 1, 3).join(' · ') || undefined };
   });
   const first = ids[0] ? d.slide(ids[0]) : null;
   const layout = first ? d.layout(first.layout) : undefined;

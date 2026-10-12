@@ -1,6 +1,34 @@
 import { detectKind, extensionOf, stripExtension } from '../detect';
 import type { DocumentEngine, ImportRequest, ImportResult, Preview } from '../types';
 import { readZipDirectory, readZipText } from '../zip';
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    sheet1: 'Feuille 1',
+    reading: 'Lecture du fichier',
+    readingText: 'Lecture du texte',
+    readingCells: 'Lecture des cellules',
+    readingSlides: 'Lecture des diapositives',
+    ready: 'Prêt',
+    scanned: 'Numérisé : le texte n’est pas encore modifiable.',
+    pdf: 'PDF : ouvert en lecture.',
+    unsupported: 'Aperçu seulement : format non pris en charge.',
+    legacy: 'Ancien format : conversion requise pour modifier.',
+  },
+  {
+    sheet1: 'Sheet1',
+    reading: 'Reading the file',
+    readingText: 'Reading the text',
+    readingCells: 'Reading the cells',
+    readingSlides: 'Reading the slides',
+    ready: 'Ready',
+    scanned: 'Scanned: the text can’t be edited yet.',
+    pdf: 'PDF: opened read-only.',
+    unsupported: 'Preview only: format not supported.',
+    legacy: 'Old format: needs converting to edit.',
+  },
+);
 
 /**
  * JS preview engine: reads just enough of each format to put a faithful paper
@@ -56,7 +84,7 @@ async function odf(bytes: Uint8Array, kind: 'document' | 'slides' | 'spreadsheet
     .map((m) => ({ type: m[1] === 'h' ? ('heading' as const) : ('paragraph' as const), text: decodeXml(m[2]!.replace(/<[^>]+>/g, '')).trim() }))
     .filter((b) => b.text);
   if (kind === 'slides') return { kind, slides: paras.slice(0, 12).map((b) => ({ title: b.text })) };
-  if (kind === 'spreadsheet') return { kind, sheets: ['Feuille 1'], rows: paras.slice(0, MAX_ROWS).map((b) => [b.text]) };
+  if (kind === 'spreadsheet') return { kind, sheets: [t.sheet1], rows: paras.slice(0, MAX_ROWS).map((b) => [b.text]) };
   return { kind, blocks: paras.slice(0, MAX_BLOCKS), wordCount: paras.reduce((n, b) => n + b.text.split(/\s+/).length, 0) };
 }
 
@@ -94,7 +122,7 @@ async function xlsx(bytes: Uint8Array): Promise<Preview> {
       rows.push(cells);
     }
   }
-  return { kind: 'spreadsheet', sheets: sheets.length ? sheets : ['Feuille 1'], rows };
+  return { kind: 'spreadsheet', sheets: sheets.length ? sheets : [t.sheet1], rows };
 }
 
 async function pptx(bytes: Uint8Array): Promise<Preview> {
@@ -127,7 +155,7 @@ function delimited(bytes: Uint8Array, sep: string): Preview {
     .filter(Boolean)
     .slice(0, MAX_ROWS)
     .map((l) => l.split(sep).slice(0, MAX_COLS).map((c) => c.replace(/^"|"$/g, '')));
-  return { kind: 'spreadsheet', sheets: ['Feuille 1'], rows };
+  return { kind: 'spreadsheet', sheets: [t.sheet1], rows };
 }
 
 function pdf(bytes: Uint8Array): Preview {
@@ -158,20 +186,20 @@ export const previewEngine: DocumentEngine = {
     const kind = detectKind(req, req.bytes.subarray(0, 16));
     const ext = extensionOf(req.name);
     const title = stripExtension(req.name);
-    onProgress({ value: 0.1, stage: 'Lecture du fichier' });
+    onProgress({ value: 0.1, stage: t.reading });
 
     let preview: Preview;
     switch (true) {
       case ext === 'docx':
-        onProgress({ value: 0.4, stage: 'Lecture du texte' });
+        onProgress({ value: 0.4, stage: t.readingText });
         preview = await docx(req.bytes);
         break;
       case ext === 'xlsx':
-        onProgress({ value: 0.4, stage: 'Lecture des cellules' });
+        onProgress({ value: 0.4, stage: t.readingCells });
         preview = await xlsx(req.bytes);
         break;
       case ext === 'pptx':
-        onProgress({ value: 0.4, stage: 'Lecture des diapositives' });
+        onProgress({ value: 0.4, stage: t.readingSlides });
         preview = await pptx(req.bytes);
         break;
       case ext === 'odt' || ext === 'ods' || ext === 'odp':
@@ -192,20 +220,20 @@ export const previewEngine: DocumentEngine = {
       default:
         preview = { kind: 'unsupported' };
     }
-    onProgress({ value: 1, stage: 'Prêt' });
+    onProgress({ value: 1, stage: t.ready });
 
     if (preview.kind === 'pdf') {
       return {
         kind: 'pdf',
         title: preview.title || title,
         readOnly: true,
-        reason: preview.scanned ? 'Numérisé : le texte n’est pas encore modifiable.' : 'PDF : ouvert en lecture.',
+        reason: preview.scanned ? t.scanned : t.pdf,
         preview,
         engine: this.id,
       };
     }
     if (preview.kind === 'unsupported' || kind === 'unsupported') {
-      return { kind: 'unsupported', title, readOnly: true, reason: 'Aperçu seulement : format non pris en charge.', preview, engine: this.id };
+      return { kind: 'unsupported', title, readOnly: true, reason: t.unsupported, preview, engine: this.id };
     }
     // Legacy binary formats are recognised but need the WASM engines to edit.
     const legacy = ext === 'doc' || ext === 'xls' || ext === 'ppt' || ext === 'key' || ext === 'rtf';
@@ -213,7 +241,7 @@ export const previewEngine: DocumentEngine = {
       kind,
       title,
       readOnly: legacy,
-      reason: legacy ? 'Ancien format : conversion requise pour modifier.' : undefined,
+      reason: legacy ? t.legacy : undefined,
       preview: legacy ? emptyPreview(kind) : preview,
       engine: this.id,
     };

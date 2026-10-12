@@ -7,6 +7,7 @@ import type { WorkspaceProps } from '../OpenSheet';
 import { identity } from '../docs';
 import { exportSlides, slideSessionFor, takePresent } from '../slides';
 import { features } from '../../edition';
+import { tr } from '@oel/i18n';
 
 /**
  * 02 · Diapositives (C2): the presentation editor (@oel/slides) on a
@@ -33,8 +34,8 @@ export function SlidesWorkspace({ paper, level, onDraft, registerFlush, onPatch,
     registerFlush(() => (session ? toPreview(session.slides) : null));
   }, [session, registerFlush]);
 
-  if (error) return <p className="workspace-empty">Impossible d’ouvrir la présentation : {error}</p>;
-  if (!session) return <p className="workspace-empty">Ouverture de la présentation…</p>;
+  if (error) return <p className="workspace-empty">{tr('Impossible d’ouvrir la présentation :', 'Could not open the presentation:')} {error}</p>;
+  if (!session) return <p className="workspace-empty">{tr('Ouverture de la présentation…', 'Opening the presentation…')}</p>;
   return (
     <div className={`ws ws--slides-editor ws--slides-${level === 3 ? 'full' : 'sheet'}`}>
       <SlidesEditor

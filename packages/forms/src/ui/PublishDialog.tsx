@@ -3,13 +3,14 @@ import { Badge, Button, DialogOverlay, Icon, NumberField, Radio, RadioGroup, She
 import type { Account } from '../api/backend';
 import type { FormDef, FormSettings, IdentityMode } from '../model/types';
 import { download, qrPng, qrSvg } from './qr';
+import { tr } from '@oel/i18n';
 
 export async function copyLink(url: string) {
   try {
     await navigator.clipboard.writeText(url);
-    toast({ title: 'Lien copié', description: url, tone: 'success' });
+    toast({ title: tr('Lien copié', 'Link copied'), description: url, tone: 'success' });
   } catch {
-    toast({ title: 'Copie impossible', description: 'Sélectionnez le lien et copiez-le avec Ctrl+C.', tone: 'warning' });
+    toast({ title: tr('Copie impossible', 'Copy failed'), description: tr('Sélectionnez le lien et copiez-le avec Ctrl+C.', 'Select the link and copy it with Ctrl+C.'), tone: 'warning' });
   }
 }
 
@@ -69,48 +70,48 @@ export function PublishDialog({
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
       <SheetDialog
-        title="Publier le formulaire"
+        title={tr('Publier le formulaire', 'Publish the form')}
         width={620}
         actions={(close) => (
           <>
             <Button variant="ghost" onPress={close}>
-              Fermer
+              {tr('Fermer', 'Close')}
             </Button>
             <Button variant="primary" leadingIcon="share" isDisabled={busy || (!!pub && !pub.dirty)} onPress={() => void publish()}>
-              {busy ? 'Publication…' : !pub ? 'Publier' : pub.dirty ? 'Republier les modifications' : 'Publié'}
+              {busy ? tr('Publication…', 'Publishing…') : !pub ? tr('Publier', 'Publish') : pub.dirty ? tr('Republier les modifications', 'Republish the changes') : tr('Publié', 'Published')}
             </Button>
           </>
         )}
       >
         <div className="forms-dialog forms-publish">
           <p className="forms-publish__account">
-            <Badge tone="success">Connecté · {account.email}</Badge>
+            <Badge tone="success">{tr('Connecté', 'Connected')} · {account.email}</Badge>
             <Button variant="ghost" size="sm" onPress={onSignOut}>
-              Se déconnecter
+              {tr('Se déconnecter', 'Sign out')}
             </Button>
           </p>
 
           {pub ? (
-            <section className="forms-publish__link" aria-label="Lien public">
+            <section className="forms-publish__link" aria-label={tr('Lien public', 'Public link')}>
               <div className="forms-publish__url">
-                <p className="emb-field__label">Lien public</p>
+                <p className="emb-field__label">{tr('Lien public', 'Public link')}</p>
                 <div className="emb-well-input">
-                  <input className="emb-well-input__control" readOnly value={pub.url} aria-label="Lien public" onFocus={(e) => e.target.select()} />
+                  <input className="emb-well-input__control" readOnly value={pub.url} aria-label={tr('Lien public', 'Public link')} onFocus={(e) => e.target.select()} />
                 </div>
                 <p className="emb-field__helper">
-                  {pub.dirty ? 'Modifications non publiées : republiez pour les mettre en ligne (même lien).' : `Version ${pub.version} en ligne · republier garde le même lien.`}
+                  {pub.dirty ? tr('Modifications non publiées : republiez pour les mettre en ligne (même lien).', 'Unpublished changes: republish to put them online (same link).') : tr(`Version ${pub.version} en ligne · republier garde le même lien.`, `Version ${pub.version} online · republishing keeps the same link.`)}
                 </p>
                 <div className="forms-dialog__row">
                   <Button leadingIcon="copy" onPress={() => void copyLink(pub.url)} aria-keyshortcuts="Control+Shift+C">
-                    Copier
+                    {tr('Copier', 'Copy')}
                   </Button>
                   <Button variant="ghost" leadingIcon="eye" onPress={() => window.open(pub.url, '_blank', 'noopener')}>
-                    Ouvrir
+                    {tr('Ouvrir', 'Open')}
                   </Button>
                 </div>
               </div>
               <figure className="forms-publish__qr">
-                <span className="forms-publish__qr-img" dangerouslySetInnerHTML={{ __html: svg }} role="img" aria-label={`Code QR vers ${pub.url}`} />
+                <span className="forms-publish__qr-img" dangerouslySetInnerHTML={{ __html: svg }} role="img" aria-label={tr(`Code QR vers ${pub.url}`, `QR code to ${pub.url}`)} />
                 <figcaption>
                   Code QR ·{' '}
                   <button type="button" className="forms-link" onClick={() => void qrPng(pub.url).then((b) => download(`${pub.slug}-qr.png`, b))}>
@@ -125,54 +126,54 @@ export function PublishDialog({
             </section>
           ) : (
             <p className="forms-publish__intro">
-              <Icon name="link" size={16} /> Un lien court et un code QR seront créés. Les réponses vont dans{' '}
-              <strong>{form.link ? `${form.link.sheetTitle} › ${form.link.tab}` : 'le tableur lié'}</strong>.
+              <Icon name="link" size={16} /> {tr('Un lien court et un code QR seront créés. Les réponses vont dans', 'A short link and a QR code will be created. The responses go to')}{' '}
+              <strong>{form.link ? `${form.link.sheetTitle} › ${form.link.tab}` : tr('le tableur lié', 'the linked spreadsheet')}</strong>.
             </p>
           )}
 
           <fieldset className="forms-fieldset">
-            <legend className="emb-t-overline">Identité des répondants</legend>
+            <legend className="emb-t-overline">{tr('Identité des répondants', 'Respondent identity')}</legend>
             <RadioGroup
-              aria-label="Identité des répondants"
+              aria-label={tr('Identité des répondants', 'Respondent identity')}
               value={s.identity}
               onChange={(v) => set({ identity: v as IdentityMode, onePerEmail: v === 'verified-email' ? s.onePerEmail : false })}
             >
-              <Radio value="anonymous">Anonyme : aucune information demandée</Radio>
-              <Radio value="optional-email">Courriel facultatif</Radio>
-              <Radio value="verified-email">Courriel obligatoire, vérifié par un code</Radio>
+              <Radio value="anonymous">{tr('Anonyme : aucune information demandée', 'Anonymous: no information asked')}</Radio>
+              <Radio value="optional-email">{tr('Courriel facultatif', 'Optional email')}</Radio>
+              <Radio value="verified-email">{tr('Courriel obligatoire, vérifié par un code', 'Required email, verified with a code')}</Radio>
             </RadioGroup>
             <Switch isSelected={s.onePerEmail} isDisabled={s.identity !== 'verified-email'} onChange={(v) => set({ onePerEmail: v })}>
-              Une seule réponse par courriel
+              {tr('Une seule réponse par courriel', 'One response per email')}
             </Switch>
-            {s.identity !== 'verified-email' && <p className="emb-field__helper">« Une seule réponse par courriel » demande la vérification du courriel.</p>}
+            {s.identity !== 'verified-email' && <p className="emb-field__helper">{tr('« Une seule réponse par courriel » demande la vérification du courriel.', '“One response per email” needs email verification.')}</p>}
           </fieldset>
 
           <fieldset className="forms-fieldset">
-            <legend className="emb-t-overline">Règles</legend>
+            <legend className="emb-t-overline">{tr('Règles', 'Rules')}</legend>
             <Switch isSelected={s.acceptResponses} onChange={(v) => set({ acceptResponses: v })}>
-              Accepter les réponses
+              {tr('Accepter les réponses', 'Accept responses')}
             </Switch>
             <div className="emb-field">
               <label className="emb-field__label" htmlFor="forms-closes">
-                Fermer automatiquement le
+                {tr('Fermer automatiquement le', 'Close automatically on')}
               </label>
               <div className="emb-well-input">
                 <input id="forms-closes" type="date" className="emb-well-input__control" value={s.closesOn ?? ''} onChange={(e) => set({ closesOn: e.target.value || null })} />
               </div>
-              <span className="emb-field__helper">Vide = pas de date de fermeture.</span>
+              <span className="emb-field__helper">{tr('Vide = pas de date de fermeture.', 'Empty = no closing date.')}</span>
             </div>
             <NumberField
-              label="Réponses au plus"
+              label={tr('Réponses au plus', 'Responses at most')}
               description="Vide = sans limite."
               minValue={1}
               value={s.maxResponses ?? Number.NaN}
               onChange={(v) => set({ maxResponses: Number.isFinite(v) ? v : null })}
             />
             <Switch isSelected={s.sendCopy} onChange={(v) => set({ sendCopy: v })}>
-              Envoyer une copie au répondant
+              {tr('Envoyer une copie au répondant', 'Send a copy to the respondent')}
             </Switch>
             <Switch isSelected={s.allowEdit} onChange={(v) => set({ allowEdit: v })}>
-              Permettre de modifier sa réponse (lien personnel)
+              {tr('Permettre de modifier sa réponse (lien personnel)', 'Allow editing one’s response (personal link)')}
             </Switch>
           </fieldset>
 

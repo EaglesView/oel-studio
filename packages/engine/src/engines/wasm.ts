@@ -2,6 +2,32 @@ import type { DeckPayload, DocumentEngine, DocxPayload, ExportRequest, FileKind,
 import type { Workbook } from '../generated/oelxlsx';
 import type { Deck } from '../generated/oelpptx';
 import { PAYLOAD_FORMATS } from '../payload';
+import { messages, tr } from '@oel/i18n';
+
+const t = messages(
+  {
+    loading: 'Chargement du moteur',
+    converting: 'Conversion en document modifiable',
+    ready: 'Prêt',
+    notDocx: 'Format non pris en charge par le moteur DOCX',
+    notXlsx: 'Format non pris en charge par le moteur de tableurs (.xlsx, .xlsm, .csv)',
+    notPptx: 'Format non pris en charge par le moteur de présentations (.pptx)',
+    untitledDoc: 'Document sans titre',
+    untitledSheet: 'Tableur sans titre',
+    untitledDeck: 'Présentation sans titre',
+  },
+  {
+    loading: 'Loading the engine',
+    converting: 'Converting to an editable document',
+    ready: 'Ready',
+    notDocx: 'Format not supported by the DOCX engine',
+    notXlsx: 'Format not supported by the spreadsheet engine (.xlsx, .xlsm, .csv)',
+    notPptx: 'Format not supported by the presentation engine (.pptx)',
+    untitledDoc: 'Untitled document',
+    untitledSheet: 'Untitled spreadsheet',
+    untitledDeck: 'Untitled presentation',
+  },
+);
 
 /**
  * Adapter for WASM engines built with wasm-bindgen (oeldocx-rs, oelimg-rs).
@@ -32,11 +58,11 @@ export function createWasmEngine<M>(spec: WasmEngineSpec<M>): DocumentEngine {
     kinds: spec.kinds,
     accepts: spec.accepts,
     async import(req, onProgress) {
-      onProgress({ value: null, stage: 'Chargement du moteur' });
+      onProgress({ value: null, stage: t.loading });
       const mod = await module();
-      onProgress({ value: 0.5, stage: 'Conversion en document modifiable' });
+      onProgress({ value: 0.5, stage: t.converting });
       const result = await spec.run(mod, req.bytes, req.name);
-      onProgress({ value: 1, stage: 'Prêt' });
+      onProgress({ value: 1, stage: t.ready });
       return { ...result, engine: spec.id };
     },
     export: spec.export ? async (req) => spec.export!(await module(), req) : undefined,
@@ -106,7 +132,7 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
     load: load as WasmEngineSpec<OeldocxModule>['load'],
     run(mod, bytes, name) {
       if (!/\.(docx|docm|dotx)$/i.test(name) && !(bytes[0] === 0x50 && bytes[1] === 0x4b)) {
-        throw new Error('Format non pris en charge par le moteur DOCX');
+        throw new Error(t.notDocx);
       }
       const out = mod.docx_to_pm(bytes);
       const json = JSON.parse(out.json) as { doc: PMish; title?: string | null; background?: string | null; sections?: Array<{ page: { width: number; height: number } }> };
@@ -114,14 +140,14 @@ export function createOeldocxEngine(load: () => Promise<unknown>): DocumentEngin
       return { kind: 'document', title: json.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: previewOf(json.doc, json.sections?.[0]?.page, json.background), payload };
     },
     export(mod, req) {
-      if (req.format !== 'docx') throw new Error(`Format d’export inconnu : ${req.format}`);
+      if (req.format !== 'docx') throw new Error(tr(`Format d’export inconnu : ${req.format}`, `Unknown export format: ${req.format}`));
       const d = req.data as { json: unknown; original: Uint8Array | null; media: Array<{ path: string; bytes: Uint8Array }> };
       return mod.pm_to_docx(JSON.stringify(d.json), d.original ?? undefined, d.media ?? []);
     },
     create(mod, _kind, title) {
       const out = mod.new_document_pm();
       const payload: DocxPayload = { format: PAYLOAD_FORMATS.docx, json: out.json, media: out.media, original: null };
-      return { kind: 'document', title: title || 'Document sans titre', readOnly: false, preview: { kind: 'document', blocks: [], wordCount: 0, pageCount: 1 }, payload };
+      return { kind: 'document', title: title || t.untitledDoc, readOnly: false, preview: { kind: 'document', blocks: [], wordCount: 0, pageCount: 1 }, payload };
     },
   });
 }
@@ -164,7 +190,7 @@ export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngin
         const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: null };
         return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
       }
-      if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error('Format non pris en charge par le moteur de tableurs (.xlsx, .xlsm, .csv)');
+      if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error(t.notXlsx);
       const json = mod.xlsx_to_model(bytes);
       const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: bytes };
       return { kind: 'spreadsheet', title, readOnly: false, preview: sheetPreview(JSON.parse(json)), payload };
@@ -175,12 +201,13 @@ export function createOelxlsxEngine(load: () => Promise<unknown>): DocumentEngin
       if (req.format === 'xlsx') return mod.model_to_xlsx(json, d.original ?? undefined, d.media ?? []);
       if (req.format === 'csv') return mod.model_to_csv(json, d.sheet ?? 0, '');
       if (req.format === 'tsv') return mod.model_to_csv(json, d.sheet ?? 0, JSON.stringify({ delimiter: '\t', encoding: 'utf-8', bom: false, lineEnding: '\r\n' }));
-      throw new Error(`Format d’export inconnu : ${req.format}`);
+      throw new Error(tr(`Format d’export inconnu : ${req.format}`, `Unknown export format: ${req.format}`));
     },
     create(mod, _kind, title) {
       const json = mod.new_workbook_model();
       const payload: WorkbookPayload = { format: PAYLOAD_FORMATS.workbook, json, original: null };
-      return { kind: 'spreadsheet', title: title || 'Tableur sans titre', readOnly: false, preview: { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [] }, payload };
+      // The codec's blank workbook names its sheet « Feuille 1 » (crates/oel-xlsx/src/template.rs).
+      return { kind: 'spreadsheet', title: title || t.untitledSheet, readOnly: false, preview: { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [] }, payload };
     },
   });
 }
@@ -222,14 +249,14 @@ export function createOelpptxEngine(load: () => Promise<unknown>): DocumentEngin
     accepts: (name) => /\.(pptx|pptm|ppsx|potx)$/i.test(name),
     load: load as WasmEngineSpec<OelpptxModule>['load'],
     run(mod, bytes, name) {
-      if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error('Format non pris en charge par le moteur de présentations (.pptx)');
+      if (!(bytes[0] === 0x50 && bytes[1] === 0x4b)) throw new Error(t.notPptx);
       const out = mod.pptx_to_deck(bytes) as DeckOut;
       const deck = JSON.parse(out.json) as Deck;
       const payload: DeckPayload = { format: PAYLOAD_FORMATS.deck, json: out.json, media: out.media, original: bytes };
       return { kind: 'slides', title: deck.title?.trim() || name.replace(/\.[^.]+$/, ''), readOnly: false, preview: deckPreview(deck), payload };
     },
     export(mod, req) {
-      if (req.format !== 'pptx') throw new Error(`Format d’export inconnu : ${req.format}`);
+      if (req.format !== 'pptx') throw new Error(tr(`Format d’export inconnu : ${req.format}`, `Unknown export format: ${req.format}`));
       const d = req.data as { json: unknown; original: Uint8Array | null; media: Array<{ path: string; bytes: Uint8Array }> };
       return mod.deck_to_pptx(typeof d.json === 'string' ? d.json : JSON.stringify(d.json), d.original ?? undefined, d.media ?? []);
     },
@@ -237,7 +264,7 @@ export function createOelpptxEngine(load: () => Promise<unknown>): DocumentEngin
       const out = mod.new_deck() as DeckOut;
       const deck = JSON.parse(out.json) as Deck;
       const payload: DeckPayload = { format: PAYLOAD_FORMATS.deck, json: out.json, media: out.media, original: null };
-      return { kind: 'slides', title: title || 'Présentation sans titre', readOnly: false, preview: deckPreview(deck), payload };
+      return { kind: 'slides', title: title || t.untitledDeck, readOnly: false, preview: deckPreview(deck), payload };
     },
   });
 }

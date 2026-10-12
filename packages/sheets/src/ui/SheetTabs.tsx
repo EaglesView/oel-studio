@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { MenuTrigger } from 'react-aria-components';
 import { Button, Menu, MenuItem, MenuPopover, MenuSeparator, toast } from '@oel/emboss';
 import type { SheetController } from './controller';
+import { locale, messages, tr } from '@oel/i18n';
 
-const fmt = new Intl.NumberFormat('fr-CA', { maximumFractionDigits: 2 });
+const fmt = new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 });
 const TAB_COLORS = ['#C00000', '#E26B0A', '#B7950B', '#1E7B34', '#1F6F5C', '#1F4E79', '#5B3FD6', '#7030A0'];
 
 /**
@@ -26,7 +27,7 @@ export function SheetTabs({ ctl, zoom, setZoom }: { ctl: SheetController; zoom: 
 
   const commitRename = () => {
     if (!renaming) return;
-    if (!ctl.doc.renameSheet(renaming, draft)) toast({ title: 'Nom de feuille invalide', description: 'Un nom unique de 31 caractères au plus, sans : \\ / ? * [ ].', tone: 'warning' });
+    if (!ctl.doc.renameSheet(renaming, draft)) toast({ title: tr('Nom de feuille invalide', 'Invalid sheet name'), description: tr('Un nom unique de 31 caractères au plus, sans : \\ / ? * [ ].', 'A unique name of 31 characters at most, without : \\ / ? * [ ].'), tone: 'warning' });
     setRenaming(null);
   };
 
@@ -37,9 +38,9 @@ export function SheetTabs({ ctl, zoom, setZoom }: { ctl: SheetController; zoom: 
       setRenaming(id);
     } else if (key === 'duplicate') ctl.setSheet(ctl.doc.duplicateSheet(id));
     else if (key === 'delete') {
-      if (!ctl.doc.deleteSheet(id)) toast({ title: 'Impossible de supprimer la dernière feuille visible', tone: 'warning' });
+      if (!ctl.doc.deleteSheet(id)) toast({ title: tr('Impossible de supprimer la dernière feuille visible', 'The last visible sheet can’t be deleted'), tone: 'warning' });
     } else if (key === 'hide') {
-      if (visible.length <= 1) toast({ title: 'Un classeur garde au moins une feuille visible', tone: 'warning' });
+      if (visible.length <= 1) toast({ title: tr('Un classeur garde au moins une feuille visible', 'A workbook keeps at least one visible sheet'), tone: 'warning' });
       else {
         ctl.doc.setProps(id, { state: 'hidden' });
         if (id === ctl.sheetId) ctl.stepSheet(1);
@@ -55,16 +56,16 @@ export function SheetTabs({ ctl, zoom, setZoom }: { ctl: SheetController; zoom: 
   };
 
   return (
-    <footer className="oel-sheetbar" aria-label="Feuilles et barre d’état">
+    <footer className="oel-sheetbar" aria-label={tr('Feuilles et barre d’état', 'Sheets and status bar')}>
       <Button
         size="icon-sm"
         variant="ghost"
         leadingIcon="plus"
-        aria-label="Ajouter une feuille"
+        aria-label={tr('Ajouter une feuille', 'Add a sheet')}
         isDisabled={ro || csv}
         onPress={() => ctl.setSheet(ctl.doc.addSheet(undefined, ids.indexOf(ctl.sheetId) + 1))}
       />
-      <div className="oel-sheetbar__tabs" role="tablist" aria-label="Feuilles">
+      <div className="oel-sheetbar__tabs" role="tablist" aria-label={tr('Feuilles', 'Sheets')}>
         {visible.map((id) => {
           const p = ctl.doc.props(id);
           const on = id === ctl.sheetId;
@@ -72,7 +73,7 @@ export function SheetTabs({ ctl, zoom, setZoom }: { ctl: SheetController; zoom: 
             <input
               key={id}
               className="oel-sheettab oel-sheettab--input"
-              aria-label="Nouveau nom de la feuille"
+              aria-label={tr('Nouveau nom de la feuille', 'New sheet name')}
               autoFocus
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -129,25 +130,25 @@ export function SheetTabs({ ctl, zoom, setZoom }: { ctl: SheetController; zoom: 
                 {p.name}
               </button>
               <MenuPopover placement="top start">
-                <Menu aria-label={`Feuille ${p.name}`} onAction={(k) => action(id, String(k))}>
-                  <MenuItem id="rename">Renommer</MenuItem>
-                  <MenuItem id="duplicate" isDisabled={csv}>Dupliquer</MenuItem>
-                  <MenuItem id="delete">Supprimer</MenuItem>
-                  <MenuItem id="hide">Masquer</MenuItem>
+                <Menu aria-label={tr(`Feuille ${p.name}`, `Sheet ${p.name}`)} onAction={(k) => action(id, String(k))}>
+                  <MenuItem id="rename">{tr('Renommer', 'Rename')}</MenuItem>
+                  <MenuItem id="duplicate" isDisabled={csv}>{tr('Dupliquer', 'Duplicate')}</MenuItem>
+                  <MenuItem id="delete">{tr('Supprimer', 'Delete')}</MenuItem>
+                  <MenuItem id="hide">{tr('Masquer', 'Hide')}</MenuItem>
                   <MenuSeparator />
-                  <MenuItem id="left">Déplacer à gauche</MenuItem>
-                  <MenuItem id="right">Déplacer à droite</MenuItem>
+                  <MenuItem id="left">{tr('Déplacer à gauche', 'Move left')}</MenuItem>
+                  <MenuItem id="right">{tr('Déplacer à droite', 'Move right')}</MenuItem>
                   <MenuSeparator />
                   {[
                     ...TAB_COLORS.map((c) => (
-                      <MenuItem key={c} id={`color:${c}`} textValue={`Couleur ${c}`}>
-                        <span className="oel-tabcolor" style={{ background: c }} aria-hidden /> Couleur d’onglet
+                      <MenuItem key={c} id={`color:${c}`} textValue={tr(`Couleur ${c}`, `Colour ${c}`)}>
+                        <span className="oel-tabcolor" style={{ background: c }} aria-hidden /> {tr('Couleur d’onglet', 'Tab colour')}
                       </MenuItem>
                     )),
-                    <MenuItem key="none" id="color:none">Sans couleur</MenuItem>,
+                    <MenuItem key="none" id="color:none">{tr('Sans couleur', 'No colour')}</MenuItem>,
                     ...hidden.map((h) => (
                       <MenuItem key={h} id={`unhide:${h}`}>
-                        Afficher « {ctl.doc.props(h).name} »
+                        {tr(`Afficher « ${ctl.doc.props(h).name} »`, `Show “${ctl.doc.props(h).name}”`)}
                       </MenuItem>
                     )),
                   ]}
@@ -160,17 +161,17 @@ export function SheetTabs({ ctl, zoom, setZoom }: { ctl: SheetController; zoom: 
       <span className="oel-sheetbar__stats" role="status" aria-live="polite">
         {stats.numbers > 0 ? (
           <>
-            Somme : {fmt.format(stats.sum)} · Moyenne : {fmt.format(stats.avg!)} · Nombre : {stats.count}
-            {stats.numbers > 1 && ` · Min : ${fmt.format(stats.min!)} · Max : ${fmt.format(stats.max!)}`}
+            {tr(`Somme : ${fmt.format(stats.sum)} · Moyenne : ${fmt.format(stats.avg!)} · Nombre : ${stats.count}`, `Sum: ${fmt.format(stats.sum)} · Average: ${fmt.format(stats.avg!)} · Count: ${stats.count}`)}
+            {stats.numbers > 1 && tr(` · Min : ${fmt.format(stats.min!)} · Max : ${fmt.format(stats.max!)}`, ` · Min: ${fmt.format(stats.min!)} · Max: ${fmt.format(stats.max!)}`)}
           </>
         ) : stats.count > 1 ? (
-          <>Nombre : {stats.count}</>
+          <>{tr(`Nombre : ${stats.count}`, `Count: ${stats.count}`)}</>
         ) : null}
       </span>
       <span className="oel-sheetbar__zoom" role="group" aria-label="Zoom">
-        <Button size="icon-sm" variant="ghost" leadingIcon="minus" aria-label="Zoom arrière" onPress={() => setZoom(Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10))} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="minus" aria-label={tr('Zoom arrière', 'Zoom out')} onPress={() => setZoom(Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10))} />
         <span aria-live="polite">{Math.round(zoom * 100)} %</span>
-        <Button size="icon-sm" variant="ghost" leadingIcon="plus" aria-label="Zoom avant" onPress={() => setZoom(Math.min(2, Math.round((zoom + 0.1) * 10) / 10))} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="plus" aria-label={tr('Zoom avant', 'Zoom in')} onPress={() => setZoom(Math.min(2, Math.round((zoom + 0.1) * 10) / 10))} />
       </span>
     </footer>
   );

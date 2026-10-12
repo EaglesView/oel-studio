@@ -14,6 +14,7 @@ import { deskDbName, initDesk, readDesk, takeTrash, trashOf, type DeskContent } 
 import { DOC_KIND, deleteFiles } from './restore';
 import { packBackup, readBackup, type BackupParts } from './backup';
 import { DEMO_VERSION } from './demo';
+import { tr } from '@oel/i18n';
 
 /** What the desk starts with when it is new: the demo (first visit, reset) or nothing (« Vider »). */
 export type Seed = 'demo' | 'none';
@@ -122,7 +123,7 @@ export async function scheduleImport(projectId: string, file: File): Promise<voi
   const bytes = new Uint8Array(await file.arrayBuffer());
   await readBackup(bytes);
   await localFiles.put(IMPORT_KEY, { mime: 'application/zip', bytes });
-  if (!(await localFiles.get(IMPORT_KEY))) throw new Error('Pas assez d’espace sur cet appareil pour importer cette sauvegarde.');
+  if (!(await localFiles.get(IMPORT_KEY))) throw new Error(tr('Pas assez d’espace sur cet appareil pour importer cette sauvegarde.', 'Not enough space on this device to import this backup.'));
   localStorage.setItem(pendingKey(projectId), JSON.stringify({ action: 'import' } satisfies Pending));
   location.reload();
 }

@@ -46,6 +46,7 @@ import {
   type Validation,
   type Workbook,
 } from './types';
+import { tr } from '@oel/i18n';
 
 // ---------------------------------------------------------------------------
 // Stored shapes
@@ -324,7 +325,7 @@ export class SheetDoc implements RefResolver {
   props(id: string): SheetProps {
     const m = sheetMap(this.doc, id);
     return {
-      name: (m.get('name') as string) ?? 'Feuille',
+      name: (m.get('name') as string) ?? tr('Feuille', 'Sheet'),
       state: (m.get('state') as SheetState) ?? 'visible',
       tabColor: (m.get('tabColor') as Color | null) ?? null,
       frozenRows: (m.get('frozenRows') as number) ?? 0,
@@ -365,9 +366,11 @@ export class SheetDoc implements RefResolver {
     const names = new Set(this.sheetIds().map((s) => this.props(s).name.toLowerCase()));
     let n = name ?? '';
     if (!n || names.has(n.toLowerCase())) {
+      // « Feuille 2 », or Excel's « Sheet2 » in English.
+      const named = (k: number) => tr(`Feuille ${k}`, `Sheet${k}`);
       let i = this.sheetIds().length + 1;
-      while (names.has(`feuille ${i}`)) i++;
-      n = `Feuille ${i}`;
+      while (names.has(named(i).toLowerCase())) i++;
+      n = named(i);
     }
     this.doc.transact(() => {
       const m = sheetMap(this.doc, id);

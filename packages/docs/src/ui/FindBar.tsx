@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
 import { Button, Checkbox } from '@oel/emboss';
+import { tr } from '@oel/i18n';
 
 /** Ctrl+F / Ctrl+H: find and replace, floating over the page. */
 export function FindBar({ editor, replace: showReplace, editable, onClose }: { editor: Editor; replace: boolean; editable: boolean; onClose: () => void }) {
@@ -28,7 +29,7 @@ export function FindBar({ editor, replace: showReplace, editable, onClose }: { e
   };
 
   return (
-    <div className="oel-findbar" role="search" aria-label="Rechercher et remplacer" onKeyDown={(e) => {
+    <div className="oel-findbar" role="search" aria-label={tr('Rechercher et remplacer', 'Find and replace')} onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.preventDefault();
           e.stopPropagation();
@@ -39,8 +40,8 @@ export function FindBar({ editor, replace: showReplace, editable, onClose }: { e
         <input
           ref={input}
           className="oel-findbar__input"
-          aria-label="Rechercher"
-          placeholder="Rechercher dans le document"
+          aria-label={tr('Rechercher', 'Find')}
+          placeholder={tr('Rechercher dans le document', 'Find in the document')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -52,28 +53,28 @@ export function FindBar({ editor, replace: showReplace, editable, onClose }: { e
           }}
         />
         <span className="oel-findbar__count" aria-live="polite">
-          {info.error ? 'Expression invalide' : query ? (info.count ? `${info.index + 1} sur ${info.count}` : 'Aucun résultat') : ''}
+          {info.error ? tr('Expression invalide', 'Invalid expression') : query ? (info.count ? tr(`${info.index + 1} sur ${info.count}`, `${info.index + 1} of ${info.count}`) : tr('Aucun résultat', 'No results')) : ''}
         </span>
-        <Button size="icon-sm" variant="ghost" leadingIcon="chevron-up" aria-label="Résultat précédent" onPress={() => editor.commands.findPrev()} />
-        <Button size="icon-sm" variant="ghost" leadingIcon="chevron-down" aria-label="Résultat suivant" onPress={() => editor.commands.findNext()} />
-        <Button size="icon-sm" variant="ghost" leadingIcon="more" aria-label="Remplacer" aria-pressed={withReplace} onPress={() => setWithReplace((v) => !v)} />
-        <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label="Fermer la recherche" onPress={close} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="chevron-up" aria-label={tr('Résultat précédent', 'Previous result')} onPress={() => editor.commands.findPrev()} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="chevron-down" aria-label={tr('Résultat suivant', 'Next result')} onPress={() => editor.commands.findNext()} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="more" aria-label={tr('Remplacer', 'Replace')} aria-pressed={withReplace} onPress={() => setWithReplace((v) => !v)} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label={tr('Fermer la recherche', 'Close the search')} onPress={close} />
       </div>
       {withReplace && (
         <div className="oel-findbar__row">
-          <input className="oel-findbar__input" aria-label="Remplacer par" placeholder="Remplacer par" value={replacement} onChange={(e) => setReplacement(e.target.value)} disabled={!editable} />
+          <input className="oel-findbar__input" aria-label={tr('Remplacer par', 'Replace with')} placeholder={tr('Remplacer par', 'Replace with')} value={replacement} onChange={(e) => setReplacement(e.target.value)} disabled={!editable} />
           <Button size="sm" variant="secondary" isDisabled={!editable || !info.count} onPress={() => (editor.commands.replaceCurrent(replacement), editor.commands.findNext())}>
-            Remplacer
+            {tr('Remplacer', 'Replace')}
           </Button>
           <Button size="sm" variant="secondary" isDisabled={!editable || !info.count} onPress={() => editor.commands.replaceAll(replacement)}>
-            Tout remplacer
+            {tr('Tout remplacer', 'Replace all')}
           </Button>
         </div>
       )}
       <div className="oel-findbar__opts">
-        <Checkbox isSelected={opts.caseSensitive} onChange={(v) => setOpts({ ...opts, caseSensitive: v })}>Respecter la casse</Checkbox>
-        <Checkbox isSelected={opts.wholeWord} onChange={(v) => setOpts({ ...opts, wholeWord: v })}>Mots entiers</Checkbox>
-        <Checkbox isSelected={opts.regex} onChange={(v) => setOpts({ ...opts, regex: v })}>Expression régulière</Checkbox>
+        <Checkbox isSelected={opts.caseSensitive} onChange={(v) => setOpts({ ...opts, caseSensitive: v })}>{tr('Respecter la casse', 'Match case')}</Checkbox>
+        <Checkbox isSelected={opts.wholeWord} onChange={(v) => setOpts({ ...opts, wholeWord: v })}>{tr('Mots entiers', 'Whole words')}</Checkbox>
+        <Checkbox isSelected={opts.regex} onChange={(v) => setOpts({ ...opts, regex: v })}>{tr('Expression régulière', 'Regular expression')}</Checkbox>
       </div>
     </div>
   );

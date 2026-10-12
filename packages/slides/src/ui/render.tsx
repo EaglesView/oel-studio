@@ -26,6 +26,7 @@ import {
 } from '../model/text';
 import type { DeckInfo, SlideData } from '../model/ydoc';
 import { pt, type Element, type Layout, type Line, type LineEnd, type Paint, type TextBody } from '../model/types';
+import { tr } from '@oel/i18n';
 
 export interface RenderCtx extends TextCtx {
   /** Display URL of a media part (`null` while unknown). */
@@ -45,15 +46,15 @@ const Ctx = createContext<RenderCtx | null>(null);
 const GroupFill = createContext<Paint | undefined>(undefined);
 
 export const PROMPTS: Record<string, string> = {
-  title: 'Cliquez pour ajouter un titre',
-  ctrTitle: 'Cliquez pour ajouter un titre',
-  subTitle: 'Cliquez pour ajouter un sous-titre',
-  body: 'Cliquez pour ajouter du texte',
-  obj: 'Cliquez pour ajouter du texte',
-  pic: 'Cliquez pour ajouter une image',
-  tbl: 'Tableau',
-  chart: 'Graphique',
-  media: 'Média',
+  title: tr('Cliquez pour ajouter un titre', 'Click to add a title'),
+  ctrTitle: tr('Cliquez pour ajouter un titre', 'Click to add a title'),
+  subTitle: tr('Cliquez pour ajouter un sous-titre', 'Click to add a subtitle'),
+  body: tr('Cliquez pour ajouter du texte', 'Click to add text'),
+  obj: tr('Cliquez pour ajouter du texte', 'Click to add text'),
+  pic: tr('Cliquez pour ajouter une image', 'Click to add an image'),
+  tbl: tr('Tableau', 'Table'),
+  chart: tr('Graphique', 'Chart'),
+  media: tr('Média', 'Media'),
   clipArt: 'Image',
 };
 
@@ -392,8 +393,8 @@ export const ElementView = memo(function ElementView({ el, offset }: { el: Eleme
         )}
         {el.kind === 'graphic' && !el.image?.media && !el.chart && (
           <div className="oel-el__graphic">
-            <span>{el.label ?? 'Objet'}</span>
-            <small>Conservé tel quel</small>
+            <span>{el.label ?? tr('Objet', 'Object')}</span>
+            <small>{tr('Conservé tel quel', 'Kept as is')}</small>
           </div>
         )}
         {showText && (!isEmptyBody(el.text) || prompt) && (
@@ -431,7 +432,7 @@ function LinkBadge({ links, objectId }: { links: LinksDoc; objectId: string }) {
       type="button"
       className="oel-link-badge"
       data-state={link.mode === 'frozen' ? 'frozen' : state}
-      aria-label={`Copie liée de ${link.source.title} › ${link.source.label}, ${label}. Gérer le lien`}
+      aria-label={tr(`Copie liée de ${link.source.title} › ${link.source.label}, ${label}. Gérer le lien`, `Linked copy of ${link.source.title} › ${link.source.label}, ${label}. Manage the link`)}
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       onClick={(e) => {
@@ -440,7 +441,7 @@ function LinkBadge({ links, objectId }: { links: LinksDoc; objectId: string }) {
         host.manage(link.id, { x: r.x, y: r.y, width: r.width, height: r.height });
       }}
     >
-      <Icon name="link" size={12} aria-hidden /> Lié · {link.source.title} · {label}
+      <Icon name="link" size={12} aria-hidden /> {tr('Lié', 'Linked')} · {link.source.title} · {label}
     </button>
   );
 }

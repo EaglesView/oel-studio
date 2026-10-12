@@ -25,6 +25,7 @@
     "yjs": "^13.6.33",
     "@oel/fonts": "*",
     "@oel/charts": "*",
+    "@oel/i18n": "*",
     "@oel/links": "*",
     "@oel/img": "*"
   },

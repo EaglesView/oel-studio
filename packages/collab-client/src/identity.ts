@@ -1,3 +1,4 @@
+import { tr } from '@oel/i18n';
 /** Anonymous identity: a display name and colour kept in this browser. */
 
 export interface Identity {
@@ -29,7 +30,7 @@ export function saveIdentity(id: Identity) {
 
 export function defaultIdentity(): Identity {
   const color = COLORS[Math.floor(Math.random() * COLORS.length)]!;
-  return { name: `Anonyme ${Math.floor(100 + Math.random() * 900)}`, color };
+  return { name: tr(`Anonyme ${Math.floor(100 + Math.random() * 900)}`, `Anonymous ${Math.floor(100 + Math.random() * 900)}`), color };
 }
 
 export const IDENTITY_COLORS = COLORS;

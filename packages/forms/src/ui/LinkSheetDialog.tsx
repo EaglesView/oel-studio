@@ -3,6 +3,7 @@ import { Button, DialogOverlay, Radio, RadioGroup, Select, SelectItem, SheetDial
 import { questionsOf } from '../model/create';
 import { colLetter, proposeColumns, RECEIVED_HEADER, FILES_HEADER } from '../model/sheet';
 import type { FormDef } from '../model/types';
+import { tr } from '@oel/i18n';
 
 /** A spreadsheet the host can offer (desk papers in the Bureau). */
 export interface SheetRef {
@@ -46,7 +47,7 @@ export function LinkSheetDialog({
   const header = mode === 'existing' ? (sheet?.rows[0] ?? []) : [];
   const proposal = useMemo(() => proposeColumns(form, header), [form, header]);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
-  const newTitle = `${form.title || 'Formulaire'} — réponses`;
+  const newTitle = tr(`${form.title || 'Formulaire'} — réponses`, `${form.title || 'Form'} — responses`);
 
   const mapped = proposal.columns.map((c) => ({ ...c, column: overrides[c.questionId] ?? c.column }));
   const reserved = [proposal.receivedColumn, ...(proposal.filesColumn != null ? [proposal.filesColumn] : [])];
@@ -64,12 +65,12 @@ export function LinkSheetDialog({
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
       <SheetDialog
-        title="Où vont les réponses ?"
+        title={tr('Où vont les réponses ?', 'Where do the responses go?')}
         width={560}
         actions={(close) => (
           <>
             <Button variant="ghost" onPress={close}>
-              Plus tard
+              {tr('Plus tard', 'Later')}
             </Button>
             <Button
               variant="primary"
@@ -83,22 +84,23 @@ export function LinkSheetDialog({
                 close();
               }}
             >
-              Lier
+              {tr('Lier', 'Link')}
             </Button>
           </>
         )}
       >
         <div className="forms-dialog">
           {reason && <p className="forms-dialog__reason">{reason}</p>}
-          <p>Chaque réponse devient une ligne ; chaque question, une colonne. Le lien apparaît comme un fil sur le bureau.</p>
-          <RadioGroup aria-label="Destination des réponses" value={mode} onChange={(v) => setMode(v as 'new' | 'existing')}>
-            <Radio value="new">Nouveau tableur « {newTitle} »</Radio>
+          <p>{tr('Chaque réponse devient une ligne ; chaque question, une colonne. Le lien apparaît comme un fil sur le bureau.', 'Each response becomes a row; each question, a column. The link shows as a thread on the desk.')}</p>
+          <RadioGroup aria-label={tr('Destination des réponses', 'Where responses go')} value={mode} onChange={(v) => setMode(v as 'new' | 'existing')}>
+            <Radio value="new">{tr(`Nouveau tableur « ${newTitle} »`, `New spreadsheet “${newTitle}”`)}</Radio>
             <Radio value="existing" isDisabled={!sheets.length}>
-              Une feuille d’un tableur existant{!sheets.length ? ' (aucun tableur sur le bureau)' : ''}
+              {tr('Une feuille d’un tableur existant', 'A sheet of an existing spreadsheet')}
+              {!sheets.length ? tr(' (aucun tableur sur le bureau)', ' (no spreadsheet on the desk)') : ''}
             </Radio>
           </RadioGroup>
           {mode === 'existing' && sheets.length > 0 && (
-            <Select label="Tableur et feuille" selectedKey={sheetId} onSelectionChange={(k) => setSheetId(String(k))}>
+            <Select label={tr('Tableur et feuille', 'Spreadsheet and sheet')} selectedKey={sheetId} onSelectionChange={(k) => setSheetId(String(k))}>
               {sheets.map((s) => (
                 <SelectItem key={s.id} id={s.id} icon="table">
                   {`${s.title} › ${s.tab}`}
@@ -107,27 +109,27 @@ export function LinkSheetDialog({
             </Select>
           )}
           <table className="forms-map">
-            <caption className="emb-visually-hidden">Correspondance question → colonne</caption>
+            <caption className="emb-visually-hidden">{tr('Correspondance question → colonne', 'Question → column mapping')}</caption>
             <thead>
               <tr>
-                <th scope="col">Question</th>
-                <th scope="col">Colonne</th>
+                <th scope="col">{tr('Question', 'Question')}</th>
+                <th scope="col">{tr('Colonne', 'Column')}</th>
               </tr>
             </thead>
             <tbody>
               {mapped.map((c) => (
                 <tr key={c.questionId}>
-                  <th scope="row">{qs.get(c.questionId)?.title || 'Question sans titre'}</th>
+                  <th scope="row">{qs.get(c.questionId)?.title || tr('Question sans titre', 'Untitled question')}</th>
                   <td>
                     <Select
-                      aria-label={`Colonne pour « ${qs.get(c.questionId)?.title} »`}
+                      aria-label={tr(`Colonne pour « ${qs.get(c.questionId)?.title} »`, `Column for “${qs.get(c.questionId)?.title}”`)}
                       selectedKey={String(c.column)}
                       onSelectionChange={(k) => setOverrides((o) => ({ ...o, [c.questionId]: Number(k) }))}
                       isInvalid={clash === c.column}
                     >
                       {Array.from({ length: width }, (_, i) => (
                         <SelectItem key={i} id={String(i)}>
-                          {`${colLetter(i)} · ${header[i] || (i === c.column ? c.header : 'nouvelle colonne')}`}
+                          {tr(`${colLetter(i)} · ${header[i] || (i === c.column ? c.header : 'nouvelle colonne')}`, `${colLetter(i)} · ${header[i] || (i === c.column ? c.header : 'new column')}`)}
                         </SelectItem>
                       ))}
                     </Select>
@@ -142,7 +144,7 @@ export function LinkSheetDialog({
               </tr>
               {proposal.filesColumn != null && (
                 <tr className="is-auto">
-                  <th scope="row">(fichiers joints)</th>
+                  <th scope="row">{tr('(fichiers joints)', '(attached files)')}</th>
                   <td>
                     {colLetter(proposal.filesColumn)} · {FILES_HEADER}
                   </td>
@@ -152,7 +154,7 @@ export function LinkSheetDialog({
           </table>
           {clash != null && (
             <p className="emb-field__error" role="alert">
-              Deux éléments ne peuvent pas partager la colonne {colLetter(clash)}. Choisissez une autre colonne.
+              {tr(`Deux éléments ne peuvent pas partager la colonne ${colLetter(clash)}. Choisissez une autre colonne.`, `Two items can’t share column ${colLetter(clash)}. Choose another column.`)}
             </p>
           )}
         </div>

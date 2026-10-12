@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, DialogOverlay, Select, SelectItem, SheetDialog } from '@oel/emboss';
 import { OPEN_FONTS, chooseFont, fontChoices, type FontReport, type FontSpec } from '@oel/fonts';
+import { tr } from '@oel/i18n';
 
 const AUTO = '__auto';
 
@@ -40,9 +41,9 @@ export function FontsDialog({ fonts, report, isOpen, onClose, onChange }: FontsD
 
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Polices manquantes" width={560} actions={(close) => <Button onPress={close}>Fermer</Button>}>
+      <SheetDialog title={tr('Polices manquantes', 'Missing fonts')} width={560} actions={(close) => <Button onPress={close}>{tr('Fermer', 'Close')}</Button>}>
         <p className="oel-fonts__intro">
-          Ces polices ne sont ni intégrées au fichier ni installées sur cet appareil. Choisissez avec quelle police les afficher : seul l’affichage change, le fichier garde ses polices à l’export.
+          {tr('Ces polices ne sont ni intégrées au fichier ni installées sur cet appareil. Choisissez avec quelle police les afficher : seul l’affichage change, le fichier garde ses polices à l’export.', 'These fonts are neither embedded in the file nor installed on this device. Choose which font shows them: only the display changes, the file keeps its fonts on export.')}
         </p>
         <ul className="oel-fonts">
           {names.map((name) => {
@@ -53,13 +54,13 @@ export function FontsDialog({ fonts, report, isOpen, onClose, onChange }: FontsD
                   <strong>{name}</strong>
                   {/* Drawn with whatever stands in for the font now. */}
                   <span className="oel-fonts__sample" style={{ fontFamily: [name, auto].filter(Boolean).map((n) => `"${n!.replace(/"/g, '')}"`).concat('sans-serif').join(', ') }} aria-hidden>
-                    Portez ce vieux whisky au juge blond 123
+                    {tr('Portez ce vieux whisky au juge blond 123', 'The quick brown fox jumps over the lazy dog 123')}
                   </span>
                 </div>
-                <Select aria-label={`Afficher ${name} avec`} className="oel-fonts__pick" selectedKey={choices[name] ?? AUTO} onSelectionChange={(k) => void pick(name, String(k))}>
+                <Select aria-label={tr(`Afficher ${name} avec`, `Show ${name} with`)} className="oel-fonts__pick" selectedKey={choices[name] ?? AUTO} onSelectionChange={(k) => void pick(name, String(k))}>
                   {[
                     <SelectItem key={AUTO} id={AUTO}>
-                      {auto ? `Automatique (${auto})` : 'Automatique (police par défaut)'}
+                      {auto ? tr(`Automatique (${auto})`, `Automatic (${auto})`) : tr('Automatique (police par défaut)', 'Automatic (default font)')}
                     </SelectItem>,
                     ...OPEN_FONTS.map((f) => (
                       <SelectItem key={f} id={f}>

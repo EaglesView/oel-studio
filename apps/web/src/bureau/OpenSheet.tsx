@@ -11,6 +11,40 @@ import { PdfWorkspace } from './workspaces/PdfWorkspace';
 import { ImageWorkspace } from './workspaces/ImageWorkspace';
 import { FormWorkspace } from './workspaces/FormWorkspace';
 import { features } from '../edition';
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    edited: (title: string) => `Modification de « ${title} »`,
+    breadcrumb: 'Fil d’Ariane',
+    bureau: 'Bureau',
+    readonly: 'Lecture seule',
+    repose: 'Reposer',
+    reduce: 'Réduire',
+    expand: 'Agrandir',
+    formsLater: 'Les formulaires arrivent avec la version en équipe : celui-ci reste sur le bureau, tel quel.',
+    previewOnly: 'Aperçu seulement : ce format n’est pas encore pris en charge.',
+    hintReduce: 'réduire',
+    hintInPlace: 'ouvert sur place',
+    hintRepose: 'ou clic dehors : reposer sur le bureau',
+    hintFull: 'plein écran',
+  },
+  {
+    edited: (title) => `Edit of “${title}”`,
+    breadcrumb: 'Breadcrumb',
+    bureau: 'Bureau',
+    readonly: 'Read-only',
+    repose: 'Put back',
+    reduce: 'Reduce',
+    expand: 'Expand',
+    formsLater: 'Forms come with the team edition: this one stays on the desk as it is.',
+    previewOnly: 'Preview only: this format is not supported yet.',
+    hintReduce: 'reduce',
+    hintInPlace: 'open in place',
+    hintRepose: 'or click outside: put back on the desk',
+    hintFull: 'full screen',
+  },
+);
 
 /** 2 = ouvert sur place (floating sheet), 3 = plein écran (Editor — Behaviors · A1). */
 export type OpenLevel = 2 | 3;
@@ -117,7 +151,7 @@ export function OpenSheet({
             data: { ...cur.data, preview, editor: 'JB', updatedAt: Date.now() },
             ...(size && (size.w !== cur.w || size.h !== cur.h) ? { w: size.w, h: size.h } : {}),
           },
-          { label: `Modification de « ${paper.title} »` },
+          { label: t.edited(paper.title) },
         );
         queueThumbnail(store, paper.id);
       },
@@ -174,11 +208,11 @@ export function OpenSheet({
                 {paper.title}
               </Heading>
             ) : (
-              <nav className="open-sheet__crumbs chrome-pill" aria-label="Fil d’Ariane">
+              <nav className="open-sheet__crumbs chrome-pill" aria-label={t.breadcrumb}>
                 <ol>
                   <li>
                     <Button variant="ghost" size="sm" leadingIcon="chevron-left" onPress={onBureau}>
-                      Bureau
+                      {t.bureau}
                     </Button>
                   </li>
                   <li aria-current="page">
@@ -188,7 +222,7 @@ export function OpenSheet({
                     <Badge tone="accent">{kindLabel(paper.kind)}</Badge>
                     {paper.data.status.state === 'readonly' && (
                       <Badge appearance="stamp" tone="neutral" dot={false}>
-                        Lecture seule
+                        {t.readonly}
                       </Badge>
                     )}
                   </li>
@@ -196,11 +230,11 @@ export function OpenSheet({
                 <div className="open-sheet__actions">
                   {!full && (
                     <Button variant="ghost" size="sm" leadingIcon="download" onPress={onRepose} aria-keyshortcuts="Escape">
-                      Reposer
+                      {t.repose}
                     </Button>
                   )}
                   <Button variant="ghost" size="sm" leadingIcon={full ? 'collapse' : 'expand'} aria-keyshortcuts="Control+Shift+Enter" onPress={full ? onReduce : onExpand}>
-                    {full ? 'Réduire' : 'Agrandir'}
+                    {full ? t.reduce : t.expand}
                   </Button>
                 </div>
               </nav>
@@ -216,13 +250,13 @@ export function OpenSheet({
               {paper.kind === 'form' && !features.forms && (
                 <div className="workspace-empty">
                   <Icon name="form" size={40} />
-                  <p>Les formulaires arrivent avec la version en équipe : celui-ci reste sur le bureau, tel quel.</p>
+                  <p>{t.formsLater}</p>
                 </div>
               )}
               {paper.kind === 'file' && (
                 <div className="workspace-empty">
                   <Icon name="file" size={40} />
-                  <p>Aperçu seulement : ce format n’est pas encore pris en charge.</p>
+                  <p>{t.previewOnly}</p>
                 </div>
               )}
             </div>
@@ -231,11 +265,11 @@ export function OpenSheet({
               <p className="open-sheet__hint chrome-pill" aria-hidden>
                 {full ? (
                   <>
-                    <Kbd>Échap</Kbd> réduire · <Kbd>Ctrl</Kbd>+<Kbd>Maj</Kbd>+<Kbd>Entrée</Kbd> ouvert sur place
+                    <Kbd>Échap</Kbd> {t.hintReduce} · <Kbd>Ctrl</Kbd>+<Kbd>Maj</Kbd>+<Kbd>Entrée</Kbd> {t.hintInPlace}
                   </>
                 ) : (
                   <>
-                    <Kbd>Échap</Kbd> ou clic dehors : reposer sur le bureau · <Kbd>Ctrl</Kbd>+<Kbd>Maj</Kbd>+<Kbd>Entrée</Kbd> plein écran
+                    <Kbd>Échap</Kbd> {t.hintRepose} · <Kbd>Ctrl</Kbd>+<Kbd>Maj</Kbd>+<Kbd>Entrée</Kbd> {t.hintFull}
                   </>
                 )}
               </p>

@@ -2,7 +2,7 @@
  * Series data: read through the host's resolver (live cells of a sheet) when
  * it knows the reference, otherwise from the values cached in the file.
  */
-import { applyType, chartFamily } from './catalog';
+import { applyType, chartFamily, CHART_FALLBACK_NAME, seriesName } from './catalog';
 import { formatValue, isDateFormat } from './format';
 import type { ChartSpec, DataRef, RefValues, ResolvedChart, Resolver, SeriesData } from './types';
 
@@ -53,7 +53,7 @@ export function resolveChart(spec: ChartSpec, resolve?: Resolver): ResolvedChart
       if (cats.length < n) for (let i = cats.length; i < n; i++) cats.push(String(i + 1));
       if (xy && !xs) xs = values.map((_, i) => i + 1);
       const levels = s.cat?.levels?.length ? s.cat.levels.map((l) => l.map((x) => x ?? '')) : undefined;
-      const name = readText(s.nameRef, s.name, resolve) ?? `Série${s.idx + 1}`;
+      const name = readText(s.nameRef, s.name, resolve) ?? seriesName(s.idx + 1);
       series.push({ group, series: s, index: index++, name, cats, catLevels: levels, xs, values, sizes: size?.num, format: vals?.format ?? s.val?.format ?? undefined });
     }
   }
@@ -105,7 +105,7 @@ export function chartName(spec: ChartSpec): string {
   const t = spec.title?.text?.trim();
   if (t) return t;
   const series = spec.groups.flatMap((g) => g.series);
-  return (series.length === 1 && series[0]!.name?.trim()) || 'Graphique';
+  return (series.length === 1 && series[0]!.name?.trim()) || CHART_FALLBACK_NAME;
 }
 
 /**

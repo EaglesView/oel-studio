@@ -19,6 +19,7 @@
     "@oel/emboss": "*",
     "@oel/engine": "*",
     "@oel/forms": "*",
+    "@oel/i18n": "*",
     "@oel/img": "*",
     "@oel/links": "*",
     "@oel/sheets": "*",

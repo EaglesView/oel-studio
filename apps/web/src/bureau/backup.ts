@@ -11,6 +11,26 @@
  */
 import type { DocKind } from '@oel/collab-client';
 import { readZipBytes, readZipDirectory, writeZip } from '@oel/engine';
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    notZip: 'Ce fichier n’est pas une archive .zip.',
+    missing: (name: string) => `Sauvegarde incomplète : « ${name} » manque.`,
+    noManifest: 'Ce .zip n’est pas une sauvegarde de bureau (bureau.json manque).',
+    badManifest: 'bureau.json est illisible.',
+    notBackup: 'Ce .zip n’est pas une sauvegarde de bureau.',
+    newer: 'Cette sauvegarde vient d’une version plus récente du Bureau.',
+  },
+  {
+    notZip: 'This file is not a .zip archive.',
+    missing: (name) => `Incomplete backup: “${name}” is missing.`,
+    noManifest: 'This .zip is not a desk backup (bureau.json is missing).',
+    badManifest: 'bureau.json can’t be read.',
+    notBackup: 'This .zip is not a desk backup.',
+    newer: 'This backup comes from a newer version of the Bureau.',
+  },
+);
 
 export const BACKUP_FORMAT = 'oel-bureau';
 export const BACKUP_VERSION = 1;
@@ -50,28 +70,28 @@ export function packBackup(parts: BackupParts, now = new Date()): Uint8Array {
   ]);
 }
 
-/** Read and check a backup; throws a French message when it isn't one. */
+/** Read and check a backup; throws a message for the person when it isn't one. */
 export async function readBackup(bytes: Uint8Array): Promise<BackupParts> {
   let dir: ReturnType<typeof readZipDirectory>;
   try {
     dir = readZipDirectory(bytes);
   } catch {
-    throw new Error('Ce fichier n’est pas une archive .zip.');
+    throw new Error(t.notZip);
   }
   const read = async (name: string) => {
     const e = dir.get(name);
-    if (!e) throw new Error(`Sauvegarde incomplète : « ${name} » manque.`);
+    if (!e) throw new Error(t.missing(name));
     return readZipBytes(bytes, e);
   };
-  if (!dir.has('bureau.json')) throw new Error('Ce .zip n’est pas une sauvegarde de bureau (bureau.json manque).');
+  if (!dir.has('bureau.json')) throw new Error(t.noManifest);
   let manifest: Manifest;
   try {
     manifest = JSON.parse(new TextDecoder().decode(await read('bureau.json'))) as Manifest;
   } catch {
-    throw new Error('bureau.json est illisible.');
+    throw new Error(t.badManifest);
   }
-  if (manifest.format !== BACKUP_FORMAT) throw new Error('Ce .zip n’est pas une sauvegarde de bureau.');
-  if (manifest.version > BACKUP_VERSION) throw new Error('Cette sauvegarde vient d’une version plus récente du Bureau.');
+  if (manifest.format !== BACKUP_FORMAT) throw new Error(t.notBackup);
+  if (manifest.version > BACKUP_VERSION) throw new Error(t.newer);
   return {
     title: manifest.title,
     desk: await read(manifest.desk),

@@ -16,6 +16,7 @@
   "dependencies": {
     "@oel/emboss": "*",
     "@oel/engine": "*",
+    "@oel/i18n": "*",
     "react-aria-components": "^1.21.1"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import { tr } from '@oel/i18n';
 /**
  * A form (Figma Editor — Behaviors · E). Everything here is plain JSON: it is
  * stored on the desk paper, sent to the backend on publish, and rendered by
@@ -196,22 +197,22 @@ export interface FormResponse {
 }
 
 export const QUESTION_TYPES: Array<{ type: QuestionType; label: string; icon: string }> = [
-  { type: 'short', label: 'Texte court', icon: 'input' },
-  { type: 'paragraph', label: 'Paragraphe', icon: 'align-left' },
-  { type: 'email', label: 'Courriel', icon: 'mail' },
-  { type: 'number', label: 'Nombre', icon: 'word-count' },
-  { type: 'single', label: 'Choix unique', icon: 'radio' },
-  { type: 'multiple', label: 'Cases à cocher', icon: 'checklist' },
-  { type: 'dropdown', label: 'Liste déroulante', icon: 'chevron-down' },
+  { type: 'short', label: tr('Texte court', 'Short text'), icon: 'input' },
+  { type: 'paragraph', label: tr('Paragraphe', 'Paragraph'), icon: 'align-left' },
+  { type: 'email', label: tr('Courriel', 'Email'), icon: 'mail' },
+  { type: 'number', label: tr('Nombre', 'Number'), icon: 'word-count' },
+  { type: 'single', label: tr('Choix unique', 'Single choice'), icon: 'radio' },
+  { type: 'multiple', label: tr('Cases à cocher', 'Checkboxes'), icon: 'checklist' },
+  { type: 'dropdown', label: tr('Liste déroulante', 'Dropdown'), icon: 'chevron-down' },
   { type: 'date', label: 'Date', icon: 'calendar' },
-  { type: 'file', label: 'Fichier', icon: 'attachment' },
+  { type: 'file', label: tr('Fichier', 'File'), icon: 'attachment' },
 ];
 
 export const FILE_FAMILIES: Array<{ id: FileFamily; label: string; short: string; mimes: string[]; extensions: string[] }> = [
   { id: 'pdf', label: 'PDF', short: 'PDF', mimes: ['application/pdf'], extensions: ['pdf'] },
   {
     id: 'image',
-    label: 'Images (JPG, PNG, HEIC)',
+    label: tr('Images (JPG, PNG, HEIC)', 'Images (JPG, PNG, HEIC)'),
     short: 'images',
     mimes: ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp', 'image/gif'],
     extensions: ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp', 'gif'],
@@ -225,8 +226,8 @@ export const FILE_FAMILIES: Array<{ id: FileFamily; label: string; short: string
   },
   {
     id: 'spreadsheet',
-    label: 'Tableurs (Excel, ODS, CSV)',
-    short: 'tableurs',
+    label: tr('Tableurs (Excel, ODS, CSV)', 'Spreadsheets (Excel, ODS, CSV)'),
+    short: tr('tableurs', 'spreadsheets'),
     mimes: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'application/vnd.oasis.opendocument.spreadsheet', 'text/csv'],
     extensions: ['xlsx', 'xls', 'ods', 'csv'],
   },

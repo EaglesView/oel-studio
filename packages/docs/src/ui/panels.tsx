@@ -6,6 +6,7 @@ import { VersionPanel as SharedVersionPanel } from '@oel/collab-client';
 import type * as Y from 'yjs';
 import { fragmentJSON, BODY } from '../model/ydoc';
 import { toHTML } from './actions';
+import { tr } from '@oel/i18n';
 
 // ---------------------------------------------------------------------------
 // Outline (Docs "Plan du document")
@@ -28,10 +29,10 @@ export function OutlinePanel({ editor, onClose }: { editor: Editor; onClose: () 
     equalityFn: (a, b) => JSON.stringify(a) === JSON.stringify(b),
   });
   return (
-    <aside className="oel-panel oel-panel--outline" aria-label="Plan du document">
+    <aside className="oel-panel oel-panel--outline" aria-label={tr('Plan du document', 'Document outline')}>
       <header className="oel-panel__head">
-        <h2>Plan</h2>
-        <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label="Fermer le plan" onPress={onClose} />
+        <h2>{tr('Plan', 'Outline')}</h2>
+        <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label={tr('Fermer le plan', 'Close the outline')} onPress={onClose} />
       </header>
       {headings.length ? (
         <nav>
@@ -46,7 +47,7 @@ export function OutlinePanel({ editor, onClose }: { editor: Editor; onClose: () 
           </ul>
         </nav>
       ) : (
-        <p className="oel-panel__empty">Les titres ajoutés au document apparaîtront ici.</p>
+        <p className="oel-panel__empty">{tr('Les titres ajoutés au document apparaîtront ici.', 'Headings added to the document will show here.')}</p>
       )}
     </aside>
   );

@@ -17,6 +17,7 @@ import { TextEditor } from './TextEditor';
 import type { SlidesController } from './controller';
 import { emu, pt, type Element, type TextBody } from '../model/types';
 import type { SlideData } from '../model/ydoc';
+import { messages, tr } from '@oel/i18n';
 
 type Box = { x: number; y: number; cx: number; cy: number; rot: number };
 type Drag =
@@ -270,10 +271,10 @@ export function Canvas({ ctl, ctx, zoom, onContext, label, canRetouch }: { ctl: 
       void ctl.pasteLinkedPicture().then((made) => {
         if (!made) return ctl.paste();
         toast({
-          title: `Image liée à « ${made.source} »`,
-          description: 'Elle suivra l’image d’origine. Vous pouvez la garder comme simple copie.',
+          title: tr(`Image liée à « ${made.source} »`, `Image linked to “${made.source}”`),
+          description: tr('Elle suivra l’image d’origine. Vous pouvez la garder comme simple copie.', 'It will follow the original image. You can keep it as a plain copy.'),
           tone: 'success',
-          action: { label: 'Incorporer (sans lien)', onAction: () => linksOf(ctl.session.ydoc).remove(made.linkId, 'person') },
+          action: { label: tr('Incorporer (sans lien)', 'Embed (no link)'), onAction: () => linksOf(ctl.session.ydoc).remove(made.linkId, 'person') },
         });
       });
     };
@@ -286,7 +287,7 @@ export function Canvas({ ctl, ctx, zoom, onContext, label, canRetouch }: { ctl: 
     if (!ctl.editing && document.activeElement === document.body) stage.current?.focus({ preventScroll: true });
   });
 
-  if (!slide || !shown) return <div className="oel-canvas oel-canvas--empty">Aucune diapositive.</div>;
+  if (!slide || !shown) return <div className="oel-canvas oel-canvas--empty">{tr('Aucune diapositive.', 'No slides.')}</div>;
 
   const selected = ctl.selection.map((id) => shown.elements.find((e) => e.id === id)).filter((e): e is Element => !!e);
   const single = selected.length === 1 ? selected[0] : undefined;
@@ -297,7 +298,7 @@ export function Canvas({ ctl, ctx, zoom, onContext, label, canRetouch }: { ctl: 
       className={`oel-canvas${dropping ? ' is-dropping' : ''}`}
       tabIndex={0}
       role="application"
-      aria-roledescription="diapositive modifiable"
+      aria-roledescription={tr('diapositive modifiable', 'editable slide')}
       aria-label={label}
       onKeyDown={onKey}
       onDragOver={(e) => {
@@ -411,40 +412,40 @@ function TableBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: numbe
     <LinkedCopyBar
       className="oel-slide-chartbar"
       style={{ left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' }}
-      label="Tableau lié"
+      label={tr('Tableau lié', 'Linked table')}
       link={{
         source: link.source.title,
         stateLabel: link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state],
         stale: state === 'stale',
         frozen: link.mode === 'frozen',
-        onSource: () => void (host.openSource(link.id) || toast({ title: 'Source introuvable', description: 'Le tableur n’est pas sur ce bureau.', tone: 'warning' })),
+        onSource: () => void (host.openSource(link.id) || toast({ title: tr('Source introuvable', 'Source not found'), description: tr('Le tableur n’est pas sur ce bureau.', 'The spreadsheet is not on this desk.'), tone: 'warning' })),
         onUpdate: () => host.update(link.id),
         onManage: (r) => host.manage(link.id, r),
       }}
     >
       <MenuTrigger>
-        <ToolButton icon="eye" label={`Affichage : ${OVERFLOW_LABEL[overflow].replace('…', '')}`} showLabel description="Quand le tableau dépasse son cadre" />
+        <ToolButton icon="eye" label={tr(`Affichage : ${OVERFLOW_LABEL[overflow].replace('…', '')}`, `Display: ${OVERFLOW_LABEL[overflow].replace('…', '')}`)} showLabel description={tr('Quand le tableau dépasse son cadre', 'When the table overflows its frame')} />
         <MenuPopover placement="bottom start">
           <Menu
-            aria-label="Affichage"
+            aria-label={tr('Affichage', 'Display')}
             onAction={(key) => {
               // « Choisir les lignes… » happens in the sheet: open it on the range.
               if (key === 'rows') return void host.openSource(link.id);
               host.setLinkOptions(link.id, { overflow: key as Overflow });
             }}
           >
-            <MenuItem id="truncate" textValue="Tronquer">{mark(overflow === 'truncate')}Tronquer (les lignes qui tiennent)</MenuItem>
-            <MenuItem id="all" textValue="Tout afficher">{mark(overflow === 'all')}Tout afficher (texte réduit)</MenuItem>
-            <MenuItem id="rows" textValue="Choisir les lignes">{'\u2003'}Choisir les lignes…</MenuItem>
+            <MenuItem id="truncate" textValue={tr('Tronquer', 'Truncate')}>{mark(overflow === 'truncate')}{tr('Tronquer (les lignes qui tiennent)', 'Truncate (the rows that fit)')}</MenuItem>
+            <MenuItem id="all" textValue={tr('Tout afficher', 'Show all')}>{mark(overflow === 'all')}{tr('Tout afficher (texte réduit)', 'Show all (smaller text)')}</MenuItem>
+            <MenuItem id="rows" textValue={tr('Choisir les lignes', 'Choose rows')}>{'\u2003'}{tr('Choisir les lignes…', 'Choose rows…')}</MenuItem>
           </Menu>
         </MenuPopover>
       </MenuTrigger>
       <MenuTrigger>
-        <ToolButton icon="palette" label="Mise en forme" description="Thème du tableur ou du diaporama" />
+        <ToolButton icon="palette" label={tr('Mise en forme', 'Formatting')} description={tr('Thème du tableur ou du diaporama', 'Spreadsheet or slideshow theme')} />
         <MenuPopover placement="bottom start">
-          <Menu aria-label="Mise en forme" onAction={(key) => host.setLinkOptions(link.id, { theme: key as LinkTheme })}>
-            <MenuItem id="source" textValue="Thème du tableur">{mark(theme === 'source')}Thème du tableur</MenuItem>
-            <MenuItem id="target" textValue="Thème du diaporama">{mark(theme === 'target')}Thème du diaporama</MenuItem>
+          <Menu aria-label={tr('Mise en forme', 'Formatting')} onAction={(key) => host.setLinkOptions(link.id, { theme: key as LinkTheme })}>
+            <MenuItem id="source" textValue={tr('Thème du tableur', 'Spreadsheet theme')}>{mark(theme === 'source')}{tr('Thème du tableur', 'Spreadsheet theme')}</MenuItem>
+            <MenuItem id="target" textValue={tr('Thème du diaporama', 'Slideshow theme')}>{mark(theme === 'target')}{tr('Thème du diaporama', 'Slideshow theme')}</MenuItem>
           </Menu>
         </MenuPopover>
       </MenuTrigger>
@@ -463,18 +464,18 @@ function PictureBar({ ctl, el, k, canRetouch }: { ctl: SlidesController; el: Ele
   const style: CSSProperties = { left: (b.x + b.cx / 2) * k, top: above ? b.y * k - 8 : (b.y + b.cy) * k + 8, transform: above ? 'translate(-50%, -100%)' : 'translateX(-50%)' };
   const img = el.image!;
   const noRetouch = !canRetouch
-    ? 'La retouche n’est pas disponible ici.'
+    ? tr('La retouche n’est pas disponible ici.', 'Retouching is not available here.')
     : img.svg || !RETOUCHABLE.test(img.mime)
-      ? 'Les images vectorielles ne se retouchent pas.'
+      ? tr('Les images vectorielles ne se retouchent pas.', 'Vector images can’t be retouched.')
       : el.locked
-        ? 'Cette image ne se modifie pas ici.'
+        ? tr('Cette image ne se modifie pas ici.', 'This image can’t be edited here.')
         : undefined;
   const tools = (
     <PictureTools
-      readOnly={ctl.readOnly ? 'Lecture seule' : undefined}
+      readOnly={ctl.readOnly ? tr('Lecture seule', 'Read-only') : undefined}
       noRetouch={noRetouch}
       onRetouch={(crop) => ctl.openRetouch(el.id, crop)}
-      onReplace={el.locked ? undefined : () => pickImageFile((f) => void ctl.replacePicture(el.id, f).catch(() => toast({ title: 'Image non remplacée', tone: 'danger' })))}
+      onReplace={el.locked ? undefined : () => pickImageFile((f) => void ctl.replacePicture(el.id, f).catch(() => toast({ title: tr('Image non remplacée', 'Image not replaced'), tone: 'danger' })))}
       alt={el.descr ?? ''}
       onAlt={(descr) => ctl.update(el.id, { descr })}
     />
@@ -490,13 +491,13 @@ function PictureBar({ ctl, el, k, canRetouch }: { ctl: SlidesController; el: Ele
     <LinkedCopyBar
       className="oel-slide-chartbar"
       style={style}
-      label="Image liée"
+      label={tr('Image liée', 'Linked image')}
       link={{
         source: link.source.title,
         stateLabel: link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state],
         stale: state === 'stale',
         frozen: link.mode === 'frozen',
-        onSource: () => void (host.openSource(link.id) || toast({ title: 'Source introuvable', description: 'L’image source n’est pas sur ce bureau.', tone: 'warning' })),
+        onSource: () => void (host.openSource(link.id) || toast({ title: tr('Source introuvable', 'Source not found'), description: tr('L’image source n’est pas sur ce bureau.', 'The source image is not on this desk.'), tone: 'warning' })),
         onUpdate: () => host.update(link.id),
         onManage: (r) => host.manage(link.id, r),
       }}
@@ -529,10 +530,10 @@ function ChartBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: numbe
     ctl.update(el.id, { chart: { ...fn(spec), part: spec.part } });
     if (link && link.mode !== 'frozen' && link.carries === 'chart') {
       host.setCarries(link.id, 'chart-data');
-      toast({ title: 'Style propre à cette copie', description: 'Les données suivent toujours la source ; le style choisi ici est gardé.', tone: 'info' });
+      toast({ title: tr('Style propre à cette copie', 'Style of this copy only'), description: tr('Les données suivent toujours la source ; le style choisi ici est gardé.', 'The data always follows the source; the style chosen here is kept.'), tone: 'info' });
     }
   };
-  const lock = ctl.readOnly ? 'Lecture seule' : spec.part ? 'Graphique du fichier PowerPoint : affiché et conservé, pas encore modifiable.' : undefined;
+  const lock = ctl.readOnly ? tr('Lecture seule', 'Read-only') : spec.part ? tr('Graphique du fichier PowerPoint : affiché et conservé, pas encore modifiable.', 'Chart from the PowerPoint file: shown and kept, not editable yet.') : undefined;
   return (
     <CopyChartBar
       className="oel-slide-chartbar"
@@ -546,7 +547,7 @@ function ChartBar({ ctl, el, k }: { ctl: SlidesController; el: Element; k: numbe
           stateLabel: link.mode === 'frozen' ? MODE_LABEL.frozen : STATE_LABEL[state],
           stale: state === 'stale',
           frozen: link.mode === 'frozen',
-          onSource: () => void (host.openSource(link.id) || toast({ title: 'Source introuvable', description: 'Le fichier source n’est pas sur ce bureau.', tone: 'warning' })),
+          onSource: () => void (host.openSource(link.id) || toast({ title: tr('Source introuvable', 'Source not found'), description: tr('Le fichier source n’est pas sur ce bureau.', 'The source file is not on this desk.'), tone: 'warning' })),
           onUpdate: () => host.update(link.id),
           onManage: (r) => host.manage(link.id, r),
         }
@@ -620,26 +621,26 @@ function ContextMenu({ ctl, at, onClose }: { ctl: SlidesController; at: { x: num
   const link = only ? linksOf(ctl.session.ydoc).byObject(only) : null;
   const items: Array<{ id: string; label: string; disabled?: boolean } | '-'> = at.onEl
     ? [
-        { id: 'cut', label: 'Couper', disabled: ro },
-        { id: 'copy', label: 'Copier' },
-        { id: 'paste', label: 'Coller', disabled: ro || !ctl.canPaste },
-        { id: 'duplicate', label: 'Dupliquer', disabled: ro },
-        { id: 'delete', label: 'Supprimer', disabled: ro },
+        { id: 'cut', label: tr('Couper', 'Cut'), disabled: ro },
+        { id: 'copy', label: tr('Copier', 'Copy') },
+        { id: 'paste', label: tr('Coller', 'Paste'), disabled: ro || !ctl.canPaste },
+        { id: 'duplicate', label: tr('Dupliquer', 'Duplicate'), disabled: ro },
+        { id: 'delete', label: tr('Supprimer', 'Delete'), disabled: ro },
         '-',
-        { id: 'front', label: 'Mettre au premier plan', disabled: ro },
-        { id: 'forward', label: 'Avancer', disabled: ro },
-        { id: 'backward', label: 'Reculer', disabled: ro },
-        { id: 'back', label: 'Mettre à l’arrière-plan', disabled: ro },
+        { id: 'front', label: tr('Mettre au premier plan', 'Bring to front'), disabled: ro },
+        { id: 'forward', label: tr('Avancer', 'Bring forward'), disabled: ro },
+        { id: 'backward', label: tr('Reculer', 'Send backward'), disabled: ro },
+        { id: 'back', label: tr('Mettre à l’arrière-plan', 'Send to back'), disabled: ro },
         ...(link
-          ? (['-', { id: 'link-manage', label: 'Gérer le lien…' }, { id: 'link-update', label: 'Mettre à jour', disabled: ro || link.mode === 'frozen' }, { id: 'link-cut', label: 'Délier', disabled: ro }] as const)
+          ? (['-', { id: 'link-manage', label: tr('Gérer le lien…', 'Manage the link…') }, { id: 'link-update', label: tr('Mettre à jour', 'Update'), disabled: ro || link.mode === 'frozen' }, { id: 'link-cut', label: tr('Délier', 'Unlink'), disabled: ro }] as const)
           : []),
       ]
     : [
-        { id: 'paste', label: 'Coller', disabled: ro || !ctl.canPaste },
-        { id: 'select-all', label: 'Tout sélectionner' },
+        { id: 'paste', label: tr('Coller', 'Paste'), disabled: ro || !ctl.canPaste },
+        { id: 'select-all', label: tr('Tout sélectionner', 'Select all') },
         '-',
-        { id: 'new-slide', label: 'Nouvelle diapositive', disabled: ro },
-        { id: 'text', label: 'Insérer une zone de texte', disabled: ro },
+        { id: 'new-slide', label: tr('Nouvelle diapositive', 'New slide'), disabled: ro },
+        { id: 'text', label: tr('Insérer une zone de texte', 'Insert a text box'), disabled: ro },
       ];
   const run = (id: string) => {
     const map: Record<string, () => void> = {

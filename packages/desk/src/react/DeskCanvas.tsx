@@ -30,6 +30,7 @@ import { MIN_NODE_SIZE } from '../core/store';
 import type { DeskStore } from '../core/store';
 import type { DeskNode, Lod, Rect, ResizeMode, Vec } from '../core/types';
 import { DeskContext, useDeskState } from './hooks';
+import { lang } from '@oel/i18n';
 
 export interface DeskMessages {
   roleDescription: string;
@@ -64,9 +65,14 @@ export interface DeskMessages {
   insideLabel: (title: string) => string;
   parented: (count: number, title: string) => string;
   unparented: (count: number) => string;
+  /** Undo step names of the pointer gestures. */
+  dragging: string;
+  resizing: string;
+  /** A thread chip's label. */
+  thread: (title: string, label: string) => string;
 }
 
-export const defaultMessages: DeskMessages = {
+const frMessages: DeskMessages = {
   roleDescription: 'bureau',
   nodeRoleDescription: 'fichier',
   instructions:
@@ -94,7 +100,46 @@ export const defaultMessages: DeskMessages = {
   insideLabel: (t) => `${t} · Échap pour sortir`,
   parented: (n, t) => (n === 1 ? `Rangé dans « ${t} »` : `${n} éléments rangés dans « ${t} »`),
   unparented: (n) => (n === 1 ? 'Sorti du dossier' : `${n} éléments sortis du dossier`),
+  dragging: 'Déplacement',
+  resizing: 'Redimensionnement',
+  thread: (title, label) => `Fil : ${title}. ${label}.`,
 };
+
+const enMessages: DeskMessages = {
+  roleDescription: 'desk',
+  nodeRoleDescription: 'file',
+  instructions:
+    'Arrows: move from file to file. Space: add to or remove from the selection. Enter: open. ' +
+    'Alt + arrows: move the selection. Alt + = and Alt + −: enlarge or shrink. Shift + arrows: scroll the desk. ' +
+    '+ and −: zoom, 0: zoom 100 %. Esc: deselect.',
+  empty: 'The desk is empty. Drop files or create one from the bottom bar.',
+  zoom: (p) => `Zoom ${p} %`,
+  maxZoomOut: 'Furthest zoom out',
+  selection: (n) => (n === 0 ? 'Nothing selected' : n === 1 ? '1 file selected' : `${n} files selected`),
+  moved: (n) => (n === 1 ? 'File moved' : `${n} files moved`),
+  undone: (l) => `Undone: ${l}`,
+  redone: (l) => `Redone: ${l}`,
+  nothingToUndo: 'Nothing to undo',
+  multiSelection: (n) => `${n} files`,
+  linkHint: 'Enter: open the thread. Delete: cut the link. Esc: back to the desk.',
+  pickStart: 'Choose a file. Tab: next file. Enter: choose. Esc: cancel.',
+  pickCandidate: (t) => t,
+  pickNone: 'No file to choose',
+  pickCancelled: 'Cancelled',
+  detached: (n) => (n === 1 ? 'Unstuck' : `${n} unstuck`),
+  resized: 'Size changed',
+  entered: (t) => `In “${t}”. Arrows: move from item to item. Esc: leave.`,
+  left: 'Left the folder',
+  insideLabel: (t) => `${t} · Esc to leave`,
+  parented: (n, t) => (n === 1 ? `Put in “${t}”` : `${n} items put in “${t}”`),
+  unparented: (n) => (n === 1 ? 'Taken out of the folder' : `${n} items taken out of the folder`),
+  dragging: 'Move',
+  resizing: 'Resize',
+  thread: (title, label) => `Thread: ${title}. ${label}.`,
+};
+
+/** The desk's words in the interface language (`@oel/i18n`); a host overrides any of them with `messages`. */
+export const defaultMessages: DeskMessages = lang() === 'en' ? enMessages : frMessages;
 
 /**
  * Pick mode (Figma K « Coller à… »): the person points at a node, or Tabs
@@ -393,7 +438,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       const id = handle.dataset.resizeFor!;
       const n = store.node(id);
       if (!n) return;
-      store.begin('Redimensionnement');
+      store.begin(m.resizing);
       gesture.current = { kind: 'resize', pointerId: e.pointerId, id, handle: handle.dataset.resizeHandle as ResizeHandle, start: p, rect: rectOf(n), mode: resizeMode(n) };
       e.currentTarget.setPointerCapture(e.pointerId);
       return;
@@ -439,7 +484,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       store.focus(id);
       const ids = store.getState().selection;
       if (!ids.includes(id)) return; // toggled off: no drag
-      store.begin('Déplacement');
+      store.begin(m.dragging);
       const all = new Set(ids);
       const stuck = ids.filter((x) => {
         const to = store.node(x)?.attach?.to;
@@ -859,7 +904,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
                     data-link-id={l.id}
                     data-active={activeLinkId === l.id || undefined}
                     style={{ left: mid.x, top: mid.y }}
-                    aria-label={`Fil : ${l.title ?? l.label}. ${l.label}.`}
+                    aria-label={m.thread(l.title ?? l.label, l.label)}
                     aria-describedby={chipHintId}
                     aria-expanded={activeLinkId === l.id}
                     onClick={(e) => {

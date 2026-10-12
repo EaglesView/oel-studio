@@ -6,13 +6,13 @@ import { docHref } from '../../i18n';
 <DocsLayout lang="en" id="index" description="Open the Bureau, drop your files, open a paper in place or full screen, and go back to the desk.">
   <p class="prose__lead">The Bureau lays every file of a project side by side, like paper on a table. The tools follow what you touch.</p>
   <Capture lang="en" id="desk" alt="The demo desk: a spreadsheet, a presentation, an image and a document, joined by threads." />
-  <p class="note">The Bureau itself is in French for now; this page gives the French names of buttons and menus in quotes.</p>
+  <p class="note">The Bureau speaks French or English: it asks on your first visit (or follows this site’s language when you open it from here), and you can change it in the menu, “Settings”.</p>
 
   <h2 id="open">Open the Bureau</h2>
-  <p>Go to <a href="/bureau">/bureau</a>. No account is needed. The first time, the desk holds a demo: a spreadsheet of race times, a welcome presentation, a logo and a document. Everything you do there stays in this browser.</p>
+  <p>Go to <a href="/bureau?lang=en">/bureau</a>. No account is needed. The first time, the desk holds a demo: a spreadsheet of race times, a welcome presentation, a logo and a document. Everything you do there stays in this browser.</p>
 
   <h2 id="drop">Drop files</h2>
-  <p>Drag files onto the desk, or use <kbd>Ctrl</kbd> <kbd>O</kbd> (“Importer” in the bottom bar). They land where you drop them, fanned out, and each shows how far along it is: reading, converting, ready.</p>
+  <p>Drag files onto the desk, or use <kbd>Ctrl</kbd> <kbd>O</kbd> (“Import” in the bottom bar). They land where you drop them, fanned out, and each shows how far along it is: reading, converting, ready.</p>
   <table>
     <thead><tr><th>Format</th><th>On the desk</th></tr></thead>
     <tbody>
@@ -38,5 +38,5 @@ import { docHref } from '../../i18n';
   <p>The round “+” at the right end of the bottom bar (<kbd>Alt</kbd> <kbd>N</kbd>) creates a document, a presentation or a spreadsheet in the middle of the view. <kbd>N</kbd> puts down a note.</p>
 
   <h2 id="keep">Keep your work</h2>
-  <p>The desk saves itself on this device. To keep a copy elsewhere, open the menu (the logo, bottom left), “Ouvrir et importer”, then “Exporter le bureau (.zip)”. Each file also downloads in its original format from its own menu. See <a href={docHref('en', 'formats')}>Formats and privacy</a>.</p>
+  <p>The desk saves itself on this device. To keep a copy elsewhere, open the menu (the logo, bottom left), “Open and import”, then “Export the desk (.zip)”. Each file also downloads in its original format from its own menu. See <a href={docHref('en', 'formats')}>Formats and privacy</a>.</p>
 </DocsLayout>

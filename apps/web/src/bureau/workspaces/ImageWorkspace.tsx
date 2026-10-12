@@ -5,8 +5,9 @@ import '@oel/img/styles.css';
 import type { WorkspaceProps } from '../OpenSheet';
 import type { Paper } from '../model';
 import { createImageWorker, exportGallery, galleryUndo, originalOf, recipeDocFor, saveFile } from '../images';
+import { tr } from '@oel/i18n';
 
-const MISSING = 'Cette image n’a pas encore de fichier (exemple du bureau) : déposez une image sur le bureau pour la retoucher.';
+const MISSING = tr('Cette image n’a pas encore de fichier (exemple du bureau) : déposez une image sur le bureau pour la retoucher.', 'This image has no file yet (desk example): drop an image on the desk to retouch it.');
 
 /** The original of `p`, loaded once per picture. */
 function useOriginal(p: Paper | undefined) {
@@ -80,7 +81,7 @@ function GalleryAtelier({ paper, onBureau, store, galleryId }: WorkspaceProps & 
   if (!currentPaper) {
     return (
       <div className="ws ws--atelier">
-        <p className="workspace-empty">Cette galerie est vide : glissez des images sur sa planche, sur le bureau.</p>
+        <p className="workspace-empty">{tr('Cette galerie est vide : glissez des images sur sa planche, sur le bureau.', 'This gallery is empty: drag images onto its board, on the desk.')}</p>
       </div>
     );
   }

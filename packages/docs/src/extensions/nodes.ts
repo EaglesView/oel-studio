@@ -12,6 +12,7 @@ import { MODE_LABEL, STATE_LABEL, linkHost, onLinkHost } from '@oel/links';
 import { paragraphCss } from '../model/format';
 import type { AnchorAttrs, ParagraphAttrs } from '../model/types';
 import { EMU_PER_PX } from '../model/types';
+import { tr } from '@oel/i18n';
 
 const raw = (def: unknown = null) => ({ default: def, rendered: false });
 const chartMeasure = typeof document !== 'undefined' ? canvasMeasure() : undefined;
@@ -338,8 +339,8 @@ function attachLinkBadge(dom: HTMLElement, oid: () => string | null) {
     if (!c) return;
     const word = c.frozen ? MODE_LABEL.frozen : STATE_LABEL[c.state];
     badge.dataset.state = c.frozen ? 'frozen' : c.state;
-    badge.textContent = `Lié · ${c.source} · ${word}`;
-    badge.setAttribute('aria-label', `Copie liée de ${c.source}, ${word}. Gérer le lien`);
+    badge.textContent = tr(`Lié · ${c.source} · ${word}`, `Linked · ${c.source} · ${word}`);
+    badge.setAttribute('aria-label', tr(`Copie liée de ${c.source}, ${word}. Gérer le lien`, `Linked copy of ${c.source}, ${word}. Manage the link`));
   };
   badge.addEventListener('mousedown', (e) => e.stopPropagation());
   badge.addEventListener('click', (e) => {
@@ -426,7 +427,7 @@ export const DocImage = Node.create<{ resolver: ImageResolver }>({
         if (a.cx && ratio) img.style.height = `${(a.cx / EMU_PER_PX) * ratio}px`;
         else if (a.cy) img.style.height = `${a.cy / EMU_PER_PX}px`;
         dom.classList.toggle('is-floating', !!a.floating);
-        dom.title = a.floating ? 'Image flottante (position conservée à l’export)' : '';
+        dom.title = a.floating ? tr('Image flottante (position conservée à l’export)', 'Floating image (position kept on export)') : '';
       };
       apply(node);
       // Corner handle: proportional resize, committed as one step on release.
@@ -485,7 +486,7 @@ const emuPx = (emu: number) => Math.round((emu / EMU_PER_PX) * 100) / 100;
 export function anchorWrapStyle(a: AnchorAttrs): { style: string; note: string | null } | null {
   if (a.wrap === 'none') return null;
   const flowRelative = ['column', 'margin', 'character'].includes(a.position.relH) && ['paragraph', 'line'].includes(a.position.relV);
-  if (!flowRelative) return { style: '', note: 'Habillage du texte non appliqué : l’objet est positionné par rapport à la page.' };
+  if (!flowRelative) return { style: '', note: tr('Habillage du texte non appliqué : l’objet est positionné par rapport à la page.', 'Text wrapping not applied: the object is positioned relative to the page.') };
   const d = a.dist;
   const h = emuPx(a.cy + d.t + d.b);
   const top = a.position.v != null ? Math.max(0, emuPx(a.position.v)) : 0;
@@ -536,7 +537,7 @@ export const DocAnchor = Node.create({
   renderHTML({ node }) {
     const a = node.attrs as AnchorAttrs;
     const wrap = a.position && a.dist && a.shape ? anchorWrapStyle(a) : null;
-    const label = a.alt || { picture: 'Image flottante', shape: 'Forme', textbox: 'Zone de texte', group: 'Groupe d’objets' }[a.kind];
+    const label = a.alt || { picture: tr('Image flottante', 'Floating image'), shape: tr('Forme', 'Shape'), textbox: tr('Zone de texte', 'Text box'), group: tr('Groupe d’objets', 'Group of objects') }[a.kind];
     return [
       'span',
       {
@@ -573,7 +574,7 @@ function ooxmlSpan(a: Record<string, any>): [string, Record<string, string | und
       'data-ooxml': a.xml,
       'data-hidden': a.hidden ? '' : undefined,
       'data-field': field ?? undefined,
-      title: a.hidden || !a.label ? undefined : `${a.label} (conservé tel quel)`,
+      title: a.hidden || !a.label ? undefined : tr(`${a.label} (conservé tel quel)`, `${a.label} (kept as is)`),
       contenteditable: 'false',
     },
     text,
@@ -604,7 +605,7 @@ export const OoxmlInline = Node.create({
         const paint = () => {
           const c = linkHost().copyOf(a.oid as string);
           span.dataset.state = !c ? 'plain' : c.frozen ? 'frozen' : c.state;
-          span.title = c ? `Lié à ${c.source} · ${c.frozen ? MODE_LABEL.frozen : STATE_LABEL[c.state]}` : '';
+          span.title = c ? tr(`Lié à ${c.source} · ${c.frozen ? MODE_LABEL.frozen : STATE_LABEL[c.state]}`, `Linked to ${c.source} · ${c.frozen ? MODE_LABEL.frozen : STATE_LABEL[c.state]}`) : '';
         };
         span.addEventListener('mousedown', (e) => e.preventDefault());
         span.addEventListener('click', () => {
@@ -632,7 +633,7 @@ export const OoxmlInline = Node.create({
       const h = a.cy ? a.cy / EMU_PER_PX : 288;
       dom.style.width = `${w}px`;
       dom.style.height = `${h}px`;
-      dom.title = a.floating ? 'Graphique flottant (position conservée à l’export)' : 'Graphique';
+      dom.title = a.floating ? tr('Graphique flottant (position conservée à l’export)', 'Floating chart (position kept on export)') : tr('Graphique', 'Chart');
       const scene = renderChart(a.chart as ChartSpec, { width: w, height: h, background: '#FFFFFF', measure: chartMeasure });
       dom.innerHTML = toSVG(scene).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ');
       if (!a.oid) return { dom };
@@ -654,7 +655,7 @@ export const OoxmlBlock = Node.create({
     return { xml: raw(''), label: raw('') };
   },
   parseHTML: () => [{ tag: 'div[data-ooxml-block]', getAttrs: (el: HTMLElement) => ({ xml: el.dataset.ooxmlBlock, label: el.textContent ?? '' }) }],
-  renderHTML: ({ node }) => ['div', { class: 'oel-ooxml-block', 'data-ooxml-block': node.attrs.xml, contenteditable: 'false' }, node.attrs.label || 'Élément Word'],
+  renderHTML: ({ node }) => ['div', { class: 'oel-ooxml-block', 'data-ooxml-block': node.attrs.xml, contenteditable: 'false' }, node.attrs.label || tr('Élément Word', 'Word element')],
 });
 
 /** Content control (w:sdt), e.g. a table of contents. */

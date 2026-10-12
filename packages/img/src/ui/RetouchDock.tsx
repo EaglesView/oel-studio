@@ -10,6 +10,7 @@ import type { ImageEngine } from '../engine';
 import { RecipeDoc } from '../model/recipeDoc';
 import { isEmptyRecipe, outputSize, type Recipe } from '../recipe';
 import { Atelier } from './Atelier';
+import { tr } from '@oel/i18n';
 
 export interface RetouchResult {
   /** Final pixels (PNG for PNG/WebP originals, else JPEG). */
@@ -58,8 +59,8 @@ export function RetouchDock(props: RetouchDockProps) {
   useEffect(() => {
     let alive = true;
     loadOriginal()
-      .then((b) => alive && (b ? setOriginal(b) : setMissing('Image introuvable : elle n’est pas encore sur cet appareil.')))
-      .catch(() => alive && setMissing('Image introuvable.'));
+      .then((b) => alive && (b ? setOriginal(b) : setMissing(tr('Image introuvable : elle n’est pas encore sur cet appareil.', 'Image not found: it is not on this device yet.'))))
+      .catch(() => alive && setMissing(tr('Image introuvable.', 'Image not found.')));
     return () => void (alive = false);
   }, [loadOriginal]);
 
@@ -105,7 +106,7 @@ export function RetouchDock(props: RetouchDockProps) {
         try {
           await commit(engine);
         } catch (e) {
-          toast({ title: 'Retouche non enregistrée', description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+          toast({ title: tr('Retouche non enregistrée', 'Retouch not saved'), description: e instanceof Error ? e.message : String(e), tone: 'danger' });
         }
         preview(null);
         props.onClose();

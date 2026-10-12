@@ -12,6 +12,7 @@ import { QuestionsTab } from './QuestionsTab';
 import { ResponsesTab } from './ResponsesTab';
 import { SettingsTab } from './SettingsTab';
 import { SignInDialog } from './SignInDialog';
+import { tr } from '@oel/i18n';
 
 export interface FormBuilderProps {
   form: FormDef;
@@ -33,7 +34,7 @@ type TabKey = 'questions' | 'responses' | 'settings';
 
 function savedLabel(ts: number, now: number) {
   const m = Math.floor((now - ts) / 60000);
-  return m < 1 ? 'Enregistré' : `Enregistré il y a ${m} min`;
+  return m < 1 ? tr('Enregistré', 'Saved') : tr(`Enregistré il y a ${m} min`, `Saved ${m} min ago`);
 }
 
 /**
@@ -92,7 +93,7 @@ export function FormBuilder({ form, onChange, backend, sheets, onCreateSheet, on
     const base = createLink(form, { id: sheet.id, title: sheet.title, tab: sheet.tab, header: sheet.rows[0] ?? [] });
     const l: SheetLink = { ...base, columns: base.columns.map((c) => ({ ...c, column: choice.columns[c.questionId] ?? c.column })) };
     commit({ ...form, link: l });
-    toast({ title: 'Réponses liées', description: `Chaque réponse ajoutera une ligne à « ${sheet.title} ».`, tone: 'success' });
+    toast({ title: tr('Réponses liées', 'Linked responses'), description: tr(`Chaque réponse ajoutera une ligne à « ${sheet.title} ».`, `Each response will add a row to “${sheet.title}”.`), tone: 'success' });
     setFlow(publishAfterLink ? (account ? 'publish' : 'signin') : null);
     setPublishAfterLink(false);
   };
@@ -109,7 +110,7 @@ export function FormBuilder({ form, onChange, backend, sheets, onCreateSheet, on
   const onSignedIn = useCallback(
     (a: Account) => {
       setAccount(a);
-      toast({ title: 'Connecté', description: a.email, tone: 'success' });
+      toast({ title: tr('Connecté', 'Connected'), description: a.email, tone: 'success' });
       setFlow('publish');
     },
     [],
@@ -117,7 +118,7 @@ export function FormBuilder({ form, onChange, backend, sheets, onCreateSheet, on
   const publish = async () => {
     const publication = await backend.publish(form);
     onChange({ ...form, publication });
-    toast({ title: form.publication ? 'Modifications publiées' : 'Formulaire publié', description: publication.url, tone: 'success' });
+    toast({ title: form.publication ? tr('Modifications publiées', 'Changes published') : tr('Formulaire publié', 'Form published'), description: publication.url, tone: 'success' });
   };
 
   const pub = form.publication;
@@ -129,22 +130,22 @@ export function FormBuilder({ form, onChange, backend, sheets, onCreateSheet, on
         <div className="fb-bar">
           <p className="fb-bar__saved" role="status">
             {savedLabel(form.updatedAt, now)}
-            {pub && (pub.dirty ? <Badge tone="warning">Modifications non publiées</Badge> : <Badge tone="success">En ligne</Badge>)}
+            {pub && (pub.dirty ? <Badge tone="warning">{tr('Modifications non publiées', 'Unpublished changes')}</Badge> : <Badge tone="success">{tr('En ligne', 'Online')}</Badge>)}
           </p>
-          <TabList aria-label="Constructeur de formulaire" className="fb-bar__tabs">
-            <Tab id="questions">Questions</Tab>
+          <TabList aria-label={tr('Constructeur de formulaire', 'Form builder')} className="fb-bar__tabs">
+            <Tab id="questions">{tr('Questions', 'Questions')}</Tab>
             <Tab id="responses">
-              Réponses · {accepted}
-              {held > 0 && <span className="fb-bar__held" aria-label={`, ${held} mises de côté`}> (+{held})</span>}
+              {tr('Réponses', 'Responses')} · {accepted}
+              {held > 0 && <span className="fb-bar__held" aria-label={tr(`, ${held} mises de côté`, `, ${held} set aside`)}> (+{held})</span>}
             </Tab>
-            <Tab id="settings">Paramètres</Tab>
+            <Tab id="settings">{tr('Paramètres', 'Settings')}</Tab>
           </TabList>
           <div className="fb-bar__actions">
             <Button size="sm" leadingIcon="eye" onPress={() => setPreviewOpen(true)}>
-              Aperçu
+              {tr('Aperçu', 'Preview')}
             </Button>
             <Button size="sm" variant="primary" leadingIcon="share" onPress={startPublish}>
-              {pub ? (pub.dirty ? 'Republier' : 'Publié') : 'Publier'}
+              {pub ? (pub.dirty ? tr('Republier', 'Republish') : tr('Publié', 'Published')) : tr('Publier', 'Publish')}
             </Button>
           </div>
         </div>
@@ -167,7 +168,7 @@ export function FormBuilder({ form, onChange, backend, sheets, onCreateSheet, on
               // Closing or reopening answers applies at once to the live form (no republish needed).
               onChange({ ...form, settings: { ...form.settings, acceptResponses: v } });
               void backend.setAccepting(form.id, v);
-              toast({ title: v ? 'Réponses ouvertes' : 'Réponses fermées', description: v ? undefined : 'Le lien affiche « Ce formulaire n’accepte plus de réponses ».', tone: 'info' });
+              toast({ title: v ? tr('Réponses ouvertes', 'Responses open') : tr('Réponses fermées', 'Responses closed'), description: v ? undefined : tr('Le lien affiche « Ce formulaire n’accepte plus de réponses ».', 'The link shows “This form no longer accepts responses”.'), tone: 'info' });
             }}
             onPublish={startPublish}
           />
@@ -187,7 +188,7 @@ export function FormBuilder({ form, onChange, backend, sheets, onCreateSheet, on
           if (!o) setFlow((f) => (f === 'link' ? null : f));
         }}
         onLink={link}
-        reason={publishAfterLink ? 'Pas de tableur, pas de publication : liez d’abord le formulaire à l’endroit où ranger les réponses.' : undefined}
+        reason={publishAfterLink ? tr('Pas de tableur, pas de publication : liez d’abord le formulaire à l’endroit où ranger les réponses.', 'No spreadsheet, no publishing: first link the form to where the responses go.') : undefined}
       />
       <SignInDialog backend={backend} isOpen={flow === 'signin'} onOpenChange={(o) => !o && setFlow(null)} onSignedIn={onSignedIn} />
       {account && (
@@ -216,17 +217,17 @@ function PreviewOverlay({ isOpen, onOpenChange, published }: { isOpen: boolean; 
   return (
     <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable className="fb-preview-overlay">
       <Modal className="fb-preview-modal">
-        <Dialog aria-label="Aperçu du formulaire" className="fb-preview">
+        <Dialog aria-label={tr('Aperçu du formulaire', 'Form preview')} className="fb-preview">
           {({ close }) => (
             <>
               <div className="fb-preview__bar">
-                <strong>Aperçu</strong>
-                <Toolbar appearance="pill" aria-label="Appareil">
-                  <ToolbarToggle icon="laptop" label="Ordinateur" isSelected={device === 'desktop'} onChange={() => setDevice('desktop')} />
-                  <ToolbarToggle icon="phone" label="Mobile" isSelected={device === 'mobile'} onChange={() => setDevice('mobile')} />
+                <strong>{tr('Aperçu', 'Preview')}</strong>
+                <Toolbar appearance="pill" aria-label={tr('Appareil', 'Device')}>
+                  <ToolbarToggle icon="laptop" label={tr('Ordinateur', 'Computer')} isSelected={device === 'desktop'} onChange={() => setDevice('desktop')} />
+                  <ToolbarToggle icon="phone" label={tr('Mobile', 'Mobile')} isSelected={device === 'mobile'} onChange={() => setDevice('mobile')} />
                 </Toolbar>
                 <Button size="sm" leadingIcon="close" onPress={close}>
-                  Fermer l’aperçu
+                  {tr('Fermer l’aperçu', 'Close the preview')}
                 </Button>
               </div>
               <div className={cx('fb-preview__stage fb-device', `fb-device--${device}`)}>

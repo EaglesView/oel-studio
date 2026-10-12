@@ -57,3 +57,4 @@ export {
 } from './components/Display';
 export { Pagination } from './components/Pagination';
 export { cx } from './utils';
+export { keyLabel } from './keys';

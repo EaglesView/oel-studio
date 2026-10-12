@@ -1,7 +1,7 @@
 /**
  * Every shortcut, grouped (B3 · « Clavier d’abord »): the Bureau's « ? » dialog and the menu's
- * « Raccourcis clavier » in French, the site's keyboard page (/docs/clavier, /en/docs/keyboard) in
- * both languages. One list, so they never drift apart.
+ * « Raccourcis clavier » in the interface language, the site's keyboard page (/docs/clavier,
+ * /en/docs/keyboard) in both languages. One list, so they never drift apart.
  */
 export type Lang = 'fr' | 'en';
 

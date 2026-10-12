@@ -19,6 +19,7 @@ import { Plugin } from '@tiptap/pm/state';
 import { autoNumber, clean, fieldText, levelOf, numbering, paraCss, resolvePara, resolveRun, runCss, fontStack, hasText, type TextCtx } from '../model/text';
 import type { Para, ParaProps, Run, RunProps, TextBody } from '../model/types';
 import type { TextEditorApi } from './controller';
+import { tr } from '@oel/i18n';
 
 export const schema = new Schema({
   nodes: {
@@ -323,7 +324,7 @@ export function TextEditor({
     });
     const view: EditorView = new EditorView(el, {
       state,
-      attributes: { class: 'oel-text-editor', role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Texte de la forme' },
+      attributes: { class: 'oel-text-editor', role: 'textbox', 'aria-multiline': 'true', 'aria-label': tr('Texte de la forme', 'Shape text') },
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
         if (tr.docChanged) schedule();

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Histogram as Bins } from '../engine';
+import { tr } from '@oel/i18n';
 
 /** Luminance as a filled area, the three channels as thin lines (Figma L1, top of the panel). */
 export function Histogram({ bins }: { bins: Bins | null }) {
@@ -34,5 +35,5 @@ export function Histogram({ bins }: { bins: Bins | null }) {
       ctx.stroke();
     }
   }, [bins]);
-  return <canvas ref={ref} className="atelier__histogram" role="img" aria-label="Histogramme" />;
+  return <canvas ref={ref} className="atelier__histogram" role="img" aria-label={tr('Histogramme', 'Histogram')} />;
 }

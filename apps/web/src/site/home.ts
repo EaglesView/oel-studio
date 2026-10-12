@@ -235,7 +235,7 @@ const en: HomeContent = {
       { q: 'Do I need an account?', a: 'No. The Bureau opens and works without signing up.' },
       {
         q: 'Where are my files?',
-        a: 'In this browser, on this device. Nothing is sent to a server. Clearing the site’s data clears them too: export the desk now and then (menu, “Ouvrir et importer”).',
+        a: 'In this browser, on this device. Nothing is sent to a server. Clearing the site’s data clears them too: export the desk now and then (menu, “Open and import”).',
       },
       {
         q: 'Do my Word, Excel and PowerPoint files stay intact?',

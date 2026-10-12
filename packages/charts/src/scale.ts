@@ -1,3 +1,4 @@
+import { lang } from '@oel/i18n';
 /**
  * Value axis scaling, after Excel's automatic bounds:
  * - the minimum is 0 unless every value is positive and the smallest is more
@@ -107,16 +108,17 @@ export function frac(s: Scale, v: number): number {
 /** Excel's display units (`thousands`…) → divisor and the label Excel shows. */
 export function displayUnits(u?: string | null): { div: number; label: string } | null {
   if (!u) return null;
+  const en = lang() === 'en';
   const table: Record<string, [number, string]> = {
-    hundreds: [1e2, 'Centaines'],
-    thousands: [1e3, 'Milliers'],
-    tenThousands: [1e4, 'Dizaines de milliers'],
-    hundredThousands: [1e5, 'Centaines de milliers'],
-    millions: [1e6, 'Millions'],
-    tenMillions: [1e7, 'Dizaines de millions'],
-    hundredMillions: [1e8, 'Centaines de millions'],
-    billions: [1e9, 'Milliards'],
-    trillions: [1e12, 'Billions'],
+    hundreds: [1e2, en ? 'Hundreds' : 'Centaines'],
+    thousands: [1e3, en ? 'Thousands' : 'Milliers'],
+    tenThousands: [1e4, en ? 'Ten Thousands' : 'Dizaines de milliers'],
+    hundredThousands: [1e5, en ? 'Hundred Thousands' : 'Centaines de milliers'],
+    millions: [1e6, en ? 'Millions' : 'Millions'],
+    tenMillions: [1e7, en ? 'Ten Millions' : 'Dizaines de millions'],
+    hundredMillions: [1e8, en ? 'Hundred Millions' : 'Centaines de millions'],
+    billions: [1e9, en ? 'Billions' : 'Milliards'],
+    trillions: [1e12, en ? 'Trillions' : 'Billions'],
   };
   const t = table[u];
   if (t) return { div: t[0], label: t[1] };

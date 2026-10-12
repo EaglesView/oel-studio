@@ -6,6 +6,7 @@
 import { paintCanvas, type Scene } from '@oel/charts';
 import type { Drawing, DrawingMarker } from '../model/types';
 import type { Layout } from './render';
+import { tr } from '@oel/i18n';
 
 /** DrawingML lengths: 914 400 EMU per inch, 96 px per inch. */
 export const EMU_PER_PX = 9525;
@@ -126,10 +127,10 @@ function paintChartFrame(ctx: CanvasRenderingContext2D, d: Drawing, w: number, h
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#555';
   ctx.font = `500 13px ${font}`;
-  ctx.fillText(d.name || 'Graphique', cx, cy);
+  ctx.fillText(d.name || tr('Graphique', 'Chart'), cx, cy);
   ctx.fillStyle = '#777';
   ctx.font = `400 12px ${font}`;
-  ctx.fillText('Graphique conservé dans le fichier,', cx, cy + 20);
-  ctx.fillText('mais illisible ici.', cx, cy + 36);
+  ctx.fillText(tr('Graphique conservé dans le fichier,', 'Chart kept in the file,'), cx, cy + 20);
+  ctx.fillText(tr('mais illisible ici.', 'but unreadable here.'), cx, cy + 36);
   ctx.restore();
 }

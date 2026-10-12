@@ -2,13 +2,18 @@
  * The demo Bureau a new desk starts with (plan solo MVP, S-4): the files of `fixtures/demo`
  * imported for real, and two live links — the workbook's chart drawn on slide 3 of the deck,
  * the desk's logo image shown in the document — so a first visit shows every editor, threads
- * and a note. Seeded once per desk (the saved desk keeps it, « Réinitialiser la démo » redoes it).
+ * and a note. Seeded once per desk (the saved desk keeps it, « Réinitialiser la démo » redoes it),
+ * in the interface language: `fixtures/demo` in French, `fixtures/demo/en` in English.
  */
-import sheetUrl from '../../../../fixtures/demo/Chronos — tours de piste.xlsx?url';
-import deckUrl from '../../../../fixtures/demo/Bienvenue dans le Bureau.pptx?url';
-import docUrl from '../../../../fixtures/demo/À propos du Bureau.docx?url';
+import sheetUrlFr from '../../../../fixtures/demo/Chronos — tours de piste.xlsx?url';
+import deckUrlFr from '../../../../fixtures/demo/Bienvenue dans le Bureau.pptx?url';
+import docUrlFr from '../../../../fixtures/demo/À propos du Bureau.docx?url';
+import sheetUrlEn from '../../../../fixtures/demo/en/Chronos — lap times.xlsx?url';
+import deckUrlEn from '../../../../fixtures/demo/en/Welcome to the Bureau.pptx?url';
+import docUrlEn from '../../../../fixtures/demo/en/About the Bureau.docx?url';
 import logoUrl from '../../../../fixtures/demo/logo.png?url';
 import { chartName } from '@oel/charts';
+import { messages } from '@oel/i18n';
 import type { LinkResolver } from '../links/resolver';
 import { importInto } from './importFiles';
 import { sheetSessionFor } from './sheets';
@@ -20,19 +25,41 @@ export const DEMO_VERSION = 1;
 
 const ID = { sheet: 'demo-tableur', deck: 'demo-presentation', doc: 'demo-document', logo: 'demo-logo', note: 'demo-note' } as const;
 
+/** File names, sheet and chart names and the note: what `make_demo.py` wrote, per language. */
+const t = messages(
+  {
+    sheet: { url: sheetUrlFr, name: 'Chronos — tours de piste.xlsx' },
+    deck: { url: deckUrlFr, name: 'Bienvenue dans le Bureau.pptx' },
+    doc: { url: docUrlFr, name: 'À propos du Bureau.docx' },
+    results: 'Résultats',
+    deckChart: 'Graphique du tableur',
+    note: 'Modifiez un temps dans l’onglet Tours : le graphique de la diapo 3 se met à jour.',
+    reading: 'Lecture du fichier',
+  },
+  {
+    sheet: { url: sheetUrlEn, name: 'Chronos — lap times.xlsx' },
+    deck: { url: deckUrlEn, name: 'Welcome to the Bureau.pptx' },
+    doc: { url: docUrlEn, name: 'About the Bureau.docx' },
+    results: 'Results',
+    deckChart: 'Spreadsheet chart',
+    note: 'Change a time in the Laps tab: the chart on slide 3 updates.',
+    reading: 'Reading the file',
+  },
+);
+
 /** The deck's chart that becomes the workbook's linked chart (named by `make_demo.py`). */
-const DECK_CHART = 'Graphique du tableur';
+const DECK_CHART = t.deckChart;
 /** The document's logo (python-docx's first picture) that becomes the desk image's linked copy. */
 const DOC_LOGO = 'word/media/image1.png';
 
 const FILES: Array<{ id: string; kind: PaperKind; url: string; name: string; x: number; y: number; rotation: number }> = [
-  { id: ID.sheet, kind: 'spreadsheet', url: sheetUrl, name: 'Chronos — tours de piste.xlsx', x: 100, y: 150, rotation: -0.6 },
-  { id: ID.deck, kind: 'slides', url: deckUrl, name: 'Bienvenue dans le Bureau.pptx', x: 660, y: 120, rotation: 1 },
+  { id: ID.sheet, kind: 'spreadsheet', ...t.sheet, x: 100, y: 150, rotation: -0.6 },
+  { id: ID.deck, kind: 'slides', ...t.deck, x: 660, y: 120, rotation: 1 },
   { id: ID.logo, kind: 'image', url: logoUrl, name: 'logo.png', x: 720, y: 480, rotation: 2 },
-  { id: ID.doc, kind: 'document', url: docUrl, name: 'À propos du Bureau.docx', x: 1260, y: 110, rotation: -1 },
+  { id: ID.doc, kind: 'document', ...t.doc, x: 1260, y: 110, rotation: -1 },
 ];
 
-const NOTE_TEXT = 'Modifiez un temps dans l’onglet Tours : le graphique de la diapo 3 se met à jour.';
+const NOTE_TEXT = t.note;
 
 /** The papers of a new demo desk, waiting for their files (`seedDemo` imports them). */
 export function demoPapers(): Paper[] {
@@ -45,7 +72,7 @@ export function demoPapers(): Paper[] {
     y: f.y,
     ...PAPER_SIZE[f.kind],
     rotation: f.rotation,
-    data: { preview: { kind: 'unsupported' }, status: { state: 'importing', progress: 0, stage: 'Lecture du fichier' }, fileName: f.name, updatedAt: now },
+    data: { preview: { kind: 'unsupported' }, status: { state: 'importing', progress: 0, stage: t.reading }, fileName: f.name, updatedAt: now },
   }));
   const sheet = files[0]!;
   const note: Paper = {
@@ -91,13 +118,13 @@ export async function seedDemo(store: Bureau, links: LinkResolver): Promise<void
   queueThumbnail(store, ID.doc);
 }
 
-/** « Résultats »'s chart → slide 3, in place of the deck's own chart. */
+/** « Résultats » (« Results »)'s chart → slide 3, in place of the deck's own chart. */
 async function linkChart(store: Bureau, links: LinkResolver) {
   const paper = store.node(ID.sheet) as Paper | undefined;
   if (!paper?.data.docId) throw new Error('classeur non importé');
   const s = await sheetSessionFor(paper, () => {});
-  const sheetId = s.sheet.sheetIdByName('Résultats');
-  if (!sheetId) throw new Error('onglet « Résultats » introuvable');
+  const sheetId = s.sheet.sheetIdByName(t.results);
+  if (!sheetId) throw new Error(`onglet « ${t.results} » introuvable`);
   const index = s.sheet.drawings(sheetId).findIndex((d) => !!d.chart);
   const spec = s.sheet.drawings(sheetId)[index]?.chart;
   const chartId = index >= 0 ? s.sheet.drawingId(sheetId, index) : null;

@@ -1,3 +1,4 @@
+import { lang } from '@oel/i18n';
 /**
  * Excel number formats for axis and data labels (`#,##0.00`, `0%`,
  * `[$-fr-CA]d mmm yyyy`, `"$"#,##0;[Red]-"$"#,##0`…). The grid formats its
@@ -5,9 +6,17 @@
  * conventions as the cells (`.` decimals, `,` thousands).
  */
 
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-const DAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+// Month and day names in the interface language (Office uses the reader's locale for `mmm`, `dddd`).
+const EN = lang() === 'en';
+const MONTHS = EN
+  ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  : ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MONTHS_SHORT = EN
+  ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  : ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const DAYS = EN
+  ? ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  : ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 
 /** `General`: up to 11 significant characters, like Excel in a narrow label. */
 export function general(v: number): string {
@@ -92,7 +101,7 @@ function formatDate(v: number, code: string): string {
     }
     if (lc === 'd') {
       const n = run('d');
-      out += n === 1 ? String(p.d) : n === 2 ? String(p.d).padStart(2, '0') : n === 3 ? DAYS[p.wd]!.slice(0, 3) + '.' : DAYS[p.wd]!;
+      out += n === 1 ? String(p.d) : n === 2 ? String(p.d).padStart(2, '0') : n === 3 ? DAYS[p.wd]!.slice(0, 3) + (EN ? '' : '.') : DAYS[p.wd]!;
       i += n;
       continue;
     }

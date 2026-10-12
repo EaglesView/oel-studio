@@ -1,11 +1,12 @@
 import { DialogOverlay, Kbd, SheetDialog } from '@oel/emboss';
 import { shortcutGroups } from './shortcuts';
+import { lang, tr } from '@oel/i18n';
 
-/** B3 · "Clavier d'abord": every shortcut, grouped (the dialog, and the menu's « Raccourcis clavier »). */
+/** B3 · "Clavier d'abord": every shortcut, grouped (the dialog, and the menu's « Raccourcis clavier »), in the interface language. */
 export function ShortcutsList() {
   return (
     <div className="shortcuts">
-      {shortcutGroups('fr').map((g) => (
+      {shortcutGroups(lang()).map((g) => (
         <section key={g.title}>
           <h3 className="emb-t-overline">{g.title}</h3>
           <dl>
@@ -29,7 +30,7 @@ export function ShortcutsList() {
 export function ShortcutsDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (o: boolean) => void }) {
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
-      <SheetDialog title="Raccourcis clavier" width={640}>
+      <SheetDialog title={tr('Raccourcis clavier', 'Keyboard shortcuts')} width={640}>
         <ShortcutsList />
       </SheetDialog>
     </DialogOverlay>

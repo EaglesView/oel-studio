@@ -14,6 +14,10 @@
 }
 .skip-link:focus { transform: none; outline: 2px solid var(--emboss-focus); outline-offset: 3px; }
 
+/* Static copy of the Bureau's pages in both languages: only the interface language shows (src/lang.ts). */
+html:not(:lang(en)) [data-lang='en'],
+html:lang(en) [data-lang='fr'] { display: none; }
+
 body.is-app { overflow: hidden; height: 100dvh; }
 
 /* Simple content pages (home, kit) */

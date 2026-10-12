@@ -5,6 +5,7 @@ import { a1, colName, parseRange, parseSqref, rangeA1 } from '../model/a1';
 import type { CondFormat, CsvDialect, Validation } from '../model/types';
 import { current } from '../grid/selection';
 import { NUMBER_FORMATS, type SheetController } from './controller';
+import { tr } from '@oel/i18n';
 
 interface Controlled {
   isOpen: boolean;
@@ -34,14 +35,14 @@ export function FindBar({ ctl, replace, onClose }: { ctl: SheetController; repla
     ctl.select({ ranges: [{ r0: h.r, c0: h.c, r1: h.r, c1: h.c }], active: { r: h.r, c: h.c }, anchor: { r: h.r, c: h.c } });
   };
   return (
-    <div className="oel-findbar" role="search" aria-label={replace ? 'Rechercher et remplacer' : 'Rechercher'} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}>
-      <TextField aria-label="Rechercher" placeholder="Rechercher" value={q} onChange={(v) => (setQ(v), setI(-1))} autoFocus onKeyDown={(e) => e.key === 'Enter' && go(e.shiftKey ? -1 : 1)} />
-      <span className="oel-findbar__count" role="status">{q ? (hits.length ? `${i < 0 ? 0 : i + 1} sur ${hits.length}` : 'Aucun résultat') : ''}</span>
-      <Button size="icon-sm" variant="ghost" leadingIcon="chevron-up" aria-label="Précédent" onPress={() => go(-1)} />
-      <Button size="icon-sm" variant="ghost" leadingIcon="chevron-down" aria-label="Suivant" onPress={() => go(1)} />
+    <div className="oel-findbar" role="search" aria-label={replace ? tr('Rechercher et remplacer', 'Find and replace') : tr('Rechercher', 'Find')} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onClose())}>
+      <TextField aria-label={tr('Rechercher', 'Find')} placeholder={tr('Rechercher', 'Find')} value={q} onChange={(v) => (setQ(v), setI(-1))} autoFocus onKeyDown={(e) => e.key === 'Enter' && go(e.shiftKey ? -1 : 1)} />
+      <span className="oel-findbar__count" role="status">{q ? (hits.length ? tr(`${i < 0 ? 0 : i + 1} sur ${hits.length}`, `${i < 0 ? 0 : i + 1} of ${hits.length}`) : tr('Aucun résultat', 'No results')) : ''}</span>
+      <Button size="icon-sm" variant="ghost" leadingIcon="chevron-up" aria-label={tr('Précédent', 'Previous')} onPress={() => go(-1)} />
+      <Button size="icon-sm" variant="ghost" leadingIcon="chevron-down" aria-label={tr('Suivant', 'Next')} onPress={() => go(1)} />
       {replace && (
         <>
-          <TextField aria-label="Remplacer par" placeholder="Remplacer par" value={by} onChange={setBy} />
+          <TextField aria-label={tr('Remplacer par', 'Replace with')} placeholder={tr('Remplacer par', 'Replace with')} value={by} onChange={setBy} />
           <Button
             size="sm"
             variant="secondary"
@@ -51,18 +52,18 @@ export function FindBar({ ctl, replace, onClose }: { ctl: SheetController; repla
               if (h && ctl.replace(q, by, opts, h)) go(1);
             }}
           >
-            Remplacer
+            {tr('Remplacer', 'Replace')}
           </Button>
-          <Button size="sm" isDisabled={ctl.readOnlyFlag || !hits.length} onPress={() => toast({ title: `${ctl.replace(q, by, opts)} cellule(s) remplacée(s)`, tone: 'success' })}>
-            Tout remplacer
+          <Button size="sm" isDisabled={ctl.readOnlyFlag || !hits.length} onPress={() => toast({ title: tr(`${ctl.replace(q, by, opts)} cellule(s) remplacée(s)`, `${ctl.replace(q, by, opts)} cell(s) replaced`), tone: 'success' })}>
+            {tr('Tout remplacer', 'Replace all')}
           </Button>
         </>
       )}
-      <Checkbox isSelected={matchCase} onChange={setMatchCase}>Respecter la casse</Checkbox>
-      <Checkbox isSelected={whole} onChange={setWhole}>Cellule entière</Checkbox>
-      <Checkbox isSelected={formulas} onChange={setFormulas}>Dans les formules</Checkbox>
-      <Checkbox isSelected={all} onChange={setAll}>Toutes les feuilles</Checkbox>
-      <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label="Fermer la recherche" onPress={onClose} />
+      <Checkbox isSelected={matchCase} onChange={setMatchCase}>{tr('Respecter la casse', 'Match case')}</Checkbox>
+      <Checkbox isSelected={whole} onChange={setWhole}>{tr('Cellule entière', 'Whole cell')}</Checkbox>
+      <Checkbox isSelected={formulas} onChange={setFormulas}>{tr('Dans les formules', 'In formulas')}</Checkbox>
+      <Checkbox isSelected={all} onChange={setAll}>{tr('Toutes les feuilles', 'All sheets')}</Checkbox>
+      <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label={tr('Fermer la recherche', 'Close the search')} onPress={onClose} />
     </div>
   );
 }
@@ -80,9 +81,9 @@ export function FormatCellsDialog({ ctl, isOpen, onClose }: Controlled & { ctl: 
   };
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Format des nombres" width={520} actions={() => <Button onPress={save}>Appliquer</Button>}>
+      <SheetDialog title={tr('Format des nombres', 'Number format')} width={520} actions={() => <Button onPress={save}>{tr('Appliquer', 'Apply')}</Button>}>
         <form className="oel-form" onSubmit={(e) => (e.preventDefault(), save())}>
-          <div className="oel-fmtlist" role="listbox" aria-label="Formats courants">
+          <div className="oel-fmtlist" role="listbox" aria-label={tr('Formats courants', 'Common formats')}>
             {NUMBER_FORMATS.map((f) => (
               <button key={f.id} type="button" role="option" aria-selected={code === f.code} className={`oel-fmtlist__item${code === f.code ? ' is-on' : ''}`} onClick={() => setCode(f.code)}>
                 <span>{f.label}</span>
@@ -91,10 +92,10 @@ export function FormatCellsDialog({ ctl, isOpen, onClose }: Controlled & { ctl: 
             ))}
           </div>
           <TextField
-            label="Code de format (Excel)"
+            label={tr('Code de format (Excel)', 'Format code (Excel)')}
             value={code}
             onChange={setCode}
-            description="Exemples : 0.00 · #,##0 &quot;$&quot; · 0.0% · yyyy-mm-dd · [Red]-0.00 · @ (texte). Le code est enregistré tel quel dans le fichier."
+            description={tr('Exemples : 0.00 · #,##0 &quot;$&quot; · 0.0% · yyyy-mm-dd · [Red]-0.00 · @ (texte). Le code est enregistré tel quel dans le fichier.', 'Examples: 0.00 · #,##0 &quot;$&quot; · 0.0% · yyyy-mm-dd · [Red]-0.00 · @ (text). The code is saved as is in the file.')}
           />
           <button type="submit" hidden />
         </form>
@@ -121,11 +122,11 @@ export function SortDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetCo
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const cols = Array.from({ length: Math.min(rg.c1 - rg.c0 + 1, 200) }, (_, i) => rg.c0 + i);
-  const labelOf = (c: number) => (header && ctl.view(rg.r0, c).text ? `${ctl.view(rg.r0, c).text} (${colName(c)})` : `Colonne ${colName(c)}`);
+  const labelOf = (c: number) => (header && ctl.view(rg.r0, c).text ? `${ctl.view(rg.r0, c).text} (${colName(c)})` : tr(`Colonne ${colName(c)}`, `Column ${colName(c)}`));
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
       <SheetDialog
-        title={`Trier la plage ${rangeA1(rg)}`}
+        title={tr(`Trier la plage ${rangeA1(rg)}`, `Sort the range ${rangeA1(rg)}`)}
         width={520}
         actions={() => (
           <Button
@@ -134,32 +135,32 @@ export function SortDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetCo
               onClose();
             }}
           >
-            Trier
+            {tr('Trier', 'Sort')}
           </Button>
         )}
       >
         <div className="oel-form">
-          <Checkbox isSelected={header} onChange={setHeader}>La première ligne contient des en-têtes</Checkbox>
+          <Checkbox isSelected={header} onChange={setHeader}>{tr('La première ligne contient des en-têtes', 'The first row holds headers')}</Checkbox>
           {keys.map((k, i) => (
             <div key={i} className="oel-form__row">
-              <span className="oel-form__label">{i === 0 ? 'Trier par' : 'Puis par'}</span>
-              <Select aria-label="Colonne" selectedKey={String(k.col)} onSelectionChange={(v) => setKeys(keys.map((x, j) => (j === i ? { ...x, col: Number(v) } : x)))}>
+              <span className="oel-form__label">{i === 0 ? tr('Trier par', 'Sort by') : tr('Puis par', 'Then by')}</span>
+              <Select aria-label={tr('Colonne', 'Column')} selectedKey={String(k.col)} onSelectionChange={(v) => setKeys(keys.map((x, j) => (j === i ? { ...x, col: Number(v) } : x)))}>
                 {cols.map((c) => (
                   <SelectItem key={c} id={String(c)}>
                     {labelOf(c)}
                   </SelectItem>
                 ))}
               </Select>
-              <Select aria-label="Ordre" selectedKey={k.desc ? 'desc' : 'asc'} onSelectionChange={(v) => setKeys(keys.map((x, j) => (j === i ? { ...x, desc: v === 'desc' } : x)))}>
+              <Select aria-label={tr('Ordre', 'Order')} selectedKey={k.desc ? 'desc' : 'asc'} onSelectionChange={(v) => setKeys(keys.map((x, j) => (j === i ? { ...x, desc: v === 'desc' } : x)))}>
                 <SelectItem id="asc">A → Z, croissant</SelectItem>
-                <SelectItem id="desc">Z → A, décroissant</SelectItem>
+                <SelectItem id="desc">{tr('Z → A, décroissant', 'Z → A, descending')}</SelectItem>
               </Select>
-              {i > 0 && <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label="Retirer ce critère" onPress={() => setKeys(keys.filter((_, j) => j !== i))} />}
+              {i > 0 && <Button size="icon-sm" variant="ghost" leadingIcon="close" aria-label={tr('Retirer ce critère', 'Remove this criterion')} onPress={() => setKeys(keys.filter((_, j) => j !== i))} />}
             </div>
           ))}
           {keys.length < 3 && (
             <Button size="sm" variant="ghost" leadingIcon="plus" onPress={() => setKeys([...keys, { col: cols.find((c) => !keys.some((k) => k.col === c)) ?? rg.c0, desc: false }])}>
-              Ajouter un critère
+              {tr('Ajouter un critère', 'Add a criterion')}
             </Button>
           )}
         </div>
@@ -173,23 +174,23 @@ export function SortDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetCo
 // ---------------------------------------------------------------------------
 
 const VALIDATION_KINDS: Array<[string, string]> = [
-  ['list', 'Liste de choix'],
-  ['whole', 'Nombre entier'],
-  ['decimal', 'Nombre décimal'],
+  ['list', tr('Liste de choix', 'List of choices')],
+  ['whole', tr('Nombre entier', 'Whole number')],
+  ['decimal', tr('Nombre décimal', 'Decimal')],
   ['date', 'Date'],
-  ['textLength', 'Longueur du texte'],
-  ['custom', 'Formule personnalisée'],
+  ['textLength', tr('Longueur du texte', 'Text length')],
+  ['custom', tr('Formule personnalisée', 'Custom formula')],
 ];
 
 const OPERATORS: Array<[string, string]> = [
   ['between', 'entre'],
-  ['notBetween', 'pas entre'],
-  ['equal', 'égal à'],
-  ['notEqual', 'différent de'],
-  ['greaterThan', 'supérieur à'],
-  ['lessThan', 'inférieur à'],
-  ['greaterThanOrEqual', 'supérieur ou égal à'],
-  ['lessThanOrEqual', 'inférieur ou égal à'],
+  ['notBetween', tr('pas entre', 'not between')],
+  ['equal', tr('égal à', 'equal to')],
+  ['notEqual', tr('différent de', 'not equal to')],
+  ['greaterThan', tr('supérieur à', 'greater than')],
+  ['lessThan', tr('inférieur à', 'less than')],
+  ['greaterThanOrEqual', tr('supérieur ou égal à', 'greater than or equal to')],
+  ['lessThanOrEqual', tr('inférieur ou égal à', 'less than or equal to')],
 ];
 
 export function ValidationDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetController }) {
@@ -213,21 +214,21 @@ export function ValidationDialog({ ctl, isOpen, onClose }: Controlled & { ctl: S
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
       <SheetDialog
-        title={`Validation des données · ${existing?.sqref ?? sqref}`}
+        title={tr(`Validation des données · ${existing?.sqref ?? sqref}`, `Data validation · ${existing?.sqref ?? sqref}`)}
         width={520}
         actions={() => (
           <>
             {existing && (
               <Button variant="ghost" onPress={remove}>
-                Supprimer la règle
+                {tr('Supprimer la règle', 'Delete the rule')}
               </Button>
             )}
-            <Button onPress={save}>Enregistrer</Button>
+            <Button onPress={save}>{tr('Enregistrer', 'Save')}</Button>
           </>
         )}
       >
         <div className="oel-form">
-          <Select label="Autoriser" selectedKey={v.kind} onSelectionChange={(k) => setV({ ...v, kind: String(k) })}>
+          <Select label={tr('Autoriser', 'Allow')} selectedKey={v.kind} onSelectionChange={(k) => setV({ ...v, kind: String(k) })}>
             {VALIDATION_KINDS.map(([id, label]) => (
               <SelectItem key={id} id={id}>
                 {label}
@@ -235,24 +236,24 @@ export function ValidationDialog({ ctl, isOpen, onClose }: Controlled & { ctl: S
             ))}
           </Select>
           {v.kind === 'list' ? (
-            <TextField label="Choix" value={listText} onChange={(t) => setV({ ...v, formula1: t })} description="Séparés par des virgules (Oui,Non), ou une plage : =$A$1:$A$5" />
+            <TextField label={tr('Choix', 'Choices')} value={listText} onChange={(t) => setV({ ...v, formula1: t })} description={tr('Séparés par des virgules (Oui,Non), ou une plage : =$A$1:$A$5', 'Separated by commas (Yes,No), or a range: =$A$1:$A$5')} />
           ) : v.kind === 'custom' ? (
-            <TextField label="Formule (vraie quand la valeur est acceptée)" value={v.formula1 ?? ''} onChange={(t) => setV({ ...v, formula1: t })} description="Par exemple : =LEN(A1)<=10" />
+            <TextField label={tr('Formule (vraie quand la valeur est acceptée)', 'Formula (true when the value is accepted)')} value={v.formula1 ?? ''} onChange={(t) => setV({ ...v, formula1: t })} description="Par exemple : =LEN(A1)<=10" />
           ) : (
             <>
-              <Select label="Condition" selectedKey={v.operator ?? 'between'} onSelectionChange={(k) => setV({ ...v, operator: String(k) })}>
+              <Select label={tr('Condition', 'Condition')} selectedKey={v.operator ?? 'between'} onSelectionChange={(k) => setV({ ...v, operator: String(k) })}>
                 {OPERATORS.map(([id, label]) => (
                   <SelectItem key={id} id={id}>
                     {label}
                   </SelectItem>
                 ))}
               </Select>
-              <TextField label={v.operator === 'between' || v.operator === 'notBetween' || !v.operator ? 'Minimum' : 'Valeur'} value={v.formula1 ?? ''} onChange={(t) => setV({ ...v, formula1: t })} />
+              <TextField label={v.operator === 'between' || v.operator === 'notBetween' || !v.operator ? 'Minimum' : tr('Valeur', 'Value')} value={v.formula1 ?? ''} onChange={(t) => setV({ ...v, formula1: t })} />
               {(v.operator === 'between' || v.operator === 'notBetween' || !v.operator) && <TextField label="Maximum" value={v.formula2 ?? ''} onChange={(t) => setV({ ...v, formula2: t })} />}
             </>
           )}
-          <Checkbox isSelected={!!v.allowBlank} onChange={(b) => setV({ ...v, allowBlank: b })}>Accepter les cellules vides</Checkbox>
-          <TextField label="Message si la valeur est refusée" value={v.error ?? ''} onChange={(t) => setV({ ...v, error: t || undefined })} />
+          <Checkbox isSelected={!!v.allowBlank} onChange={(b) => setV({ ...v, allowBlank: b })}>{tr('Accepter les cellules vides', 'Accept empty cells')}</Checkbox>
+          <TextField label={tr('Message si la valeur est refusée', 'Message if the value is refused')} value={v.error ?? ''} onChange={(t) => setV({ ...v, error: t || undefined })} />
         </div>
       </SheetDialog>
     </DialogOverlay>
@@ -279,8 +280,8 @@ export function listChoices(ctl: SheetController, r: number, c: number): string[
 export function validate(ctl: SheetController, r: number, c: number, text: string): string | null {
   const v = ctl.doc.validations(ctl.sheetId).find((x) => parseSqref(x.sqref).some((rg) => rg.r0 <= r && r <= rg.r1 && rg.c0 <= c && c <= rg.c1));
   if (!v || v.kind === 'none' || v.kind === 'custom') return null;
-  if (text === '') return v.allowBlank ? null : v.error ?? 'Cette cellule ne peut pas être vide.';
-  const refuse = v.error || 'La valeur ne respecte pas la règle de validation de cette cellule.';
+  if (text === '') return v.allowBlank ? null : v.error ?? tr('Cette cellule ne peut pas être vide.', 'This cell can’t be empty.');
+  const refuse = v.error || tr('La valeur ne respecte pas la règle de validation de cette cellule.', 'The value doesn’t follow this cell’s validation rule.');
   if (v.kind === 'list') {
     const choices = listChoices(ctl, r, c);
     return choices && !choices.some((x) => x.toLowerCase() === text.trim().toLowerCase()) ? refuse : null;
@@ -311,20 +312,20 @@ export function validate(ctl: SheetController, r: number, c: number, text: strin
 // ---------------------------------------------------------------------------
 
 const CF_OPS: Array<[string, string]> = [
-  ['greaterThan', 'Supérieur à'],
-  ['lessThan', 'Inférieur à'],
-  ['between', 'Entre'],
-  ['equal', 'Égal à'],
-  ['notEqual', 'Différent de'],
-  ['greaterThanOrEqual', 'Supérieur ou égal à'],
-  ['lessThanOrEqual', 'Inférieur ou égal à'],
+  ['greaterThan', tr('Supérieur à', 'Greater than')],
+  ['lessThan', tr('Inférieur à', 'Less than')],
+  ['between', tr('Entre', 'Between')],
+  ['equal', tr('Égal à', 'Equal to')],
+  ['notEqual', tr('Différent de', 'Not equal to')],
+  ['greaterThanOrEqual', tr('Supérieur ou égal à', 'Greater than or equal to')],
+  ['lessThanOrEqual', tr('Inférieur ou égal à', 'Less than or equal to')],
 ];
 
 const CF_STYLES: Array<{ id: string; label: string; fill: string; color: string }> = [
-  { id: 'red', label: 'Rouge clair, texte rouge foncé', fill: '#FFC7CE', color: '#9C0006' },
-  { id: 'yellow', label: 'Jaune, texte brun', fill: '#FFEB9C', color: '#9C5700' },
-  { id: 'green', label: 'Vert clair, texte vert foncé', fill: '#C6EFCE', color: '#006100' },
-  { id: 'blue', label: 'Bleu clair', fill: '#DDEBF7', color: '#1F4E79' },
+  { id: 'red', label: tr('Rouge clair, texte rouge foncé', 'Light red, dark red text'), fill: '#FFC7CE', color: '#9C0006' },
+  { id: 'yellow', label: tr('Jaune, texte brun', 'Yellow, brown text'), fill: '#FFEB9C', color: '#9C5700' },
+  { id: 'green', label: tr('Vert clair, texte vert foncé', 'Light green, dark green text'), fill: '#C6EFCE', color: '#006100' },
+  { id: 'blue', label: tr('Bleu clair', 'Light blue'), fill: '#DDEBF7', color: '#1F4E79' },
 ];
 
 export function CondFormatDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetController }) {
@@ -356,30 +357,30 @@ export function CondFormatDialog({ ctl, isOpen, onClose }: Controlled & { ctl: S
   };
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title={`Mise en forme conditionnelle · ${sqref}`} width={560} actions={() => <Button onPress={add}>Ajouter la règle</Button>}>
+      <SheetDialog title={tr(`Mise en forme conditionnelle · ${sqref}`, `Conditional formatting · ${sqref}`)} width={560} actions={() => <Button onPress={add}>{tr('Ajouter la règle', 'Add the rule')}</Button>}>
         <div className="oel-form">
-          <RadioGroup label="Type de règle" value={kind} onChange={(k) => setKind(k as typeof kind)}>
-            <Radio value="cellIs">Valeur de la cellule</Radio>
-            <Radio value="containsText">Texte qui contient</Radio>
-            <Radio value="colorScale">Échelle de couleurs (rouge → vert)</Radio>
-            <Radio value="dataBar">Barres de données</Radio>
+          <RadioGroup label={tr('Type de règle', 'Rule type')} value={kind} onChange={(k) => setKind(k as typeof kind)}>
+            <Radio value="cellIs">{tr('Valeur de la cellule', 'Cell value')}</Radio>
+            <Radio value="containsText">{tr('Texte qui contient', 'Text that contains')}</Radio>
+            <Radio value="colorScale">{tr('Échelle de couleurs (rouge → vert)', 'Colour scale (red → green)')}</Radio>
+            <Radio value="dataBar">{tr('Barres de données', 'Data bars')}</Radio>
           </RadioGroup>
           {kind === 'cellIs' && (
             <div className="oel-form__row">
-              <Select aria-label="Condition" selectedKey={op} onSelectionChange={(k) => setOp(String(k))}>
+              <Select aria-label={tr('Condition', 'Condition')} selectedKey={op} onSelectionChange={(k) => setOp(String(k))}>
                 {CF_OPS.map(([id, label]) => (
                   <SelectItem key={id} id={id}>
                     {label}
                   </SelectItem>
                 ))}
               </Select>
-              <TextField aria-label="Valeur" value={a} onChange={setA} />
-              {op === 'between' && <TextField aria-label="Et" value={b} onChange={setB} />}
+              <TextField aria-label={tr('Valeur', 'Value')} value={a} onChange={setA} />
+              {op === 'between' && <TextField aria-label={tr('Et', 'And')} value={b} onChange={setB} />}
             </div>
           )}
-          {kind === 'containsText' && <TextField label="Texte" value={a} onChange={setA} />}
+          {kind === 'containsText' && <TextField label={tr('Texte', 'Text')} value={a} onChange={setA} />}
           {(kind === 'cellIs' || kind === 'containsText') && (
-            <Select label="Mise en forme" selectedKey={look} onSelectionChange={(k) => setLook(String(k))}>
+            <Select label={tr('Mise en forme', 'Formatting')} selectedKey={look} onSelectionChange={(k) => setLook(String(k))}>
               {CF_STYLES.map((s) => (
                 <SelectItem key={s.id} id={s.id} textValue={s.label}>
                   <span className="oel-cfpreview" style={{ background: s.fill, color: s.color }}>{s.label}</span>
@@ -389,13 +390,13 @@ export function CondFormatDialog({ ctl, isOpen, onClose }: Controlled & { ctl: S
           )}
           {list.length > 0 && (
             <div className="oel-cflist">
-              <h3>Règles de la feuille</h3>
+              <h3>{tr('Règles de la feuille', 'Sheet rules')}</h3>
               <ul>
                 {list.map((cf, i) => (
                   <li key={i}>
                     <span>{cf.sqref}</span>
                     <span>{cf.rules.map((r) => ruleLabel(r.kind, r.operator)).join(', ')}</span>
-                    <Button size="icon-sm" variant="ghost" leadingIcon="trash" aria-label="Supprimer cette règle" onPress={() => ctl.doc.setCondFormats(ctl.sheetId, list.filter((_, j) => j !== i))} />
+                    <Button size="icon-sm" variant="ghost" leadingIcon="trash" aria-label={tr('Supprimer cette règle', 'Delete this rule')} onPress={() => ctl.doc.setCondFormats(ctl.sheetId, list.filter((_, j) => j !== i))} />
                   </li>
                 ))}
               </ul>
@@ -408,7 +409,7 @@ export function CondFormatDialog({ ctl, isOpen, onClose }: Controlled & { ctl: S
 }
 
 const ruleLabel = (kind: string, op?: string) =>
-  ({ cellIs: `Valeur ${CF_OPS.find(([id]) => id === op)?.[1].toLowerCase() ?? ''}`, colorScale: 'Échelle de couleurs', dataBar: 'Barres de données', iconSet: 'Jeu d’icônes (conservé)', expression: 'Formule (conservée)', containsText: 'Texte qui contient' })[kind] ?? `${kind} (conservée)`;
+  ({ cellIs: tr(`Valeur ${CF_OPS.find(([id]) => id === op)?.[1].toLowerCase() ?? ''}`, `Value ${CF_OPS.find(([id]) => id === op)?.[1].toLowerCase() ?? ''}`), colorScale: tr('Échelle de couleurs', 'Colour scale'), dataBar: tr('Barres de données', 'Data bars'), iconSet: tr('Jeu d’icônes (conservé)', 'Icon set (kept)'), expression: tr('Formule (conservée)', 'Formula (kept)'), containsText: tr('Texte qui contient', 'Text that contains') })[kind] ?? tr(`${kind} (conservée)`, `${kind} (kept)`);
 
 // ---------------------------------------------------------------------------
 // Named ranges
@@ -422,13 +423,13 @@ export function NamesDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetC
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const names = ctl.doc.names().filter((n) => !n.name.startsWith('_xlnm.'));
   const add = () => {
-    if (!/^[A-Za-z_À-￿][\w.À-￿]*$/.test(name) || /^[A-Za-z]{1,3}\d+$/.test(name)) return toast({ title: 'Nom invalide', description: 'Commencez par une lettre ; pas d’espace ; pas un nom de cellule (A1).', tone: 'warning' });
+    if (!/^[A-Za-z_À-￿][\w.À-￿]*$/.test(name) || /^[A-Za-z]{1,3}\d+$/.test(name)) return toast({ title: tr('Nom invalide', 'Invalid name'), description: tr('Commencez par une lettre ; pas d’espace ; pas un nom de cellule (A1).', 'Start with a letter; no spaces; not a cell name (A1).'), tone: 'warning' });
     ctl.doc.setName(name, ref);
     setName('');
   };
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Plages nommées" width={560} actions={() => <Button onPress={onClose}>OK</Button>}>
+      <SheetDialog title={tr('Plages nommées', 'Named ranges')} width={560} actions={() => <Button onPress={onClose}>OK</Button>}>
         <div className="oel-form">
           <ul className="oel-names">
             {names.map((n) => (
@@ -436,16 +437,16 @@ export function NamesDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetC
                 <strong>{n.name}</strong>
                 <code>{n.formula}</code>
                 {n.scope && <Badge tone="neutral">{ctl.doc.props(n.scope).name}</Badge>}
-                <Button size="icon-sm" variant="ghost" leadingIcon="trash" aria-label={`Supprimer ${n.name}`} isDisabled={ctl.readOnlyFlag} onPress={() => ctl.doc.deleteName(n.name, n.scope)} />
+                <Button size="icon-sm" variant="ghost" leadingIcon="trash" aria-label={tr(`Supprimer ${n.name}`, `Delete ${n.name}`)} isDisabled={ctl.readOnlyFlag} onPress={() => ctl.doc.deleteName(n.name, n.scope)} />
               </li>
             ))}
-            {!names.length && <li className="oel-panel__empty">Aucune plage nommée.</li>}
+            {!names.length && <li className="oel-panel__empty">{tr('Aucune plage nommée.', 'No named ranges.')}</li>}
           </ul>
           {!ctl.readOnlyFlag && (
             <div className="oel-form__row">
-              <TextField label="Nom" value={name} onChange={setName} />
-              <TextField label="Fait référence à" value={ref} onChange={setRef} />
-              <Button onPress={add}>Ajouter</Button>
+              <TextField label={tr('Nom', 'Name')} value={name} onChange={setName} />
+              <TextField label={tr('Fait référence à', 'Refers to')} value={ref} onChange={setRef} />
+              <Button onPress={add}>{tr('Ajouter', 'Add')}</Button>
             </div>
           )}
         </div>
@@ -485,10 +486,10 @@ export function LinkDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetCo
   };
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Lien" width={460} actions={() => <Button onPress={save}>{url ? 'Appliquer' : 'Retirer le lien'}</Button>}>
+      <SheetDialog title={tr('Lien', 'Link')} width={460} actions={() => <Button onPress={save}>{url ? tr('Appliquer', 'Apply') : tr('Retirer le lien', 'Remove the link')}</Button>}>
         <form className="oel-form" onSubmit={(e) => (e.preventDefault(), save())}>
-          <TextField label="Texte" value={text} onChange={setText} />
-          <TextField label="Adresse" value={url} onChange={setUrl} autoFocus description="Une page web (https://…), un courriel (mailto:…) ou une cellule (Feuille1!A1)." />
+          <TextField label={tr('Texte', 'Text')} value={text} onChange={setText} />
+          <TextField label={tr('Adresse', 'Address')} value={url} onChange={setUrl} autoFocus description={tr('Une page web (https://…), un courriel (mailto:…) ou une cellule (Feuille1!A1).', 'A web page (https://…), an email (mailto:…) or a cell (Sheet1!A1).')} />
           <button type="submit" hidden />
         </form>
       </SheetDialog>
@@ -508,7 +509,7 @@ export function CsvDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetCon
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
       <SheetDialog
-        title="Paramètres CSV"
+        title={tr('Paramètres CSV', 'CSV settings')}
         width={460}
         actions={() => (
           <Button
@@ -517,24 +518,24 @@ export function CsvDialog({ ctl, isOpen, onClose }: Controlled & { ctl: SheetCon
               onClose();
             }}
           >
-            Enregistrer
+            {tr('Enregistrer', 'Save')}
           </Button>
         )}
       >
         <div className="oel-form">
-          <Select label="Séparateur" selectedKey={d.delimiter} onSelectionChange={(k) => setD({ ...d, delimiter: String(k), decimalComma: k === ';' ? d.decimalComma : false })}>
-            <SelectItem id=",">Virgule ( , )</SelectItem>
-            <SelectItem id=";">Point-virgule ( ; ) — Excel en français</SelectItem>
-            <SelectItem id={'\t'}>Tabulation</SelectItem>
-            <SelectItem id="|">Barre verticale ( | )</SelectItem>
+          <Select label={tr('Séparateur', 'Separator')} selectedKey={d.delimiter} onSelectionChange={(k) => setD({ ...d, delimiter: String(k), decimalComma: k === ';' ? d.decimalComma : false })}>
+            <SelectItem id=",">{tr('Virgule ( , )', 'Comma ( , )')}</SelectItem>
+            <SelectItem id=";">{tr('Point-virgule ( ; ) — Excel en français', 'Semicolon ( ; ) — Excel in French')}</SelectItem>
+            <SelectItem id={'\t'}>{tr('Tabulation', 'Tab')}</SelectItem>
+            <SelectItem id="|">{tr('Barre verticale ( | )', 'Vertical bar ( | )')}</SelectItem>
           </Select>
-          <Select label="Encodage" selectedKey={d.encoding} onSelectionChange={(k) => setD({ ...d, encoding: String(k) })}>
-            <SelectItem id="utf-8">UTF-8 (recommandé)</SelectItem>
-            <SelectItem id="windows-1252">Windows-1252 (ancien Excel)</SelectItem>
+          <Select label={tr('Encodage', 'Encoding')} selectedKey={d.encoding} onSelectionChange={(k) => setD({ ...d, encoding: String(k) })}>
+            <SelectItem id="utf-8">{tr('UTF-8 (recommandé)', 'UTF-8 (recommended)')}</SelectItem>
+            <SelectItem id="windows-1252">{tr('Windows-1252 (ancien Excel)', 'Windows-1252 (old Excel)')}</SelectItem>
           </Select>
-          {d.encoding === 'utf-8' && <Checkbox isSelected={d.bom} onChange={(b) => setD({ ...d, bom: b })}>Marque d’ordre (BOM) — Excel reconnaît alors les accents</Checkbox>}
-          <Checkbox isSelected={!!d.decimalComma} onChange={(b) => setD({ ...d, decimalComma: b })} isDisabled={d.delimiter === ','}>Virgule décimale (1234,50)</Checkbox>
-          <Select label="Fins de ligne" selectedKey={d.lineEnding} onSelectionChange={(k) => setD({ ...d, lineEnding: String(k) })}>
+          {d.encoding === 'utf-8' && <Checkbox isSelected={d.bom} onChange={(b) => setD({ ...d, bom: b })}>{tr('Marque d’ordre (BOM) — Excel reconnaît alors les accents', 'Byte order mark (BOM) — Excel then reads accents')}</Checkbox>}
+          <Checkbox isSelected={!!d.decimalComma} onChange={(b) => setD({ ...d, decimalComma: b })} isDisabled={d.delimiter === ','}>{tr('Virgule décimale (1234,50)', 'Decimal comma (1234,50)')}</Checkbox>
+          <Select label={tr('Fins de ligne', 'Line endings')} selectedKey={d.lineEnding} onSelectionChange={(k) => setD({ ...d, lineEnding: String(k) })}>
             <SelectItem id={'\r\n'}>Windows (CRLF)</SelectItem>
             <SelectItem id={'\n'}>Unix, macOS (LF)</SelectItem>
           </Select>
@@ -571,16 +572,16 @@ export function FilterMenu({ ctl, col, at, onClose }: { ctl: SheetController; co
   const range = f ? parseRange(f.ref) : null;
   const shown = values.filter((v) => v.text.toLowerCase().includes(q.toLowerCase()));
   return (
-    <AnchoredPopover at={at} onClose={onClose} label="Filtre de la colonne">
+    <AnchoredPopover at={at} onClose={onClose} label={tr('Filtre de la colonne', 'Column filter')}>
       <div className="oel-filtermenu">
         <div className="oel-filtermenu__sort">
-          <Button size="sm" variant="ghost" leadingIcon="sort-asc" onPress={() => (range && ctl.sort([{ col: range.c0 + col, desc: false }], { header: true, range }), onClose())}>Trier A → Z</Button>
-          <Button size="sm" variant="ghost" leadingIcon="sort-desc" onPress={() => (range && ctl.sort([{ col: range.c0 + col, desc: true }], { header: true, range }), onClose())}>Trier Z → A</Button>
+          <Button size="sm" variant="ghost" leadingIcon="sort-asc" onPress={() => (range && ctl.sort([{ col: range.c0 + col, desc: false }], { header: true, range }), onClose())}>{tr('Trier A → Z', 'Sort A → Z')}</Button>
+          <Button size="sm" variant="ghost" leadingIcon="sort-desc" onPress={() => (range && ctl.sort([{ col: range.c0 + col, desc: true }], { header: true, range }), onClose())}>{tr('Trier Z → A', 'Sort Z → A')}</Button>
         </div>
-        <TextField aria-label="Chercher une valeur" placeholder="Chercher" value={q} onChange={setQ} />
+        <TextField aria-label={tr('Chercher une valeur', 'Search for a value')} placeholder={tr('Chercher', 'Search')} value={q} onChange={setQ} />
         <div className="oel-filtermenu__actions">
-          <button type="button" onClick={() => setChecked(new Set(values.map((v) => v.text)))}>Tout sélectionner</button>
-          <button type="button" onClick={() => setChecked(new Set())}>Effacer</button>
+          <button type="button" onClick={() => setChecked(new Set(values.map((v) => v.text)))}>{tr('Tout sélectionner', 'Select all')}</button>
+          <button type="button" onClick={() => setChecked(new Set())}>{tr('Effacer', 'Clear')}</button>
         </div>
         <ul className="oel-filtermenu__list">
           {shown.map((v) => (
@@ -600,7 +601,7 @@ export function FilterMenu({ ctl, col, at, onClose }: { ctl: SheetController; co
           ))}
         </ul>
         <div className="oel-filtermenu__foot">
-          <Button size="sm" variant="ghost" onPress={() => (ctl.setFilterColumn(col, null), onClose())}>Retirer le filtre</Button>
+          <Button size="sm" variant="ghost" onPress={() => (ctl.setFilterColumn(col, null), onClose())}>{tr('Retirer le filtre', 'Remove the filter')}</Button>
           <Button size="sm" onPress={() => (ctl.setFilterColumn(col, checked.size === values.length ? null : [...checked]), onClose())}>OK</Button>
         </div>
       </div>
@@ -612,8 +613,8 @@ export function ValidationList({ ctl, at, onClose }: { ctl: SheetController; at:
   const { r, c } = ctl.sel.active;
   const choices = listChoices(ctl, r, c) ?? [];
   return (
-    <AnchoredPopover at={at} onClose={onClose} label="Choix de la liste">
-      <ul className="oel-validlist" role="listbox" aria-label="Choix">
+    <AnchoredPopover at={at} onClose={onClose} label={tr('Choix de la liste', 'List choices')}>
+      <ul className="oel-validlist" role="listbox" aria-label={tr('Choix', 'Choices')}>
         {choices.map((ch) => (
           <li key={ch}>
             <button
@@ -642,13 +643,13 @@ export function ValidationList({ ctl, at, onClose }: { ctl: SheetController; at:
 export function PreservedNote({ items }: { items: Array<{ kind: string; label: string }> }) {
   return (
     <div className="oel-preserved">
-      <p>Le fichier contient des éléments que l’éditeur ne modifie pas encore. Ils sont gardés tels quels et réécrits à l’identique à l’export .xlsx :</p>
+      <p>{tr('Le fichier contient des éléments que l’éditeur ne modifie pas encore. Ils sont gardés tels quels et réécrits à l’identique à l’export .xlsx :', 'The file holds elements the editor can’t edit yet. They are kept as they are and written back identically on .xlsx export:')}</p>
       <ul>
         {items.map((p) => (
           <li key={p.kind}>{p.label}</li>
         ))}
       </ul>
-      <p className="oel-preserved__note">Les graphiques suivent les lignes et colonnes insérées ; les tableaux croisés gardent leurs plages d’origine : si vous insérez des lignes au-dessus de leurs données, vérifiez-les dans Excel.</p>
+      <p className="oel-preserved__note">{tr('Les graphiques suivent les lignes et colonnes insérées ; les tableaux croisés gardent leurs plages d’origine : si vous insérez des lignes au-dessus de leurs données, vérifiez-les dans Excel.', 'Charts follow inserted rows and columns; pivot tables keep their original ranges: if you insert rows above their data, check them in Excel.')}</p>
     </div>
   );
 }

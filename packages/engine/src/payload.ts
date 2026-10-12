@@ -1,4 +1,5 @@
 import type { DeckPayload, DocxPayload, WorkbookPayload } from './types';
+import { tr } from '@oel/i18n';
 
 /** Payload formats this build understands. Bump with the codec when its JSON breaks. */
 export const PAYLOAD_FORMATS = {
@@ -15,8 +16,11 @@ export class PayloadFormatError extends Error {
   ) {
     super(
       received === undefined
-        ? 'Contenu illisible : le moteur n’a pas fourni de format.'
-        : `Format de contenu non pris en charge (« ${String(received)} », attendu « ${expected} »). Rechargez la page pour obtenir la dernière version.`,
+        ? tr('Contenu illisible : le moteur n’a pas fourni de format.', 'Unreadable content: the engine gave no format.')
+        : tr(
+            `Format de contenu non pris en charge (« ${String(received)} », attendu « ${expected} »). Rechargez la page pour obtenir la dernière version.`,
+            `Content format not supported (“${String(received)}”, expected “${expected}”). Reload the page to get the latest version.`,
+          ),
     );
     this.name = 'PayloadFormatError';
   }

@@ -54,8 +54,12 @@ about file types.
   (`collab={features.collab}`); never delete them, and never read the env var from a package.
 - **Saved desk.** The desk is one Y.Doc per project in IndexedDB (`bureau/persist.ts`). A new `PaperData` field holding
   an object URL or anything tab-only is dropped in `storedPaper` and rebuilt in `bureau/restore.ts`.
-- **Copy and language.** Bureau UI copy is French (fr-CA); spreadsheet formulas are English (`,` between arguments,
-  `.` decimal). The site (`apps/web/src/site/`) is bilingual: every French string needs its English one (typed).
+- **Copy and language.** The Bureau is French (fr-CA) by default and English on request: every UI string is written
+  in both, through `@oel/i18n` (`messages(fr, en)` tables typed against French, or `tr(fr, en)` for a lone label;
+  numbers and dates use `locale()`). The language is fixed for the page (`<html lang>`, set from the `oel-lang`
+  cookie by `Base.astro`; changing it reloads) — see `apps/web/src/lang.ts`. Workers get it from their name
+  (`namedWorker`). Spreadsheet formulas are English in both (`,` between arguments, `.` decimal). The site
+  (`apps/web/src/site/`) is bilingual too: every French string needs its English one (typed).
 - **UI.** Components and tokens from `@oel/emboss` (`--emboss-*`), never raw colours in components; new icons from
   Iconoir (`iconoir-react`), never hand-drawn. Tools that can't act stay visible with `unavailableReason`; nothing may
   pretend to work (no simulated progress, no fake results).

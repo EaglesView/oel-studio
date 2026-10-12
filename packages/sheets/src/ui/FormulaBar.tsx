@@ -3,6 +3,7 @@ import { Icon } from '@oel/emboss';
 import { a1, rangeA1 } from '../model/a1';
 import { current } from '../grid/selection';
 import type { SheetController } from './controller';
+import { tr } from '@oel/i18n';
 
 /**
  * Name box + formula bar (C3 · 1–2): the name box shows the active cell or
@@ -52,7 +53,7 @@ export function FormulaBar({ ctl, onFocusGrid }: { ctl: SheetController; onFocus
     <div className="oel-formulabar">
       <input
         className="oel-formulabar__name emb-well"
-        aria-label="Zone Nom : cellule active, ou aller à une référence"
+        aria-label={tr('Zone Nom : cellule active, ou aller à une référence', 'Name box: active cell, or go to a reference')}
         value={name}
         onFocus={(e) => (setNameFocus(true), e.currentTarget.select())}
         onBlur={() => setNameFocus(false)}
@@ -75,7 +76,7 @@ export function FormulaBar({ ctl, onFocusGrid }: { ctl: SheetController; onFocus
       <input
         ref={input}
         className="oel-formulabar__input emb-well"
-        aria-label={`Contenu de ${a1(ctl.sel.active.r, ctl.sel.active.c)}`}
+        aria-label={tr(`Contenu de ${a1(ctl.sel.active.r, ctl.sel.active.c)}`, `Contents of ${a1(ctl.sel.active.r, ctl.sel.active.c)}`)}
         readOnly={ctl.readOnlyFlag}
         spellCheck={false}
         value={value}

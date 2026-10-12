@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
+import { tr } from '@oel/i18n';
 
 /** What the bar of a linked copy shows about its link (the host reads it from @oel/links). */
 export interface LinkedCopyInfo {
@@ -28,12 +29,12 @@ export function LinkedCopyBar({ label, link, children, style, className }: { lab
         <span className="oel-chart-bar__label">{label}</span>
         {children}
         {children && <ToolbarSeparator />}
-        <ToolButton icon="table" label="Voir la source" showLabel description={`Ouvrir ${link.source}`} unavailableReason={link.sourceUnavailable} onPress={link.onSource} />
-        {link.stale && !link.frozen && <ToolButton icon="refresh" label="Mettre à jour" showLabel onPress={link.onUpdate} />}
+        <ToolButton icon="table" label={tr('Voir la source', 'See the source')} showLabel description={tr(`Ouvrir ${link.source}`, `Open ${link.source}`)} unavailableReason={link.sourceUnavailable} onPress={link.onSource} />
+        {link.stale && !link.frozen && <ToolButton icon="refresh" label={tr('Mettre à jour', 'Update')} showLabel onPress={link.onUpdate} />}
         <ToolButton
           icon="link"
-          label={`Lien · ${link.stateLabel}`}
-          description="Mode, mise à jour, couper le lien"
+          label={tr(`Lien · ${link.stateLabel}`, `Link · ${link.stateLabel}`)}
+          description={tr('Mode, mise à jour, couper le lien', 'Mode, update, cut the link')}
           onPress={() => {
             const r = document.activeElement?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0 };
             link.onManage({ x: r.x, y: r.y, width: r.width, height: r.height });

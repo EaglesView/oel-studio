@@ -6,6 +6,7 @@ import { createImageWorker } from '../images';
 import type { WorkspaceProps } from '../OpenSheet';
 import { exportDocx, identity, sessionFor } from '../docs';
 import { features } from '../../edition';
+import { tr } from '@oel/i18n';
 
 /**
  * 01 · Feuille: the Docs-style editor (@oel/docs) on a collaborative,
@@ -31,8 +32,8 @@ export function DocumentWorkspace({ paper, level, onDraft, registerFlush, onPatc
     registerFlush(() => (session ? previewFromYDoc(session.ydoc) : null));
   }, [session, registerFlush]);
 
-  if (error) return <p className="workspace-empty">Impossible d’ouvrir le document : {error}</p>;
-  if (!session) return <p className="workspace-empty">Ouverture du document…</p>;
+  if (error) return <p className="workspace-empty">{tr('Impossible d’ouvrir le document :', 'Could not open the document:')} {error}</p>;
+  if (!session) return <p className="workspace-empty">{tr('Ouverture du document…', 'Opening the document…')}</p>;
   return (
     <div className={`ws ws--docs ws--docs-${level === 3 ? 'full' : 'sheet'}`}>
       <DocsEditor

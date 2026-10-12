@@ -11,6 +11,7 @@ import { fit, movingAverage, stdev } from '../stats';
 import { Ctx, GRID_GREY, PT, type ResolvedText } from '../style';
 import type { Axis, DataLabels, Group, Paint, ResolvedChart, SeriesData, Stroke } from '../types';
 import { drawMarker, hasMarker, markerSymbol, type Rect } from './frame';
+import { tr } from '@oel/i18n';
 
 const TICK = 4;
 
@@ -754,7 +755,7 @@ function drawValAxis(ctx: Ctx, va: ValAxis, inner: Rect, horizontal: boolean, va
 }
 
 function axisTitle(ctx: Ctx, a: Axis, x: number, y: number, vertical: boolean, right: boolean, top: boolean) {
-  const text = a.title?.text ?? 'Titre de l’axe';
+  const text = a.title?.text ?? tr('Titre de l’axe', 'Axis Title');
   const ts: ResolvedText = ctx.text(a.title?.style, { size: 10, bold: false });
   const rot = ts.rot ?? (vertical ? -90 : 0);
   ctx.label(text, x, y, ts, 'middle', vertical ? (right ? 'top' : 'bottom') : top ? 'bottom' : 'top', `axisTitle:${a.id}`, rot);

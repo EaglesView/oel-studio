@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { tr } from '@oel/i18n';
 
 type Rect = [number, number, number, number];
 type Handle = 'move' | 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se';
@@ -71,7 +72,7 @@ export function CropOverlay({ rect, ratio, fw, fh, onChange }: { rect: Rect; rat
         onPointerDown={down('move')}
         tabIndex={0}
         role="group"
-        aria-label="Cadre de recadrage : glisser pour déplacer, flèches pour ajuster"
+        aria-label={tr('Cadre de recadrage : glisser pour déplacer, flèches pour ajuster', 'Crop frame: drag to move, arrows to adjust')}
         onKeyDown={(e) => {
           const d = e.shiftKey ? 0.05 : 0.01;
           const v = ({ ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] } as Record<string, [number, number]>)[e.key];

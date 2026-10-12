@@ -14,6 +14,7 @@ import * as Y from 'yjs';
 import type { DeskLink, Viewport } from '@oel/desk';
 import { THREAD_PREFIX } from '@oel/links';
 import type { Bureau, Paper, PaperKind } from './model';
+import { tr } from '@oel/i18n';
 
 export const DESK_FORMAT = 1;
 export const deskDbName = (projectId: string) => `oel-desk:${projectId}`;
@@ -48,7 +49,7 @@ export function storedPaper(p: Paper): Paper {
 /** A paper as it comes back: an import cut short by closing the tab says so. */
 export function restoredPaper(p: Paper): Paper {
   if (p.data.status.state !== 'importing') return p;
-  return { ...p, data: { ...p.data, status: { state: 'error', reason: 'Import interrompu : déposez le fichier à nouveau.' } } };
+  return { ...p, data: { ...p.data, status: { state: 'error', reason: tr('Import interrompu : déposez le fichier à nouveau.', 'Import interrupted: drop the file again.') } } };
 }
 
 /** Threads the link resolver derives from the files are not saved: they come back from the files. */

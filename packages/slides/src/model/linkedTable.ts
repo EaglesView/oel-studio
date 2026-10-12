@@ -9,6 +9,7 @@ import type { LinkedTable, LinkTheme, Overflow } from '@oel/links';
 import type { Element, Paint, Table, TableCell } from './types';
 import type { DeckInfo } from './ydoc';
 import { newId } from './ops';
+import { tr } from '@oel/i18n';
 
 const EMU_PER_PT = 12700;
 /** Linked tables start at 12 pt (sheet sizes read too small on a slide, theirs too large). */
@@ -55,7 +56,7 @@ export function linkedTableContent(table: LinkedTable, theme: LinkTheme, overflo
   const h = rowH(size);
   return {
     table: { cols, rows: rows.map((r) => ({ h, cells: r.map((c) => cell(c, theme, size, font)) })) },
-    name: rows.length < total ? `Tableau lié · ${rows.length} lignes sur ${total}` : 'Tableau lié',
+    name: rows.length < total ? tr(`Tableau lié · ${rows.length} lignes sur ${total}`, `Linked table · ${rows.length} rows of ${total}`) : tr('Tableau lié', 'Linked table'),
   };
 }
 

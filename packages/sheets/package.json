@@ -25,6 +25,7 @@
     "react-aria-components": "^1.21.1",
     "yjs": "^13.6.33",
     "@oel/charts": "*",
+    "@oel/i18n": "*",
     "@oel/links": "*",
     "@oel/img": "*"
   },

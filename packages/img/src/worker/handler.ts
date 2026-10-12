@@ -5,6 +5,7 @@
 import type { ExportOptions, FromImage, GpuPreference, Raster, ToImage } from '../protocol';
 import { fit, proxySizes, scaleOf, type Size } from '../proxies';
 import type { Backend, OelImgWasm } from './backend';
+import { tr } from '@oel/i18n';
 
 export interface Platform {
   /** Upright sRGB RGBA of an encoded picture. */
@@ -33,8 +34,8 @@ export function createImageHandler(deps: HandlerDeps) {
   let recipe = '{}';
 
   const need = () => {
-    if (!backend) throw new Error('Moteur d’image non initialisé');
-    if (!original || !preview || !drag) throw new Error('Aucune image chargée');
+    if (!backend) throw new Error(tr('Moteur d’image non initialisé', 'Image engine not started'));
+    if (!original || !preview || !drag) throw new Error(tr('Aucune image chargée', 'No image loaded'));
     return { backend, original, preview, drag };
   };
 
@@ -90,7 +91,7 @@ export function createImageHandler(deps: HandlerDeps) {
           backend = await deps.createBackend(m.canvas, m.gpu);
           return { id: m.id, op: 'ready', capability: backend.capability, maxSize: backend.maxSize };
         case 'source': {
-          if (!backend) throw new Error('Moteur d’image non initialisé');
+          if (!backend) throw new Error(tr('Moteur d’image non initialisé', 'Image engine not started'));
           backend.clearSources();
           full = null;
           original = await deps.platform.decode(m.blob);

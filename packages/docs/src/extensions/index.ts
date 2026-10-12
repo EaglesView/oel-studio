@@ -32,6 +32,7 @@ import { FindReplace } from './find';
 import { DocEditing } from './editing';
 import { Pagination } from './pagination';
 import { LinkedCopies } from './links';
+import { tr } from '@oel/i18n';
 
 export interface DocsExtensionOptions {
   /** Bind to a Yjs fragment (undo/redo then come from Yjs). */
@@ -96,7 +97,7 @@ export function docsExtensions(o: DocsExtensionOptions = {}): AnyExtension[] {
     DocList,
   ];
   if (!o.bare) {
-    exts.push(FindReplace, DocEditing, CharacterCount, Placeholder.configure({ placeholder: o.placeholder ?? 'Commencez à écrire…' }));
+    exts.push(FindReplace, DocEditing, CharacterCount, Placeholder.configure({ placeholder: o.placeholder ?? tr('Commencez à écrire…', 'Start writing…') }));
     if (o.pagination !== false) exts.push(Pagination);
   }
   if (o.fragment) {

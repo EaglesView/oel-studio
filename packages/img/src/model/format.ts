@@ -3,10 +3,11 @@
  * geometry edits that keep the crop where the user sees it.
  */
 import { leafValue, type Recipe } from '../recipe';
+import { locale, tr } from '@oel/i18n';
 
 type Rect = [number, number, number, number];
 
-const nf = (digits: number) => new Intl.NumberFormat('fr-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const nf = (digits: number) => new Intl.NumberFormat(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 export interface Display {
   /** Decimals shown. */
@@ -35,9 +36,9 @@ export interface AspectChoice {
 }
 
 export const ASPECTS: AspectChoice[] = [
-  { id: 'original', label: 'Original', ratio: null },
-  { id: 'libre', label: 'Libre', ratio: null },
-  { id: '1:1', label: 'Carré (1:1)', ratio: 1 },
+  { id: 'original', label: tr('Original', 'Original'), ratio: null },
+  { id: 'libre', label: tr('Libre', 'Free'), ratio: null },
+  { id: '1:1', label: tr('Carré (1:1)', 'Square (1:1)'), ratio: 1 },
   { id: '4:5', label: '4:5', ratio: 4 / 5 },
   { id: '3:2', label: '3:2', ratio: 3 / 2 },
   { id: '16:9', label: '16:9', ratio: 16 / 9 },

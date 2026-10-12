@@ -4,6 +4,7 @@ import { Button, DialogOverlay, Icon, Select, SelectItem, SheetDialog, type Icon
 import { blankForm, formFromColumns, registrationTemplate } from '../model/create';
 import type { FormDef } from '../model/types';
 import type { SheetRef } from './LinkSheetDialog';
+import { tr } from '@oel/i18n';
 
 export interface NewFormResult {
   form: FormDef;
@@ -38,30 +39,30 @@ export function NewFormDialog({
   const sheet = sheets.find((s) => s.id === sheetId) ?? null;
 
   const options: Array<{ id: Start; icon: IconName; title: string; desc: string; disabled?: boolean }> = [
-    { id: 'blank', icon: 'input', title: 'Formulaire vide', desc: 'Une première question « Texte court »' },
-    { id: 'sheet', icon: 'table', title: 'À partir d’un tableur', desc: sheet ? `${sheet.title} › ${sheet.tab}` : 'Aucun tableur sur le bureau', disabled: !sheets.length },
-    { id: 'template', icon: 'form', title: 'Modèle · Inscription', desc: 'Nom, courriel, choix, date' },
+    { id: 'blank', icon: 'input', title: tr('Formulaire vide', 'Blank form'), desc: tr('Une première question « Texte court »', 'A first “Short text” question') },
+    { id: 'sheet', icon: 'table', title: tr('À partir d’un tableur', 'From a spreadsheet'), desc: sheet ? `${sheet.title} › ${sheet.tab}` : tr('Aucun tableur sur le bureau', 'No spreadsheet on the desk'), disabled: !sheets.length },
+    { id: 'template', icon: 'form', title: tr('Modèle · Inscription', 'Template · Registration'), desc: tr('Nom, courriel, choix, date', 'Name, email, choice, date') },
   ];
 
   const create = () => {
     if (start === 'sheet' && sheet) {
-      onCreate({ form: formFromColumns(sheet.rows, `Formulaire · ${sheet.title}`, organiser), linkTo: sheet });
+      onCreate({ form: formFromColumns(sheet.rows, tr(`Formulaire · ${sheet.title}`, `Form · ${sheet.title}`), organiser), linkTo: sheet });
     } else if (start === 'template') {
       onCreate({ form: registrationTemplate(organiser), linkTo: null });
     } else {
-      onCreate({ form: blankForm('Formulaire sans titre', organiser), linkTo: null });
+      onCreate({ form: blankForm(tr('Formulaire sans titre', 'Untitled form'), organiser), linkTo: null });
     }
   };
 
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
       <SheetDialog
-        title="Nouveau formulaire"
+        title={tr('Nouveau formulaire', 'New form')}
         width={640}
         actions={(close) => (
           <>
             <Button variant="ghost" onPress={close}>
-              Annuler
+              {tr('Annuler', 'Cancel')}
             </Button>
             <Button
               variant="primary"
@@ -71,14 +72,14 @@ export function NewFormDialog({
                 close();
               }}
             >
-              Créer
+              {tr('Créer', 'Create')}
             </Button>
           </>
         )}
       >
         <div className="forms-dialog">
-          <p>Partir de zéro, des colonnes d’un tableur (une question par colonne), ou d’un modèle.</p>
-          <RACRadioGroup aria-label="Point de départ" value={start} onChange={(v) => setStart(v as Start)} className="forms-starts" orientation="horizontal">
+          <p>{tr('Partir de zéro, des colonnes d’un tableur (une question par colonne), ou d’un modèle.', 'Start from scratch, from a spreadsheet’s columns (one question per column), or from a template.')}</p>
+          <RACRadioGroup aria-label={tr('Point de départ', 'Starting point')} value={start} onChange={(v) => setStart(v as Start)} className="forms-starts" orientation="horizontal">
             {options.map((o) => (
               <RACRadio key={o.id} value={o.id} isDisabled={o.disabled} className="forms-start">
                 <span className="forms-start__icon" aria-hidden>
@@ -90,7 +91,7 @@ export function NewFormDialog({
             ))}
           </RACRadioGroup>
           {start === 'sheet' && sheets.length > 1 && (
-            <Select label="Tableur" selectedKey={sheetId} onSelectionChange={(k) => setSheetId(String(k))}>
+            <Select label={tr('Tableur', 'Spreadsheet')} selectedKey={sheetId} onSelectionChange={(k) => setSheetId(String(k))}>
               {sheets.map((s) => (
                 <SelectItem key={s.id} id={s.id} icon="table">
                   {`${s.title} › ${s.tab}`}
@@ -100,7 +101,7 @@ export function NewFormDialog({
           )}
           {start === 'sheet' && sheet && (
             <p className="emb-field__helper">
-              {Math.max(0, (sheet.rows[0] ?? []).filter((h) => h.trim()).length)} colonnes → autant de questions. Les réponses iront dans ce même tableur.
+              {tr(`${Math.max(0, (sheet.rows[0] ?? []).filter((h) => h.trim()).length)} colonnes → autant de questions. Les réponses iront dans ce même tableur.`, `${Math.max(0, (sheet.rows[0] ?? []).filter((h) => h.trim()).length)} columns → as many questions. The responses will go to this same spreadsheet.`)}
             </p>
           )}
         </div>

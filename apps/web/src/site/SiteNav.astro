@@ -1,6 +1,6 @@
 ---
 /** Figma `Site/Nav` (207:9): brand, sections, language, « Ouvrir le Bureau ». No sign-in in the single-user release. */
-import { UI, href, docHref, type Lang } from './i18n';
+import { UI, bureauHref, href, docHref, type Lang } from './i18n';
 
 interface Props {
   lang: Lang;
@@ -29,6 +29,6 @@ const home = href(lang, '/');
   </nav>
   <div class="site-nav__end">
     <a class="site-nav__lang" href={other} hreflang={lang === 'fr' ? 'en' : 'fr-CA'} lang={lang === 'fr' ? 'en' : 'fr-CA'} aria-label={t.otherLang.label}>{t.otherLang.short}</a>
-    <a class="site-button site-button--primary" href="/bureau">{t.open}</a>
+    <a class="site-button site-button--primary" href={bureauHref(lang)}>{t.open}</a>
   </div>
 </header>

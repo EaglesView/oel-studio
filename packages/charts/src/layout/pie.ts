@@ -8,6 +8,7 @@ import { Ctx, PT, shade } from '../style';
 import type { Paint, ResolvedChart, SeriesData, Stroke } from '../types';
 import { labelsOf, labelText } from './cartesian';
 import type { Rect } from './frame';
+import { tr } from '@oel/i18n';
 
 const f2 = (n: number) => (Math.round(n * 100) / 100).toString();
 const TAU = Math.PI * 2;
@@ -243,7 +244,7 @@ function ofPie(ctx: Ctx, s: SeriesData, area: Rect, start: number, margin: numbe
       const m = (p.a0 + p.a1) / 2;
       if (t) ctx.label(t, cx + Math.sin(m) * r * 0.6, cy - Math.cos(m) * r * 0.6, ts, 'middle', 'middle', `labels:${s.index}`);
     }
-    if (l.showPct || l.showVal) ctx.label(l.showPct ? `Autre ${formatValue(otherV / total, '0%')}` : formatValue(otherV, s.format), cx + r * 0.6, cy, ts, 'middle', 'middle', `labels:${s.index}`);
+    if (l.showPct || l.showVal) ctx.label(l.showPct ? `${tr('Autre', 'Other')} ${formatValue(otherV / total, '0%')}` : formatValue(otherV, s.format), cx + r * 0.6, cy, ts, 'middle', 'middle', `labels:${s.index}`);
   }
   ctx.hit('plot', area.x, area.y, area.w, area.h);
 }

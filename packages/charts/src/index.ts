@@ -18,6 +18,25 @@ import { radar } from './layout/radar';
 import { bars3d, surface, surfaceBands, surfaceScale } from './layout/three';
 import { Ctx } from './style';
 import type { ChartSpec, RenderOptions, ResolvedChart, Scene } from './types';
+import { messages, plural } from '@oel/i18n';
+
+const t = messages(
+  {
+    notShown: 'Graphique non affiché',
+    chart: 'Graphique',
+    kinds: { bar: 'Histogramme', line: 'Courbes', pie: 'Secteurs', doughnut: 'Anneau', area: 'Aires', scatter: 'Nuage de points', bubble: 'Bulles', radar: 'Radar', stock: 'Boursier', surface: 'Surface' } as Record<string, string>,
+    range: (name: string, lo: string, hi: string) => `${name} : ${lo} à ${hi}`,
+    describe: (kind: string, title: string | undefined, n: number, parts: string[]) =>
+      `${kind}${title ? ` « ${title} »` : ''}, ${n} ${plural(n, 'série', 'séries')}${parts.length ? ` (${parts.join(' ; ')})` : ''}.`,
+  },
+  {
+    notShown: 'Chart not shown',
+    chart: 'Chart',
+    kinds: { bar: 'Column chart', line: 'Line chart', pie: 'Pie chart', doughnut: 'Doughnut chart', area: 'Area chart', scatter: 'Scatter chart', bubble: 'Bubble chart', radar: 'Radar chart', stock: 'Stock chart', surface: 'Surface chart' },
+    range: (name, lo, hi) => `${name}: ${lo} to ${hi}`,
+    describe: (kind, title, n, parts) => `${kind}${title ? ` “${title}”` : ''}, ${n} ${plural(n, 'series', 'series')}${parts.length ? ` (${parts.join('; ')})` : ''}.`,
+  },
+);
 
 export type * from './types';
 export { chartName, keepLook, resolveChart, withCaches } from './data';
@@ -26,7 +45,7 @@ export { valueScale } from './scale';
 export { cellResolver, parseRef, type CellReader, type RefArea } from './refs';
 export { toSVG, toDataURL } from './render/svg';
 export { paintCanvas, canvasMeasure } from './render/canvas';
-export { applyType, chartFamily, CHART_TYPES, FAMILIES, newChart, recommend, type CellBlock, type ChartTypeInfo } from './catalog';
+export { applyType, chartFamily, CHART_FALLBACK_NAME, CHART_TITLE, CHART_TYPES, FAMILIES, seriesName, newChart, recommend, type CellBlock, type ChartTypeInfo } from './catalog';
 
 export type Family = 'cartesian' | 'pie' | 'radar' | 'surface' | 'three' | 'ex';
 
@@ -97,7 +116,7 @@ export function renderChart(spec: ChartSpec, opts: RenderOptions): Scene {
     }
   } catch (e) {
     // A chart we cannot lay out still shows its frame and a reason.
-    ctx.label('Graphique non affiché', r.x + r.w / 2, r.y + r.h / 2, ctx.text(null, { size: 11 }));
+    ctx.label(t.notShown, r.x + r.w / 2, r.y + r.h / 2, ctx.text(null, { size: 11 }));
     console.warn('@oel/charts', e);
   }
   return { w: opts.width, h: opts.height, marks: ctx.marks, hits: ctx.hits, label: describe(data) };
@@ -106,12 +125,11 @@ export function renderChart(spec: ChartSpec, opts: RenderOptions): Scene {
 /** A sentence for screen readers: type, title, series and their ranges. */
 export function describe(data: ResolvedChart): string {
   const s = data.series.filter((x) => !x.series.hidden);
-  const kind = s[0]?.group.kind ?? 'graphique';
-  const names: Record<string, string> = { bar: 'Histogramme', line: 'Courbes', pie: 'Secteurs', doughnut: 'Anneau', area: 'Aires', scatter: 'Nuage de points', bubble: 'Bulles', radar: 'Radar', stock: 'Boursier', surface: 'Surface' };
-  const t = data.spec.title?.text;
+  const kind = s[0]?.group.kind ?? '';
+  const title = data.spec.title?.text;
   const parts = s.slice(0, 6).map((x) => {
     const vals = x.values.filter((v): v is number => v != null);
-    return vals.length ? `${x.name} : ${formatValue(Math.min(...vals), x.format)} à ${formatValue(Math.max(...vals), x.format)}` : x.name;
+    return vals.length ? t.range(x.name, formatValue(Math.min(...vals), x.format), formatValue(Math.max(...vals), x.format)) : x.name;
   });
-  return `${names[kind] ?? 'Graphique'}${t ? ` « ${t} »` : ''}, ${s.length} série${s.length > 1 ? 's' : ''}${parts.length ? ` (${parts.join(' ; ')})` : ''}.`;
+  return t.describe(t.kinds[kind] ?? t.chart, title, s.length, parts);
 }

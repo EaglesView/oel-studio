@@ -8,6 +8,7 @@ import { applyType, newChart, recommend, type CellBlock, type ChartSpec } from '
 import { current } from '../grid/selection';
 import type { Drawing, DrawingMarker } from '../model/types';
 import type { SheetController } from './controller';
+import { tr } from '@oel/i18n';
 
 const EMU = 9525;
 
@@ -85,7 +86,7 @@ export function insertChart(ctl: SheetController, typeId?: string): boolean {
   const y = rows.offset(block.r0);
   const list = ctl.doc.drawings(ctl.sheetId);
   const n = list.filter((d) => d.kind === 'chart').length + 1;
-  const d = placed(ctl, { kind: 'chart', name: `Graphique ${n}`, from: { r: 0, c: 0 }, chart: spec }, { x, y, w: 480, h: 288 });
+  const d = placed(ctl, { kind: 'chart', name: tr(`Graphique ${n}`, `Chart ${n}`), from: { r: 0, c: 0 }, chart: spec }, { x, y, w: 480, h: 288 });
   ctl.doc.setDrawings(ctl.sheetId, [...list, d]);
   ctl.selectDrawing(list.length);
   return true;

@@ -26,6 +26,9 @@ import { LinkResolver, setActiveLinks } from '../links/resolver';
 import { LinksUI } from '../links/LinksUI';
 import { THREAD_PREFIX } from '@oel/links';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { Welcome } from './Welcome';
+import { welcomed } from '../lang';
+import { LocaleRoot } from '../LocaleRoot';
 import { importFiles } from './importFiles';
 import { identity } from './docs';
 import { NewFormDialog, createLink, type NewFormResult } from '@oel/forms';
@@ -34,9 +37,79 @@ import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms'
 import { ProjectProvider, useProject, useSetting } from '../project/ProjectContext';
 import { bindImages, createGallery } from './images';
 import { bindDesk, type DeskBinding } from './persist';
-import { openDesk, type OpenedDesk } from './deskStorage';
+import { openDesk, scheduleReset, type OpenedDesk } from './deskStorage';
 import { askPersistentStorage, bindThumbnails, restoreMedia } from './restore';
+import { messages, plural } from '@oel/i18n';
 import './bureau.css';
+
+const t = messages(
+  {
+    pageTitle: 'Bureau · Lancement automne 2026 · OutilsEnLigne',
+    opening: 'Ouverture du bureau…',
+    openFailed: 'Impossible d’ouvrir le bureau :',
+    noteStep: (title: string) => `Note « ${title} »`,
+    stuck: (title: string) => `Note collée à « ${title} »`,
+    unstuck: 'Note décollée',
+    undo: 'Annuler',
+    settingFailed: 'Réglage non appliqué',
+    created: (kind: string) => `${kind} créé au centre de la vue`,
+    formCreated: (title: string) => `Formulaire « ${title} » créé`,
+    removed: (n: number) => (n > 1 ? `${n} fichiers retirés du bureau` : 'Fichier retiré du bureau'),
+    freed: (n: number) => (n > 1 ? `${n} notes décollées` : '1 note décollée'),
+    deskOf: (name: string) => `Bureau du projet ${name}`,
+    group: (n: number, kinds: number) => `${n} fichiers · ${kinds} ${plural(kinds, 'type', 'types')}`,
+    drop: 'Déposez pour ajouter au projet',
+    dropFormats: 'PDF, Word, PowerPoint, Excel, images · 100 Mo max',
+    actions: 'Actions',
+    new: 'Nouveau',
+    note: 'Note',
+    unstick: 'Décoller',
+    stick: 'Coller',
+    stickTo: 'Coller à…',
+    retouch: 'Retoucher l’image',
+    editImages: (n: number) => `Modifier les images (${n})`,
+    openInPlace: 'Ouvrir sur place',
+    toFront: 'Mettre au premier plan',
+    arrange: 'Ranger en ligne',
+    zoomSelection: 'Zoomer sur la sélection',
+    seeAll: 'Tout voir',
+    selectAll: 'Tout sélectionner',
+    remove: 'Retirer du bureau',
+  },
+  {
+    pageTitle: 'Bureau · Launching fall 2026 · OutilsEnLigne',
+    opening: 'Opening the desk…',
+    openFailed: 'The desk could not be opened:',
+    noteStep: (title) => `Note “${title}”`,
+    stuck: (title) => `Note stuck to “${title}”`,
+    unstuck: 'Note unstuck',
+    undo: 'Undo',
+    settingFailed: 'Setting not applied',
+    created: (kind) => `${kind} created in the middle of the view`,
+    formCreated: (title) => `Form “${title}” created`,
+    removed: (n) => (n > 1 ? `${n} files removed from the desk` : 'File removed from the desk'),
+    freed: (n) => (n > 1 ? `${n} notes unstuck` : '1 note unstuck'),
+    deskOf: (name) => `Desk of the project ${name}`,
+    group: (n, kinds) => `${n} files · ${kinds} ${plural(kinds, 'type', 'types')}`,
+    drop: 'Drop to add to the project',
+    dropFormats: 'PDF, Word, PowerPoint, Excel, images · 100 MB max',
+    actions: 'Actions',
+    new: 'New',
+    note: 'Note',
+    unstick: 'Unstick',
+    stick: 'Stick',
+    stickTo: 'Stick to…',
+    retouch: 'Retouch the image',
+    editImages: (n) => `Edit the images (${n})`,
+    openInPlace: 'Open in place',
+    toFront: 'Bring to front',
+    arrange: 'Line up',
+    zoomSelection: 'Zoom to the selection',
+    seeAll: 'See everything',
+    selectAll: 'Select all',
+    remove: 'Remove from the desk',
+  },
+);
 
 /** Furthest you can zoom out: papers are small thumbnails, never piles or a full overview. */
 const MAX_ZOOM_OUT = 0.25;
@@ -47,10 +120,15 @@ const MAX_ZOOM_OUT = 0.25;
  * toolbar; double-click / Enter opens the paper in place (B4).
  */
 export function BureauApp() {
+  useEffect(() => {
+    document.title = t.pageTitle;
+  }, []);
   return (
-    <ProjectProvider>
-      <DeskLoader />
-    </ProjectProvider>
+    <LocaleRoot>
+      <ProjectProvider>
+        <DeskLoader />
+      </ProjectProvider>
+    </LocaleRoot>
   );
 }
 
@@ -70,8 +148,8 @@ function DeskLoader() {
   }, [project.id]);
   // Stop saving the previous project's desk when another one opens.
   useEffect(() => () => void (opened && 'desk' in opened && opened.desk.device.close()), [opened]);
-  if (!opened || opened.projectId !== project.id) return <p className="bureau-loading" role="status">Ouverture du bureau…</p>;
-  if ('error' in opened) return <p className="bureau-loading" role="alert">Impossible d’ouvrir le bureau : {opened.error}</p>;
+  if (!opened || opened.projectId !== project.id) return <p className="bureau-loading" role="status">{t.opening}</p>;
+  if ('error' in opened) return <p className="bureau-loading" role="alert">{t.openFailed} {opened.error}</p>;
   return <BureauDesk key={opened.projectId} saved={opened.desk} />;
 }
 
@@ -130,7 +208,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     setView('desk');
     store.select([id]);
     store.focus(id);
-    store.begin(`Note « ${store.node(id)!.title} »`);
+    store.begin(t.noteStep(store.node(id)!.title));
     noteStart.current = { id, text: noteText(id) };
     if (typed) setNoteText(id, noteText(id) + typed);
     setEditingNote(id);
@@ -159,7 +237,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const [pickFor, setPickFor] = useState<string | null>(null);
   const titleOf = (id: string) => store.node(id)?.title ?? '';
   const stuckToast = (id: string, to: string) =>
-    toast({ title: `Note collée à « ${titleOf(to)} »`, tone: 'success', action: { label: 'Annuler', onAction: () => store.undo() } });
+    toast({ title: t.stuck(titleOf(to)), tone: 'success', action: { label: t.undo, onAction: () => store.undo() } });
   const notes: NoteActions = {
     stick: (id) => {
       const under = store.overlapping(id, isStickTarget);
@@ -169,7 +247,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     stickTo: (id) => setPickFor(id),
     unstick: (id) => {
       if (!store.detach([id]).length) return;
-      toast({ title: 'Note décollée', tone: 'info', action: { label: 'Annuler', onAction: () => store.undo() } });
+      toast({ title: t.unstuck, tone: 'info', action: { label: t.undo, onAction: () => store.undo() } });
     },
   };
   const pickTarget = useMemo<PickTarget<PaperData> | null>(
@@ -200,7 +278,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const linkTables = useSetting('import.linkTables');
   const rules: ArrivalRules = { sortByType: sortByType.value, ocr: ocr.value, linkTables: linkTables.value };
   const setRules = (r: ArrivalRules) => {
-    const failed = (e: unknown) => toast({ title: 'Réglage non appliqué', description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+    const failed = (e: unknown) => toast({ title: t.settingFailed, description: e instanceof Error ? e.message : String(e), tone: 'danger' });
     if (r.sortByType !== rules.sortByType) sortByType.set(r.sortByType).catch(failed);
     if (r.ocr !== rules.ocr) ocr.set(r.ocr).catch(failed);
     if (r.linkTables !== rules.linkTables) linkTables.set(r.linkTables).catch(failed);
@@ -249,6 +327,9 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   const openId = useDeskState(store, (s) => s.openId);
   /** R3 · first visit: how to open a paper, until one is opened or the hint is closed. */
   const [hint, setHint] = useState(firstRunHintPending);
+  /** First visit: language, links and what is kept on the device (Welcome.tsx). */
+  const [firstVisit] = useState(() => !welcomed());
+  const [welcome, setWelcome] = useState(firstVisit);
   const closeHint = useCallback(() => {
     dismissFirstRunHint();
     setHint(false);
@@ -365,7 +446,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     if (kind === 'form') return features.forms ? setNewForm({ sheetId: null }) : undefined;
     const p = blankPaper(kind, store.viewCenter());
     store.add([p]);
-    announceRef.current(`${kindLabel(kind)} créé au centre de la vue`);
+    announceRef.current(t.created(kindLabel(kind)));
     // A new note is written straight away, on the desk (K2); other files open in place.
     setTimeout(() => (kind === 'note' ? editNote(p.id) : openAt(p.id, 2)), 50);
   };
@@ -380,7 +461,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
       ensureFormThread(store, p.id, link);
       writeHeaders(store, link);
     }
-    announceRef.current(`Formulaire « ${form.title} » créé`);
+    announceRef.current(t.formCreated(form.title));
     setTimeout(() => openAt(p.id, 2), 50);
   };
   const doImport = (files: File[], at: { x: number; y: number } | null = null) =>
@@ -396,19 +477,19 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     const n = ids.length;
     const freed = store.remove(ids);
     toast({
-      title: n > 1 ? `${n} fichiers retirés du bureau` : 'Fichier retiré du bureau',
+      title: t.removed(n),
       // K « Le fichier est supprimé »: its notes stay on the desk, unstuck.
-      description: freed.length ? (freed.length > 1 ? `${freed.length} notes décollées` : '1 note décollée') : undefined,
+      description: freed.length ? t.freed(freed.length) : undefined,
       tone: 'info',
-      action: { label: 'Annuler', onAction: () => store.undo() },
+      action: { label: t.undo, onAction: () => store.undo() },
     });
   };
 
   // App-wide keys: help and import work from anywhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
+      const target = e.target as HTMLElement;
+      if (target.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(target.tagName)) return;
       if (e.key === '?') {
         e.preventDefault();
         setHelp(true);
@@ -434,7 +515,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
         {view === 'desk' ? (
           <DeskCanvas<PaperData>
             store={store}
-            label={`Bureau du projet ${project.name}`}
+            label={t.deskOf(project.name)}
             describeNode={(n) => describePaper(n as PaperNode)}
             renderNode={(n, ctx) => <Paper node={n as PaperNode} ctx={ctx} editing={n.id === editingNote ? noteEditing : null} />}
             selectionOverhang={(n, zoom) => (KIND_TAB[n.kind as PaperKind] ? tabHeightOnScreen(zoom) - 4 : 0)}
@@ -442,7 +523,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
             canContain={(c, n) => c.kind === 'gallery' && n.kind === 'image'}
             renderGroupLabel={(nodes) => {
               const kinds = new Set(nodes.map((n) => n.kind)).size;
-              return `${nodes.length} fichiers · ${kinds} type${kinds > 1 ? 's' : ''}`;
+              return t.group(nodes.length, kinds);
             }}
             onOpen={open}
             onDelete={remove}
@@ -456,7 +537,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
               const under = store.overlapping(id, isStickTarget);
               if (under && store.attach(id, under.id)) stuckToast(id, under.id);
             }}
-            onDetach={() => toast({ title: 'Note décollée', tone: 'info', action: { label: 'Annuler', onAction: () => store.undo() } })}
+            onDetach={() => toast({ title: t.unstuck, tone: 'info', action: { label: t.undo, onAction: () => store.undo() } })}
             onDropFiles={(files, at) => doImport(files, at)}
             onLinkOpen={(id, anchor) => links.manage(id.replace(THREAD_PREFIX, ''), deskToViewport(anchor))}
             onLinkDelete={(id) => links.setUi({ cut: id.replace(THREAD_PREFIX, '') })}
@@ -465,8 +546,8 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
             renderDropZone={(n) => (
               <div className="dropzone">
                 <Badge tone="accent" dot={false}>{n}</Badge>
-                <strong>Déposez pour ajouter au projet</strong>
-                <span>PDF, Word, PowerPoint, Excel, images · 100 Mo max</span>
+                <strong>{t.drop}</strong>
+                <span>{t.dropFormats}</span>
               </div>
             )}
             onKeyDown={(e) => {
@@ -546,7 +627,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           badge={features.projects}
         />
         {features.collab && <SharePill />}
-        {hint && view === 'desk' && !openId && count > 0 && <FirstRunHint onDismiss={closeHint} />}
+        {hint && !welcome && view === 'desk' && !openId && count > 0 && <FirstRunHint onDismiss={closeHint} />}
         <BottomBar
           onCreate={create}
           onImport={(files) => doImport(files)}
@@ -606,9 +687,19 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
         minimap={minimap}
         onMinimapChange={setMinimap}
         desk={{ projectId: project.id, title: project.name, doc: saved.device.doc, flush: () => persistence.current?.flush() }}
+        onWelcome={() => {
+          setAppMenu((m) => ({ ...m, open: false }));
+          setWelcome(true);
+        }}
       />
       <LinksUI resolver={links} store={store} />
       <ShortcutsDialog isOpen={help} onOpenChange={setHelp} />
+      <Welcome
+        isOpen={welcome}
+        onClose={() => setWelcome(false)}
+        // The demo was just laid out in the page's language; a first visit that picks the other one gets it again.
+        resetDemo={firstVisit && saved.seed === 'demo' && !saved.content ? () => scheduleReset(project.id, 'demo') : undefined}
+      />
       <ToastRegion />
     </div>
   );
@@ -661,7 +752,7 @@ function ContextMenu({
       {ready && (
         <MenuPopover triggerRef={anchor} isOpen onOpenChange={(o) => !o && onClose()} placement="bottom start">
           <Menu
-            aria-label="Actions"
+            aria-label={t.actions}
             autoFocus="first"
             onAction={(key) => {
               if (key === 'open' && single) onOpen(single);
@@ -679,10 +770,10 @@ function ContextMenu({
           >
             {ids.length === 0 ? (
               <SubmenuTrigger>
-                <MenuItem id="new" icon="plus">Nouveau</MenuItem>
+                <MenuItem id="new" icon="plus">{t.new}</MenuItem>
                 <MenuPopover placement="end top">
                   <Menu
-                    aria-label="Nouveau"
+                    aria-label={t.new}
                     onAction={(key) => {
                       onCreate(key as PaperKind);
                       onClose();
@@ -693,7 +784,7 @@ function ContextMenu({
                         {k.label}
                       </MenuItem>
                     ))}
-                    <MenuItem id="note" icon="note" shortcut="N">Note</MenuItem>
+                    <MenuItem id="note" icon="note" shortcut="N">{t.note}</MenuItem>
                   </Menu>
                 </MenuPopover>
               </SubmenuTrigger>
@@ -701,24 +792,24 @@ function ContextMenu({
             {ids.length === 0 ? <MenuSeparator /> : null}
             {single && singleNode?.kind === 'note' ? (
               singleNode.attach ? (
-                <MenuItem id="unstick" icon="pin-slash" shortcut="P">Décoller</MenuItem>
+                <MenuItem id="unstick" icon="pin-slash" shortcut="P">{t.unstick}</MenuItem>
               ) : (
                 [
-                  <MenuItem key="stick" id="stick" icon="pin" shortcut="P">Coller</MenuItem>,
-                  <MenuItem key="stick-to" id="stick-to" icon="pin" shortcut="Maj+P">Coller à…</MenuItem>,
+                  <MenuItem key="stick" id="stick" icon="pin" shortcut="P">{t.stick}</MenuItem>,
+                  <MenuItem key="stick-to" id="stick-to" icon="pin" shortcut="Maj+P">{t.stickTo}</MenuItem>,
                 ]
               )
             ) : images ? (
-              <MenuItem id="retouch" icon="magic-wand">{single ? 'Retoucher l’image' : `Modifier les images (${ids.length})`}</MenuItem>
+              <MenuItem id="retouch" icon="magic-wand">{single ? t.retouch : t.editImages(ids.length)}</MenuItem>
             ) : single ? (
-              <MenuItem id="open" icon="expand" shortcut="Entrée">Ouvrir sur place</MenuItem>
+              <MenuItem id="open" icon="expand" shortcut="Entrée">{t.openInPlace}</MenuItem>
             ) : null}
-            {ids.length > 0 ? <MenuItem id="front" icon="layout">Mettre au premier plan</MenuItem> : null}
-            {ids.length > 1 ? <MenuItem id="arrange" icon="grid">Ranger en ligne</MenuItem> : null}
-            <MenuItem id="fit" icon="search" shortcut="0">{ids.length ? 'Zoomer sur la sélection' : 'Tout voir'}</MenuItem>
-            <MenuItem id="all" icon="check" shortcut="Ctrl+A">Tout sélectionner</MenuItem>
+            {ids.length > 0 ? <MenuItem id="front" icon="layout">{t.toFront}</MenuItem> : null}
+            {ids.length > 1 ? <MenuItem id="arrange" icon="grid">{t.arrange}</MenuItem> : null}
+            <MenuItem id="fit" icon="search" shortcut="0">{ids.length ? t.zoomSelection : t.seeAll}</MenuItem>
+            <MenuItem id="all" icon="check" shortcut="Ctrl+A">{t.selectAll}</MenuItem>
             {ids.length > 0 ? <MenuSeparator /> : null}
-            {ids.length > 0 ? <MenuItem id="remove" icon="trash" shortcut="Suppr">Retirer du bureau</MenuItem> : null}
+            {ids.length > 0 ? <MenuItem id="remove" icon="trash" shortcut="Suppr">{t.remove}</MenuItem> : null}
           </Menu>
         </MenuPopover>
       )}

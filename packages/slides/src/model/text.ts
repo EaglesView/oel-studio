@@ -4,6 +4,7 @@
  * slide points, plus the edits the toolbar applies to whole text bodies.
  */
 import type { Bullet, DeckFont, Level, Para, ParaProps, Run, RunProps, Spacing, TextBody, ThemeInfo } from './types';
+import { locale } from '@oel/i18n';
 
 export interface TextCtx {
   theme: ThemeInfo;
@@ -229,7 +230,7 @@ export function plainText(body: TextBody | null | undefined): string {
 export function fieldText(r: Run, ctx: TextCtx): string {
   const f = r.field ?? '';
   if (f === 'slidenum') return ctx.slideNumber != null ? String(ctx.slideNumber) : (r.text ?? '');
-  if (f.startsWith('datetime')) return new Date().toLocaleDateString('fr-CA', f === 'datetime1' ? undefined : { year: 'numeric', month: 'long', day: 'numeric' });
+  if (f.startsWith('datetime')) return new Date().toLocaleDateString(locale(), f === 'datetime1' ? undefined : { year: 'numeric', month: 'long', day: 'numeric' });
   return r.text ?? '';
 }
 

@@ -34,7 +34,7 @@ done — the skills describe the layout *as it is now*).
 
 - Codecs are lossless: unknown XML kept raw, untouched package parts copied byte for byte.
 - Yjs is the live model; files are import/export. Offline (IndexedDB) must keep working.
-- UI copy is French (fr-CA); spreadsheet formulas are English (`,` args, `.` decimal).
+- UI copy is French (fr-CA) and English, side by side through `@oel/i18n` (`messages`, `tr`, `locale()`); spreadsheet formulas are English (`,` args, `.` decimal).
 - New icons come from Iconoir (`iconoir-react`), never hand-drawn; use `@oel/emboss` components and `--emboss-*` tokens, never raw colours.
 - Behaviour follows the Figma file `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behaviors" (sections A–F). If code must differ from the spec, say so to the user.
 - Editions: `apps/web/src/edition.ts` (`PUBLIC_EDITION=solo|equipe`, default `solo`) decides whether collaboration, forms and members show. Hide team features behind `features.*` in the app and a prop in packages (`collab={features.collab}`); never delete them, and never read the env var from a package.

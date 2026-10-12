@@ -10,6 +10,8 @@ import { features } from '../edition';
 import { engineHost } from '../bureau/importFiles';
 import './document.css';
 import { ErrorBoundary } from './ErrorBoundary';
+import { tr } from '@oel/i18n';
+import { LocaleRoot } from '../LocaleRoot';
 
 /** Read `?d=<id>#t=<token>`, keep the token locally and drop it from the address bar. */
 function readLocation(): { docId: string | null } {
@@ -30,6 +32,14 @@ function go(docId: string) {
  * doubles as a standalone "new document / open a .docx" page.
  */
 export function DocumentPage() {
+  return (
+    <LocaleRoot>
+      <DocumentPageContent />
+    </LocaleRoot>
+  );
+}
+
+function DocumentPageContent() {
   const [docId, setDocId] = useState<string | null>(() => readLocation().docId);
   const [session, setSession] = useState<DocSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +96,7 @@ export function DocumentPage() {
 
   useEffect(() => {
     if (session && !session.isSeeded && (session.status.connection === 'local' || session.status.readOnly)) {
-      setError('Ce document n’est pas disponible ici. Demandez un nouveau lien de partage.');
+      setError(tr('Ce document n’est pas disponible ici. Demandez un nouveau lien de partage.', 'This document is not available here. Ask for a new share link.'));
     }
   }, [session]);
 
@@ -109,10 +119,10 @@ export function DocumentPage() {
   const create = async () => {
     setBusy(true);
     try {
-      const r = await engineHost().create('document', 'Document sans titre');
+      const r = await engineHost().create('document', tr('Document sans titre', 'Untitled document'));
       await start(asDocxPayload(r.payload), r.title);
     } catch (e) {
-      toast({ title: 'Création impossible', description: (e as Error).message, tone: 'danger' });
+      toast({ title: tr('Création impossible', 'Could not create'), description: (e as Error).message, tone: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -123,10 +133,10 @@ export function DocumentPage() {
       setBusy(true);
       try {
         const r = await engineHost().import(f);
-        if (r.kind !== 'document' || !r.payload) throw new Error('Seuls les fichiers .docx peuvent être modifiés ici.');
+        if (r.kind !== 'document' || !r.payload) throw new Error(tr('Seuls les fichiers .docx peuvent être modifiés ici.', 'Only .docx files can be edited here.'));
         await start(asDocxPayload(r.payload), r.title);
       } catch (e) {
-        toast({ title: 'Ouverture impossible', description: (e as Error).message, tone: 'danger' });
+        toast({ title: tr('Ouverture impossible', 'Could not open'), description: (e as Error).message, tone: 'danger' });
       } finally {
         setBusy(false);
       }
@@ -143,9 +153,9 @@ export function DocumentPage() {
   if (error) {
     body = (
       <div className="docpage__center">
-        <h1>Document inaccessible</h1>
+        <h1>{tr('Document inaccessible', 'Document unavailable')}</h1>
         <p>{error}</p>
-        <Button onPress={() => (history.pushState(null, '', location.pathname), setDocId(null), setError(null))}>Nouveau document</Button>
+        <Button onPress={() => (history.pushState(null, '', location.pathname), setDocId(null), setError(null))}>{tr('Nouveau document', 'New document')}</Button>
       </div>
     );
   } else if (docId && session) {
@@ -166,7 +176,7 @@ export function DocumentPage() {
       />
     );
   } else if (docId) {
-    body = <p className="docpage__center" aria-busy>Ouverture du document…</p>;
+    body = <p className="docpage__center" aria-busy>{tr('Ouverture du document…', 'Opening the document…')}</p>;
   } else {
     body = (
       <div
@@ -180,12 +190,12 @@ export function DocumentPage() {
       >
         <Logo />
         <h1>Documents</h1>
-        <p>Écrivez à plusieurs, hors ligne ou en ligne, et gardez la mise en forme de vos fichiers Word.</p>
+        <p>{tr('Écrivez à plusieurs, hors ligne ou en ligne, et gardez la mise en forme de vos fichiers Word.', 'Write together, offline or online, and keep the formatting of your Word files.')}</p>
         <div className="docpage__actions">
-          <Button variant="primary" leadingIcon="plus" onPress={create} isDisabled={busy}>Nouveau document</Button>
-          <Button leadingIcon="upload" onPress={() => open()} isDisabled={busy}>Ouvrir un fichier .docx</Button>
+          <Button variant="primary" leadingIcon="plus" onPress={create} isDisabled={busy}>{tr('Nouveau document', 'New document')}</Button>
+          <Button leadingIcon="upload" onPress={() => open()} isDisabled={busy}>{tr('Ouvrir un fichier .docx', 'Open a .docx file')}</Button>
         </div>
-        <p className="docpage__hint">ou déposez un fichier .docx ici</p>
+        <p className="docpage__hint">{tr('ou déposez un fichier .docx ici', 'or drop a .docx file here')}</p>
       </div>
     );
   }

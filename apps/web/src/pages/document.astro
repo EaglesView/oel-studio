@@ -8,5 +8,5 @@ if (!features.collab) return Astro.redirect('/bureau');
 <Base title="Document · OutilsEnLigne" description="Éditeur de documents collaboratif, compatible Word." app>
   <!-- Yjs, IndexedDB and the engine worker: client only. The share token stays in the URL fragment. -->
   <DocumentPage client:only="react" />
-  <noscript><p class="page">L’éditeur de documents a besoin de JavaScript.</p></noscript>
+  <noscript><p class="page"><span data-lang="fr">L’éditeur de documents a besoin de JavaScript.</span><span data-lang="en">The document editor needs JavaScript.</span></p></noscript>
 </Base>

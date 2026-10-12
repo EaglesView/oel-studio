@@ -10,6 +10,7 @@ import { PictureBar } from './PictureBar';
 import { pxToColWidth } from '../grid/geometry';
 import { current, extendTo, single, type Pos } from '../grid/selection';
 import type { SheetController } from './controller';
+import { tr } from '@oel/i18n';
 
 export interface GridProps {
   ctl: SheetController;
@@ -746,7 +747,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
   const activeStyle = ctl.activeStyle;
   const activeView = ctl.view(ctl.sel.active.r, ctl.sel.active.c);
   const activeFormula = ctl.doc.inputText(ctl.sheetId, ctl.sel.active.r, ctl.sel.active.c);
-  const announce = `${a1(ctl.sel.active.r, ctl.sel.active.c)}${activeView.text ? `, ${activeView.text}` : ', vide'}${activeFormula.startsWith('=') ? `, formule ${activeFormula}` : ''}${current(ctl.sel).r0 !== current(ctl.sel).r1 || current(ctl.sel).c0 !== current(ctl.sel).c1 ? `, sélection ${rangeA1(current(ctl.sel))}` : ''}`;
+  const announce = `${a1(ctl.sel.active.r, ctl.sel.active.c)}${activeView.text ? `, ${activeView.text}` : tr(', vide', ', empty')}${activeFormula.startsWith('=') ? tr(`, formule ${activeFormula}`, `, formula ${activeFormula}`) : ''}${current(ctl.sel).r0 !== current(ctl.sel).r1 || current(ctl.sel).c0 !== current(ctl.sel).c1 ? tr(`, sélection ${rangeA1(current(ctl.sel))}`, `, selection ${rangeA1(current(ctl.sel))}`) : ''}`;
 
   return (
     <div
@@ -793,7 +794,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
           <textarea
             ref={editorRef}
             className="oel-sheet-editor"
-            aria-label={`Modifier ${a1(ctl.sel.active.r, ctl.sel.active.c)}`}
+            aria-label={tr(`Modifier ${a1(ctl.sel.active.r, ctl.sel.active.c)}`, `Edit ${a1(ctl.sel.active.r, ctl.sel.active.c)}`)}
             spellCheck={!edit.text.startsWith('=')}
             value={edit.text}
             style={{
@@ -816,7 +817,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
             rows={Math.max(1, edit.text.split('\n').length)}
           />
           {(suggestions.length > 0 || callInfo) && (
-            <div className="oel-sheet-suggest" style={{ left: editorBox.x * zoom, top: (editorBox.y + editorBox.h) * zoom + 2 }} role="listbox" aria-label="Fonctions">
+            <div className="oel-sheet-suggest" style={{ left: editorBox.x * zoom, top: (editorBox.y + editorBox.h) * zoom + 2 }} role="listbox" aria-label={tr('Fonctions', 'Functions')}>
               {suggestions.map((f, i) => (
                 <button
                   key={f.name}
@@ -856,7 +857,7 @@ export function Grid({ ctl, zoom: pageZoom, label, onContextMenu, onFilterMenu, 
         <button
           type="button"
           className="oel-grid__listarrow"
-          aria-label="Choisir dans la liste (Alt+↓)"
+          aria-label={tr('Choisir dans la liste (Alt+↓)', 'Choose from the list (Alt+↓)')}
           style={{ left: (activeRect.x + activeRect.w) * zoom + 2, top: activeRect.y * zoom, height: activeRect.h * zoom }}
           onPointerDown={(e) => {
             e.stopPropagation();
