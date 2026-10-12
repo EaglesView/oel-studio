@@ -21,6 +21,7 @@ npm test               # cargo test --workspace, then vitest
 npm run typecheck      # regenerates generated TS types, then tsc per package
 npm run build          # static site; PUBLIC_EDITION=equipe npm run build for the team build
 npm run build:wasm     # rebuild every crate's WASM into packages/wasm/ (git-ignored)
+bash scripts/build-site.sh   # hosting build (DigitalOcean: .do/app.yaml): Rust if missing, WASM_TARGETS=web, site
 npx tsc -p apps/web --noEmit   # app typecheck: `astro check` cannot run under TypeScript 7
 cargo test -p <crate>  # one crate; crates are oel-opc, oel-docx, oel-xlsx, oel-pptx, oel-chart, oel-img
 ```
