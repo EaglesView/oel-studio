@@ -207,7 +207,7 @@ for recurring changes, so a feature change follows the same path every time:
 | `oel-architecture` | Where does this change belong? Layer rules, packages, decisions. Start here when unsure. |
 | `oel-rust-engine` | Changing a Rust codec/engine: core code, wasm surface, rebuild web+node, TS adapter, fixtures. |
 | `oel-file-kind` | Adding or changing a desk kind end to end (engine → kind module → workspace → server kind). |
-| `oel-editor-feature` | A feature inside Docs/Sheets/Forms: model → Yjs → UI (emboss, Iconoir, fr-CA) → export → tests. |
+| `oel-editor-feature` | A feature inside Docs/Sheets/Forms: model → Yjs → UI (emboss, Iconoir, fr-CA + English) → export → tests. |
 | `oel-collab-backend` | Server work: an endpoint/domain in `apps/collab`, replacing a `TODO(backend)`. |
 | `oel-verify` | The definition of done: commands to run and what to check in the browser. |
 

@@ -27,8 +27,8 @@ H6 catalogue, H7 ideas). Links between files are section **G** (node 148:9523). 
 
 1. Untouched charts are never rewritten: hosts compare the editor's spec with the one read from the original part. Don't mutate a spec unless the user edited the chart (no cache refresh on read).
 2. A new spec field: `model.rs` with the `ts` attrs of its neighbours → `npm run gen:types` → reader → writer (keep XML element order per the schema) → renderer → round-trip test (`crates/oel-chart/tests/chart.rs::write_then_read_gives_the_same_spec`).
-3. A new chart type: `catalog.ts` entry (French label, group settings), a layout branch, a thumbnail in Figma H6, and a fixture chart if possible.
-4. UI copy fr-CA, icons Iconoir (`axes`, `switch-rows`, `rotate-3d`, `snow-flake` were added for charts), emboss components.
+3. A new chart type: `catalog.ts` entry (French label, English one in `EN`, group settings), a layout branch, a thumbnail in Figma H6, and a fixture chart if possible.
+4. UI copy fr-CA and English (`@oel/i18n`), icons Iconoir (`axes`, `switch-rows`, `rotate-3d`, `snow-flake` were added for charts), emboss components.
 
 ## Verify
 

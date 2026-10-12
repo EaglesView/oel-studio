@@ -31,6 +31,6 @@ description: Add a new file/paper kind to the OutilsEnLigne Bureau (e.g. slides/
 
 - [ ] Kind with no engine still imports (preview engine) and shows a read-only reason.
 - [ ] Desk stays file-type agnostic: nothing added to `packages/desk`. Generic desk behaviour is there to reuse: attachments (`store.attach`/`detach`/`overlapping`, `DeskCanvas` `pickTarget`, K-1) — a kind decides *whether* it can be stuck or stuck to via `filter`, never inside the desk; resizing (`store.resize`/`resizeTo`, `DeskCanvas` `resizeMode`, L-5); containers (`DeskNode.container`, `parent: { id, dx, dy }`, `store.setParent`/`enter`/`actsOn`, `DeskCanvas` `canContain`, L-5) — a kind decides what it holds via `canContain`.
-- [ ] Copy in fr-CA; icons from Iconoir.
+- [ ] Copy in fr-CA and English (`@oel/i18n`); icons from Iconoir.
 - [ ] Tests: detection + import in `packages/engine/test/engine.test.ts`; model tests in the editor package; server round trip in `apps/collab/test` if collaborative.
 - [ ] `oel-verify`, including the browser walkthrough for the kind.

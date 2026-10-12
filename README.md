@@ -10,7 +10,7 @@ with Word, Excel and PowerPoint files kept intact.**
 [![Licence: MPL-2.0](https://img.shields.io/badge/licence-MPL--2.0-7759c5)](LICENSE)
 ![Rust](https://img.shields.io/badge/engines-Rust%20%E2%86%92%20WebAssembly-34333d)
 ![TypeScript](https://img.shields.io/badge/app-TypeScript%20%C2%B7%20React%20%C2%B7%20Astro-34333d)
-![UI in French](https://img.shields.io/badge/UI-fr--CA-14ad5c)
+![UI in French and English](https://img.shields.io/badge/UI-fr--CA%20%C2%B7%20en-14ad5c)
 
 <img src="apps/web/public/captures/desk.png" alt="The Bureau: a spreadsheet, a presentation, an image and a document side by side on a desk, joined by threads." width="900" />
 
@@ -21,8 +21,8 @@ place; the tools follow what you touch. A chart can be linked into a slide and a
 copies follow their source. Everything runs in the browser: the file formats are handled by Rust engines compiled to
 WebAssembly, and in this release your files never leave your device.
 
-Made in Québec for students, from high school to university. The interface is in French (fr-CA); the site and the
-documentation are in French and English.
+Made in Québec for students, from high school to university. The interface is in French (fr-CA) or English (asked on the
+first visit, changed in « Paramètres »); the site and the documentation are in French and English.
 
 ## Highlights
 

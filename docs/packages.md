@@ -21,6 +21,23 @@ versions or forms: the default single-user build (`PUBLIC_EDITION=solo`) hides t
 - Tool tooltips implement B3: name + shortcut + effect, and unavailable tools stay
   focusable and say *why* (`unavailableReason`) instead of going silent.
 
+## @oel/i18n — interface language
+
+The Bureau is French by default and English on request. Packages never choose the language: they
+follow `<html lang>`, which `apps/web/src/layouts/Base.astro` sets before any module runs, from the
+`oel-lang` cookie (or `?lang=fr|en` from the site's « Ouvrir le Bureau »). So a message table is
+picked once, at module load: `messages(fr, en)` (English typed against French), `tr(fr, en)` for a
+lone label, `plural`, and `locale()` (`fr-CA` / `en-CA`) for `Intl`. Changing the language reloads
+the page (the desk is saved on `pagehide`). Web Workers learn it from their name
+(`workerOptions`, `namedWorker` in the app). Key names in shortcuts are written once in French
+(« Ctrl+Maj+L », « Échap ») and shown in English by `keyLabel` (`@oel/emboss`).
+
+App side (`apps/web/src/lang.ts`, `bureau/Welcome.tsx`): the first visit opens a welcome dialog —
+the language (unless it came from the site), links to the docs, and what is stored (the one
+`oel-lang` cookie, local storage, files in the browser). The language changes in the menu,
+« Paramètres ». A first visit that picks English gets the demo desk in English
+(`fixtures/demo/en`).
+
 ## @oel/desk — the canvas
 
 Why a separate package: the desk model (scene, camera, selection, history, spatial

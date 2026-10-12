@@ -16,7 +16,7 @@ one linear chain.
 | D2 | The desk is **saved on the device** (IndexedDB), with a demo Bureau seeded on first visit, « Réinitialiser la démo », and export/import of the whole bureau as a `.zip`. |
 | D3 | Licence **MPL-2.0** for the repo and every crate (file-level copyleft: the crates can be embedded elsewhere, changes to our files stay open). |
 | D4 | Home page = Figma direction **D · « Média d’abord »** (page « Site — bureau.outilsenligne.ca (explorations) », frames D1 `212:1893`, D2 `212:19294`), built from the site components (`Site/Nav` 207:9, `Site/Feature Tile` 207:84, `Site/Footer` 208:39, `Site/Desk Mock` 208:77). |
-| D5 | The **site** (home + docs) is bilingual: French at `/`, English at `/en/…`. The Bureau UI itself stays fr-CA for this release (see R6). |
+| D5 | The **site** (home + docs) is bilingual: French at `/`, English at `/en/…`. The Bureau UI itself stays fr-CA for this release (see R6). *Superseded 2026-10-12: the Bureau is French or English (`@oel/i18n`, welcome dialog, « Paramètres »).* |
 
 Defaults taken without asking (change here if wrong): one switch `PUBLIC_EDITION=solo|equipe` rather than deleting
 UI; demo content in French with English formulas; README and AGENTS.md in English; `CLAUDE.md` becomes a pointer to
