@@ -1,28 +1,121 @@
-import { FileTrigger } from 'react-aria-components';
+import { Button as RACButton, FileTrigger } from 'react-aria-components';
 import { useDeskState } from '@oel/desk/react';
-import { ZOOM_PRESETS, lodForZoom, worldToScreen } from '@oel/desk';
+import { worldToScreen } from '@oel/desk';
 import { ACCEPTED_EXTENSIONS } from '@oel/engine';
 import {
   AvatarStack,
   Badge,
   Button,
-  DialogTrigger,
+  ChoiceCard,
   Icon,
+  Logo,
   Menu,
   MenuItem,
   MenuPopover,
-  MenuSeparator,
   MenuTrigger,
-  Popover,
-  Switch,
+  NotificationsButton,
   Toolbar,
   ToolbarSeparator,
-  ToolbarToggle,
   ToolButton,
+  WithTooltip,
   toast,
+  type IconName,
 } from '@oel/emboss';
-import { PEOPLE, type Bureau, type PaperKind } from './model';
-import { ThemeToggle } from './ThemeToggle';
+import { useProject } from '../project/ProjectContext';
+import { type Bureau, type PaperKind } from './model';
+import { features } from '../edition';
+import { locale, messages, plural } from '@oel/i18n';
+
+const t = messages(
+  {
+    project: 'Projet',
+    files: (n: number) => `${n} ${plural(n, 'fichier', 'fichiers')}`,
+    listView: 'Vue liste',
+    deskView: 'Vue bureau',
+    hint: 'Double-cliquez sur un papier pour l’ouvrir (ou Entrée) ; Échap le repose.',
+    hintKeys: ': tous les raccourcis.',
+    closeHint: 'Fermer l’astuce',
+    you: 'vous',
+    onDesk: (n: number, names: string) => `${n} ${plural(n, 'personne', 'personnes')} sur le bureau : ${names}`,
+    linkCopied: 'Lien de partage copié',
+    linkCopiedBody: 'Les invités verront ce bureau en lecture.',
+    share: 'Partager',
+    document: 'Document',
+    slides: 'Présentation',
+    spreadsheet: 'Tableur',
+    form: 'Formulaire',
+    soon: 'Bientôt.',
+    late: (n: number) => `${n} ${plural(n, 'fil en retard', 'fils en retard')}`,
+    bureau: 'Bureau',
+    menu: 'Menu',
+    menuLate: (late: string) => `Accueil, nouveau, projets, paramètres… ${late}.`,
+    menuDesc: 'Accueil, nouveau, projets, paramètres, affichage, aide.',
+    note: 'Note',
+    noteDesc: 'Pense-bête posé au centre de la vue.',
+    import: 'Importer',
+    importDesc: 'PDF, Word, PowerPoint, Excel, images · 100 Mo max.',
+    sort: 'Ranger',
+    sortDesc: 'Poser les fichiers en rangées : par type, date, nom, personne ou fils.',
+    spread: 'Étaler',
+    spreadDesc: 'Voir tout le projet en grille, sans rien déplacer.',
+    new: 'Nouveau',
+    newDesc: (forms: boolean) => `Document, présentation, tableur${forms ? ' ou formulaire' : ''}, au centre de la vue.`,
+    empty: 'Ce bureau est vide',
+    emptyLead: 'Créez un premier fichier ou déposez-en ici.',
+    templates: 'Modèles',
+    fromTemplate: 'Ou partir d’un modèle →',
+    deskZoom: 'Zoom du bureau',
+    zoomOut: 'Zoom arrière',
+    zoomOutMax: 'Zoom arrière maximal atteint.',
+    zoomReset: 'Revenir à 100 %',
+    zoomIn: 'Zoom avant',
+    zoomInMax: 'Zoom avant maximal atteint.',
+  },
+  {
+    project: 'Project',
+    files: (n) => `${n} ${plural(n, 'file', 'files')}`,
+    listView: 'List view',
+    deskView: 'Desk view',
+    hint: 'Double-click a paper to open it (or Enter); Esc puts it back.',
+    hintKeys: ': every shortcut.',
+    closeHint: 'Close the tip',
+    you: 'you',
+    onDesk: (n, names) => `${n} ${plural(n, 'person', 'people')} on the desk: ${names}`,
+    linkCopied: 'Share link copied',
+    linkCopiedBody: 'Guests will see this desk read-only.',
+    share: 'Share',
+    document: 'Document',
+    slides: 'Presentation',
+    spreadsheet: 'Spreadsheet',
+    form: 'Form',
+    soon: 'Coming soon.',
+    late: (n) => `${n} ${plural(n, 'late thread', 'late threads')}`,
+    bureau: 'Bureau',
+    menu: 'Menu',
+    menuLate: (late) => `Home, new, projects, settings… ${late}.`,
+    menuDesc: 'Home, new, projects, settings, display, help.',
+    note: 'Note',
+    noteDesc: 'A sticky note in the middle of the view.',
+    import: 'Import',
+    importDesc: 'PDF, Word, PowerPoint, Excel, images · 100 MB max.',
+    sort: 'Sort',
+    sortDesc: 'Lay the files out in rows: by type, date, name, person or thread.',
+    spread: 'Spread out',
+    spreadDesc: 'See the whole project as a grid, without moving anything.',
+    new: 'New',
+    newDesc: (forms) => `Document, presentation, spreadsheet${forms ? ' or form' : ''}, in the middle of the view.`,
+    empty: 'This desk is empty',
+    emptyLead: 'Create a first file or drop some here.',
+    templates: 'Templates',
+    fromTemplate: 'Or start from a template →',
+    deskZoom: 'Desk zoom',
+    zoomOut: 'Zoom out',
+    zoomOutMax: 'Furthest zoom out reached.',
+    zoomReset: 'Back to 100 %',
+    zoomIn: 'Zoom in',
+    zoomInMax: 'Closest zoom in reached.',
+  },
+);
 
 /* ── B1 · 1 Projet ──────────────────────────────────────────────────── */
 
@@ -31,20 +124,28 @@ export function ProjectPill({
   count,
   view,
   onToggleView,
+  onProjects,
+  badge = true,
 }: {
   title: string;
   count: number;
   view: 'desk' | 'list';
   onToggleView: () => void;
+  /** M3: the pill opens the menu on « Projets ». */
+  onProjects: () => void;
+  /** The « Projet » badge (single-user edition: one desk, no projects to tell apart). */
+  badge?: boolean;
 }) {
   return (
     <header className="chrome-pill project-pill" data-desk-ui>
-      <Icon name="folder" size={20} className="project-pill__icon" />
-      <h1 className="project-pill__title">{title}</h1>
-      <Badge tone="accent">Projet</Badge>
-      <span className="project-pill__count">
-        {count} fichier{count > 1 ? 's' : ''}
-      </span>
+      <h1 className="project-pill__title">
+        <RACButton className="project-pill__open" onPress={onProjects} aria-haspopup="dialog">
+          <Icon name="folder" size={20} className="project-pill__icon" />
+          {title}
+        </RACButton>
+      </h1>
+      {badge && <Badge tone="accent">{t.project}</Badge>}
+      <span className="project-pill__count">{t.files(count)}</span>
       <Button
         variant="ghost"
         size="sm"
@@ -52,27 +153,64 @@ export function ProjectPill({
         onPress={onToggleView}
         aria-pressed={view === 'list'}
       >
-        {view === 'desk' ? 'Vue liste' : 'Vue bureau'}
+        {view === 'desk' ? t.listView : t.deskView}
       </Button>
     </header>
   );
 }
 
+/* ── First visit ─────────────────────────────────────────────────────── */
+
+const HINT_KEY = 'oel-first-run-hint';
+
+/** Whether the first-run hint is still to show (until a paper is opened or it is closed). */
+export function firstRunHintPending(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) !== 'vu';
+  } catch {
+    return false;
+  }
+}
+
+export function dismissFirstRunHint() {
+  try {
+    localStorage.setItem(HINT_KEY, 'vu');
+  } catch {
+    /* private window: it shows again next time */
+  }
+}
+
+/** The one thing to know on a first visit (plan solo MVP, R3), above the bottom bar. */
+export function FirstRunHint({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="chrome-pill first-run-hint" role="note" data-desk-ui>
+      <Icon name="info" size={16} />
+      <span>
+        {t.hint} <kbd>?</kbd> {t.hintKeys}
+      </span>
+      <Button variant="ghost" size="sm" leadingIcon="close" aria-label={t.closeHint} onPress={onDismiss} />
+    </div>
+  );
+}
+
 /* ── B1 · 2 Présence ────────────────────────────────────────────────── */
 
-export function SharePill({ onHelp }: { onHelp: () => void }) {
+/** Theme and shortcuts moved to the menu (Affichage, Raccourcis clavier); `?` still opens the shortcuts. */
+export function SharePill() {
+  const { me, members } = useProject();
+  const names = members.map((m) => (m.id === me.id ? t.you : m.name));
+  const label = t.onDesk(members.length, new Intl.ListFormat(locale()).format(names));
   return (
     <div className="chrome-pill share-pill" data-desk-ui>
-      <AvatarStack people={PEOPLE} label="3 personnes sur le bureau : vous, Marie-Claude et Alex" />
+      <AvatarStack people={members} label={label} />
       <Button
         size="sm"
         leadingIcon="mail"
-        onPress={() => toast({ title: 'Lien de partage copié', description: 'Les invités verront ce bureau en lecture.', tone: 'success' })}
+        onPress={() => toast({ title: t.linkCopied, description: t.linkCopiedBody, tone: 'success' })}
       >
-        Partager
+        {t.share}
       </Button>
-      <Button variant="ghost" size="icon-sm" leadingIcon="keyboard" aria-label="Raccourcis clavier" aria-keyshortcuts="Shift+?" onPress={onHelp} />
-      <ThemeToggle />
+      <NotificationsButton />
     </div>
   );
 }
@@ -80,8 +218,6 @@ export function SharePill({ onHelp }: { onHelp: () => void }) {
 /** Named cursors of the people on the desk (static demo positions, world units). */
 export function PresenceCursors({ store }: { store: Bureau }) {
   const viewport = useDeskState(store, (s) => s.viewport);
-  const zoom = viewport.zoom;
-  if (lodForZoom(zoom) === 'far') return null;
   const cursors = [
     { name: 'Marie-Claude', color: 'var(--emboss-success)', at: { x: 1010, y: 330 } },
     { name: 'Alex', color: 'var(--emboss-warning)', at: { x: 1520, y: 470 } },
@@ -103,7 +239,7 @@ export function PresenceCursors({ store }: { store: Bureau }) {
   );
 }
 
-/* ── B1 · 7 Dock de création ────────────────────────────────────────── */
+/* ── M1 · Barre du bas ───────────────────────────────────────────────── */
 
 export interface ArrivalRules {
   sortByType: boolean;
@@ -111,77 +247,82 @@ export interface ArrivalRules {
   linkTables: boolean;
 }
 
-export function Dock({
+/** Kinds offered by the round « + » (Figma M1): Note has its own button. */
+export const NEW_KINDS: { kind: PaperKind; label: string; icon: IconName }[] = [
+  { kind: 'document', label: t.document, icon: 'file' },
+  { kind: 'slides', label: t.slides, icon: 'slide' },
+  { kind: 'spreadsheet', label: t.spreadsheet, icon: 'table' },
+  // Single-user edition: no forms (plan solo MVP, S-6).
+  ...(features.forms ? [{ kind: 'form' as const, label: t.form, icon: 'form' as const }] : []),
+];
+
+export const SOON = t.soon;
+
+/**
+ * Figma M1: logo on the left opens the full-screen menu (M2), then Note ·
+ * Importer · Ranger · Étaler, and a round « + » on the right that creates the
+ * other kinds. A late thread puts a dot on the logo.
+ */
+export function BottomBar({
   onCreate,
   onImport,
-  showLinks,
-  onToggleLinks,
-  rules,
-  onRulesChange,
+  newMenuOpen,
+  onNewMenuOpenChange,
+  menuOpen,
+  onMenu,
+  lateLinks,
 }: {
   onCreate: (kind: PaperKind) => void;
   onImport: (files: File[]) => void;
-  showLinks: boolean;
-  onToggleLinks: () => void;
-  rules: ArrivalRules;
-  onRulesChange: (r: ArrivalRules) => void;
+  /** The « + » menu, controlled so Alt + N can open it. */
+  newMenuOpen: boolean;
+  onNewMenuOpenChange: (open: boolean) => void;
+  menuOpen: boolean;
+  /** Open the full-screen menu, growing from the logo's centre. */
+  onMenu: (origin: { x: number; y: number }) => void;
+  lateLinks: number;
 }) {
+  const late = lateLinks > 0 ? t.late(lateLinks) : null;
   return (
-    <div className="dock" data-desk-ui>
-      <Toolbar appearance="pill" aria-label="Créer et importer">
-        <ToolButton icon="file" label="Document" showLabel description="Nouveau document au centre de la vue." onPress={() => onCreate('document')} />
-        <ToolButton icon="slide" label="Diapo" showLabel description="Nouvelle présentation 16:9." onPress={() => onCreate('slides')} />
-        <ToolButton icon="table" label="Tableur" showLabel description="Nouvelle grille." onPress={() => onCreate('spreadsheet')} />
-        <ToolButton icon="note" label="Note" showLabel shortcut={['N']} description="Pense-bête, assignable à quelqu’un." onPress={() => onCreate('note')} />
+    <div className="bottom-bar" data-desk-ui>
+      <Toolbar appearance="pill" aria-label={t.bureau}>
+        <WithTooltip label={t.menu} description={late ? t.menuLate(late) : t.menuDesc}>
+          <RACButton
+            className="bottom-bar__logo"
+            aria-label={late ? `${t.menu}, ${late}` : t.menu}
+            aria-haspopup="dialog"
+            aria-expanded={menuOpen}
+            onPress={(e) => {
+              const r = (e.target as HTMLElement).getBoundingClientRect();
+              onMenu({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+            }}
+          >
+            <Logo size={22} aria-hidden />
+            {late && <span className="bottom-bar__late" aria-hidden />}
+          </RACButton>
+        </WithTooltip>
+        <ToolbarSeparator />
+        <ToolButton icon="note" label={t.note} showLabel shortcut={['N']} description={t.noteDesc} onPress={() => onCreate('note')} />
         <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
-          <ToolButton icon="upload" label="Importer" showLabel shortcut={['Ctrl', 'O']} description="PDF, Word, PowerPoint, Excel, images · 100 Mo max." />
+          <ToolButton icon="upload" label={t.import} showLabel shortcut={['Ctrl', 'O']} description={t.importDesc} />
         </FileTrigger>
         <ToolbarSeparator />
-        <DialogTrigger>
-          <ToolButton icon="settings" label="À l’arrivée" description="Règles appliquées aux fichiers déposés." />
-          <Popover placement="top">
-            <div className="rules">
-              <strong className="rules__title">À l’arrivée</strong>
-              <Switch isSelected={rules.sortByType} onChange={(v) => onRulesChange({ ...rules, sortByType: v })}>
-                Ranger automatiquement par type
-              </Switch>
-              <Switch isSelected={rules.ocr} onChange={(v) => onRulesChange({ ...rules, ocr: v })}>
-                Convertir les PDF numérisés (OCR)
-              </Switch>
-              <Switch isSelected={rules.linkTables} onChange={(v) => onRulesChange({ ...rules, linkTables: v })}>
-                Lier les tableaux importés
-              </Switch>
-              <p className="rules__help">
-                Les fichiers se posent là où on les lâche, en éventail, puis glissent vers leur pile si le rangement est actif.
-              </p>
-            </div>
-          </Popover>
-        </DialogTrigger>
-        <ToolButton
-          icon="link"
-          label={showLinks ? 'Masquer les fils' : 'Afficher les fils'}
-          description="Fils de liaison entre fichiers qui partagent des données."
-          onPress={onToggleLinks}
-        />
+        <ToolButton icon="sort" label={t.sort} showLabel description={t.sortDesc} unavailableReason={SOON} />
+        <ToolButton icon="grid" label={t.spread} showLabel shortcut={['E']} description={t.spreadDesc} unavailableReason={SOON} />
         <ToolbarSeparator />
-        <MenuTrigger>
-          <Button variant="primary" size="sm" leadingIcon="plus">
-            Nouveau
-          </Button>
-          <MenuPopover placement="top">
-            <Menu
-              aria-label="Nouveau"
-              onAction={(key) => {
-                if (key === 'import') document.querySelector<HTMLInputElement>('.dock input[type=file]')?.click();
-                else onCreate(key as PaperKind);
-              }}
-            >
-              <MenuItem id="document" icon="file">Document</MenuItem>
-              <MenuItem id="slides" icon="slide">Présentation</MenuItem>
-              <MenuItem id="spreadsheet" icon="table">Tableur</MenuItem>
-              <MenuItem id="note" icon="note" shortcut="N">Note</MenuItem>
-              <MenuSeparator />
-              <MenuItem id="import" icon="upload" shortcut="Ctrl+O">Importer des fichiers…</MenuItem>
+        <MenuTrigger isOpen={newMenuOpen} onOpenChange={onNewMenuOpenChange}>
+          <WithTooltip label={t.new} shortcut={['Alt', 'N']} description={t.newDesc(features.forms)}>
+            <RACButton className="bottom-bar__new" aria-label={t.new} aria-keyshortcuts="Alt+N">
+              <Icon name="plus" size={20} />
+            </RACButton>
+          </WithTooltip>
+          <MenuPopover placement="top end">
+            <Menu aria-label={t.new} onAction={(key) => onCreate(key as PaperKind)}>
+              {NEW_KINDS.map((k) => (
+                <MenuItem key={k.kind} id={k.kind} icon={k.icon} className={`bottom-bar__kind bottom-bar__kind--${k.kind}`}>
+                  {k.label}
+                </MenuItem>
+              ))}
             </Menu>
           </MenuPopover>
         </MenuTrigger>
@@ -190,35 +331,61 @@ export function Dock({
   );
 }
 
-/* ── B5 · Zoom du bureau ────────────────────────────────────────────── */
+/* ── M1 · 4 Bureau vide ──────────────────────────────────────────────── */
 
-const PRESET_LABELS = ['Ensemble', 'Repérage', 'Travail'] as const;
+/**
+ * Figma M1 · 4: while the project has no file, six big cards in the centre of
+ * the desk (the four kinds, Note, Importer). They go with the first file;
+ * dropping files on the desk still works.
+ */
+export function EmptyDesk({ onCreate, onImport }: { onCreate: (kind: PaperKind) => void; onImport: (files: File[]) => void }) {
+  return (
+    <section className="empty-desk" aria-labelledby="empty-desk-title">
+      <h2 id="empty-desk-title" className="empty-desk__title">{t.empty}</h2>
+      <p className="empty-desk__lead">{t.emptyLead}</p>
+      <div className="empty-desk__cards">
+        {NEW_KINDS.map((k) => (
+          <ChoiceCard key={k.kind} icon={k.icon} label={k.label} iconColor={`var(--kind-${k.kind})`} onPress={() => onCreate(k.kind)} />
+        ))}
+        <ChoiceCard icon="note" label={t.note} onPress={() => onCreate('note')} />
+        <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
+          <ChoiceCard icon="upload" label={t.import} />
+        </FileTrigger>
+      </div>
+      <WithTooltip label={t.templates} unavailableReason={SOON}>
+        <RACButton className="empty-desk__templates" aria-disabled="true">
+          {t.fromTemplate}
+        </RACButton>
+      </WithTooltip>
+    </section>
+  );
+}
 
+/* ── Zoom ───────────────────────────────────────────────────────────── */
+
+/** Zoom out / level / zoom in. The level resets to 100 %; zooming out stops at the store's limit. */
 export function ZoomControl({ store }: { store: Bureau }) {
   const zoom = useDeskState(store, (s) => s.viewport.zoom);
-  const lod = lodForZoom(zoom);
-  const active = lod === 'far' ? 0 : lod === 'mid' ? 1 : 2;
+  const atMin = zoom <= store.zoomLimits.min + 1e-6;
+  const atMax = zoom >= store.zoomLimits.max - 1e-6;
   return (
     <div className="zoom-control" data-desk-ui>
-      <Toolbar appearance="pill" aria-label="Zoom du bureau">
-        <ToolButton icon="minus" label="Zoom arrière" shortcut={['−']} onPress={() => store.zoomBy(0.8)} />
-        <output className="zoom-control__value" aria-live="off">
-          {Math.round(zoom * 100)} %
-        </output>
-        <ToolButton icon="plus" label="Zoom avant" shortcut={['+']} onPress={() => store.zoomBy(1.25)} />
-        <ToolbarSeparator />
-        {PRESET_LABELS.map((l, i) => (
-          <ToolbarToggle
-            key={l}
-            icon={i === 0 ? 'grid' : i === 1 ? 'search' : 'file'}
-            label={l}
-            shortcut={[String(i + 1)]}
-            description={`Niveau de détail · zoom ${Math.round(ZOOM_PRESETS[i]! * 100)} %`}
-            isSelected={active === i}
-            onChange={() => store.zoomPreset(i as 0 | 1 | 2)}
-          />
-        ))}
-        <ToolButton icon="expand" label="Tout voir" shortcut={['0']} onPress={() => store.zoomToFit()} />
+      <Toolbar appearance="pill" aria-label={t.deskZoom}>
+        <ToolButton
+          icon="minus"
+          label={t.zoomOut}
+          shortcut={['−']}
+          unavailableReason={atMin ? t.zoomOutMax : undefined}
+          onPress={() => store.zoomBy(1 / 1.2)}
+        />
+        <ToolButton icon="search" label={t.zoomReset} shortcut={['0']} value={`${Math.round(zoom * 100)} %`} onPress={() => store.zoomReset()} />
+        <ToolButton
+          icon="plus"
+          label={t.zoomIn}
+          shortcut={['+']}
+          unavailableReason={atMax ? t.zoomInMax : undefined}
+          onPress={() => store.zoomBy(1.2)}
+        />
       </Toolbar>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   type TooltipProps as RACTooltipProps,
 } from 'react-aria-components';
 import { cx } from '../utils';
+import { keyLabel } from '../keys';
 
 export interface TooltipProps extends Omit<RACTooltipProps, 'children'> {
   children: ReactNode;
@@ -45,7 +46,7 @@ export function ToolTipContent({ label, shortcut, description, unavailableReason
         {shortcut && (
           <span className="emb-tooltip__keys">
             {shortcut.map((k) => (
-              <kbd key={k}>{k}</kbd>
+              <kbd key={k}>{keyLabel(k)}</kbd>
             ))}
           </span>
         )}

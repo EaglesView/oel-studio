@@ -1,0 +1,12 @@
+---
+/** Docs pages in en (content: src/site/docs/en/<id>.astro, list and slugs: src/site/i18n.ts). */
+import { DOCS } from '../../../site/i18n';
+
+export function getStaticPaths() {
+  return DOCS.map((d) => ({ params: { slug: d.en.slug || undefined }, props: { id: d.id } }));
+}
+
+const pages = import.meta.glob('../../../site/docs/en/*.astro', { eager: true }) as Record<string, { default: unknown }>;
+const Page = pages[`../../../site/docs/en/${Astro.props.id}.astro`]!.default as (props: Record<string, never>) => unknown;
+---
+<Page />

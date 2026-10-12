@@ -1,0 +1,29 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+---
+<DocsLayout lang="fr" id="formats" description="Où le Bureau garde vos fichiers, ce qu’il conserve des formats Office, et ce qu’il ne sait pas encore faire.">
+  <p class="prose__lead">Vos fichiers restent dans votre navigateur. Ce que vous ne modifiez pas reste tel quel dans le fichier.</p>
+
+  <h2 id="ou">Où sont vos fichiers</h2>
+  <p>Le bureau, ses fichiers, leurs images et leurs vignettes sont enregistrés dans ce navigateur, sur cet appareil (IndexedDB), au fil de vos changements. Rien n’est envoyé à un serveur : le Bureau fonctionne sans compte.</p>
+  <p class="note">Effacer les données du site (ou une navigation privée qui se ferme) efface aussi le bureau. Pour en garder une copie : menu, « Ouvrir et importer », « Exporter le bureau (.zip) ». « Importer un bureau » le remet exactement tel qu’il était, sur cet appareil ou un autre.</p>
+  <p>La section « Ce bureau » du menu indique la place utilisée ; le navigateur peut vous demander de garder les données du site de façon durable.</p>
+  <p>Le Bureau dépose un seul témoin (cookie), <code>oel-lang</code>, qui retient la langue de l’interface (français ou anglais) pendant un an ; elle est demandée à la première visite et se change dans le menu, « Paramètres ». Aucun témoin publicitaire ni de mesure d’audience. Le thème et l’accueil sont retenus dans le stockage local du navigateur.</p>
+
+  <h2 id="sans-perte">Vos formats, intacts</h2>
+  <p>Les moteurs qui lisent et écrivent les .docx, .xlsx et .pptx sont écrits en Rust et tournent dans votre navigateur en WebAssembly. Ils sont « sans perte » :</p>
+  <ul>
+    <li>ce que vous ne modifiez pas est réécrit tel qu’il était dans le fichier (parties du paquet, styles, thèmes, graphiques non modifiés) ;</li>
+    <li>ce que le Bureau ne sait pas encore modifier est conservé et réécrit : champs Word, signets, animations et transitions PowerPoint, SmartArt, graphiques récents (cascade, compartimentage…) ;</li>
+    <li>ce que vous modifiez est écrit dans le format d’origine, pour Word, Excel, PowerPoint et LibreOffice.</li>
+  </ul>
+
+  <h2 id="limites">Ce qui ne marche pas encore</h2>
+  <ul>
+    <li><strong>PDF</strong> : un PDF se pose sur le bureau avec son nombre de pages ; l’afficher, l’annoter, le signer et le convertir en document arriveront avec le moteur PDF.</li>
+    <li><strong>Documents</strong> : les notes de bas de page s’affichent toutes à la fin du document ; l’impression en PDF passe par le navigateur, sans en-têtes ni pieds de page ; les images flottantes sont montrées dans le texte (leur position est gardée à l’export) ; les modifications suivies d’un fichier sont acceptées à l’ouverture.</li>
+    <li><strong>Présentations</strong> : animations, transitions, SmartArt, contenu des groupes et structure des tableaux sont gardés mais pas encore modifiables.</li>
+    <li><strong>Polices</strong> : une police absente de l’appareil est remplacée à l’écran seulement ; le fichier garde la sienne.</li>
+    <li><strong>Travail à plusieurs</strong> : cette version est pour une personne. Le partage, la présence en direct, l’historique des versions et les formulaires viendront avec la version en équipe.</li>
+  </ul>
+</DocsLayout>

@@ -1,22 +1,18 @@
 import type { FileKind } from './types';
+import { messages } from '@oel/i18n';
 
 const BY_EXTENSION: Record<string, FileKind> = {
   docx: 'document', doc: 'document', odt: 'document', rtf: 'document', txt: 'document', md: 'document',
-  pptx: 'slides', ppt: 'slides', odp: 'slides', key: 'slides',
-  xlsx: 'spreadsheet', xls: 'spreadsheet', ods: 'spreadsheet', csv: 'spreadsheet', tsv: 'spreadsheet',
+  pptx: 'slides', pptm: 'slides', ppsx: 'slides', potx: 'slides', ppt: 'slides', odp: 'slides', key: 'slides',
+  xlsx: 'spreadsheet', xlsm: 'spreadsheet', xls: 'spreadsheet', ods: 'spreadsheet', csv: 'spreadsheet', tsv: 'spreadsheet',
   pdf: 'pdf',
   png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', svg: 'image', avif: 'image', heic: 'image',
 };
 
-export const KIND_LABEL: Record<FileKind, string> = {
-  document: 'Document',
-  slides: 'Présentation',
-  spreadsheet: 'Tableur',
-  pdf: 'PDF',
-  image: 'Image',
-  note: 'Note',
-  unsupported: 'Fichier',
-};
+export const KIND_LABEL: Record<FileKind, string> = messages(
+  { document: 'Document', slides: 'Présentation', spreadsheet: 'Tableur', pdf: 'PDF', image: 'Image', note: 'Note', unsupported: 'Fichier' },
+  { document: 'Document', slides: 'Presentation', spreadsheet: 'Spreadsheet', pdf: 'PDF', image: 'Image', note: 'Note', unsupported: 'File' },
+);
 
 export function extensionOf(name: string): string {
   const i = name.lastIndexOf('.');

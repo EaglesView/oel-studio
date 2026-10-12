@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { features } from '../edition';
+import { FormPage } from '../forms/FormPage';
+// Forms (and their sign-in links) ship with the team edition (plan solo MVP, S-6).
+if (!features.forms) return Astro.redirect('/');
+---
+<Base title="Formulaire · OutilsEnLigne" description="Répondre à un formulaire OutilsEnLigne : pas de compte, brouillon gardé sur l’appareil.">
+  <!-- Drafts live in localStorage and the backend is client-side for now: client only. -->
+  <FormPage client:only="react" />
+  <noscript><p class="page"><span data-lang="fr">Ce formulaire a besoin de JavaScript.</span><span data-lang="en">This form needs JavaScript.</span></p></noscript>
+</Base>

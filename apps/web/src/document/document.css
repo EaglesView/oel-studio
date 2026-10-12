@@ -1,0 +1,7 @@
+.docpage { height: 100dvh; background: var(--emboss-surface); }
+.docpage__center { display: grid; place-content: center; justify-items: center; gap: 14px; height: 100%; padding: 24px; text-align: center; color: var(--emboss-text); font-family: var(--font-sans); }
+.docpage__center h1 { margin: 0; font: 600 28px/36px var(--font-sans); color: var(--title, var(--emboss-text)); }
+.docpage__center p { margin: 0; max-width: 46ch; color: var(--emboss-ink-muted); }
+.docpage__actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.docpage__hint { font-size: 13px; }
+.docpage__stack { max-width: 90vw; max-height: 40vh; overflow: auto; text-align: left; font-size: 11px; }

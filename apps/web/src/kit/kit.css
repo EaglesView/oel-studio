@@ -24,3 +24,6 @@
 }
 .kit__icons span { font: 400 11px/14px var(--font-sans); color: var(--emboss-ink-muted); }
 @media (max-width: 720px) { .kit__theme { position: static; margin-bottom: 24px; } }
+.kit__row--top { align-items: flex-start; }
+.kit__rail { height: 360px; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sheet); }
+.kit__page { display: block; width: 80px; height: 96px; border: 1px solid var(--emboss-edge); border-radius: 3px; background: var(--emboss-surface); }

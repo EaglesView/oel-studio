@@ -2,14 +2,48 @@ import EngineWorker from '@oel/engine/worker?worker';
 import { EngineHost, MAX_IMPORT_BYTES, detectKind, stripExtension, type ImportResult } from '@oel/engine';
 import { toast } from '@oel/emboss';
 import type { Vec } from '@oel/desk';
-import { PAPER_SIZE, uid, type Bureau, type Paper, type PaperKind } from './model';
+import { PAPER_SIZE, paperSizeFor, uid, type Bureau, type Paper, type PaperKind } from './model';
 import type { ArrivalRules } from './Chrome';
+import { createDocFromPayload } from './docs';
+import { createSheetFromPayload } from './sheets';
+import { createSlidesFromPayload } from './slides';
+import { originals } from '@oel/img';
+import { queueThumbnail } from './thumbnails';
+import { messages, plural } from '@oel/i18n';
+import { namedWorker } from '../lang';
+
+const t = messages(
+  {
+    ignored: (n: number) => `${n} ${plural(n, 'fichier ignoré', 'fichiers ignorés')}`,
+    maxSize: 'Taille maximale : 100 Mo.',
+    reading: 'Lecture du fichier',
+    importing: (n: number) => `${n} ${plural(n, 'fichier', 'fichiers')} en cours d’import`,
+    readOnly: (n: number) => `${n} en lecture seule`,
+    errors: (n: number) => `${n} ${plural(n, 'erreur', 'erreurs')}`,
+    added: (n: number) => `${n} ${plural(n, 'fichier ajouté', 'fichiers ajoutés')}`,
+    ready: 'Prêts à modifier.',
+    readOnlyReason: 'Lecture seule.',
+    toCheck: 'À vérifier',
+  },
+  {
+    ignored: (n) => `${n} ${plural(n, 'file', 'files')} skipped`,
+    maxSize: 'Maximum size: 100 MB.',
+    reading: 'Reading the file',
+    importing: (n) => `${n} ${plural(n, 'file', 'files')} importing`,
+    readOnly: (n) => `${n} read-only`,
+    errors: (n) => `${n} ${plural(n, 'error', 'errors')}`,
+    added: (n) => `${n} ${plural(n, 'file', 'files')} added`,
+    ready: 'Ready to edit.',
+    readOnlyReason: 'Read-only.',
+    toCheck: 'To check',
+  },
+);
 
 let host: EngineHost | null = null;
 
 /** One engine worker per tab, created on first import. */
 export function engineHost(): EngineHost {
-  host ??= new EngineHost(() => new EngineWorker());
+  host ??= new EngineHost(() => namedWorker(EngineWorker, 'oel-engine'));
   return host;
 }
 
@@ -23,7 +57,7 @@ const toPaperKind = (k: ImportResult['kind']): PaperKind => (k === 'unsupported'
 export async function importFiles(store: Bureau, files: File[], at: Vec | null, rules: ArrivalRules, announce: (m: string) => void) {
   const accepted = files.filter((f) => f.size <= MAX_IMPORT_BYTES);
   const tooBig = files.length - accepted.length;
-  if (tooBig) toast({ title: `${tooBig} fichier${tooBig > 1 ? 's' : ''} ignoré${tooBig > 1 ? 's' : ''}`, description: 'Taille maximale : 100 Mo.', tone: 'warning' });
+  if (tooBig) toast({ title: t.ignored(tooBig), description: t.maxSize, tone: 'warning' });
   if (!accepted.length) return;
 
   const origin = at ?? store.viewCenter();
@@ -51,9 +85,9 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
       rotation: (i % 2 ? 1 : -1) * (1 + (i % 3)),
       data: {
         preview: { kind: 'unsupported' },
-        status: { state: 'importing', progress: 0, stage: 'Lecture du fichier' },
-        comments: [],
+        status: { state: 'importing', progress: 0, stage: t.reading },
         editor: 'JB',
+        updatedAt: Date.now(),
         fileName: file.name,
         imageUrl: kind === 'image' ? URL.createObjectURL(file) : undefined,
       },
@@ -61,39 +95,9 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
   });
 
   store.add(papers);
-  announce(`${papers.length} fichier${papers.length > 1 ? 's' : ''} en cours d’import`);
+  announce(t.importing(papers.length));
 
-  const results = await Promise.allSettled(
-    accepted.map(async (file, i) => {
-      const paper = papers[i]!;
-      const result = await engineHost().import(file, (p) => {
-        const current = store.node(paper.id);
-        if (!current) return;
-        store.update(paper.id, { data: { ...current.data, status: { state: 'importing', progress: p.value, stage: p.stage } } }, { history: false });
-      });
-      const current = store.node(paper.id);
-      if (!current) return result;
-      const kind = toPaperKind(result.kind);
-      const size = PAPER_SIZE[kind];
-      const scanned = result.preview.kind === 'pdf' && result.preview.scanned;
-      store.update(
-        paper.id,
-        {
-          kind,
-          title: result.title,
-          ...(kind !== current.kind ? { w: size.w, h: size.h } : {}),
-          data: {
-            ...current.data,
-            preview: result.preview,
-            status: result.readOnly ? { state: 'readonly', reason: result.reason ?? 'Lecture seule.' } : { state: 'ready' },
-            stamp: scanned ? { label: 'À vérifier', tone: 'danger' } : current.data.stamp,
-          },
-        },
-        { history: false },
-      );
-      return result;
-    }),
-  );
+  const results = await Promise.allSettled(accepted.map((file, i) => importInto(store, papers[i]!.id, file)));
 
   const ok = results.filter((r): r is PromiseFulfilledResult<ImportResult> => r.status === 'fulfilled').map((r) => r.value);
   const failed = results.length - ok.length;
@@ -105,74 +109,51 @@ export async function importFiles(store: Bureau, files: File[], at: Vec | null, 
     }
   });
   const readOnly = ok.filter((r) => r.readOnly).length;
-  const parts = [readOnly && `${readOnly} en lecture seule`, failed && `${failed} erreur${failed > 1 ? 's' : ''}`].filter(Boolean);
+  const parts = [readOnly && t.readOnly(readOnly), failed && t.errors(failed)].filter(Boolean);
   toast({
-    title: `${ok.length} fichier${ok.length > 1 ? 's' : ''} ajouté${ok.length > 1 ? 's' : ''}`,
-    description: parts.length ? parts.join(' · ') : 'Prêts à modifier.',
+    title: t.added(ok.length),
+    description: parts.length ? parts.join(' · ') : t.ready,
     tone: failed ? 'danger' : readOnly ? 'warning' : 'success',
   });
 }
 
-/**
- * 06 · Côte à côte: "Convertir pour modifier" puts an editable version next to
- * the read-only original, joined by a thread.
- *
- * The PDF → document engine does not exist yet, so the progress here is
- * simulated and the new document says so. Replace `simulate` with an
- * `engineHost().convert(...)` call when the WASM converter lands.
- */
-export function convertToEditable(store: Bureau, id: string, announce: (m: string) => void) {
-  const src = store.node(id) as Paper | undefined;
-  if (!src) return;
-  const size = PAPER_SIZE.document;
-  const doc: Paper = {
-    id: uid('conv'),
-    kind: 'document',
-    title: `${src.title} (modifiable)`,
-    x: src.x + src.w + 80,
-    y: src.y - 40,
-    w: size.w,
-    h: size.h,
-    rotation: 0,
-    data: {
-      preview: { kind: 'document', blocks: [] },
-      status: { state: 'importing', progress: 0, stage: 'Conversion en document modifiable' },
-      comments: [],
-      editor: 'JB',
-    },
-  };
-  store.add([doc]);
-  store.setLinks([...store.getState().links, { id: uid('l'), from: id, to: doc.id, label: 'Version modifiable', state: 'fresh' }], 'Lien de conversion');
-  announce('Conversion en document modifiable');
-
-  let progress = 0;
-  const simulate = setInterval(() => {
-    progress = Math.min(1, progress + 0.12);
-    const cur = store.node(doc.id);
-    if (!cur) return clearInterval(simulate);
-    if (progress < 1) {
-      store.update(doc.id, { data: { ...cur.data, status: { state: 'importing', progress, stage: 'Conversion en document modifiable' } } }, { history: false });
-      return;
-    }
-    clearInterval(simulate);
-    store.update(
-      doc.id,
-      {
-        data: {
-          ...cur.data,
-          status: { state: 'ready' },
-          stamp: { label: 'À vérifier', tone: 'warning' },
-          preview: {
-            kind: 'document',
-            blocks: [
-              { type: 'heading', text: src.title },
-              { type: 'paragraph', text: 'Conversion simulée : le moteur PDF → document (WASM) remplira cette page avec le texte et la mise en forme de l’original.' },
-            ],
-          },
-        },
+/** Read a file into an existing paper (its id, place and links stay): progress, then preview, editor session and thumbnail. */
+export async function importInto(store: Bureau, paperId: string, file: File): Promise<ImportResult> {
+  const result = await engineHost().import(file, (p) => {
+    const current = store.node(paperId);
+    if (!current) return;
+    store.update(paperId, { data: { ...current.data, status: { state: 'importing', progress: p.value, stage: p.stage } } }, { history: false });
+  });
+  // Without a shared file the paper still shows its preview; opening it then starts from that preview.
+  const noSession = (e: unknown) => (console.warn('Fichier partagé non créé', result.title, e), undefined);
+  let docId: string | undefined;
+  if (result.kind === 'document' && result.payload) docId = await createDocFromPayload(result.payload, result.title).catch(noSession);
+  if (result.kind === 'spreadsheet' && result.payload) docId = await createSheetFromPayload(result.payload, result.title).catch(noSession);
+  if (result.kind === 'slides' && result.payload) docId = await createSlidesFromPayload(result.payload, result.title).catch(noSession);
+  const current = store.node(paperId);
+  if (!current) return result;
+  const kind = toPaperKind(result.kind);
+  // Pictures keep their original, untouched, by content hash: the atelier's recipes apply to it.
+  const original = kind === 'image' ? (await originals().put(file).catch(() => null))?.hash : undefined;
+  const size = paperSizeFor(kind, result.preview);
+  const scanned = result.preview.kind === 'pdf' && result.preview.scanned;
+  store.update(
+    paperId,
+    {
+      kind,
+      title: result.title,
+      ...(kind !== current.kind || size.w !== current.w || size.h !== current.h ? { w: size.w, h: size.h } : {}),
+      data: {
+        ...current.data,
+        ...(docId ? { docId } : {}),
+        ...(original ? { image: { ...current.data.image, original } } : {}),
+        preview: result.preview,
+        status: result.readOnly ? { state: 'readonly', reason: result.reason ?? t.readOnlyReason } : { state: 'ready' },
+        stamp: scanned ? { label: t.toCheck, tone: 'danger' } : current.data.stamp,
       },
-      { history: false },
-    );
-    toast({ title: 'Version modifiable prête', description: 'Vérifiez les passages signalés avant d’exporter.', tone: 'success' });
-  }, 220);
+    },
+    { history: false },
+  );
+  if (docId) queueThumbnail(store, paperId);
+  return result;
 }

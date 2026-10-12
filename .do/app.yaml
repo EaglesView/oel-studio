@@ -1,0 +1,17 @@
+# DigitalOcean App Platform: the single-user site as a static site (Settings → App Spec, or
+# `doctl apps create --spec .do/app.yaml`). Built from .do/site.Dockerfile (Node + Rust): with buildpacks,
+# the root Cargo.toml selects the Rust buildpack, which fails. App Platform publishes `output_dir` from the image.
+name: oel-bureau
+region: tor
+static_sites:
+  - name: web
+    github:
+      repo: EaglesView/oel-studio
+      branch: feat/images
+      deploy_on_push: true
+    dockerfile_path: .do/site.Dockerfile
+    output_dir: /app/apps/web/dist
+    envs:
+      - key: PUBLIC_EDITION
+        value: solo
+        scope: BUILD_TIME

@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import {
   Button as RACButton,
   Link,
@@ -9,7 +9,10 @@ import {
 } from 'react-aria-components';
 import { Icon, type IconName } from '../icons/Icon';
 import { Logo } from '../icons/Logo';
+import { WithTooltip } from './Tooltip';
 import { cx } from '../utils';
+import { keyLabel } from '../keys';
+import { tr } from '@oel/i18n';
 
 /* ── Badge (kit 68:864) ────────────────────────────────────────────── */
 
@@ -106,7 +109,7 @@ export function Avatar({ person, size = 32 }: { person: Person; size?: number })
 
 export function AvatarStack({ people, label }: { people: Person[]; label?: string }) {
   return (
-    <span className="emb-avatar-stack" role="group" aria-label={label ?? `${people.length} personnes présentes`}>
+    <span className="emb-avatar-stack" role="group" aria-label={label ?? tr(`${people.length} personnes présentes`, `${people.length} people here`)}>
       {people.map((p) => (
         <Avatar key={p.id} person={p} />
       ))}
@@ -126,7 +129,7 @@ export interface SidebarProps {
 }
 
 /** Navigation on a paper rail; Expanded / Collapsed like the Figma set. */
-export function Sidebar({ collapsed, onToggle, brand = 'OutilsEnLigne', children, footer, label = 'Navigation principale' }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, brand = 'OutilsEnLigne', children, footer, label = tr('Navigation principale', 'Main navigation') }: SidebarProps) {
   return (
     <nav className={cx('emb-sidebar', collapsed && 'is-collapsed')} aria-label={label}>
       <div className="emb-sidebar__brand">
@@ -138,7 +141,7 @@ export function Sidebar({ collapsed, onToggle, brand = 'OutilsEnLigne', children
           <RACButton
             className="emb-button emb-button--secondary emb-button--icon-sm"
             onPress={onToggle}
-            aria-label={collapsed ? 'Déplier la navigation' : 'Replier la navigation'}
+            aria-label={collapsed ? tr('Déplier la navigation', 'Expand the navigation') : tr('Replier la navigation', 'Collapse the navigation')}
             aria-expanded={!collapsed}
           >
             <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={18} />
@@ -181,6 +184,137 @@ export function NavItem({ icon, label, count, current, collapsed, className, ...
   );
 }
 
+/* ── Rail (full-screen menu, Figma M2) ─────────────────────────────── */
+
+export interface RailNavProps {
+  /** Accessible name of the navigation. */
+  label: string;
+  /** Product name next to the logo. */
+  brand?: ReactNode;
+  /** Makes the logo a button (e.g. « Fermer le menu »). */
+  onBrandPress?: () => void;
+  brandLabel?: string;
+  children: ReactNode;
+  /** Pinned to the bottom of the rail. */
+  footer?: ReactNode;
+  className?: string;
+}
+
+/** The left rail of a full-screen menu: logo, sections in groups, a footer action. Items are buttons that switch panes. */
+export function RailNav({ label, brand = 'OutilsEnLigne', onBrandPress, brandLabel, children, footer, className }: RailNavProps) {
+  const logo = (
+    <span className="emb-rail__logo">
+      <Logo size={22} aria-hidden />
+    </span>
+  );
+  return (
+    <nav className={cx('emb-rail', className)} aria-label={label}>
+      <div className="emb-rail__brand">
+        {onBrandPress ? (
+          <RACButton className="emb-rail__brand-button" onPress={onBrandPress} aria-label={brandLabel}>
+            {logo}
+          </RACButton>
+        ) : (
+          logo
+        )}
+        <span className="emb-rail__name">{brand}</span>
+      </div>
+      <ul className="emb-rail__list">{children}</ul>
+      {footer && <ul className="emb-rail__list emb-rail__footer">{footer}</ul>}
+    </nav>
+  );
+}
+
+export interface RailItemProps {
+  icon: IconName;
+  label: string;
+  /** Shown after the label, e.g. « Ctrl+Maj+L ». */
+  shortcut?: string;
+  /** The pane on show. */
+  current?: boolean;
+  /** A small ink dot (something needs attention), with its spoken meaning. */
+  dot?: string;
+  onPress?: () => void;
+  autoFocus?: boolean;
+}
+
+export function RailItem({ icon, label, shortcut, current, dot, onPress, autoFocus }: RailItemProps) {
+  return (
+    <li>
+      <RACButton
+        className={cx('emb-rail-item', current && 'is-current')}
+        aria-current={current ? 'page' : undefined}
+        onPress={onPress}
+        autoFocus={autoFocus}
+      >
+        <Icon name={icon} size={16} />
+        <span className="emb-rail-item__label">{label}</span>
+        {dot && (
+          <span className="emb-rail-item__dot">
+            <span className="emb-visually-hidden">{dot}</span>
+          </span>
+        )}
+        {shortcut && <kbd className="emb-rail-item__shortcut">{keyLabel(shortcut)}</kbd>}
+      </RACButton>
+    </li>
+  );
+}
+
+export function RailSeparator() {
+  return <li className="emb-rail__separator" aria-hidden />;
+}
+
+/* ── Choice card (large creation choices: empty desk, menu « Nouveau ») ─ */
+
+export interface ChoiceCardProps {
+  icon: IconName;
+  label: string;
+  /** A picture above the label (e.g. a blank page); the icon then sits small beside the label. */
+  media?: ReactNode;
+  /** Icon colour, e.g. the file kind's colour. Default: ink. */
+  iconColor?: string;
+  onPress?: () => void;
+  /** Greyed out; the tooltip says why (Figma B3). */
+  unavailableReason?: string;
+  className?: string;
+}
+
+/** A raised sheet you pick: a big icon over its name, or a picture with the icon and name below. */
+export function ChoiceCard({ icon, label, media, iconColor, onPress, unavailableReason, className }: ChoiceCardProps) {
+  const card = (
+    <RACButton
+      className={cx('emb-choice', media !== undefined && 'emb-choice--media', unavailableReason && 'is-unavailable', className)}
+      style={iconColor ? ({ '--emb-choice-icon': iconColor } as CSSProperties) : undefined}
+      onPress={unavailableReason ? undefined : onPress}
+      aria-disabled={unavailableReason ? true : undefined}
+    >
+      {media !== undefined ? (
+        <>
+          <span className="emb-choice__media" aria-hidden>
+            {media}
+          </span>
+          <span className="emb-choice__name">
+            <Icon name={icon} size={12} />
+            {label}
+          </span>
+        </>
+      ) : (
+        <>
+          <Icon name={icon} size={32} />
+          {label}
+        </>
+      )}
+    </RACButton>
+  );
+  return unavailableReason ? (
+    <WithTooltip label={label} unavailableReason={unavailableReason}>
+      {card}
+    </WithTooltip>
+  ) : (
+    card
+  );
+}
+
 /* ── Progress (conversion / import) ────────────────────────────────── */
 
 export function ProgressBar({ label, className, ...props }: RACProgressBarProps & { label?: string }) {
@@ -210,5 +344,5 @@ export function ProgressBar({ label, className, ...props }: RACProgressBarProps 
 /* ── Kbd ──────────────────────────────────────────────────────────── */
 
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="emb-kbd">{children}</kbd>;
+  return <kbd className="emb-kbd">{typeof children === 'string' ? keyLabel(children) : children}</kbd>;
 }

@@ -54,6 +54,9 @@
 }
 
 .desk__node[data-opened] { visibility: hidden; }
+/* Inside a container (Figma L: gallery): the rest of the desk steps back. */
+.desk__node[data-outside] { opacity: 0.5; }
+.desk__scaled { transform-origin: 0 0; }
 .desk__pile { cursor: zoom-in; }
 .desk__pile-inner {
   position: absolute;
@@ -69,17 +72,74 @@
   height: 1px;
   pointer-events: none;
 }
-.desk__link line {
-  stroke: var(--emboss-ink, #7759c5);
-  stroke-width: 1.5;
-  stroke-dasharray: 5 5;
-  opacity: 0.7;
+.desk__link {
+  --link: var(--emboss-ink, #7759c5);
+  color: var(--link);
 }
-.desk__link circle { fill: var(--emboss-ink, #7759c5); }
-.desk__link--stale line { stroke: var(--emboss-warning, #f0ad05); }
-.desk__link--stale circle { fill: var(--emboss-warning, #f0ad05); }
-.desk__link--frozen line { stroke: var(--emboss-ink-muted, #6b6375); stroke-dasharray: 2 6; }
-.desk__link--frozen circle { fill: var(--emboss-ink-muted, #6b6375); }
+.desk__link-line {
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+  opacity: 0.8;
+}
+.desk__link circle { fill: var(--link); }
+.desk__link-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.desk__link-halo {
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 10;
+  stroke-linecap: round;
+  opacity: 0.18;
+}
+.desk__link[data-active] .desk__link-line { stroke-width: 3; opacity: 1; }
+.desk__link--updating .desk__link-line { animation: desk-thread-flow 600ms linear 1; }
+.desk__link--stale { --link: var(--emboss-warning, #f0ad05); }
+.desk__link--frozen,
+.desk__link--waiting { --link: var(--emboss-ink-muted, #6b6375); }
+.desk__link--frozen .desk__link-line { stroke-dasharray: 2 4; }
+.desk__link--broken { --link: var(--emboss-danger, #e5484d); }
+.desk__link--broken .desk__link-line { stroke-dasharray: 4 4 4 18; }
+@keyframes desk-thread-flow { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+
+/* Thread chips (Figma G1): same size on screen whatever the zoom; the full route is in the thread's popover. */
+.desk__chips { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.desk__chip {
+  --link: var(--emboss-ink, #7759c5);
+  position: absolute;
+  translate: -50% -50%;
+  scale: calc(1 / var(--desk-zoom, 1));
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, var(--link) 35%, transparent);
+  border-radius: 999px;
+  background: var(--emboss-surface, #fff);
+  color: var(--link);
+  font: 500 12px/18px var(--font-sans, system-ui);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 2px #0001;
+}
+.desk__chip--stale { --link: var(--emboss-warning-ink, #8a5a00); background: var(--emboss-warning-soft, #fff4d6); }
+.desk__chip--frozen,
+.desk__chip--waiting { --link: var(--emboss-ink-muted, #6b6375); }
+.desk__chip--broken { --link: var(--emboss-danger, #e5484d); background: var(--emboss-danger-soft, #fde8e8); }
+.desk__chip:focus-visible,
+.desk__chip[data-active] { outline: 2px solid var(--emboss-focus, #7759c5); outline-offset: 2px; z-index: 1; }
+.desk[data-open] .desk__chips,
+.desk[data-open] .desk__links { opacity: 0.3; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .desk__link--updating .desk__link-line { animation: none; }
+}
 
 .desk__overlay {
   position: absolute;
@@ -88,9 +148,44 @@
 }
 .desk__selection {
   position: absolute;
-  border: 2px solid var(--emboss-focus, #7759c5);
+  /* The colour of whoever is selecting (set by the app per person); the kit focus colour otherwise. */
+  border: 2px solid var(--desk-selection, var(--emboss-focus, #7759c5));
   border-radius: 8px;
 }
+/* Resize handles (screen space, constant size). */
+.desk__handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--desk-selection, var(--emboss-focus, #7759c5));
+  border-radius: 3px;
+  background: var(--emboss-sheet, #fff);
+  pointer-events: auto;
+  touch-action: none;
+}
+.desk__handle--nw, .desk__handle--se { cursor: nwse-resize; }
+.desk__handle--ne, .desk__handle--sw { cursor: nesw-resize; }
+.desk__handle--n, .desk__handle--s { cursor: ns-resize; }
+.desk__handle--e, .desk__handle--w { cursor: ew-resize; }
+.desk__inside {
+  position: absolute;
+  border: 2px dashed var(--emboss-fill-primary, #7759c5);
+  border-radius: 14px;
+}
+.desk__inside-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--emboss-fill-primary, #7759c5);
+  color: var(--emboss-on-fill, #fff);
+  font: 600 12px/16px var(--font-sans, sans-serif);
+  white-space: nowrap;
+}
+
 .desk__group {
   position: absolute;
   border: 1.5px dashed var(--emboss-ink, #7759c5);
@@ -114,6 +209,29 @@
   background: var(--emboss-accent-soft, #7759c51a);
 }
 
+/* Pick mode (« Coller à… »): the app may set a pin cursor via --desk-pick-cursor. */
+.desk[data-picking] { cursor: var(--desk-pick-cursor, crosshair); }
+.desk[data-picking] .desk__node[data-pick='no'] { opacity: 0.55; }
+.desk__pick-ring {
+  position: absolute;
+  border: 2.5px solid var(--emboss-focus, #7759c5);
+  border-radius: 10px;
+  background: var(--emboss-accent-soft, #7759c51a);
+}
+.desk__pick-guide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.desk__pick-guide line {
+  stroke: var(--emboss-focus, #7759c5);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  stroke-linecap: round;
+}
+
 .desk__empty {
   position: absolute;
   top: 50%;
@@ -125,6 +243,14 @@
   font: 400 15px/22px var(--font-sans, system-ui);
   color: var(--emboss-ink-muted, #6b6375);
   pointer-events: none;
+}
+
+.desk__empty-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  max-width: calc(100% - 32px);
 }
 
 .desk__dropzone {
@@ -178,6 +304,8 @@
 @keyframes desk-fade { from { opacity: 0; } }
 
 @media (forced-colors: active) {
-  .desk__selection, .desk__group, .desk-minimap__view { border-color: Highlight; }
+  .desk__selection, .desk__group, .desk-minimap__view, .desk__pick-ring, .desk__handle, .desk__inside { border-color: Highlight; }
+  .desk__pick-guide line { stroke: Highlight; }
+  .desk__chip { border-color: ButtonText; }
   .desk__node:focus-visible::after { border-color: Highlight; }
 }

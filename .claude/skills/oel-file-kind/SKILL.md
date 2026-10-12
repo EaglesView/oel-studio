@@ -1,0 +1,36 @@
+---
+name: oel-file-kind
+description: Add a new file/paper kind to the OutilsEnLigne Bureau (e.g. slides/pptx, PDF editing, a new OEL-native type) or change how an existing kind is detected, imported, previewed on the desk, opened in place / full screen, collaborated on, or exported. Lists every touchpoint from detection to server export.
+---
+
+# Adding or changing a kind
+
+> Layout note: `docs/plans/2026-10-restructure.md` Phase 3 replaces the scattered
+> touchpoints below with one `KindModule` per kind in `apps/web/src/kinds/<kind>/`.
+> If `apps/web/src/kinds/` exists, follow that layout and rewrite this section to match.
+
+## Touchpoints today (in order)
+
+1. **Detection** — `packages/engine/src/detect.ts` (`detectKind`, extension + magic bytes), `KIND_LABEL` / `ACCEPTED_EXTENSIONS` in the same file, `FileKind` in `packages/engine/src/types.ts`.
+2. **Preview** — add the `Preview` variant in `packages/engine/src/types.ts`; make the JS preview engine (`packages/engine/src/engines/preview.ts`) produce it as a fallback.
+3. **Engine** (if the kind parses files) — a Rust codec (see `oel-rust-engine`), an adapter `create<Name>Engine` in `packages/engine/src/engines/wasm.ts` with `accepts`, `run`, `export`, `create`, a payload type with a versioned `format`, and registration in `packages/engine/src/worker/engine.worker.ts` (later registrations win).
+4. **Desk model** — `apps/web/src/bureau/model.ts`: `PaperKind`, `KIND_ICON` (Iconoir via `@oel/emboss` `IconName`), `kindLabel`, `PAPER_SIZE`, `RESIZE_MODE` (`scale` = content drawn scaled from its natural size, `aspect`, `free`, `none`), `blankPaper` titles + preview. Use `paperSizeFor(kind, preview)` for a paper's size: documents take the shape of their first page (`Preview.page`, twips; set at import and on each editor preview), `PAPER_SIZE.document` is only the default for blank documents. A document thumbnail also paints `Preview.background` (page colour or a behind-text cover shape of page 1, `firstPageBackground`) with light ink on dark pages.
+5. **Thumbnail** — `apps/web/src/bureau/Paper.tsx` `Content` switch (+ `paper--<kind>` styles in `bureau.css`). Thumbnails must stay cheap: they re-render every 15 s when zoomed out.
+6. **Contextual toolbar (B2)** — `apps/web/src/bureau/ContextToolbar.tsx`. Unavailable tools stay visible with `unavailableReason` instead of disappearing.
+7. **Open in place / full screen (B4, levels 2–3)** — workspace component in `apps/web/src/bureau/workspaces/`, wired in `OpenSheet.tsx`. Respect Esc one level at a time (inner layers `stopPropagation`) and a URL per level.
+8. **Saved desk** — papers are saved on the device (`bureau/persist.ts`, one desk Y.Doc per project; S-2 of the solo
+   MVP plan). A new `PaperData` field holding an object URL or anything tab-only must be dropped in `storedPaper` and
+   rebuilt in `bureau/restore.ts` (`restoreMedia`); a kind backed by an editing session goes in `DOC_KIND` there so
+   removing it trashes its files and bureau backups (`deskStorage.ts`, `backup.ts`) carry them.
+9. **Import glue** — `apps/web/src/bureau/importFiles.ts` (payload → collab doc → `docId` on the paper), plus a `bureau/<kind>.ts` helper like `docs.ts` / `sheets.ts`.
+10. **Standalone page** (optional) — `apps/web/src/pages/<route>.astro` mounting a page component (`document.astro` / `tableur.astro` are the patterns).
+11. **Collaboration** (optional) — editor package `packages/<kind>` with `model/` (pure, Yjs) + `ui/`, session built on `@oel/collab-client` (`MediaStore` for pictures); `DocKind` in `packages/collab-client/src/api.ts` (+ `SHARE_PATH`, IDB prefix and package mime in `session.ts`) and `apps/collab/src/db.ts`; the `KINDS` table and an `export.<ext>` route in `apps/collab/src/server.ts`. Slides (`bureau/slides.ts`, `SlidesWorkspace`, `/presentation`) is the most recent complete example.
+12. **Docs** — README "What's real and what's stubbed" table and the Figma ↔ code table.
+
+## Checklist
+
+- [ ] Kind with no engine still imports (preview engine) and shows a read-only reason.
+- [ ] Desk stays file-type agnostic: nothing added to `packages/desk`. Generic desk behaviour is there to reuse: attachments (`store.attach`/`detach`/`overlapping`, `DeskCanvas` `pickTarget`, K-1) — a kind decides *whether* it can be stuck or stuck to via `filter`, never inside the desk; resizing (`store.resize`/`resizeTo`, `DeskCanvas` `resizeMode`, L-5); containers (`DeskNode.container`, `parent: { id, dx, dy }`, `store.setParent`/`enter`/`actsOn`, `DeskCanvas` `canContain`, L-5) — a kind decides what it holds via `canContain`.
+- [ ] Copy in fr-CA and English (`@oel/i18n`); icons from Iconoir.
+- [ ] Tests: detection + import in `packages/engine/test/engine.test.ts`; model tests in the editor package; server round trip in `apps/collab/test` if collaborative.
+- [ ] `oel-verify`, including the browser walkthrough for the kind.

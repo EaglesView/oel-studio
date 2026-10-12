@@ -1,0 +1,166 @@
+/* Toast (kit 67:564) · pile · notifications list */
+
+/* The pile: slips stack bottom-up, newest in front. Collapsed, older slips
+   tuck behind and peek out above; hovered or focused, the pile fans out into
+   a list. Positions are transforms set from measured heights, so every move
+   (arrival, departure, fan-out) is one transition. */
+.emb-toast-region,
+.emb-toast-ghosts {
+  position: fixed;
+  bottom: var(--spacing-6);
+  left: 50%;
+  z-index: 200;
+  width: min(380px, calc(100vw - 32px));
+  translate: -50% 0;
+}
+.emb-toast-region {
+  height: var(--region-c);
+  outline: none;
+  transition: height 320ms var(--ease-paper);
+}
+.emb-toast-region[data-hovered],
+.emb-toast-region:focus-within { height: var(--region-e); }
+.emb-toast-region[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 4px; border-radius: var(--radius-xl); }
+/* Keeps the pointer inside while it crosses the gaps of the fanned-out list. */
+.emb-toast-region::before { content: ''; position: absolute; inset: -8px -8px -8px; }
+.emb-toast-ghosts { z-index: 199; height: 0; pointer-events: none; }
+
+.emb-toast {
+  --_tone: var(--emboss-ink);
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--hc, auto);
+  overflow: clip;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-xl);
+  background-color: var(--emboss-sheet);
+  background-image: var(--emboss-noise);
+  box-shadow: var(--shadow-sheet);
+  outline: none;
+  opacity: var(--peek, 1);
+  transform: translateY(var(--yc, 0)) scale(var(--sc, 1));
+  transform-origin: 50% 0;
+  transition:
+    transform 320ms var(--ease-paper),
+    height 320ms var(--ease-paper),
+    opacity 280ms var(--ease-paper),
+    translate 280ms var(--ease-paper);
+}
+/* Arrival: rises 16 px and fades in. */
+@starting-style {
+  .emb-toast:not(.emb-toast--ghost) { opacity: 0; translate: 0 16px; }
+}
+.emb-toast-region[data-hovered] .emb-toast,
+.emb-toast-region:focus-within .emb-toast,
+.emb-toast--open {
+  height: var(--he, auto);
+  opacity: 1;
+  transform: translateY(var(--ye, 0));
+}
+/* Departure: the ghost left in its place sinks 16 px and fades out. */
+.emb-toast--ghost { animation: emb-toast-out 280ms var(--ease-paper) forwards; }
+@keyframes emb-toast-out { to { opacity: 0; translate: 0 16px; } }
+.emb-toast[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: 2px; }
+
+.emb-toast--success { --_tone: var(--emboss-success); }
+.emb-toast--warning { --_tone: var(--emboss-warning); }
+.emb-toast--danger { --_tone: var(--emboss-danger); }
+
+.emb-toast__body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-3) var(--spacing-3) var(--spacing-5);
+}
+/* Slips behind the front one show only their paper and edge. */
+.emb-toast__body > :not(.emb-toast__edge) { transition: opacity 200ms var(--ease-paper); }
+.emb-toast-region:not([data-hovered]):not(:focus-within) .emb-toast--back .emb-toast__body > :not(.emb-toast__edge) { opacity: 0; }
+.emb-toast__edge {
+  position: absolute;
+  inset: -1px auto -1px -1px;
+  width: 52px;
+  background:
+    linear-gradient(to right, transparent, color-mix(in srgb, var(--emboss-sheet) 85%, transparent) 46%, var(--emboss-sheet) 96%),
+    var(--_tone);
+  opacity: 0.21;
+  pointer-events: none;
+}
+.emb-toast__seal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--_tone);
+  box-shadow: inset 0 -2px 3px var(--emboss-highlight), inset 0 2px 5px var(--emboss-shade);
+  color: #fff;
+}
+.emb-toast__content { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.emb-toast__title { font: 600 13px/16px var(--font-sans); letter-spacing: 0.13px; color: var(--emboss-text); }
+.emb-toast--warning .emb-toast__title { color: var(--emboss-warning-ink); }
+.emb-toast__desc { font: 400 14px/20px var(--font-sans); color: var(--emboss-ink-muted); }
+.emb-toast__action { text-shadow: var(--text-deboss); }
+.emb-toast__close { flex-shrink: 0; width: 32px; height: 32px; padding: 6px; border-radius: var(--radius-xl); }
+
+/* Notifications: past toasts, newest first. */
+.emb-notif-trigger { position: relative; display: inline-flex; }
+.emb-notif-trigger__count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--emboss-ink);
+  color: #fff;
+  font: 600 10px/16px var(--font-sans);
+  text-align: center;
+  pointer-events: none;
+}
+.emb-notif-popover { padding: 0; width: min(360px, calc(100vw - 32px)); }
+.emb-notif { outline: none; }
+.emb-notif__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-3) var(--spacing-2) var(--spacing-4);
+}
+.emb-notif__title { margin: 0; font: 600 14px/20px var(--font-sans); color: var(--emboss-text); }
+.emb-notif__empty { margin: 0; padding: var(--spacing-2) var(--spacing-4) var(--spacing-4); font: 400 14px/20px var(--font-sans); color: var(--emboss-ink-muted); }
+.emb-notif__list {
+  display: grid;
+  max-height: min(420px, 60vh);
+  margin: 0;
+  padding: 0 var(--spacing-2) var(--spacing-2);
+  overflow-y: auto;
+  list-style: none;
+}
+.emb-notif__item {
+  --_tone: var(--emboss-ink);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2);
+  border-radius: var(--radius-lg);
+  animation: emb-notif-in 240ms var(--ease-paper) both;
+}
+.emb-notif__item + .emb-notif__item { border-top: 1px solid var(--emboss-edge); border-radius: 0; }
+.emb-notif__item .emb-toast__seal { margin-top: 2px; }
+.emb-notif__text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.emb-notif__desc { font: 400 13px/18px var(--font-sans); color: var(--emboss-ink-muted); }
+.emb-notif__time { flex-shrink: 0; padding-top: 2px; font: 400 12px/16px var(--font-sans); color: var(--emboss-ink-muted); white-space: nowrap; }
+@keyframes emb-notif-in { from { opacity: 0; translate: 0 4px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .emb-toast,
+  .emb-toast-region,
+  .emb-toast__body > * { transition: none; }
+  .emb-toast--ghost,
+  .emb-notif__item { animation: none; }
+  .emb-toast--ghost { opacity: 0; }
+}

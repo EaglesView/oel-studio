@@ -1,0 +1,20 @@
+/* Chart tools shared by sheets, slides and documents (Figma H2). */
+
+/* The « Graphique » bar floats above the selected chart. */
+.oel-chart-bar {
+  position: absolute;
+  z-index: 6;
+  padding: 3px 4px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--emboss-sheet);
+  box-shadow: var(--shadow-sheet);
+}
+.oel-chart-bar .emb-toolbar { gap: 2px; flex-wrap: nowrap; }
+.oel-chart-bar__label { padding: 0 6px; font: 600 10px/1 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--emboss-ink-muted); }
+.oel-chart-swatches { display: inline-flex; gap: 2px; margin-right: 8px; vertical-align: middle; }
+.oel-chart-swatches i { width: 12px; height: 12px; border-radius: 3px; }
+
+.oel-chart-elements { display: grid; gap: 6px; min-width: 260px; padding: 12px 14px; }
+.oel-chart-elements__title { margin: 0 0 4px; font: 600 11px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--emboss-ink-muted); }
+.oel-chart-elements__row { display: grid; gap: 4px; margin-top: 6px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--emboss-edge) 40%, transparent); font: 500 12px/1.3 var(--font-sans); }
+

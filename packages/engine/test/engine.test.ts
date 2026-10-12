@@ -82,3 +82,87 @@ describe('previewEngine', () => {
     expect(r.preview).toMatchObject({ rows: [['Poste', 'Montant'], ['Affiches', '1200']] });
   });
 });
+
+describe('oeldocx engine', () => {
+  it('imports with a payload, exports, and creates blank documents', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { createOeldocxEngine, EngineRegistry, previewEngine } = await import('../src');
+    const mod = createRequire(import.meta.url)('oeldocx-node');
+    const registry = new EngineRegistry().register(previewEngine).register(createOeldocxEngine(async () => mod));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../fixtures/docx/tesxte.docx', import.meta.url))));
+    const res = await registry.import({ name: 'tesxte.docx', type: '', bytes });
+    expect(res.engine).toBe('oeldocx-rs');
+    expect(res.preview.kind === 'document' && res.preview.blocks[0]?.text.startsWith('La première chose')).toBe(true);
+    const payload = res.payload as { json: string; original: Uint8Array };
+    const out = await registry.export({ kind: 'document', format: 'docx', data: { json: JSON.parse(payload.json), original: payload.original, media: [] } });
+    expect(out[0]).toBe(0x50);
+    const blank = await registry.create('document', 'Nouveau');
+    expect(blank.title).toBe('Nouveau');
+    // Other formats still go to the preview engine.
+    const csv = await registry.import({ name: 'a.csv', type: 'text/csv', bytes: new TextEncoder().encode('a;b\n1;2') });
+    expect(csv.engine).not.toBe('oeldocx-rs');
+  });
+});
+
+describe('oelpptx engine', () => {
+  it('imports .pptx with a payload, exports, creates decks, and leaves .ppt to the preview engine', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { createOelpptxEngine, EngineRegistry, previewEngine, asDeckPayload } = await import('../src');
+    const mod = createRequire(import.meta.url)('oelpptx-node');
+    const registry = new EngineRegistry().register(previewEngine).register(createOelpptxEngine(async () => mod));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../fixtures/pptx/Presentation 3.pptx', import.meta.url))));
+    const res = await registry.import({ name: 'Presentation 3.pptx', type: '', bytes });
+    expect(res.engine).toBe('oelpptx-rs');
+    expect(res.kind).toBe('slides');
+    // Portrait 4:3 deck: the desk paper takes its shape.
+    expect(res.preview).toMatchObject({ kind: 'slides', size: { width: 6858000, height: 9144000 } });
+    const payload = asDeckPayload(res.payload);
+    const out = await registry.export({ kind: 'slides', format: 'pptx', data: { json: JSON.parse(payload.json), original: payload.original, media: [] } });
+    expect([out[0], out[1]]).toEqual([0x50, 0x4b]);
+    const blank = await registry.create('slides', 'Nouvelle');
+    expect(blank.title).toBe('Nouvelle');
+    expect(asDeckPayload(blank.payload).original).toBeNull();
+    expect(detectKind({ name: 'vieux.ppt' })).toBe('slides');
+    const old = await registry.import({ name: 'vieux.ppt', type: '', bytes: new Uint8Array([0xd0, 0xcf, 0x11, 0xe0]) }).catch((e: Error) => e);
+    expect(old instanceof Error ? old.message : (old as { engine: string }).engine).not.toBe('oelpptx-rs');
+  });
+});
+
+describe('demo Bureau files (plan solo MVP, S-3)', () => {
+  it('the workbook lands on the desk with its computed results', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { createOelxlsxEngine, EngineRegistry, previewEngine } = await import('../src');
+    const mod = createRequire(import.meta.url)('oelxlsx-node');
+    const registry = new EngineRegistry().register(previewEngine).register(createOelxlsxEngine(async () => mod));
+    const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL('../../../fixtures/demo/Chronos — tours de piste.xlsx', import.meta.url))));
+    const res = await registry.import({ name: 'Chronos — tours de piste.xlsx', type: '', bytes });
+    expect(res.engine).toBe('oelxlsx-rs');
+    expect(res.preview.kind).toBe('spreadsheet');
+    if (res.preview.kind !== 'spreadsheet') return;
+    expect(res.preview.sheets).toEqual(['Résultats', 'Tours']);
+    const maya = res.preview.rows.find((r) => r[0] === 'Maya');
+    expect(maya?.slice(0, 2)).toEqual(['Maya', '58.1']);
+    expect(res.preview.rows.some((r) => r.includes('Maya') && r.includes('Par'))).toBe(true);
+  });
+});
+
+describe('zip writer', () => {
+  it('writes archives the reader reads back', async () => {
+    const { writeZip, readZipDirectory, readZipText, crc32 } = await import('../src/zip');
+    expect(crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926);
+    const zip = writeZip([
+      { name: 'été.txt', data: new TextEncoder().encode('bonjour') },
+      { name: 'b/c.txt', data: new TextEncoder().encode('deux') },
+    ]);
+    const dir = readZipDirectory(zip);
+    expect([...dir.keys()]).toEqual(['été.txt', 'b/c.txt']);
+    expect(await readZipText(zip, dir.get('été.txt')!)).toBe('bonjour');
+    expect(await readZipText(zip, dir.get('b/c.txt')!)).toBe('deux');
+  });
+});

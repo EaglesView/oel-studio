@@ -1,0 +1,42 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import { docHref } from '../../i18n';
+---
+<DocsLayout lang="en" id="bureau" description="Select, move, zoom, stick notes, gather images in a gallery and find your files in the menu.">
+  <p class="prose__lead">The desk is an endless table. Each file is a paper on it: you pick it up, put it down, stick things to it.</p>
+
+  <h2 id="select">Select and move</h2>
+  <ul>
+    <li>A click selects; <kbd>Shift</kbd> + click adds; dragging on the empty desk draws a lasso.</li>
+    <li>Drag a paper to move it, or <kbd>Alt</kbd> + arrows (<kbd>Shift</kbd>: further).</li>
+    <li>Drag the handles to resize: documents and slides keep their proportions, notes reflow.</li>
+    <li><kbd>Delete</kbd> removes from the desk; <kbd>Ctrl</kbd> <kbd>Z</kbd> undoes, even a removal.</li>
+  </ul>
+  <p>When a paper is selected, a toolbar appears above it with what applies to it: “Present” for a presentation, “Retouch” and “Link into…” for an image. An unavailable tool stays visible and says why.</p>
+
+  <h2 id="view">Zoom and view</h2>
+  <p><kbd>Ctrl</kbd> + wheel (or pinch) zooms at the pointer, from 25 % to 400 %; the wheel alone scrolls. Below 50 %, papers become thumbnails. The minimap, bottom right, shows where you are. “Vue liste”, in the project pill, shows the same files as a list, handy with the keyboard and screen readers.</p>
+
+  <h2 id="notes">Sticky notes</h2>
+  <p><kbd>N</kbd> puts down a note; just type to write. A note sticks to a paper and follows it everywhere:</p>
+  <ul>
+    <li><kbd>P</kbd> sticks the note to the paper underneath, or unsticks it;</li>
+    <li><kbd>Shift</kbd> <kbd>P</kbd> opens “Stick to…” to choose the paper;</li>
+    <li>or drop the note on a paper while holding <kbd>Alt</kbd>.</li>
+  </ul>
+  <p>Four colours, in the note’s toolbar.</p>
+
+  <h2 id="galleries">Image galleries</h2>
+  <p>Select several images, then “Modifier les images”: they are gathered in a gallery, a board that moves as one. The images of a gallery share a style (light, colour), each can keep its own settings, and “Export” saves them all, retouched, in a .zip.</p>
+
+  <h2 id="bar">The bottom bar and the menu</h2>
+  <p>At the bottom: the logo (the menu), “Note”, “Import”, zoom and the “+”. The full-screen menu holds:</p>
+  <ul>
+    <li><strong>Accueil</strong> and <strong>Nouveau</strong>: recent files, create a file;</li>
+    <li><strong>Ouvrir et importer</strong>: import, every file on the desk, and “Ce bureau” (export, import, reset the demo, empty the desk);</li>
+    <li><strong>Paramètres</strong>: sort arriving files by type;</li>
+    <li><strong>Fils du bureau</strong> (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>L</kbd>): every linked copy, see <a href={docHref('en', 'liens')}>Linked copies</a>;</li>
+    <li><strong>Affichage</strong>: light or dark theme, list view, minimap, visible threads;</li>
+    <li><strong>Raccourcis clavier</strong> and <strong>Aide</strong>.</li>
+  </ul>
+</DocsLayout>

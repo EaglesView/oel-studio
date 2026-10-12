@@ -3,3 +3,12 @@ dist/
 .astro/
 *.log
 .DS_Store
+apps/collab/data/
+
+# Rust
+/target/
+# WASM builds (npm run build:wasm)
+packages/wasm/*/
+
+# Reference renders (node scripts/render-reference.mjs)
+fixtures/reference/

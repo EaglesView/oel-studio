@@ -1,0 +1,46 @@
+---
+/** Figma `Site/Footer` (208:39), without what the single-user release doesn't have (forms, PDF editing, accounts). */
+import { DOCS, SITE, UI, docHref, type Lang } from './i18n';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = UI[lang];
+const product = lang === 'fr'
+  ? [['Documents', 'documents'], ['Tableurs', 'tableurs'], ['Présentations', 'presentations'], ['Images', 'images']]
+  : [['Documents', 'documents'], ['Spreadsheets', 'tableurs'], ['Presentations', 'presentations'], ['Images', 'images']];
+---
+<footer class="site-footer">
+  <div class="site-footer__grid">
+    <div class="site-footer__brand">
+      <p><img src="/favicon.svg" alt="" width="22" height="22" /> <strong>Bureau · OutilsEnLigne</strong></p>
+      <p>{t.footer.tagline}</p>
+    </div>
+    <nav aria-label={t.footer.product}>
+      <h2>{t.footer.product}</h2>
+      <ul>
+        {product.map(([label, hash]) => <li><a href={docHref(lang, 'editeurs', hash)}>{label}</a></li>)}
+        <li><a href={docHref(lang, 'liens')}>{DOCS.find((d) => d.id === 'liens')![lang].title}</a></li>
+      </ul>
+    </nav>
+    <nav aria-label={t.footer.resources}>
+      <h2>{t.footer.resources}</h2>
+      <ul>
+        <li><a href={docHref(lang, 'index')}>{t.docsTitle}</a></li>
+        <li><a href={docHref(lang, 'clavier')}>{t.footer.shortcuts}</a></li>
+        {SITE.repo && <li><a href={SITE.repo}>{t.footer.source}</a></li>}
+      </ul>
+    </nav>
+    <nav aria-label={t.footer.oel}>
+      <h2>{t.footer.oel}</h2>
+      <ul>
+        <li><a href={SITE.tools}>{t.footer.allTools}</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="site-footer__legal">
+    <span>{t.footer.rights}</span>
+    <span>{t.footer.licence}</span>
+  </div>
+</footer>

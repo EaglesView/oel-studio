@@ -170,6 +170,7 @@
 }
 .emb-menu-item[data-selected] { color: var(--emboss-ink); font-weight: 600; }
 .emb-menu-item[data-disabled] { color: var(--emboss-ink-disabled); cursor: not-allowed; }
+.emb-menu-item__submenu { margin-left: auto; color: var(--emboss-ink-muted); }
 .emb-menu-item[data-focus-visible] { outline: 2px solid var(--emboss-focus); outline-offset: -2px; }
 .emb-menu-item__label { flex: 1; }
 .emb-menu-item__check { color: var(--emboss-ink); }

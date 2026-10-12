@@ -1,9 +1,12 @@
 {
   "name": "@oel/emboss",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "OutilsEnLigne blind-emboss paper UI kit, built on react-aria-components.",
   "type": "module",
-  "sideEffects": ["**/*.css"],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles/index.css",
@@ -14,6 +17,8 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@oel/i18n": "*",
+    "iconoir-react": "^7.12.1",
     "react-aria-components": "^1.21.1"
   },
   "devDependencies": {

@@ -1,0 +1,118 @@
+/* @oel/collab-client — chrome shared by the editors: sync chip and
+   presence, side panels (version history), share and identity dialogs,
+   colour swatches, dialog forms. */
+
+/* Menu bar */
+.oel-menubar { display: flex; flex-wrap: wrap; gap: 0; margin-left: -4px; }
+.oel-menubar__trigger.emb-button { min-height: 26px; padding: 2px 8px; font-weight: 400; box-shadow: none; }
+
+/* Toolbar selects, colour tools, popover dialogs */
+.oel-toolbar__select .emb-field { min-width: 0; }
+.oel-toolbar__select .emb-select-trigger { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+.oel-toolbar__select--zoom { width: 92px; }
+.oel-colorbar { display: block; width: 16px; height: 3px; border-radius: 2px; margin-top: 1px; }
+.oel-popover-dialog { outline: none; padding: 12px; }
+
+/* Sync status / presence */
+.oel-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  color: var(--emboss-ink-muted);
+  font: 400 12px/16px var(--font-sans);
+  white-space: nowrap;
+}
+.oel-sync--offline, .oel-sync--error { color: var(--emboss-warning-ink, var(--emboss-warning)); background: var(--emboss-warning-soft); }
+.oel-peers { display: flex; align-items: center; }
+.oel-peers__item + .oel-peers__item { margin-left: -6px; }
+.oel-peers__item .emb-avatar { box-shadow: 0 0 0 2px var(--oel-desk); font-size: 11px; }
+.oel-peers__more { margin-left: 4px; font: 500 12px/16px var(--font-sans); color: var(--emboss-ink-muted); }
+.oel-swatches { display: grid; gap: 10px; }
+.oel-swatches__grid { display: grid; grid-template-columns: repeat(6, 22px); gap: 6px; }
+.oel-swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.oel-swatch:hover, .oel-swatch:focus-visible { transform: scale(1.15); outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+.oel-swatch.is-on { box-shadow: 0 0 0 2px var(--emboss-sheet), 0 0 0 4px var(--emboss-fill-primary); }
+.oel-swatch--none {
+  width: auto;
+  height: auto;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--emboss-well);
+  color: var(--emboss-text);
+  font: 500 13px/1 var(--font-sans);
+}
+.oel-swatch--none:hover { transform: none; }
+.oel-swatches__custom { display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 400 13px/1 var(--font-sans); color: var(--emboss-ink-muted); }
+.oel-swatches__custom input { width: 32px; height: 24px; padding: 0; border: none; background: none; }
+.oel-panel {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  border-right: 1px solid var(--emboss-edge);
+}
+.oel-panel--versions { flex-basis: 320px; border-right: none; border-left: 1px solid var(--emboss-edge); }
+.oel-panel__head { display: flex; align-items: center; justify-content: space-between; }
+.oel-panel__head h2 { margin: 0; font: 600 15px/20px var(--font-sans); color: var(--title, var(--emboss-text)); }
+.oel-panel__empty { margin: 0; color: var(--emboss-ink-muted); font: 400 13px/18px var(--font-sans); }
+.oel-versions { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.oel-versions__name { display: flex; gap: 8px; align-items: end; }
+.oel-versions__name .emb-field { flex: 1; }
+.oel-versions__item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--emboss-text);
+  text-align: left;
+  cursor: pointer;
+}
+.oel-versions__item:hover { background: var(--emboss-well); }
+.oel-versions__item.is-selected { border-color: var(--emboss-fill-primary); background: var(--emboss-accent-soft); }
+.oel-versions__title { font: 500 13px/18px var(--font-sans); }
+.oel-versions__date, .oel-versions__meta { font: 400 12px/16px var(--font-sans); color: var(--emboss-ink-muted); display: flex; gap: 6px; align-items: center; }
+.oel-versions__preview { display: grid; gap: 8px; border-top: 1px solid var(--emboss-edge); padding-top: 10px; }
+.oel-form { display: grid; gap: 14px; }
+.oel-form__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 0; border: 0; }
+.oel-form__grid legend { margin-bottom: 6px; font: 500 13px/18px var(--font-sans); }
+.oel-share { display: grid; gap: 12px; font: 400 14px/20px var(--font-sans); }
+.oel-share p { margin: 0; }
+.oel-share__create { display: flex; flex-wrap: wrap; gap: 8px; }
+.oel-share__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.oel-share__list li { display: flex; align-items: center; gap: 8px; }
+.oel-share__url { flex: 1; min-width: 0; padding: 4px 8px; border: 1px solid var(--emboss-edge); border-radius: var(--radius-sm); background: var(--emboss-well); color: var(--emboss-ink-muted); font: 400 12px/18px var(--font-sans); text-overflow: ellipsis; }
+.oel-share__empty { color: var(--emboss-ink-muted); }
+.oel-share__error { margin: 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--emboss-danger-soft); color: var(--emboss-danger); font: 400 13px/18px var(--font-sans); }
+
+@media (max-width: 760px) {
+  .oel-panel { position: absolute; z-index: 8; inset: 0 auto 0 0; background: var(--emboss-sheet); box-shadow: var(--shadow-sheet); }
+  .oel-panel--versions { inset: 0 0 0 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oel-swatch:hover { transform: none; }
+}
+
+/* Polices manquantes */
+.oel-fonts__intro { margin: 0 0 12px; color: var(--emboss-ink-muted); font: 400 14px/20px var(--font-sans); }
+.oel-fonts { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; max-height: 52vh; overflow: auto; }
+.oel-fonts__row { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--emboss-edge); }
+.oel-fonts__row:first-child { border-top: 0; }
+.oel-fonts__font { display: grid; gap: 2px; min-width: 0; }
+.oel-fonts__font strong { font: 600 14px/20px var(--font-sans); color: var(--emboss-text); }
+.oel-fonts__sample { overflow: hidden; font-size: 18px; line-height: 26px; color: var(--emboss-text); white-space: nowrap; text-overflow: ellipsis; }
+@media (max-width: 520px) { .oel-fonts__row { grid-template-columns: 1fr; } }

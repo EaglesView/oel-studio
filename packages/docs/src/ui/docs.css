@@ -1,0 +1,443 @@
+/* @oel/docs — Docs-style editor on the emboss kit.
+   Chrome uses emboss tokens; the paper itself stays white with black "auto"
+   text in both themes, like Docs and Word, so documents look as authored. */
+
+/* Sync chip, presence, share and version panels, identity, swatches. */
+@import '@oel/collab-client/styles.css';
+@import '@oel/charts/ui.css';
+
+.oel-docs {
+  --oel-paper: #fff;
+  --oel-desk: var(--emboss-surface);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--oel-desk);
+  color: var(--emboss-text);
+  font-family: var(--font-sans);
+}
+.oel-docs--loading { display: grid; place-items: center; color: var(--emboss-ink-muted); }
+
+/* Title bar + menus */
+.oel-docs__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 2px;
+  min-width: 0;
+}
+.oel-docs__icon { color: var(--emboss-fill-primary); display: grid; }
+.oel-docs__crumbs { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.oel-docs__crumb-sep { color: var(--emboss-ink-muted); font: 400 18px/1 var(--font-sans); }
+.oel-docs__titlerow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.oel-docs__titlerow .oel-docs__title { flex: 0 1 auto; }
+.oel-docs__titles { display: grid; min-width: 0; flex: 1; }
+.oel-docs__title {
+  justify-self: start;
+  max-width: 100%;
+  min-width: 8ch;
+  field-sizing: content;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--emboss-text);
+  font: 500 18px/24px var(--font-sans);
+}
+.oel-docs__title:hover { border-color: var(--emboss-edge); }
+.oel-docs__title:focus { outline: none; border-color: var(--emboss-fill-primary); background: var(--emboss-well); }
+.oel-docs__right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+
+/* Toolbar */
+.oel-docs__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 8px;
+  min-width: 0;
+}
+.oel-docs__toolbar > .emb-toolbar { flex: 1; min-width: 0; }
+/* Docked at the bottom (Figma J3): the whole bar under the page, above the status bar. */
+.oel-docs__dock { flex: none; padding: 8px 16px; }
+.oel-docs__dock > .emb-toolbar { width: 100%; }
+.oel-toolbar { flex-wrap: nowrap; }
+.oel-toolbar__select--style { width: 148px; }
+.oel-toolbar__select--font { width: 150px; }
+.oel-fontsize { display: inline-flex; align-items: center; gap: 2px; }
+.oel-fontsize__input {
+  width: 42px;
+  height: 28px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-sm);
+  background: var(--emboss-well);
+  color: var(--emboss-text);
+  text-align: center;
+  font: 500 13px/1 var(--font-sans);
+  box-shadow: var(--shadow-well);
+}
+.oel-fontsize__input:focus { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+.oel-docs__mode { flex-shrink: 0; }
+.oel-docs__mode-label { display: inline-flex; gap: 6px; align-items: center; font: 500 13px/1 var(--font-sans); color: var(--emboss-ink-muted); }
+.oel-tablefloat { position: fixed; z-index: 70; filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.12)); }
+/* Mounted inside the editor's canvas (see Floats.tsx `floatRoot`): above the pages and their anchors. */
+.oel-docfloat { position: fixed; z-index: 70; }
+.oel-docfloat .oel-chart-bar { position: static; }
+/* « Ces valeurs viennent de … » (Figma I2): refused edit in a linked table. */
+.oel-linked-edit { display: grid; gap: 10px; max-width: 340px; padding: 14px 16px; }
+.oel-linked-edit__title { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 13px/1.3 var(--font-sans); color: var(--emboss-text); }
+.oel-linked-edit__body { margin: 0; font: 400 12px/1.45 var(--font-sans); color: var(--emboss-ink-muted); }
+.oel-linked-edit__actions { display: flex; gap: 8px; }
+
+/* Popovers: palettes, table grid */
+.oel-tablegrid__cells { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; }
+.oel-tablegrid__cell { width: 18px; height: 18px; border: 1px solid var(--emboss-edge); border-radius: 3px; background: var(--emboss-sheet); cursor: pointer; padding: 0; }
+.oel-tablegrid__cell.is-on { background: var(--emboss-accent-soft); border-color: var(--emboss-fill-primary); }
+.oel-tablegrid__label { margin: 8px 0 0; text-align: center; font: 500 12px/16px var(--font-sans); color: var(--emboss-ink-muted); }
+
+/* Body: panels + canvas */
+.oel-docs__body { display: flex; flex: 1; min-height: 0; }
+.oel-docs__top, .oel-docs__toolbar, .oel-docs__dock, .oel-statusbar { flex: none; }
+.oel-docs__canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px 16px 64px;
+  scroll-padding: 48px;
+}
+.oel-docs__hint {
+  position: sticky;
+  bottom: 12px;
+  width: max-content;
+  margin: 16px auto 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--emboss-tooltip);
+  color: var(--emboss-tooltip-text);
+  font: 400 13px/18px var(--font-sans);
+  z-index: 5;
+}
+
+.oel-outline { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.oel-outline__item {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--emboss-text);
+  text-align: left;
+  font: 400 13px/18px var(--font-sans);
+  cursor: pointer;
+}
+.oel-outline__item--0 { font-weight: 600; }
+.oel-outline__item:hover, .oel-outline__item:focus-visible { background: var(--emboss-well); outline: none; }
+
+.oel-versions__doc {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--oel-paper);
+  color: #000;
+  font-size: 9pt;
+  zoom: 0.8;
+}
+
+/* Find bar */
+.oel-findbar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  gap: 6px;
+  width: min(520px, 100%);
+  margin: 0 0 12px auto;
+  padding: 10px 12px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-lg);
+  background: var(--emboss-sheet);
+  box-shadow: var(--shadow-sheet);
+}
+.oel-findbar__row { display: flex; align-items: center; gap: 6px; }
+.oel-findbar__input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: var(--radius-md);
+  background: var(--emboss-well);
+  color: var(--emboss-text);
+  font: 400 14px/20px var(--font-sans);
+}
+.oel-findbar__input:focus { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+.oel-findbar__count { min-width: 76px; text-align: right; font: 400 12px/16px var(--font-sans); color: var(--emboss-ink-muted); }
+.oel-findbar__opts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+
+/* Pages */
+.oel-pages { position: relative; margin: 0 auto; }
+.oel-pages__inner { position: relative; display: flow-root; }
+.oel-pagestack { position: absolute; inset: 0 auto auto 0; width: 100%; }
+.oel-sheet {
+  position: absolute;
+  left: 0;
+  background: var(--oel-paper);
+  box-shadow: 0 1px 3px rgb(60 64 67 / 0.15), 0 4px 12px rgb(60 64 67 / 0.12);
+  border-radius: 1px;
+}
+.oel-sheet__num { position: absolute; right: -36px; bottom: 6px; font: 400 11px/1 var(--font-sans); color: var(--emboss-ink-muted); }
+.oel-body-wrap { position: relative; z-index: 1; }
+
+/* Headers & footers */
+.oel-hf {
+  position: absolute;
+  z-index: 2;
+  min-height: 18px;
+  color: #000;
+  border-radius: 2px;
+  cursor: text;
+}
+.oel-hf--footer { display: flex; flex-direction: column; justify-content: flex-end; }
+.oel-hf:not(.is-editing):hover { box-shadow: 0 0 0 1px rgb(26 115 232 / 0.35); }
+.oel-hf.is-editing { box-shadow: 0 0 0 1px #1a73e8; z-index: 4; }
+.oel-hf__content { pointer-events: none; }
+.oel-hf.is-editing .oel-hf__content { pointer-events: auto; }
+.oel-hf__bar {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  background: var(--emboss-sheet);
+  box-shadow: var(--shadow-sheet);
+  color: var(--emboss-text);
+  font: 400 12px/16px var(--font-sans);
+  white-space: nowrap;
+}
+.oel-hf--footer .oel-hf__bar { top: auto; bottom: calc(100% + 6px); }
+.oel-hf__label { font-weight: 600; color: #1a73e8; }
+.oel-hf__shared { color: var(--emboss-ink-muted); }
+
+/* Notes */
+.oel-notes { position: relative; z-index: 1; margin: 24px auto 0; padding: 24px 40px; background: var(--oel-paper); color: #000; box-shadow: 0 1px 3px rgb(60 64 67 / 0.15); }
+.oel-notes__title { margin: 0 0 8px; font: 600 10pt/1.4 var(--font-sans); color: #444; }
+.oel-notes__list { list-style: none; margin: 0; padding: 0; border-top: 1px solid #bbb; }
+.oel-note { display: grid; grid-template-columns: 28px 1fr; gap: 4px; padding-top: 6px; font-size: 10pt; }
+.oel-note__num { align-self: start; border: none; background: none; color: #1a73e8; font: inherit; font-size: 9pt; cursor: pointer; padding: 1px 0; vertical-align: super; }
+
+/* ---------------------------------------------------------------------
+   Document content (shared by body, headers, notes, previews)
+   --------------------------------------------------------------------- */
+.oel-doc { color: #000; font-family: Arial, "Liberation Sans", Arimo, sans-serif; font-size: 11pt; line-height: 1.15; }
+.oel-doc :where(p, h1, h2, h3, h4, h5, h6) { margin: 0; font-size: inherit; font-weight: inherit; color: inherit; }
+.oel-body { outline: none; tab-size: 48px; min-height: 1.2em; caret-color: #000; }
+.oel-body:focus-visible { outline: none; }
+.oel-doc a { color: #1155cc; text-decoration: underline; }
+.oel-doc a[href]:hover { cursor: pointer; }
+.oel-doc .oel-tab { white-space: pre; }
+.oel-doc mark { color: inherit; }
+.oel-doc sup, .oel-doc sub { line-height: 0; }
+
+/* Word-model lists */
+.oel-doc .oel-p[data-marker]::before {
+  content: attr(data-marker);
+  display: inline-block;
+  min-width: var(--oel-hang, 18pt);
+  padding-right: 4px;
+  box-sizing: border-box;
+  text-indent: 0;
+  font-family: var(--oel-marker-font, inherit);
+  font-weight: normal;
+  font-style: normal;
+  text-decoration: none;
+}
+.oel-doc .oel-p[data-list='check']::before { cursor: pointer; font-family: inherit; }
+.oel-doc .oel-p[data-checked] { text-decoration: line-through; color: #777; }
+
+/* Page breaks and layout spacers */
+.oel-doc .oel-pagebreak { display: block; height: 0; margin: 4px 0; border-top: 1px dashed #c4c7c5; user-select: none; }
+.oel-docs--marks .oel-doc .oel-pagebreak::after { content: 'Saut de page'; display: block; margin-top: 2px; font: 400 9px/1 var(--font-sans); color: #888; text-align: center; }
+.oel-pgap { display: block; width: 100%; pointer-events: none; user-select: none; }
+span.oel-pgap { line-height: 0; }
+tr.oel-pgap td { padding: 0 !important; border: none !important; background: transparent !important; }
+
+/* Non-printing characters */
+.oel-docs--marks .oel-doc .oel-p::after { content: '¶'; color: #4a86e8; font-weight: normal; font-style: normal; }
+.oel-docs--marks .oel-doc .oel-tab { color: #4a86e8; }
+.oel-docs--marks .oel-doc .oel-tab::before { content: '→'; position: absolute; }
+
+/* Tables */
+.oel-doc table { border-collapse: collapse; table-layout: fixed; margin: 0; overflow: hidden; }
+/* Borders come from the document (cell `css`); where Word draws none, a dashed
+   gridline shows on screen only (Affichage › Quadrillage des tableaux). It is
+   thinner and weaker than any real border, so border-collapse keeps the real one. */
+.oel-doc td, .oel-doc th { position: relative; min-width: 1em; padding: 0 5.4pt; border: 0.5px dashed var(--oel-table-grid, transparent); vertical-align: top; box-sizing: border-box; }
+.oel-docs--grid .oel-body { --oel-table-grid: #b9c0ca; }
+/* Tables made in the editor are exported with the Table Grid style: draw it. */
+.oel-doc table[data-new-table] td, .oel-doc table[data-new-table] th { border: 0.5pt solid #000; }
+/* Word lets a table run past the text column (negative tblInd, wide grids) and the
+   resize handle sits 2px outside the last cell: let both show, never scroll. */
+.oel-doc .tableWrapper { overflow: visible; }
+.oel-doc .selectedCell::after { content: ''; position: absolute; inset: 0; background: rgb(26 115 232 / 0.15); pointer-events: none; z-index: 2; }
+.oel-doc .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background: #1a73e8; pointer-events: none; }
+.oel-doc.resize-cursor, .oel-doc .resize-cursor { cursor: col-resize; }
+
+/* Images */
+.oel-doc .oel-img-wrap { position: relative; display: inline-block; line-height: 0; vertical-align: bottom; }
+.oel-doc .oel-img { max-width: 100%; height: auto; }
+.oel-doc .oel-img-wrap.is-selected { outline: 2px solid #1a73e8; }
+.oel-doc .oel-img-handle { display: none; position: absolute; right: -5px; bottom: -5px; width: 10px; height: 10px; background: #1a73e8; border: 1px solid #fff; cursor: nwse-resize; }
+.oel-doc .oel-img-wrap.is-selected .oel-img-handle { display: block; }
+.oel-doc .oel-img-wrap.is-floating { outline: 1px dashed #a0a0a0; outline-offset: 2px; }
+
+/* A value linked from a sheet (Figma I4): text like the sentence, dotted underline for editors. */
+.oel-doc .oel-linked-value { cursor: pointer; text-decoration: underline dotted 1.5px; text-underline-offset: 3px; text-decoration-color: var(--emboss-ink, #7759c5); border-radius: 2px; }
+.oel-doc .oel-linked-value:hover { background: var(--emboss-accent-soft, #efe9fb); }
+.oel-doc .oel-linked-value[data-state='stale'] { text-decoration-color: var(--emboss-warning-ink, #8a5a00); }
+.oel-doc .oel-linked-value[data-state='broken'] { color: var(--emboss-danger, #c4372c); text-decoration-color: currentColor; }
+.oel-doc .oel-linked-value[data-state='frozen']::after { content: ' ❄'; font-size: 0.7em; color: var(--emboss-ink-muted, #6b6375); }
+.oel-doc .oel-linked-value[data-state='plain'] { text-decoration: none; cursor: text; }
+.oel-print .oel-linked-value { text-decoration: none !important; background: none !important; }
+.oel-print .oel-linked-value::after { content: none !important; }
+
+/* Kept-as-is Word content */
+.oel-doc .oel-ooxml { padding: 0 3px; border-radius: 3px; background: #eef1f5; color: #3c4043; font-size: 0.9em; }
+.oel-doc .oel-ooxml[data-hidden] { display: none; }
+.oel-doc .oel-chart-inline { display: inline-block; vertical-align: bottom; max-width: 100%; position: relative; }
+/* Linked copy (Figma G4): a chip at the bottom left, in the state's colour. */
+.oel-doc .oel-link-badge {
+  position: absolute; left: 8px; bottom: 8px;
+  display: inline-flex; align-items: center; gap: 4px; max-width: calc(100% - 16px);
+  padding: 2px 8px; border: 1px solid currentColor; border-radius: 999px;
+  font: 500 11px/1.4 system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--emboss-ink, #7759c5); background: var(--emboss-surface, #fff); cursor: pointer;
+}
+.oel-doc .oel-link-badge[hidden] { display: none; }
+.oel-doc .oel-link-badge[data-state='stale'] { color: var(--emboss-warning-ink, #8a5a00); background: var(--emboss-warning-soft, #fff4d6); }
+.oel-doc .oel-link-badge[data-state='frozen'], .oel-doc .oel-link-badge[data-state='waiting'] { color: var(--emboss-ink-muted, #6b6375); }
+.oel-doc .oel-link-badge[data-state='broken'] { color: var(--emboss-danger, #e5484d); }
+@media print { .oel-doc .oel-link-badge { display: none; } }
+.oel-doc .ProseMirror-selectednode.oel-chart-inline { outline: 2px solid #1a73e8; }
+.oel-doc .oel-ooxml[data-field] { padding: 0; background: none; color: inherit; font-size: inherit; }
+.oel-doc .oel-ooxml-block { margin: 4px 0; padding: 6px 10px; border: 1px dashed #c4c7c5; border-radius: 4px; color: #5f6368; font: 400 12px/16px var(--font-sans); }
+.oel-doc .oel-sdt { position: relative; }
+.oel-doc .oel-sdt[data-gallery='Table of Contents'] { padding-left: 8px; border-left: 2px solid #dadce0; }
+.oel-doc .ProseMirror-selectednode.oel-ooxml, .oel-doc .ProseMirror-selectednode.oel-ooxml-block { outline: 2px solid #1a73e8; }
+
+/* Notes calls, numbered in order */
+.oel-body { counter-reset: oel-fn oel-en; }
+.oel-doc .oel-noteref { cursor: pointer; color: #1a73e8; }
+.oel-doc .oel-noteref[data-kind='footnote']::after { counter-increment: oel-fn; content: counter(oel-fn); }
+.oel-doc .oel-noteref[data-kind='endnote']::after { counter-increment: oel-en; content: counter(oel-en, lower-roman); }
+
+/* Find matches */
+.oel-doc .oel-find { background: #fde293; }
+.oel-doc .oel-find--current { background: #f9ab00; }
+
+/* Placeholder */
+.oel-doc .is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; color: #9aa0a6; pointer-events: none; }
+.oel-story.oel-body { min-height: 1.3em; }
+
+/* Selection in the paper stays readable in dark themes */
+.oel-doc ::selection { background: #c2dbff; color: inherit; }
+
+/* Dialog bits */
+.oel-stats { width: 100%; border-collapse: collapse; font: 400 14px/20px var(--font-sans); }
+.oel-stats th { text-align: left; font-weight: 400; color: var(--emboss-ink-muted); padding: 6px 0; }
+.oel-stats td { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.oel-chars { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; }
+.oel-chars__key { height: 36px; border: 1px solid var(--emboss-edge); border-radius: var(--radius-sm); background: var(--emboss-sheet); color: var(--emboss-text); font-size: 18px; cursor: pointer; }
+.oel-chars__key:hover, .oel-chars__key:focus-visible { background: var(--emboss-accent-soft); outline: none; }
+
+@media (max-width: 760px) {
+  .oel-docs__right .oel-sync span:not(.emb-visually-hidden) { display: none; }
+  .oel-docs__mode { display: none; }
+}
+
+
+/* ---------------------------------------------------------------------
+   Variants (Editor — Behaviors · A1): sheet = level 2, full = level 3
+   --------------------------------------------------------------------- */
+.oel-docs--sheet .oel-docs__toolbar { padding-top: 10px; }
+.oel-docs__sheet-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.oel-docs--sheet .oel-docs__mode { display: none; }
+
+/* Barre d'état */
+.oel-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 16px;
+  border-top: 1px solid var(--emboss-edge);
+  color: var(--emboss-ink-muted);
+  font: 400 12px/20px var(--font-sans);
+}
+.oel-statusbar__zoom { display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
+.oel-statusbar__zoom .emb-button { min-height: 24px; width: 24px; }
+
+/* Mode concentration (B2): on demand, tools fade, the page stays sharp,
+   the way out never drops below 35 % opacity. */
+.oel-docs__top, .oel-docs__toolbar, .oel-statusbar, .oel-panel {
+  transition: opacity var(--dur-hover, 200ms) ease;
+}
+.oel-docs--focus:not(.is-revealed) .oel-docs__toolbar,
+.oel-docs--focus:not(.is-revealed) .oel-statusbar,
+.oel-docs--focus:not(.is-revealed) .oel-panel,
+.oel-docs--focus:not(.is-revealed) .oel-docs__titles,
+.oel-docs--focus:not(.is-revealed) .oel-docs__right { opacity: 0; }
+.oel-docs--focus:not(.is-revealed) .oel-docs__crumbs { opacity: 0.35; }
+.oel-docs--focus :focus-within { opacity: 1 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .oel-docs__top, .oel-docs__toolbar, .oel-statusbar, .oel-panel { transition: none; }
+}
+@media (max-width: 1280px) {
+  .oel-docs--sheet .oel-docs__sheet-actions .oel-sync span:not(.emb-visually-hidden) { display: none; }
+}
+
+/* Floating objects (Word anchors): drawn on per-sheet layers, behind or in front of the text */
+.oel-anchors { position: absolute; inset: 0; pointer-events: none; }
+.oel-anchors--behind { z-index: 0; }
+.oel-anchors-front { position: absolute; inset: 0 auto auto 0; width: 100%; z-index: 3; pointer-events: none; }
+.oel-anchors-front__sheet { position: absolute; }
+.oel-shape { position: absolute; }
+.oel-shape__box { position: relative; box-sizing: border-box; overflow: hidden; }
+.oel-shape__text { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.oel-shape__group { position: absolute; inset: 0; }
+.oel-shape__child { position: absolute; }
+.oel-shape__svg { position: absolute; left: 0; top: 0; }
+/* The anchor in the text: no width, a pin when selected or when anchors are shown (Iconoir “Pin”). */
+.oel-doc .oel-anchor { display: inline-block; width: 0; height: 1em; vertical-align: text-top; position: relative; }
+.oel-doc .oel-anchor--wrap { display: block; }
+.oel-doc .oel-anchor::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  display: none;
+  background: #1a73e8;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 14.5L3 21'/%3E%3Cpath d='M5 9.485l9.193 9.193 1.697-1.697-.392-3.786 5.509-4.674-5.85-5.85-4.673 5.51-3.787-.393L5 9.485z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 14.5L3 21'/%3E%3Cpath d='M5 9.485l9.193 9.193 1.697-1.697-.392-3.786 5.509-4.674-5.85-5.85-4.673 5.51-3.787-.393L5 9.485z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.oel-docs--anchors .oel-doc .oel-anchor::before, .oel-doc .oel-anchor.ProseMirror-selectednode::before { display: block; }
+.oel-doc .oel-anchor--wrap::before { left: 0; }
+
+/* Printing (ui/print.ts): one page per sheet, at its section's size */
+.oel-print { color: #000; }
+.oel-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.oel-print__page { position: relative; overflow: hidden; break-after: page; }
+.oel-print__page:last-child { break-after: auto; }
+.oel-print__text { position: absolute; left: 0; right: 0; overflow: hidden; z-index: 1; }
+.oel-print .oel-sheet { box-shadow: none; border-radius: 0; }
+.oel-print .oel-sheet__num, .oel-print .oel-hf__bar, .oel-print .oel-anchor::before { display: none !important; }
+.oel-print .oel-hf { box-shadow: none !important; }
+.oel-print .oel-pagebreak { border: 0; margin: 0; }
+.oel-print .oel-noteref::after { content: attr(data-print-n) !important; counter-increment: none !important; }

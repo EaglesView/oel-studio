@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Checkbox,
+  ChoiceCard,
   DialogOverlay,
   DialogTrigger,
   Icon,
@@ -14,6 +15,9 @@ import {
   ProgressBar,
   Radio,
   RadioGroup,
+  RailItem,
+  RailNav,
+  RailSeparator,
   Select,
   SelectItem,
   SheetDialog,
@@ -24,6 +28,7 @@ import {
   TabPanel,
   Tabs,
   TextField,
+  NotificationsButton,
   ToastRegion,
   Toolbar,
   ToolbarSeparator,
@@ -40,6 +45,7 @@ const VARIANTS: ButtonVariant[] = ['primary', 'secondary', 'ghost', 'destructive
 export function KitShowcase() {
   const [page, setPage] = useState(3);
   const [bold, setBold] = useState(true);
+  const [rail, setRail] = useState(0);
 
   return (
     <div className="kit">
@@ -73,7 +79,7 @@ export function KitShowcase() {
           <ToolbarToggle icon="align-left" label="Aligner à gauche" />
           <ToolbarSeparator />
           <ToolButton icon="image" label="Insérer une image" unavailableReason="Sélectionnez un paragraphe pour insérer une image." />
-          <ToolButton icon="comment" label="Commenter" value={3} />
+          <ToolButton icon="align-left" label="Taille du texte" value="11 pt" />
           <span style={{ flex: 1 }} />
           <ToolButton icon="mail" label="Partager" showLabel />
           <Button variant="primary" size="sm" leadingIcon="download">Exporter</Button>
@@ -187,6 +193,52 @@ export function KitShowcase() {
           <Button variant="success" leadingIcon="check" onPress={() => toast({ title: 'Enregistré', description: 'Toutes les modifications sont sauvegardées.', tone: 'success' })}>
             Afficher un toast
           </Button>
+          <Button
+            leadingIcon="plus"
+            onPress={() => {
+              const pile: Parameters<typeof toast>[0][] = [
+                { title: 'Document enregistré', description: 'Toutes vos modifications sont dans le nuage.' },
+                { title: 'Exportation terminée', description: 'rapport-annuel.pdf est prêt à télécharger.', tone: 'success' },
+                { title: 'Espace presque plein', description: 'Il vous reste 200 Mo sur 5 Go.', tone: 'warning' },
+                { title: 'Échec de l’envoi', description: 'Vérifiez votre connexion puis réessayez.', tone: 'danger', action: { label: 'Réessayer', onAction: () => {} } },
+              ];
+              pile.forEach((t, i) => setTimeout(() => toast(t), i * 400));
+            }}
+          >
+            Empiler 4 toasts
+          </Button>
+          <NotificationsButton />
+        </div>
+      </section>
+
+      <section aria-labelledby="k-rail">
+        <h2 id="k-rail">Menu plein écran</h2>
+        <p className="kit__note">
+          Rail (Figma M2) : des boutons qui changent de volet ; le volet affiché est marqué. Cartes de choix : grande icône sur
+          son nom, ou une image avec l’icône et le nom dessous ; « Bientôt » les grise et l’infobulle dit pourquoi.
+        </p>
+        <div className="kit__row kit__row--top">
+          <div className="kit__rail">
+            <RailNav label="Exemple de menu" footer={<RailItem icon="close" label="Retour" shortcut="Échap" />}>
+              {(['home', 'folder', 'settings'] as const).map((icon, i) => (
+                <RailItem
+                  key={icon}
+                  icon={icon}
+                  label={['Accueil', 'Projets', 'Paramètres'][i]!}
+                  current={rail === i}
+                  onPress={() => setRail(i)}
+                />
+              ))}
+              <RailSeparator />
+              <RailItem icon="link" label="Fils" shortcut="Ctrl+Maj+L" dot="1 fil en retard" />
+            </RailNav>
+          </div>
+          <div className="kit__row">
+            <ChoiceCard icon="file" label="Document" onPress={() => toast({ title: 'Document' })} />
+            <ChoiceCard icon="upload" label="Importer" onPress={() => toast({ title: 'Importer' })} />
+            <ChoiceCard icon="table" label="Tableur" media={<span className="kit__page" />} onPress={() => toast({ title: 'Tableur' })} />
+            <ChoiceCard icon="gallery" label="Galerie vide" media={<span className="kit__page" />} unavailableReason="Bientôt." />
+          </div>
         </div>
       </section>
 

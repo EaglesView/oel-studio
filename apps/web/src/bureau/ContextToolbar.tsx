@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDesk, useDeskState, useSelectionScreenRect } from '@oel/desk/react';
-import { lodForZoom } from '@oel/desk';
 import {
   Button,
   DialogTrigger,
+  Menu,
+  MenuItem,
+  MenuPopover,
+  MenuTrigger,
   Popover,
   TextField,
   Toolbar,
@@ -11,33 +14,210 @@ import {
   ToolButton,
   toast,
 } from '@oel/emboss';
-import { kindLabel, uid, type Bureau, type Paper } from './model';
-import { sheetTotal } from './Paper';
+import { copyLink } from '@oel/forms';
+import { NOTE_COLORS, kindLabel, uid, type Bureau, type NoteColor, type Paper } from './model';
+import { downloadSlides, requestPresent } from './slides';
+import { activeLinks } from '../links/resolver';
+import { exportGallery, layoutGallery } from './images';
+import { features } from '../edition';
+import { messages, plural } from '@oel/i18n';
 
-const nf = new Intl.NumberFormat('fr-CA');
-const ENGINE_LATER = 'Arrive avec le moteur de documents (WASM).';
-const IMAGE_ENGINE_LATER = 'Arrive avec le moteur d’images oelimg-rs (WASM).';
+const t = messages(
+  {
+    engineLater: 'Arrive avec le moteur de documents (WASM).',
+    imageEngineLater: 'Arrive avec le moteur d’images oelimg-rs (WASM).',
+    pdfEngineLater: 'Arrive avec le moteur PDF : pour l’instant, le bureau garde le PDF et son nombre de pages.',
+    toolsFor: (kind: string, title: string) => `Outils : ${kind} « ${title} »`,
+    toolsForMany: (n: number) => `Outils pour ${n} fichiers`,
+    delete: 'Supprimer',
+    deleteNote: 'Retire la note du bureau.',
+    open: 'Ouvrir',
+    openDesc: 'Ouvre le fichier sur place, le bureau reste visible.',
+    share: 'Partager',
+    shareReady: (n: number) => `${n} fichiers prêts à partager`,
+    importing: 'Import en cours',
+    importingWait: 'Patientez : le fichier est en cours de lecture.',
+    bold: 'Gras',
+    boldDesc: 'Ouvrez le document pour mettre du texte en gras.',
+    boldWhy: 'Ouvrez le document (Entrée) pour sélectionner du texte.',
+    styles: 'Styles',
+    stylesDesc: 'Titres, paragraphes, listes.',
+    exportPdf: 'Exporter en PDF',
+    edit: 'Modifier',
+    editSlides: 'Ouvre la présentation sur place (Entrée).',
+    theme: 'Thème',
+    themeWhy: 'Le thème du fichier est conservé ; il ne se change pas encore ici.',
+    present: 'Présenter',
+    presentDesc: 'Plein écran, une diapo à la fois.',
+    downloadPptx: 'Télécharger (.pptx)',
+    downloadFailed: 'Téléchargement impossible',
+    editSheet: 'Ouvre le tableur sur place (Entrée).',
+    chart: 'Graphique',
+    chartWhy: 'Ouvrez le tableur (Entrée), sélectionnez des données, puis Alt + F1.',
+    linkInto: 'Lier dans…',
+    linkIntoWhy: 'Ouvrez le tableur et sélectionnez un graphique ou une plage : « Lier dans… » les met dans une présentation ou un document.',
+    createForm: 'Créer un formulaire',
+    createFormDesc: 'Une question par colonne ; les réponses arrivent dans ce tableur.',
+    copyLink: 'Copier le lien',
+    copyLinkDesc: 'Lien public du formulaire.',
+    publishFirst: 'Publiez d’abord le formulaire (ouvrez-le, puis « Publier »).',
+    asRespondent: 'Voir comme un répondant',
+    asRespondentDesc: 'Ouvre la page publique dans un nouvel onglet.',
+    notPublished: 'Pas encore publié : utilisez « Aperçu » dans le formulaire.',
+    responses: 'Réponses',
+    responsesDesc: 'Résumé et réponses une par une (plein écran).',
+    linkImageDesc: 'Mettre une copie liée dans une présentation ou un document du bureau',
+    noImageFile: 'Cette image n’a pas encore de fichier (exemple du bureau).',
+    retouch: 'Retoucher',
+    retouchDesc: 'Ouvrir l’atelier d’image : styles, lumière, couleur, recadrage (plein écran)',
+    cutOut: 'Détourer',
+    ocr: 'Reconnaître le texte (OCR)',
+    retouchGallery: 'Régler le style de la galerie et ses images (plein écran)',
+    spreadImages: 'Étaler les images',
+    spreadImagesDesc: 'Ranger les images en grille dans la planche',
+    export: 'Exporter',
+    exportDesc: 'Toutes les images retouchées, en JPEG pleine résolution, dans un .zip',
+    exportFailed: 'Exportation impossible',
+    convertToEdit: 'Convertir pour modifier',
+    highlight: 'Surligner',
+    sign: 'Signer',
+    convert: 'Convertir',
+    unsupported: 'Format non pris en charge pour l’instant.',
+    colour: 'Couleur',
+    noteColour: 'Couleur de la note',
+    unstick: 'Décoller',
+    stuckTo: (title: string) => `Collée à « ${title} ». La note reste où elle est.`,
+    stick: 'Coller',
+    stickDesc: 'Colle la note au fichier qu’elle recouvre, là où elle est. Sinon, choisissez-le.',
+    stickTo: 'Coller à…',
+    stickToDesc: 'Désignez le fichier : clic, ou Tab puis Entrée.',
+    count: (n: number, kinds: number) => `${n} fichiers · ${kinds} ${plural(kinds, 'type', 'types')}`,
+    alignLeft: 'Aligner à gauche',
+    alignTop: 'Aligner en haut',
+    arrange: 'Ranger en ligne',
+    arrangeDesc: 'Aligne et espace les fichiers sélectionnés.',
+    onePdf: 'Un seul PDF',
+    onePdfDesc: 'Dans l’ordre du bureau.',
+    oneDeck: 'Une présentation',
+    oneDeckDesc: 'Une diapo par fichier.',
+  },
+  {
+    engineLater: 'Comes with the document engine (WASM).',
+    imageEngineLater: 'Comes with the oelimg-rs image engine (WASM).',
+    pdfEngineLater: 'Comes with the PDF engine: for now, the desk keeps the PDF and its page count.',
+    toolsFor: (kind, title) => `Tools: ${kind} “${title}”`,
+    toolsForMany: (n) => `Tools for ${n} files`,
+    delete: 'Delete',
+    deleteNote: 'Removes the note from the desk.',
+    open: 'Open',
+    openDesc: 'Opens the file in place; the desk stays visible.',
+    share: 'Share',
+    shareReady: (n) => `${n} files ready to share`,
+    importing: 'Importing',
+    importingWait: 'Please wait: the file is being read.',
+    bold: 'Bold',
+    boldDesc: 'Open the document to make text bold.',
+    boldWhy: 'Open the document (Enter) to select text.',
+    styles: 'Styles',
+    stylesDesc: 'Headings, paragraphs, lists.',
+    exportPdf: 'Export as PDF',
+    edit: 'Edit',
+    editSlides: 'Opens the presentation in place (Enter).',
+    theme: 'Theme',
+    themeWhy: 'The file’s theme is kept; it can’t be changed here yet.',
+    present: 'Present',
+    presentDesc: 'Full screen, one slide at a time.',
+    downloadPptx: 'Download (.pptx)',
+    downloadFailed: 'Download failed',
+    editSheet: 'Opens the spreadsheet in place (Enter).',
+    chart: 'Chart',
+    chartWhy: 'Open the spreadsheet (Enter), select data, then Alt + F1.',
+    linkInto: 'Link into…',
+    linkIntoWhy: 'Open the spreadsheet and select a chart or a range: “Link into…” puts them in a presentation or a document.',
+    createForm: 'Create a form',
+    createFormDesc: 'One question per column; responses arrive in this spreadsheet.',
+    copyLink: 'Copy the link',
+    copyLinkDesc: 'The form’s public link.',
+    publishFirst: 'Publish the form first (open it, then “Publish”).',
+    asRespondent: 'View as a respondent',
+    asRespondentDesc: 'Opens the public page in a new tab.',
+    notPublished: 'Not published yet: use “Preview” in the form.',
+    responses: 'Responses',
+    responsesDesc: 'Summary and responses one by one (full screen).',
+    linkImageDesc: 'Put a linked copy in a presentation or a document on the desk',
+    noImageFile: 'This image has no file yet (desk example).',
+    retouch: 'Retouch',
+    retouchDesc: 'Open the image workshop: styles, light, colour, crop (full screen)',
+    cutOut: 'Remove background',
+    ocr: 'Recognize text (OCR)',
+    retouchGallery: 'Set the style of the gallery and its images (full screen)',
+    spreadImages: 'Spread out the images',
+    spreadImagesDesc: 'Lay the images out in a grid on the board',
+    export: 'Export',
+    exportDesc: 'Every retouched image, as full-resolution JPEG, in a .zip',
+    exportFailed: 'Export failed',
+    convertToEdit: 'Convert to edit',
+    highlight: 'Highlight',
+    sign: 'Sign',
+    convert: 'Convert',
+    unsupported: 'Format not supported yet.',
+    colour: 'Colour',
+    noteColour: 'Note colour',
+    unstick: 'Unstick',
+    stuckTo: (title) => `Stuck to “${title}”. The note stays where it is.`,
+    stick: 'Stick',
+    stickDesc: 'Sticks the note to the file it covers, where it is. Otherwise, pick it.',
+    stickTo: 'Stick to…',
+    stickToDesc: 'Point at the file: click, or Tab then Enter.',
+    count: (n, kinds) => `${n} files · ${kinds} ${plural(kinds, 'type', 'types')}`,
+    alignLeft: 'Align left',
+    alignTop: 'Align top',
+    arrange: 'Line up',
+    arrangeDesc: 'Aligns and spaces the selected files.',
+    onePdf: 'One PDF',
+    onePdfDesc: 'In desk order.',
+    oneDeck: 'One presentation',
+    oneDeckDesc: 'One slide per file.',
+  },
+);
+
+const ENGINE_LATER = t.engineLater;
+const IMAGE_ENGINE_LATER = t.imageEngineLater;
+/** PDFs show their page count only, until a PDF engine draws, annotates and converts them. */
+const PDF_ENGINE_LATER = t.pdfEngineLater;
 
 interface Props {
   store: Bureau;
   onOpen: (id: string) => void;
-  onConvert: (id: string) => void;
+  /** E2 · 1 « Créer un formulaire » from a selected spreadsheet. */
+  onCreateForm: (sheetId: string) => void;
+  /** Open a paper straight in full screen (form → Réponses lives there). */
+  onOpenFull: (id: string) => void;
+  /** K1 · « Coller » (main part), « Coller à… » (arrow), « Décoller ». */
+  notes: NoteActions;
+  onRemove: (ids: string[]) => void;
   /** Ref so "/" can move focus into the toolbar (B3: keyboard first). */
   toolbarRef: React.RefObject<HTMLDivElement | null>;
 }
 
+export interface NoteActions {
+  stick: (id: string) => void;
+  stickTo: (id: string) => void;
+  unstick: (id: string) => void;
+}
+
 /**
  * B2 · One floating bar with two halves. Left: the tool group for the selected
- * type. Right, always the same: Comment and Open. B7 · several types selected:
+ * type. Right, always the same: Open. (Comments will be a canvas-wide feature.)
+ * B7 · several types selected:
  * only actions every type supports (arrange, produce, share).
  */
-export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) {
+export function ContextToolbar({ store, onOpen, onCreateForm, onOpenFull, notes, onRemove, toolbarRef }: Props) {
   const { announce } = useDesk();
   const rect = useSelectionScreenRect(store);
   const selection = useDeskState(store, (s) => s.selection);
   const nodes = useDeskState(store, (s) => s.nodes);
   const screen = useDeskState(store, (s) => s.screen);
-  const zoom = useDeskState(store, (s) => s.viewport.zoom);
   const openId = useDeskState(store, (s) => s.openId);
   const [size, setSize] = useState({ w: 0, h: 48 });
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -51,7 +231,7 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
   });
 
   const selected = selection.map((id) => nodes[id] as Paper | undefined).filter((n): n is Paper => !!n);
-  if (!rect || selected.length === 0 || openId || lodForZoom(zoom) === 'far') return null;
+  if (!rect || selected.length === 0 || openId) return null;
 
   // Above the selection if there is room, else below, else pinned under the top chrome.
   const gap = 18;
@@ -81,142 +261,232 @@ export function ContextToolbar({ store, onOpen, onConvert, toolbarRef }: Props) 
       <Toolbar
         ref={toolbarRef}
         appearance="pill"
-        aria-label={single ? `Outils : ${kindLabel(single.kind)} « ${single.title} »` : `Outils pour ${selected.length} fichiers`}
+        aria-label={single ? t.toolsFor(kindLabel(single.kind), single.title) : t.toolsForMany(selected.length)}
       >
-        {single ? <TypeTools node={single} store={store} onConvert={onConvert} /> : <MultiTools store={store} ids={selection} kinds={kinds.size} />}
-        <ToolbarSeparator />
-        {single && <CommentTool node={single} store={store} announce={announce} />}
-        {single ? (
+        {single?.kind === 'note' ? (
+          <NoteTools node={single} store={store} notes={notes} />
+        ) : single ? (
+          <TypeTools node={single} store={store} onCreateForm={onCreateForm} onOpenFull={onOpenFull} />
+        ) : (
+          <MultiTools store={store} ids={selection} kinds={kinds.size} />
+        )}
+        {(single || features.collab) && <ToolbarSeparator />}
+        {single?.kind === 'note' ? (
+          <ToolButton icon="trash" label={t.delete} shortcut={['Suppr']} description={t.deleteNote} onPress={() => onRemove([single.id])} />
+        ) : single ? (
           <ToolButton
             icon="expand"
-            label="Ouvrir"
+            label={t.open}
             showLabel
             shortcut={['Entrée']}
-            description="Ouvre le fichier sur place, le bureau reste visible."
+            description={t.openDesc}
             onPress={() => onOpen(single.id)}
           />
-        ) : (
-          <ToolButton icon="share" label="Partager" showLabel onPress={() => toast({ title: `${selected.length} fichiers prêts à partager`, tone: 'success' })} />
-        )}
+        ) : features.collab ? (
+          <ToolButton icon="share" label={t.share} showLabel onPress={() => toast({ title: t.shareReady(selected.length), tone: 'success' })} />
+        ) : null}
       </Toolbar>
     </div>
   );
 }
 
-function TypeTools({ node, store, onConvert }: { node: Paper; store: Bureau; onConvert: (id: string) => void }) {
-  const readOnly = node.data.status.state === 'readonly';
+function TypeTools({
+  node,
+  store,
+  onCreateForm,
+  onOpenFull,
+}: {
+  node: Paper;
+  store: Bureau;
+  onCreateForm: (sheetId: string) => void;
+  onOpenFull: (id: string) => void;
+}) {
   const importing = node.data.status.state === 'importing';
   if (importing) {
-    return <ToolButton icon="sparkle" label="Import en cours" unavailableReason="Patientez : le fichier est en cours de lecture." />;
+    return <ToolButton icon="sparkle" label={t.importing} unavailableReason={t.importingWait} />;
   }
   switch (node.kind) {
     case 'document':
       return (
         <>
-          <ToolButton icon="bold" label="Gras" shortcut={['Ctrl', 'B']} description="Ouvrez le document pour mettre du texte en gras." unavailableReason="Ouvrez le document (Entrée) pour sélectionner du texte." />
-          <ToolButton icon="align-left" label="Styles" description="Titres, paragraphes, listes." onPress={() => store.open(node.id)} />
-          <ToolButton icon="download" label="Exporter en PDF" unavailableReason={ENGINE_LATER} />
+          <ToolButton icon="bold" label={t.bold} shortcut={['Ctrl', 'B']} description={t.boldDesc} unavailableReason={t.boldWhy} />
+          <ToolButton icon="align-left" label={t.styles} description={t.stylesDesc} onPress={() => store.open(node.id)} />
+          <ToolButton icon="download" label={t.exportPdf} unavailableReason={ENGINE_LATER} />
         </>
       );
     case 'slides':
       return (
         <>
-          <ToolButton icon="layout" label="Disposition" description="Change la mise en page de la diapo." onPress={() => store.open(node.id)} />
-          <ToolButton icon="sparkle" label="Thème" unavailableReason={ENGINE_LATER} />
-          <ToolButton icon="slide" label="Présenter" shortcut={['F5']} description="Plein écran, une diapo à la fois." onPress={() => document.documentElement.requestFullscreen?.()} />
+          <ToolButton icon="layout" label={t.edit} description={t.editSlides} onPress={() => store.open(node.id)} />
+          <ToolButton icon="sparkle" label={t.theme} unavailableReason={t.themeWhy} />
+          <ToolButton
+            icon="play"
+            label={t.present}
+            shortcut={['F5']}
+            description={t.presentDesc}
+            onPress={() => {
+              requestPresent(node.id);
+              onOpenFull(node.id);
+            }}
+          />
+          <ToolButton
+            icon="download"
+            label={t.downloadPptx}
+            onPress={() =>
+              void downloadSlides(node, (docId) => store.update(node.id, { data: { ...node.data, docId } }, { history: false })).catch((e: Error) =>
+                toast({ title: t.downloadFailed, description: e.message, tone: 'danger' }),
+              )
+            }
+          />
         </>
       );
-    case 'spreadsheet': {
-      const rows = node.data.preview.kind === 'spreadsheet' ? node.data.preview.rows : [];
-      const total = sheetTotal(rows);
+    case 'spreadsheet':
       return (
         <>
-          <ToolButton icon="sum" label="Somme" description="Somme de la colonne Montant." value={total != null ? `${nf.format(total)} $` : '—'} />
-          <ToolButton icon="chart" label="Graphique" description="Crée un graphique lié sur une diapo." onPress={() => toast({ title: 'Graphique lié créé', description: 'Le fil de liaison apparaît sur le bureau.', tone: 'success' })} />
-          <ToolButton icon="table" label="Format nombre" unavailableReason="Sélectionnez une plage de cellules (ouvrez le tableur)." />
+          <ToolButton icon="table" label={t.edit} description={t.editSheet} onPress={() => store.open(node.id)} />
+          <ToolButton icon="chart" label={t.chart} unavailableReason={t.chartWhy} />
+          <ToolButton icon="link" label={t.linkInto} unavailableReason={t.linkIntoWhy} />
+          {features.forms && <ToolButton icon="form" label={t.createForm} description={t.createFormDesc} onPress={() => onCreateForm(node.id)} />}
+        </>
+      );
+    case 'form': {
+      const pub = node.data.form?.publication;
+      return (
+        <>
+          <ToolButton
+            icon="copy"
+            label={t.copyLink}
+            description={t.copyLinkDesc}
+            unavailableReason={pub ? undefined : t.publishFirst}
+            onPress={() => pub && void copyLink(pub.url)}
+          />
+          <ToolButton
+            icon="eye"
+            label={t.asRespondent}
+            description={t.asRespondentDesc}
+            unavailableReason={pub ? undefined : t.notPublished}
+            onPress={() => pub && window.open(pub.url, '_blank', 'noopener')}
+          />
+          <ToolButton icon="chart" label={t.responses} value={String(node.data.formStats?.accepted ?? 0)} description={t.responsesDesc} onPress={() => onOpenFull(node.id)} />
         </>
       );
     }
     case 'image':
       return (
         <>
-          <ToolButton icon="crop" label="Rogner" unavailableReason={IMAGE_ENGINE_LATER} />
-          <ToolButton icon="sparkle" label="Détourer" unavailableReason={IMAGE_ENGINE_LATER} />
-          <ToolButton icon="search" label="Reconnaître le texte (OCR)" unavailableReason={IMAGE_ENGINE_LATER} />
+          <ToolButton
+            icon="link"
+            label={t.linkInto}
+            showLabel
+            description={t.linkImageDesc}
+            unavailableReason={node.data.imageUrl ? undefined : t.noImageFile}
+            onPress={() => activeLinks()?.setUi({ dialog: { kind: 'image', sourcePaperId: node.id, name: node.data.fileName ?? node.title } })}
+          />
+          <ToolButton
+            icon="magic-wand"
+            label={t.retouch}
+            showLabel
+            description={t.retouchDesc}
+            onPress={() => onOpenFull(node.id)}
+          />
+          <ToolButton icon="sparkle" label={t.cutOut} unavailableReason={IMAGE_ENGINE_LATER} />
+          <ToolButton icon="search" label={t.ocr} unavailableReason={IMAGE_ENGINE_LATER} />
+        </>
+      );
+    case 'gallery':
+      // L2 · the gallery planche: one object to move; its pictures share a style.
+      return (
+        <>
+          <ToolButton icon="palette" label={t.retouch} showLabel description={t.retouchGallery} onPress={() => onOpenFull(node.id)} />
+          <ToolButton icon="expand" label={t.spreadImages} showLabel description={t.spreadImagesDesc} onPress={() => layoutGallery(store, node.id)} />
+          <ToolButton
+            icon="download"
+            label={t.export}
+            showLabel
+            description={t.exportDesc}
+            onPress={() =>
+              void exportGallery(store, node.id, { mime: 'image/jpeg', quality: 0.9 }, 'jpg').catch((e: Error) =>
+                toast({ title: t.exportFailed, description: e.message, tone: 'danger' }),
+              )
+            }
+          />
         </>
       );
     case 'pdf':
       return (
         <>
-          {readOnly && (
-            <ToolButton
-              icon="sparkle"
-              label="Convertir pour modifier"
-              showLabel
-              description="Crée une version modifiable à côté de l’original."
-              onPress={() => onConvert(node.id)}
-            />
-          )}
-          <ToolButton icon="highlight" label="Surligner" description="Ouvre le PDF en annotation." onPress={() => store.open(node.id)} />
-          <ToolButton icon="pen" label="Signer" description="Ajoute votre signature." onPress={() => store.update(node.id, { data: { ...node.data, stamp: { label: 'Signé', tone: 'success' } } }, { label: 'Signature' })} />
+          <ToolButton icon="sparkle" label={t.convertToEdit} unavailableReason={PDF_ENGINE_LATER} />
+          <ToolButton icon="highlight" label={t.highlight} unavailableReason={PDF_ENGINE_LATER} />
+          <ToolButton icon="pen" label={t.sign} unavailableReason={PDF_ENGINE_LATER} />
         </>
       );
     case 'note':
-      return (
-        <>
-          <ToolButton icon="user" label="Assigner" value={node.data.assignee ?? '—'} description="Assigne la note à quelqu’un." onPress={() => store.update(node.id, { data: { ...node.data, assignee: node.data.assignee === 'Alex' ? 'Marie-Claude' : 'Alex' } }, { label: 'Assignation' })} />
-        </>
-      );
+      return null;
     default:
-      return <ToolButton icon="sparkle" label="Convertir" unavailableReason="Format non pris en charge pour l’instant." />;
+      return <ToolButton icon="sparkle" label={t.convert} unavailableReason={t.unsupported} />;
   }
+}
+
+/** K1 · Couleur · « Coller ▾ » (or « Décoller » once stuck). Writing: Entrée, a double-click or just typing. */
+function NoteTools({ node, store, notes }: { node: Paper; store: Bureau; notes: NoteActions }) {
+  const color = node.data.noteColor ?? 'jaune';
+  const target = node.attach ? (store.node(node.attach.to) as Paper | undefined) : undefined;
+  return (
+    <>
+      <MenuTrigger>
+        <ToolButton icon="palette" label={t.colour} value={NOTE_COLORS[color]} />
+        <MenuPopover placement="bottom start">
+          <Menu
+            aria-label={t.noteColour}
+            onAction={(k) => store.update(node.id, { data: { ...node.data, noteColor: k as NoteColor } }, { label: t.noteColour })}
+          >
+            {(Object.keys(NOTE_COLORS) as NoteColor[]).map((c) => (
+              <MenuItem key={c} id={c} textValue={NOTE_COLORS[c]}>
+                {c === color ? '✓ ' : ''}
+                {NOTE_COLORS[c]}
+              </MenuItem>
+            ))}
+          </Menu>
+        </MenuPopover>
+      </MenuTrigger>
+      {target ? (
+        <ToolButton
+          icon="pin-slash"
+          label={t.unstick}
+          showLabel
+          shortcut={['P']}
+          description={t.stuckTo(target.title)}
+          onPress={() => notes.unstick(node.id)}
+        />
+      ) : (
+        <span className="context-bar__split" role="group" aria-label={t.stick}>
+          <ToolButton
+            icon="pin"
+            label={t.stick}
+            showLabel
+            shortcut={['P']}
+            description={t.stickDesc}
+            onPress={() => notes.stick(node.id)}
+          />
+          <ToolButton icon="chevron-down" label={t.stickTo} shortcut={['Maj', 'P']} description={t.stickToDesc} onPress={() => notes.stickTo(node.id)} />
+        </span>
+      )}
+    </>
+  );
 }
 
 function MultiTools({ store, ids, kinds }: { store: Bureau; ids: string[]; kinds: number }) {
   return (
     <>
       <span className="context-bar__count" aria-hidden>
-        {ids.length} fichiers · {kinds} type{kinds > 1 ? 's' : ''}
+        {t.count(ids.length, kinds)}
       </span>
-      <ToolButton icon="align-left" label="Aligner à gauche" onPress={() => store.align(ids, 'left')} />
-      <ToolButton icon="layout" label="Aligner en haut" onPress={() => store.align(ids, 'top')} />
-      <ToolButton icon="grid" label="Ranger en ligne" description="Aligne et espace les fichiers sélectionnés." onPress={() => store.distribute(ids)} />
+      <ToolButton icon="align-left" label={t.alignLeft} onPress={() => store.align(ids, 'left')} />
+      <ToolButton icon="layout" label={t.alignTop} onPress={() => store.align(ids, 'top')} />
+      <ToolButton icon="grid" label={t.arrange} description={t.arrangeDesc} onPress={() => store.distribute(ids)} />
       <ToolbarSeparator />
-      <ToolButton icon="pdf" label="Un seul PDF" description="Dans l’ordre du bureau." unavailableReason={ENGINE_LATER} />
-      <ToolButton icon="slide" label="Une présentation" description="Une diapo par fichier." unavailableReason={ENGINE_LATER} />
+      <ToolButton icon="pdf" label={t.onePdf} description={t.onePdfDesc} unavailableReason={ENGINE_LATER} />
+      <ToolButton icon="slide" label={t.oneDeck} description={t.oneDeckDesc} unavailableReason={ENGINE_LATER} />
     </>
-  );
-}
-
-function CommentTool({ node, store, announce }: { node: Paper; store: Bureau; announce: (m: string) => void }) {
-  const [text, setText] = useState('');
-  const count = node.data.comments.length;
-  return (
-    <DialogTrigger>
-      <ToolButton icon="comment" label="Commenter" value={count || undefined} shortcut={['C']} description="Ajoute un commentaire sur ce fichier." />
-      <Popover placement="bottom" aria-label="Commentaires">
-        <div className="comment-pop">
-          {node.data.comments.map((c) => (
-            <p key={c.id} className="comment-pop__item">
-              <strong>{c.author}</strong> {c.text}
-            </p>
-          ))}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!text.trim()) return;
-              store.update(node.id, { data: { ...node.data, comments: [...node.data.comments, { id: uid('c'), author: 'Vous', text }] } }, { label: 'Commentaire' });
-              setText('');
-              announce('Commentaire publié');
-            }}
-          >
-            <TextField label="Nouveau commentaire" multiline rows={2} value={text} onChange={setText} autoFocus />
-            <Button type="submit" variant="primary" size="sm" className="comment-pop__send">
-              Publier
-            </Button>
-          </form>
-        </div>
-      </Popover>
-    </DialogTrigger>
   );
 }

@@ -10,6 +10,7 @@ export {
   type ToolbarToggleProps,
   type ToolButtonProps,
 } from './components/Toolbar';
+export { AdaptiveToolbar, foldGroups, useToolbarDock, type AdaptiveToolbarProps, type ToolGroup } from './components/AdaptiveToolbar';
 export { Tooltip, ToolTipContent, WithTooltip, type ToolTipInfo } from './components/Tooltip';
 export { TextField, NumberField, Select, SelectItem } from './components/Fields';
 export { Checkbox, Radio, RadioGroup, Switch, Slider, Tabs, TabList, Tab, TabPanel } from './components/Controls';
@@ -23,11 +24,18 @@ export {
   MenuSeparator,
   MenuPopover,
   MenuTrigger,
+  SubmenuTrigger,
+} from './components/Overlays';
+export {
   ToastRegion,
+  NotificationsButton,
   toast,
   toastQueue,
+  toastHistory,
+  useToastHistory,
   type ToastData,
-} from './components/Overlays';
+  type ToastRecord,
+} from './components/Toast';
 export {
   Badge,
   Card,
@@ -35,10 +43,18 @@ export {
   AvatarStack,
   Sidebar,
   NavItem,
+  RailNav,
+  RailItem,
+  RailSeparator,
+  ChoiceCard,
   ProgressBar,
   Kbd,
   type Person,
   type Tone,
+  type RailNavProps,
+  type RailItemProps,
+  type ChoiceCardProps,
 } from './components/Display';
 export { Pagination } from './components/Pagination';
 export { cx } from './utils';
+export { keyLabel } from './keys';

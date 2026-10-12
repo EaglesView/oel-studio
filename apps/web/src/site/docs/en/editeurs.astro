@@ -1,0 +1,51 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import Capture from '../../Capture.astro';
+import { docHref } from '../../i18n';
+---
+<DocsLayout lang="en" id="editeurs" description="What the Bureau’s document, presentation, spreadsheet, chart and image editors do.">
+  <p class="prose__lead">Each kind of file has its editor. They all open Office files as they are and give them back in the same format.</p>
+
+  <h2 id="documents">Documents (.docx)</h2>
+  <Capture lang="en" id="document" alt="A Word document open full screen, with its outline." />
+  <ul>
+    <li>The file’s styles (Heading 1, Normal…), fonts, sizes, colours, highlight, superscript and subscript.</li>
+    <li>Bulleted, numbered and check lists on several levels (<kbd>Tab</kbd>, <kbd>Shift</kbd> <kbd>Tab</kbd>).</li>
+    <li>Tables (merge, resize, cell colour), pictures (paste, drop, alt text), links.</li>
+    <li>Footnotes and endnotes, table of contents, headers and footers with page numbers.</li>
+    <li>Find and replace (case, whole word, regular expressions), format painter, automatic French typography.</li>
+    <li>Page view or pageless, zoom, outline (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>P</kbd>), focus mode (<kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>F</kbd>).</li>
+    <li>Download as .docx, PDF (through the browser’s print), HTML, Markdown or text.</li>
+  </ul>
+
+  <h2 id="presentations">Presentations (.pptx)</h2>
+  <Capture lang="en" id="slides" alt="The presenter view: the current slide, the next one, notes and elapsed time." />
+  <ul>
+    <li>The filmstrip on the left: add, duplicate and reorder slides; the file’s layouts.</li>
+    <li>Text, shapes, pictures, speaker notes.</li>
+    <li>“Present” (<kbd>F5</kbd>) full screen, and a presenter view in a second window (notes, elapsed time, next slide).</li>
+    <li>Kept but not yet editable: animations, transitions, SmartArt, group contents, table structure.</li>
+  </ul>
+
+  <h2 id="tableurs">Spreadsheets (.xlsx, .csv)</h2>
+  <Capture lang="en" id="sheet" alt="A spreadsheet of race times: results computed from another tab." />
+  <ul>
+    <li>Formulas are written as in English Excel: <code>=SUM(A1:A9)</code>, <code>=XLOOKUP(…)</code>, <code>=MINIFS(…)</code>, <code>=AVERAGEIFS(…)</code>, <code>=RANK.EQ(…)</code>… Commas between arguments, a decimal point. Calculation runs with IronCalc, in your browser.</li>
+    <li>Several tabs, references across tabs (<code>Tours!C2:C19</code>).</li>
+    <li>Number formats, cell styles, sort, filters, conditional formatting, validation.</li>
+    <li>A .csv keeps its separator and encoding; “Enregistrer en .xlsx” converts it.</li>
+  </ul>
+  <p class="note">In the demo, the “Results” tab reads the “Tours” tab with <code>MINIFS</code>, <code>AVERAGEIFS</code>, <code>RANK.EQ</code> and <code>XLOOKUP</code>. Change a time: everything follows, down to the presentation’s chart.</p>
+
+  <h2 id="graphiques">Charts</h2>
+  <Capture lang="en" id="chart" alt="A chart selected in the spreadsheet, with its settings." />
+  <p>In a spreadsheet, select data then <kbd>Alt</kbd> <kbd>F1</kbd>: a gallery shows each chart type with your data. A chart moves, resizes, and changes type, colours and elements (titles, legend, axes, labels). Every Office chart type opens and is drawn; the file’s charts you don’t change are written back as they were.</p>
+  <p>In presentations and documents, charts are drawn; to change one, change its source spreadsheet through a <a href={docHref('en', 'liens')}>linked copy</a>.</p>
+
+  <h2 id="images">Images</h2>
+  <Capture lang="en" id="image" alt="The image workshop in advanced mode, settings next to the picture." />
+  <p>“Retouch” opens the workshop: ready-made styles, then light, colour, sharpness, crop and straighten, in simple or advanced mode. The original is never changed: a retouch is a recipe applied on top, which you can change or remove. An image’s linked copies follow its retouches. “Export” saves the retouched image at full resolution.</p>
+
+  <h2 id="toolbars">Toolbars</h2>
+  <p>Each editor’s toolbar adapts to the width: what doesn’t fit goes into “Plus”. It can also be docked at the bottom of the screen. In an editor open in place, the menus are gathered in “Plus”; full screen, they have their own bar (Fichier, Édition, Affichage, Insertion, Format, Outils).</p>
+</DocsLayout>

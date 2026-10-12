@@ -1,0 +1,32 @@
+{
+  "name": "@oel/collab-client",
+  "license": "MPL-2.0",
+  "version": "0.1.0",
+  "description": "Client side of apps/collab shared by the editors (@oel/docs, @oel/sheets): HTTP API, share tokens, anonymous identity, offline files, the Y.Doc session base, and the sync / share / version UI.",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./local": "./src/local.ts",
+    "./styles.css": "./src/ui/collab.css"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "react-aria-components": "^1.21.1",
+    "@hocuspocus/provider": "^4.7.0",
+    "@oel/emboss": "*",
+    "@oel/fonts": "*",
+    "@oel/i18n": "*",
+    "y-indexeddb": "^9.0.12",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  }
+}

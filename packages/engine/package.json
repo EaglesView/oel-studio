@@ -1,10 +1,26 @@
 {
   "name": "@oel/engine",
+  "license": "MPL-2.0",
   "version": "0.1.0",
   "description": "Document-processing contract for the editor: file detection, engine interface, Web Worker host. WASM engines (oeldocx-rs, oelimg-rs) plug in here.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./worker": "./src/worker/engine.worker.ts"
+    "./worker": "./src/worker/engine.worker.ts",
+    "./generated/oelxlsx": "./src/generated/oelxlsx/index.ts",
+    "./generated/oeldocx": "./src/generated/oeldocx/index.ts",
+    "./generated/oelpptx": "./src/generated/oelpptx/index.ts",
+    "./generated/oelchart": "./src/generated/oelchart/index.ts",
+    "./generated/oelimg": "./src/generated/oelimg/index.ts"
+  },
+  "dependencies": {
+    "@oel/i18n": "*",
+    "oeldocx-rs": "file:../wasm/oel-docx/web",
+    "oelxlsx-rs": "file:../wasm/oel-xlsx/web",
+    "oelpptx-rs": "file:../wasm/oel-pptx/web"
+  },
+  "devDependencies": {
+    "oeldocx-node": "file:../wasm/oel-docx/node",
+    "oelpptx-node": "file:../wasm/oel-pptx/node"
   }
 }

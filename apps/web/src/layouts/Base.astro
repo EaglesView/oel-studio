@@ -8,17 +8,42 @@ interface Props {
   description?: string;
   /** Full-viewport app pages lock body scroll. */
   app?: boolean;
+  /**
+   * Page language. Site pages pass theirs (French at /, English under /en); without it the page is
+   * the Bureau's and follows the person's choice (`oel-lang` cookie, `src/lang.ts`), French by default.
+   */
+  lang?: 'fr-CA' | 'en';
 }
-const { title, description = 'Un seul éditeur pour tous vos fichiers, directement dans le navigateur.', app = false } = Astro.props;
+const { title, description = 'Un seul éditeur pour tous vos fichiers, directement dans le navigateur.', app = false, lang } = Astro.props;
 ---
 <!doctype html>
-<html lang="fr-CA">
+<html lang={lang ?? 'fr-CA'}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    <slot name="head" />
+    {!lang && (
+      <script is:inline>
+        // The Bureau's language before any module runs (src/lang.ts): `?lang=` from the site's
+        // « Ouvrir le Bureau » wins and is remembered, then the `oel-lang` cookie, then French.
+        try {
+          const url = new URL(location.href);
+          const asked = url.searchParams.get('lang');
+          let l = (document.cookie.match(/(?:^|;\s*)oel-lang=(fr|en)\b/) || [])[1];
+          if (asked === 'fr' || asked === 'en') {
+            l = asked;
+            document.cookie = 'oel-lang=' + asked + '; Max-Age=31536000; Path=/; SameSite=Lax';
+            document.documentElement.dataset.langFrom = 'site';
+            url.searchParams.delete('lang');
+            history.replaceState(history.state, '', url);
+          }
+          if (l === 'en') document.documentElement.lang = 'en-CA';
+        } catch {}
+      </script>
+    )}
     <script is:inline>
       // Apply the saved theme before first paint (no flash).
       try {
@@ -28,7 +53,9 @@ const { title, description = 'Un seul éditeur pour tous vos fichiers, directeme
     </script>
   </head>
   <body class={app ? 'is-app' : undefined}>
-    <a class="skip-link" href="#contenu">Aller au contenu</a>
+    <a class="skip-link" href="#contenu">
+      {lang ? (lang === 'en' ? 'Skip to content' : 'Aller au contenu') : <><span data-lang="fr">Aller au contenu</span><span data-lang="en">Skip to content</span></>}
+    </a>
     <slot />
   </body>
 </html>

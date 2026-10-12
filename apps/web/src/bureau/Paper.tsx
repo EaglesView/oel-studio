@@ -1,32 +1,118 @@
-import type { NodeRenderContext } from '@oel/desk/react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useDesk, useDeskState, type NodeRenderContext } from '@oel/desk/react';
+import { currentStyle, isEmptyRecipe, lookOf } from '@oel/img';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
-import type { Pile } from '@oel/desk';
-import { KIND_ICON, kindLabel, type Paper as PaperNode, type PaperKind } from './model';
+import { contrastGuard, questionsOf } from '@oel/forms/model';
+import { KIND_ICON, KIND_TAB, type Paper as PaperNode } from './model';
+import { locale, messages, plural } from '@oel/i18n';
 
-const nf = new Intl.NumberFormat('fr-CA');
+const t = messages(
+  {
+    readonly: 'Lecture seule',
+    noteText: (title: string) => `Texte de la note « ${title} »`,
+    ownSettings: 'Réglages propres',
+    question: 'Question',
+    style: (name: string) => `Style « ${name} »`,
+    customStyle: 'Style personnalisé',
+    dragImages: 'Glissez des images ici',
+    responses: (n: number) => `${n} ${plural(n, 'réponse', 'réponses')}`,
+    draft: 'Brouillon',
+    toCheck: (n: number) => `${n} à vérifier`,
+    closed: 'Fermé',
+    slides: (n: number) => `${n} diapos`,
+    images: (n: number, own: number) =>
+      `${n} ${plural(n, 'image posée', 'images posées')} librement${own ? ` · ${own} avec ses propres réglages` : ''}`,
+  },
+  {
+    readonly: 'Read-only',
+    noteText: (title) => `Text of the note “${title}”`,
+    ownSettings: 'Its own settings',
+    question: 'Question',
+    style: (name) => `“${name}” style`,
+    customStyle: 'Custom style',
+    dragImages: 'Drag images here',
+    responses: (n) => `${n} ${plural(n, 'response', 'responses')}`,
+    draft: 'Draft',
+    toCheck: (n) => `${n} to check`,
+    closed: 'Closed',
+    slides: (n) => `${n} slides`,
+    images: (n, own) => `${n} ${plural(n, 'image', 'images')} laid out freely${own ? ` · ${own} with their own settings` : ''}`,
+  },
+);
 
-export function sheetTotal(rows: string[][]): number | null {
-  const values = rows.slice(1).map((r) => Number((r[1] ?? '').replace(/\s/g, '').replace(',', '.')));
-  const nums = values.filter((v) => Number.isFinite(v) && !Number.isNaN(v));
-  return nums.length ? nums.reduce((a, b) => a + b, 0) : null;
+const nf = new Intl.NumberFormat(locale());
+
+/** How often a zoomed-out thumbnail catches up with live edits. */
+export const THUMBNAIL_REFRESH_MS = 15_000;
+
+/**
+ * While `frozen`, returns a snapshot of `value` refreshed every `interval` ms
+ * (and once on freezing); otherwise returns `value` live.
+ */
+function useThrottledSnapshot<T>(value: T, frozen: boolean, interval: number): T {
+  const latest = useRef(value);
+  latest.current = value;
+  const [snapshot, setSnapshot] = useState(value);
+  useEffect(() => {
+    if (!frozen) return;
+    setSnapshot(latest.current);
+    const t = setInterval(() => setSnapshot(latest.current), interval);
+    return () => clearInterval(t);
+  }, [frozen, interval]);
+  return frozen ? snapshot : value;
 }
 
 /**
- * One paper on the desk. Purely presentational (it lives inside a listbox
- * option): every action is in the contextual toolbar or the open sheet.
+ * One paper ("window") on the desk: a small version of the document at any
+ * zoom. Purely presentational (it lives inside a listbox option); actions are
+ * in the contextual toolbar or the open sheet.
+ *
+ * Zoomed out, the content is a thumbnail: it only catches up with edits every
+ * THUMBNAIL_REFRESH_MS, so live editing elsewhere does not re-render every paper.
+ * Status (import progress, read-only) always stays live.
  */
-export function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }) {
-  const { data } = node;
-  const status = data.status;
-  return (
+/** A note being written on the desk (Figma K2): live text, and when the person leaves it. */
+export interface NoteEditing {
+  onText: (text: string) => void;
+  /** Grow the note so its text fits (desk units). */
+  onHeight: (h: number) => void;
+  onDone: () => void;
+}
+
+export const Paper = memo(
+  function Paper({ node, ctx, editing }: { node: PaperNode; ctx: NodeRenderContext; editing?: NoteEditing | null }) {
+    const thumbnail = ctx.lod === 'thumbnail';
+    const content = useThrottledSnapshot<PaperNode>(node, thumbnail, THUMBNAIL_REFRESH_MS);
+    const status = node.data.status;
+    const tab = KIND_TAB[node.kind];
+    return (
+    <>
+    {node.attach && (
+      <span className="paper-pin" aria-hidden>
+        <Icon name="pin" size={18} />
+      </span>
+    )}
+    {tab && (
+      <span className="paper-tab" data-kind={node.kind} aria-hidden>
+        <Icon name={KIND_ICON[node.kind]} size={14} />
+        {tab}
+      </span>
+    )}
     <div
       className={`paper paper--${node.kind}`}
       data-lod={ctx.lod}
       data-selected={ctx.isSelected || undefined}
       data-state={status.state}
-      aria-hidden
+      data-editing={editing ? '' : undefined}
+      data-color={node.kind === 'note' ? (node.data.noteColor ?? 'jaune') : undefined}
+      aria-hidden={editing ? undefined : true}
     >
-      {ctx.lod === 'mid' ? <Thumbnail node={node} /> : <Content node={node} />}
+      {editing && node.kind === 'note' ? <NoteEditor node={node} editing={editing} /> : content.data.thumbnail ? <img className="paper__thumbnail" src={content.data.thumbnail} alt="" draggable={false} decoding="async" /> : <Content node={content} />}
+      {node.data.flash && Date.now() - node.data.flash.at < 4000 && (
+        <Badge key={node.data.flash.at} tone="success" className="paper__flash">
+          {node.data.flash.label}
+        </Badge>
+      )}
 
       {status.state === 'importing' && (
         <div className="paper__veil">
@@ -37,22 +123,76 @@ export function Paper({ node, ctx }: { node: PaperNode; ctx: NodeRenderContext }
           />
         </div>
       )}
-      {status.state === 'readonly' && ctx.lod === 'near' && (
+      {status.state === 'readonly' && !thumbnail && (
         <div className="paper__readonly">
           <Badge appearance="stamp" tone="neutral" dot={false}>
-            Lecture seule
+            {t.readonly}
           </Badge>
           <span>{status.reason}</span>
         </div>
       )}
-      {data.comments.length > 0 && ctx.lod === 'near' && (
-        <span className="paper__comments">
-          <Icon name="comment" size={14} />
-          {data.comments.length}
-        </span>
-      )}
+    </div>
+    </>
+    );
+  },
+  (a, b) => a.node === b.node && a.ctx.lod === b.ctx.lod && a.ctx.isSelected === b.ctx.isSelected && !!a.editing === !!b.editing,
+);
+
+/**
+ * K2 · a note is written where it lies. Clicking outside (blur) or Échap
+ * leaves the text; the note stays selected. The textarea is desk UI, so
+ * dragging inside it selects text instead of moving the note.
+ */
+function NoteEditor({ node, editing }: { node: PaperNode; editing: NoteEditing }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const text = node.data.preview.kind === 'note' ? node.data.preview.text : '';
+  useEffect(() => {
+    const ta = ref.current;
+    if (!ta) return;
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }, []);
+  // Grow with the text (never shrinks while writing, so the note doesn't jump).
+  useLayoutEffect(() => {
+    const ta = ref.current;
+    const box = boxRef.current;
+    if (!ta || !box) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${ta.scrollHeight}px`;
+    if (box.scrollHeight > node.h) editing.onHeight(box.scrollHeight);
+  }, [text, node.h, editing]);
+  return (
+    <div className="paper__note paper__note--editing" ref={boxRef}>
+      <strong>{node.title}</strong>
+      <textarea
+        ref={ref}
+        className="paper__note-text"
+        data-desk-ui
+        aria-label={t.noteText(node.title)}
+        value={text}
+        rows={1}
+        onChange={(e) => editing.onText(e.target.value)}
+        onBlur={() => editing.onDone()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.blur();
+          }
+        }}
+      />
     </div>
   );
+}
+
+/** Whether a CSS colour (`#RRGGBB` or `rgba(…)`) is dark enough for light ink. */
+function isDark(css: string): boolean {
+  const hex = /^#([0-9a-f]{6})$/i.exec(css)?.[1];
+  const rgb = hex ? [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) : /rgba?\(([^)]+)\)/.exec(css)?.[1]?.split(',').slice(0, 3).map(Number);
+  if (!rgb || rgb.length < 3) return false;
+  const [r, g, b] = rgb as [number, number, number];
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
 }
 
 function Content({ node }: { node: PaperNode }) {
@@ -64,8 +204,10 @@ function Content({ node }: { node: PaperNode }) {
       const [first, ...rest] = blocks;
       const title = first?.type === 'heading' ? first.text : node.title;
       const body = first?.type === 'heading' ? rest : blocks;
+      // The first page's colour (a dark cover…) shows on the desk too.
+      const bg = p.kind === 'document' ? p.background : undefined;
       return (
-        <div className="paper__doc">
+        <div className={`paper__doc${bg && isDark(bg) ? ' paper__doc--dark' : ''}`} style={bg ? { background: bg } : undefined}>
           {data.eyebrow && <span className="paper__eyebrow">{data.eyebrow}</span>}
           <h3 className="paper__doc-title">{title}</h3>
           {body.length === 0 && <Bars count={8} />}
@@ -82,23 +224,29 @@ function Content({ node }: { node: PaperNode }) {
       );
     }
     case 'slides': {
-      const slide = p.kind === 'slides' ? p.slides[0] : undefined;
+      const deck = p.kind === 'slides' ? p : undefined;
+      const slide = deck?.slides[0];
+      // A deck from a file shows its own colours; seeded papers keep the kit's look (with the chart).
+      const own = !!deck?.size;
+      const style = deck?.background || deck?.ink ? { background: deck.background, color: deck.ink ?? (deck.background && isDark(deck.background) ? '#fff' : undefined) } : undefined;
       return (
-        <div className="paper__slide">
+        <div className={`paper__slide${own ? ' paper__slide--deck' : ''}`} style={style}>
           {data.eyebrow && <span className="paper__eyebrow">{data.eyebrow}</span>}
           <h3 className="paper__slide-title">{slide?.title ?? node.title}</h3>
-          <div className="paper__chart">
-            {[58, 90, 120, 169].map((h, i) => (
-              <span key={i} style={{ height: h }} data-last={i === 3 || undefined} />
-            ))}
-          </div>
-          {p.kind === 'slides' && p.slides.length > 1 && <span className="paper__slide-count">{p.slides.length} diapos</span>}
+          {own && slide?.body && <p className="paper__slide-body">{slide.body}</p>}
+          {!own && (
+            <div className="paper__chart">
+              {[58, 90, 120, 169].map((h, i) => (
+                <span key={i} style={{ height: h }} data-last={i === 3 || undefined} />
+              ))}
+            </div>
+          )}
+          {deck && deck.slides.length > 1 && <span className="paper__slide-count">{t.slides(deck.slides.length)}</span>}
         </div>
       );
     }
     case 'spreadsheet': {
       const rows = p.kind === 'spreadsheet' ? p.rows : [];
-      const total = sheetTotal(rows);
       return (
         <div className="paper__sheet">
           <table>
@@ -111,24 +259,20 @@ function Content({ node }: { node: PaperNode }) {
                   <td />
                 </tr>
               ))}
-              {total != null && (
-                <tr className="paper__sheet-total">
-                  <th />
-                  <td>Total</td>
-                  <td className="num">{nf.format(total)} $</td>
-                  <td />
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       );
     }
+    case 'gallery':
+      return <GalleryPlanche node={node} />;
     case 'image':
       return (
         <div className="paper__photo">
+          {/* L2 · amber dot: a picture of a gallery with its own settings over the style. */}
+          {node.parent && Object.keys(lookOf(node.data.image?.recipe ?? {})).length > 0 && <span className="paper__own-dot" title={t.ownSettings} />}
           <div className="paper__photo-frame">
-            {data.imageUrl ? <img src={data.imageUrl} alt="" draggable={false} /> : <Icon name="image" size={40} />}
+            {data.image?.rendered || data.imageUrl ? <img src={data.image?.rendered ?? data.imageUrl} alt="" draggable={false} /> : <Icon name="image" size={40} />}
           </div>
           <span className="paper__caption">{data.fileName ?? node.title}</span>
         </div>
@@ -148,6 +292,51 @@ function Content({ node }: { node: PaperNode }) {
         </div>
       );
     }
+    case 'form': {
+      const f = data.form;
+      const a = f?.appearance;
+      const stats = data.formStats;
+      const initials = (f?.organiser || node.title).split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
+      return (
+        <>
+          <div
+            className="paper__form-band"
+            style={{ ['--paper-accent' as string]: a ? contrastGuard(a.accent).applied : undefined, backgroundImage: a?.coverUrl ? `url(${a.coverUrl})` : undefined }}
+          >
+            <span className="paper__form-logo">{a?.logoUrl ? <img src={a.logoUrl} alt="" /> : initials}</span>
+          </div>
+          <div className="paper__form-body">
+            <h3 className="paper__form-title">{node.title}</h3>
+            {(f ? questionsOf(f) : []).slice(0, 6).map((q) => (
+              <div key={q.id} className="paper__form-q">
+                <span>
+                  {q.title || t.question}
+                  {q.required ? ' *' : ''}
+                </span>
+                <i />
+              </div>
+            ))}
+          </div>
+          <div className="paper__form-foot">
+            {f?.publication ? (
+              <Badge tone="accent">
+                {t.responses(stats?.accepted ?? 0)}
+              </Badge>
+            ) : (
+              <Badge tone="neutral" dot={false}>
+                {t.draft}
+              </Badge>
+            )}
+            {!!stats?.held && <Badge tone="warning">{t.toCheck(stats.held)}</Badge>}
+            {f?.publication && !f.settings.acceptResponses && (
+              <Badge appearance="stamp" tone="neutral" dot={false}>
+                {t.closed}
+              </Badge>
+            )}
+          </div>
+        </>
+      );
+    }
     case 'note':
       return (
         <div className="paper__note">
@@ -165,23 +354,28 @@ function Content({ node }: { node: PaperNode }) {
   }
 }
 
-/** Mid-distance (40–80 %): thumbnail card with title, status stamp and last editor (B5). */
-function Thumbnail({ node }: { node: PaperNode }) {
+/**
+ * L2 · a gallery on the desk: a planche that works like a folder. Its pictures are desk nodes
+ * drawn above it (moved and resized freely inside); the planche shows the title, the style
+ * and a count.
+ */
+function GalleryPlanche({ node }: { node: PaperNode }) {
+  const { store } = useDesk();
+  const nodes = useDeskState(store, (s) => s.nodes);
+  const kids = useMemo(() => Object.values(nodes).filter((n) => n.parent?.id === node.id && n.kind === 'image') as PaperNode[], [nodes, node.id]);
+  const style = node.data.gallery?.style ?? {};
+  const named = currentStyle(style);
+  const own = kids.filter((k) => Object.keys(lookOf(k.data.image?.recipe ?? {})).length > 0).length;
   return (
-    <div className="paper__thumb">
-      <span className="paper__thumb-icon">
-        <Icon name={KIND_ICON[node.kind]} size={28} />
-      </span>
-      <span className="paper__thumb-title">{node.title}</span>
-      <span className="paper__thumb-meta">
-        {kindLabel(node.kind)}
-        {node.data.editor ? ` · ${node.data.editor}` : ''}
-      </span>
-      {node.data.stamp && (
-        <Badge appearance="stamp" tone={node.data.stamp.tone} className="paper__thumb-stamp">
-          {node.data.stamp.label}
-        </Badge>
-      )}
+    <div className="paper__gallery">
+      <div className="paper__gallery-head">
+        <Icon name="gallery" size={18} />
+        <span className="paper__gallery-title">{node.title}</span>
+        {!isEmptyRecipe(style) && <span className="paper__gallery-style">{named ? t.style(named.label) : t.customStyle}</span>}
+      </div>
+      <p className="paper__gallery-foot">
+        {kids.length === 0 ? t.dragImages : t.images(kids.length, own)}
+      </p>
     </div>
   );
 }
@@ -196,19 +390,3 @@ function Bars({ count }: { count: number }) {
   );
 }
 
-/** Far zoom (< 40 %): labelled pile with a counter (B5). */
-export function PaperPile({ pile, nodes }: { pile: Pile; nodes: PaperNode[] }) {
-  const kind = pile.key as PaperKind;
-  return (
-    <div className="pile" aria-hidden>
-      <span className="pile__sheet pile__sheet--3" />
-      <span className="pile__sheet pile__sheet--2" />
-      <span className="pile__sheet pile__sheet--1">
-        <Icon name={KIND_ICON[kind] ?? 'file'} size={28} />
-        <strong>{kindLabel(kind)}</strong>
-        <span className="pile__titles">{nodes.slice(0, 2).map((n) => n.title).join(' · ')}</span>
-      </span>
-      <span className="pile__count">{nodes.length}</span>
-    </div>
-  );
-}

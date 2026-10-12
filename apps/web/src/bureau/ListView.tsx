@@ -3,6 +3,23 @@ import { useDeskState } from '@oel/desk/react';
 import { readingOrder } from '@oel/desk';
 import { Badge, Checkbox, Icon } from '@oel/emboss';
 import { KIND_ICON, kindLabel, statusText, type Bureau, type Paper } from './model';
+import { features } from '../edition';
+import { locale, messages, tr } from '@oel/i18n';
+
+const t = messages(
+  {
+    title: 'Fichiers du projet',
+    empty: 'Aucun fichier. Importez-en avec « Importer », en bas.',
+    select: (title: string) => `Sélectionner ${title}`,
+  },
+  {
+    title: 'Project files',
+    empty: 'No files. Import some with “Import”, at the bottom.',
+    select: (title) => `Select ${title}`,
+  },
+);
+
+const day = new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'short' });
 
 /**
  * List view (note on 05 · Bureau: "a canvas is harder to make accessible than a
@@ -18,7 +35,7 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
   return (
     <section className="list-view" aria-labelledby="list-view-title">
       <h2 id="list-view-title" className="emb-visually-hidden">
-        Fichiers du projet
+        {t.title}
       </h2>
       <GridList
         aria-labelledby="list-view-title"
@@ -29,12 +46,12 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
         onAction={(key) => onOpen(String(key))}
         items={papers}
         className="list-view__grid"
-        renderEmptyState={() => <p className="list-view__empty">Aucun fichier. Importez-en depuis le dock.</p>}
+        renderEmptyState={() => <p className="list-view__empty">{t.empty}</p>}
       >
         {(p) => (
           <GridListItem id={p.id} textValue={p.title} className="list-row">
-            <Checkbox slot="selection" aria-label={`Sélectionner ${p.title}`} />
-            <span className="list-row__icon">
+            <Checkbox slot="selection" aria-label={t.select(p.title)} />
+            <span className="list-row__icon" data-kind={p.kind}>
               <Icon name={KIND_ICON[p.kind]} size={20} />
             </span>
             <span className="list-row__title">{p.title}</span>
@@ -48,11 +65,11 @@ export function ListView({ store, onOpen }: { store: Bureau; onOpen: (id: string
               {statusText(p) && <span className="list-row__status">{statusText(p)}</span>}
             </span>
             <span className="list-row__meta">
-              {p.data.editor ?? '—'}
-              {p.data.comments.length > 0 && ` · ${p.data.comments.length} comm.`}
+              {/* Who changed it last, or when (single-user: always you). */}
+              {features.projects ? (p.data.editor ?? '—') : p.data.updatedAt ? day.format(p.data.updatedAt) : '—'}
             </span>
             <RACButton className="emb-button emb-button--secondary emb-button--sm" onPress={() => onOpen(p.id)}>
-              Ouvrir
+              {tr('Ouvrir', 'Open')}
             </RACButton>
           </GridListItem>
         )}

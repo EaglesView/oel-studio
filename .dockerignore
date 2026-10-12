@@ -1,0 +1,10 @@
+# Container builds (.do/site.Dockerfile) start from the sources only.
+.git
+node_modules
+**/node_modules
+target
+packages/wasm
+apps/web/dist
+apps/web/.astro
+apps/collab/data
+fixtures/reference

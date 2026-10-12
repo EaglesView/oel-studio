@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro';
+import { features } from '../edition';
+import { ConnexionPage } from '../forms/ConnexionPage';
+// Forms (and their sign-in links) ship with the team edition (plan solo MVP, S-6).
+if (!features.forms) return Astro.redirect('/');
+---
+<Base title="Connexion · OutilsEnLigne">
+  <ConnexionPage client:only="react" />
+  <noscript><p class="page"><span data-lang="fr">La connexion a besoin de JavaScript.</span><span data-lang="en">Signing in needs JavaScript.</span></p></noscript>
+</Base>

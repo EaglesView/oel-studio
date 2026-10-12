@@ -1,22 +1,16 @@
-import type { DeskNode, Lod, Rect, Vec, Viewport } from './types';
+import type { DeskNode, Lod, Rect, Vec, Viewport, ZoomLimits } from './types';
 
-export const ZOOM_MIN = 0.1;
-export const ZOOM_MAX = 4;
+export const DEFAULT_ZOOM_LIMITS: ZoomLimits = { min: 0.25, max: 4 };
 
-/** B5 rule: under 40 % piles, 40–80 % thumbnails, above that live content. */
-export const LOD_THRESHOLDS = { far: 0.4, mid: 0.8 } as const;
-
-/** Presets bound to keys 1 / 2 / 3 (Ensemble · Repérage · Travail). */
-export const ZOOM_PRESETS = [0.3, 0.6, 1] as const;
+/** Below this zoom papers are drawn as thumbnails. */
+export const THUMBNAIL_BELOW = 0.5;
 
 export function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
 
 export function lodForZoom(zoom: number): Lod {
-  if (zoom < LOD_THRESHOLDS.far) return 'far';
-  if (zoom < LOD_THRESHOLDS.mid) return 'mid';
-  return 'near';
+  return zoom < THUMBNAIL_BELOW ? 'thumbnail' : 'live';
 }
 
 export function rectOf(n: Pick<DeskNode, 'x' | 'y' | 'w' | 'h'>): Rect {
@@ -25,6 +19,38 @@ export function rectOf(n: Pick<DeskNode, 'x' | 'y' | 'w' | 'h'>): Rect {
 
 export function center(r: Rect): Vec {
   return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+}
+
+/** Where the line from a rect's centre toward `toward` leaves the rect. */
+export function edgePoint(r: Rect, toward: Vec): Vec {
+  const c = center(r);
+  const dx = toward.x - c.x;
+  const dy = toward.y - c.y;
+  if (dx === 0 && dy === 0) return c;
+  const t = Math.min(dx ? r.w / 2 / Math.abs(dx) : Infinity, dy ? r.h / 2 / Math.abs(dy) : Infinity);
+  return { x: c.x + dx * t, y: c.y + dy * t };
+}
+
+/**
+ * A thread between two rects (Figma G1): a soft S-curve from edge to edge,
+ * leaving sideways when the rects sit side by side, vertically when stacked.
+ * `mid` is the curve's middle, where its chip goes.
+ */
+export function threadPath(a: Rect, b: Rect): { d: string; from: Vec; to: Vec; mid: Vec } {
+  const from = edgePoint(a, center(b));
+  const to = edgePoint(b, center(a));
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const side = Math.abs(dx) >= Math.abs(dy);
+  const c1 = side ? { x: from.x + dx / 2, y: from.y } : { x: from.x, y: from.y + dy / 2 };
+  const c2 = side ? { x: to.x - dx / 2, y: to.y } : { x: to.x, y: to.y - dy / 2 };
+  const f = (n: number) => Math.round(n * 10) / 10;
+  return {
+    d: `M${f(from.x)} ${f(from.y)} C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(to.x)} ${f(to.y)}`,
+    from,
+    to,
+    mid: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+  };
 }
 
 export function union(rects: Rect[]): Rect | null {
@@ -41,6 +67,13 @@ export function union(rects: Rect[]): Rect | null {
 
 export function intersects(a: Rect, b: Rect) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/** Area shared by two rects (0 when apart). */
+export function overlapArea(a: Rect, b: Rect): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
 }
 
 export function contains(r: Rect, p: Vec) {
@@ -65,21 +98,30 @@ export function rectToScreen(r: Rect, v: Viewport): Rect {
 }
 
 /** Zoom by `factor` keeping the world point under `anchor` (screen px) fixed. */
-export function zoomAt(v: Viewport, anchor: Vec, factor: number): Viewport {
-  const zoom = clamp(v.zoom * factor, ZOOM_MIN, ZOOM_MAX);
+export function zoomAt(v: Viewport, anchor: Vec, factor: number, limits: ZoomLimits = DEFAULT_ZOOM_LIMITS): Viewport {
+  const zoom = clamp(v.zoom * factor, limits.min, limits.max);
   const world = screenToWorld(anchor, v);
   return { zoom, x: world.x - anchor.x / zoom, y: world.y - anchor.y / zoom };
 }
 
-export function zoomTo(v: Viewport, anchor: Vec, zoom: number): Viewport {
-  return zoomAt(v, anchor, zoom / v.zoom);
+export function zoomTo(v: Viewport, anchor: Vec, zoom: number, limits: ZoomLimits = DEFAULT_ZOOM_LIMITS): Viewport {
+  return zoomAt(v, anchor, zoom / v.zoom, limits);
+}
+
+/**
+ * Wheel delta → zoom factor. Normalises line/page deltas and caps each event so
+ * a mouse-wheel notch is a small step (~11 %) while trackpad pinches stay smooth.
+ */
+export function wheelZoomFactor(deltaY: number, deltaMode = 0, speed = 0.002): number {
+  const px = deltaMode === 1 ? deltaY * 20 : deltaMode === 2 ? deltaY * 400 : deltaY;
+  return Math.exp(-clamp(px, -60, 60) * speed);
 }
 
 /** Viewport that fits `bounds` into a screen of `size`, with `padding` px. */
-export function fitRect(bounds: Rect, size: { w: number; h: number }, padding = 64, maxZoom = 1): Viewport {
+export function fitRect(bounds: Rect, size: { w: number; h: number }, padding = 64, maxZoom = 1, minZoom = DEFAULT_ZOOM_LIMITS.min): Viewport {
   const zoom = clamp(
     Math.min((size.w - padding * 2) / Math.max(bounds.w, 1), (size.h - padding * 2) / Math.max(bounds.h, 1)),
-    ZOOM_MIN,
+    minZoom,
     maxZoom,
   );
   const c = center(bounds);
@@ -122,24 +164,36 @@ export function nearestInDirection<N extends Pick<DeskNode, 'id' | 'x' | 'y' | '
   return best;
 }
 
-export interface Pile {
-  key: string;
-  ids: string[];
-  bounds: Rect;
-}
+/** A resize handle: corners and edges. */
+export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
-/** Far-zoom grouping (B5: the desk tidies itself into labelled piles with counters). */
-export function pilesBy<N extends DeskNode>(nodes: N[], keyOf: (n: N) => string): Pile[] {
-  const groups = new Map<string, N[]>();
-  for (const n of nodes) {
-    const k = keyOf(n);
-    const list = groups.get(k);
-    if (list) list.push(n);
-    else groups.set(k, [n]);
+/**
+ * The rect after dragging `handle` of `start` by `d` (world px). `keepAspect` keeps the shape,
+ * `fromCenter` grows both sides (Alt), `min` is the smallest side.
+ */
+export function resizeRect(start: Rect, handle: ResizeHandle, d: Vec, { keepAspect = false, fromCenter = false, min = 1 } = {}): Rect {
+  const sx = handle.includes('e') ? 1 : handle.includes('w') ? -1 : 0;
+  const sy = handle.includes('s') ? 1 : handle.includes('n') ? -1 : 0;
+  const k = fromCenter ? 2 : 1;
+  // Dragged past the opposite edge: stop at the smallest size instead of flipping.
+  let w = Math.max(1e-3, start.w + sx * d.x * k);
+  let h = Math.max(1e-3, start.h + sy * d.y * k);
+  if (keepAspect) {
+    const ratio = start.w / start.h;
+    // Corners follow the larger change; edges drive their own side.
+    const byWidth = sy === 0 || (sx !== 0 && Math.abs(w / start.w - 1) >= Math.abs(h / start.h - 1));
+    if (byWidth) h = w / ratio;
+    else w = h * ratio;
+    const s = Math.max(min / w, min / h, 1);
+    w *= s;
+    h *= s;
+  } else {
+    w = Math.max(min, w);
+    h = Math.max(min, h);
   }
-  return [...groups.entries()].map(([key, list]) => ({
-    key,
-    ids: list.map((n) => n.id),
-    bounds: union(list.map(rectOf))!,
-  }));
+  const cx = start.x + start.w / 2;
+  const cy = start.y + start.h / 2;
+  const x = fromCenter || sx === 0 ? cx - w / 2 : sx > 0 ? start.x : start.x + start.w - w;
+  const y = fromCenter || sy === 0 ? cy - h / 2 : sy > 0 ? start.y : start.y + start.h - h;
+  return { x, y, w, h };
 }

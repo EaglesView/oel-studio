@@ -1,130 +1,175 @@
-# OutilsEnLigne · Studio
+<div align="center">
 
-The multimodal editor ("Bureau") and the blind-emboss UI kit, built from the Figma file
-[OutilsEnLigne.ca](https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca):
-page **Embossed Component List** (49:134) and **Editor — Layout Explorations** (78:8),
-mainly *05 · Bureau* and the *Bureau — Exploration* section (B1–B8).
+<img src="apps/web/public/favicon.svg" width="72" height="72" alt="" />
 
-```
+# Bureau · OutilsEnLigne
+
+**Every file of a project on one desk — documents, spreadsheets, presentations and images — edited in the browser,
+with Word, Excel and PowerPoint files kept intact.**
+
+[![Licence: MPL-2.0](https://img.shields.io/badge/licence-MPL--2.0-7759c5)](LICENSE)
+![Rust](https://img.shields.io/badge/engines-Rust%20%E2%86%92%20WebAssembly-34333d)
+![TypeScript](https://img.shields.io/badge/app-TypeScript%20%C2%B7%20React%20%C2%B7%20Astro-34333d)
+![UI in French and English](https://img.shields.io/badge/UI-fr--CA%20%C2%B7%20en-14ad5c)
+
+<img src="apps/web/public/captures/desk.png" alt="The Bureau: a spreadsheet, a presentation, an image and a document side by side on a desk, joined by threads." width="900" />
+
+</div>
+
+The Bureau lays the files of a project side by side, like paper on a table. Double-click a paper to open it in
+place; the tools follow what you touch. A chart can be linked into a slide and a picture into a document, and the
+copies follow their source. Everything runs in the browser: the file formats are handled by Rust engines compiled to
+WebAssembly, and in this release your files never leave your device.
+
+Made in Québec for students, from high school to university. The interface is in French (fr-CA) or English (asked on the
+first visit, changed in « Paramètres »); the site and the documentation are in French and English.
+
+## Highlights
+
+- **Lossless Office round trips.** `.docx`, `.xlsx` and `.pptx` go through codecs that rewrite only what you changed;
+  untouched parts, styles, themes, charts and anything not modelled yet (fields, SmartArt, animations…) come back as
+  they were.
+- **Real editors.** A Word-like document editor (styles, lists, tables, footnotes, headers, pagination), an
+  Excel-compatible spreadsheet (IronCalc: `XLOOKUP`, `MINIFS`, `RANK.EQ`…, charts), a PowerPoint editor (layouts,
+  shapes, notes, presenter view), and a non-destructive image workshop (wgpu: WebGPU → WebGL2 → CPU).
+- **Linked copies (« fils de liaison »).** Put a chart, a range or an image in a slide or a document; it stays up to
+  date (live, manual or frozen), and a thread on the desk shows where it comes from.
+- **Accessible desk.** A DOM canvas that is a real listbox: every gesture has a key, moves are announced, a list view
+  is always one click away. Built on react-aria.
+- **Private by default.** The single-user release keeps the desk and every file in IndexedDB, with a lossless
+  « Exporter le bureau (.zip) » backup.
+
+## Try it
+
+You need **Node 24+** and **Rust** (stable, edition 2024) with the `wasm32-unknown-unknown` target; `wasm-pack`
+comes from npm.
+
+```bash
+rustup target add wasm32-unknown-unknown
 npm install
-npm run dev        # http://localhost:4321  →  /bureau, /composants
-npm test           # desk core + engine unit tests (vitest)
-npm run typecheck
-npm run build      # static site in apps/web/dist
+npm run dev        # http://localhost:4321 — the site, /bureau (the editor), /docs
 ```
 
-## Layout
+`npm run dev` builds the Rust engines to WebAssembly first when they are stale. Then open
+<http://localhost:4321/bureau>: a new desk holds a demo (a lap-times spreadsheet, a welcome deck whose chart is linked
+to it, a logo and a document).
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Single-user Bureau + site (no server) |
+| `npm run dev:equipe` | Team edition: web + collaboration server on :8787 |
+| `npm test` | `cargo test --workspace`, then every vitest suite |
+| `npm run typecheck` | Regenerates the Rust → TS contract types, then `tsc` per package |
+| `npm run build` | Static site in `apps/web/dist` (`PUBLIC_EDITION=equipe npm run build` for the team build) |
+| `npm run build:wasm` | Rebuilds every crate's WASM (web + Node targets) into `packages/wasm/` |
+| `bash scripts/build-site.sh` | Hosting build: installs Rust if missing, browser WASM only, then the site (DigitalOcean: `.do/site.Dockerfile` + `.do/app.yaml`) |
+
+## Editions
+
+One switch, `PUBLIC_EDITION` (`apps/web/src/edition.ts`), decides what the front end shows. Packages never read it;
+the app passes flags down as props.
+
+| | `solo` (default, this release) | `equipe` (built, not shipped yet) |
+|---|---|---|
+| Storage | Desk and files in this browser (IndexedDB), `.zip` backup | Plus the collaboration server (`apps/collab`) |
+| Sharing, presence, version history | Hidden | Share links with roles, live avatars, named and automatic versions |
+| Forms | Hidden | Builder, linked response spreadsheet, public respondent page (local stub backend) |
+| Projects and members | One desk, « Mon bureau » | Projects, four roles, settings cascade (local stub backend) |
+
+## Repository map
 
 ```
-packages/
-  emboss/   @oel/emboss   UI kit on react-aria-components + Figma tokens (Light/Dark)
-  desk/     @oel/desk     Infinite-desk canvas: framework-free core + React DOM renderer
-  engine/   @oel/engine   Document-processing contract, Web Worker host, JS preview engine,
-                          adapter for WASM engines (oeldocx-rs, oelimg-rs)
+crates/                 Rust workspace — file formats and computation only (no UI)
+  oel-opc/              lossless XML DOM + OPC package (zip, rels, content types)
+  oel-docx/             .docx ⇄ ProseMirror JSON
+  oel-xlsx/             .xlsx / .csv ⇄ workbook JSON, IronCalc calculation
+  oel-pptx/             .pptx ⇄ deck JSON
+  oel-chart/            DrawingML charts ⇄ ChartSpec, shared by the three codecs
+  oel-img/              non-destructive image pipeline (CPU reference + wgpu)
+packages/               TypeScript, shipped as source and compiled by the app
+  engine/   @oel/engine     file detection, engine contract, Web Worker host, WASM adapters, generated types
+  emboss/   @oel/emboss     blind-emboss UI kit on react-aria-components, Figma tokens (light/dark)
+  desk/     @oel/desk       accessible infinite desk: framework-free core + React DOM renderer
+  docs/     @oel/docs       document editor (Tiptap/ProseMirror + Yjs)
+  sheets/   @oel/sheets     spreadsheet editor (canvas grid, IronCalc in a worker)
+  slides/   @oel/slides     presentation editor, slideshow, presenter view
+  charts/   @oel/charts     Office chart renderer (every chart type) and chart UI
+  img/      @oel/img        image engine host, recipes, originals by content hash
+  links/    @oel/links      linked copies: model, states, desk threads
+  fonts/    @oel/fonts      fonts of opened files, open substitutes (Fontsource, OFL)
+  collab-client/            Yjs session base, offline storage, sync / share / version UI
+  forms/    @oel/forms      forms builder and respondent page (team edition)
 apps/
-  web/      Astro site: /bureau (the editor), /composants (kit showcase)
+  web/      @oel/web        Astro site: home, /docs (fr + en), /bureau (the editor)
+  collab/   @oel/collab     collaboration server: Hocuspocus (Yjs), share links, versions, exports (team edition)
+fixtures/               shared test corpus (docx, xlsx, pptx, charts, images, the demo Bureau)
+docs/                   plans (docs/plans/) and package details (docs/packages.md)
 ```
 
-Packages ship TypeScript source (`exports` → `src/`) and are compiled by the app's Vite.
-Add a build step (tsup/tsdown) only if they need publishing outside this repo.
+## How it fits together
 
-## @oel/emboss — the kit
-
-- `styles/tokens.css` mirrors the Figma variables 1:1 (`emboss/surface` → `--emboss-surface`),
-  both modes, plus `Spacing`, `Radius` and every `Emboss/*` effect style as a `--shadow-*`
-  token. Theme follows the OS; `<html data-theme="dark|light">` forces it.
-- Components wrap react-aria-components, so keyboard, focus management, ARIA and
-  i18n come from Adobe's implementation; styling hooks onto RAC's `data-hovered`,
-  `data-pressed`, `data-selected`, `data-focus-visible` states, which map directly onto
-  the kit's Default/Hover/Pressed/Focused/Disabled variants. Motion uses the kit's
-  durations and `cubic-bezier(0.22, 1, 0.36, 1)`, and `prefers-reduced-motion` zeroes them.
-- Icons: the 28 kit icons are exported verbatim from Figma. `EXTRA` icons in
-  `icons/Icon.tsx` were drawn on the same grid for the editor and are **not in Figma yet**.
-- Tool tooltips implement B3: name + shortcut + effect, and unavailable tools stay
-  focusable and say *why* (`unavailableReason`) instead of going silent.
-
-## @oel/desk — the canvas
-
-Why a separate package: the desk model (scene, camera, selection, history, spatial
-navigation, levels of detail) has nothing to do with documents. Keeping it free of
-React and of file types means a WASM engine, a collaboration layer (CRDT) or a different
-renderer can drive the same `DeskStore`.
-
-- **Core** (`@oel/desk`): `DeskStore` (subscribe/getState for `useSyncExternalStore`),
-  gesture-level undo (`begin`/`end` = one step per drag), `lodForZoom` (B5: <40 % piles,
-  40–80 % thumbnails, above: live content), `nearestInDirection`, `readingOrder`, `fitRect`.
-- **React** (`@oel/desk/react`): `<DeskCanvas>` renders papers as **DOM**, not `<canvas>`,
-  on purpose — that is what keeps it accessible:
-  - the desk is a multi-select `listbox`; each paper is an `option` with a full label
-    (title, type, stamp, status, comment count) and roving focus;
-  - every pointer gesture has a key: arrows move between papers spatially, Space toggles
-    selection, Enter opens, Alt+arrows move papers (WCAG 2.5.7), Shift+arrows pan,
-    `+ − 0 1 2 3` zoom, Ctrl+Z/Ctrl+Shift+Z, Delete, Shift+F10 context menu;
-  - a polite live region announces moves, selection counts, zoom level changes, undo;
-  - focus is handed over when papers turn into piles and back;
-  - selection outlines are drawn in screen space (always 2 px); `forced-colors` handled.
-- `<Minimap>` is a pointer convenience and is `aria-hidden`; everything it does has a key.
-- For very large desks, add viewport culling in `DeskCanvas` (render only nodes whose rect
-  intersects the screen) before reaching for a GPU renderer.
-
-The **list view** (Vue liste) is the required non-spatial alternative (note on *05 · Bureau*):
-same store, same selection, a react-aria `GridList`.
-
-## @oel/engine — where the WASM goes
-
-The editor shell never parses files itself. It asks an `EngineHost` (main thread), which
-posts the bytes to a **Web Worker** running an `EngineRegistry`. Each engine implements:
-
-```ts
-interface DocumentEngine {
-  id: string;
-  kinds: FileKind[];                     // document | slides | spreadsheet | pdf | image …
-  import(req, onProgress): Promise<ImportResult>;   // preview + readOnly + reason
-  export?(handle, format): Promise<Uint8Array>;
-}
+```mermaid
+flowchart LR
+  subgraph Rust["crates/ (Rust)"]
+    opc[oel-opc] --> docx[oel-docx]
+    opc --> xlsx[oel-xlsx]
+    opc --> pptx[oel-pptx]
+    chart[oel-chart] --> docx & xlsx & pptx
+    img[oel-img]
+  end
+  Rust -- wasm-pack --> wasm["packages/wasm/*"]
+  wasm --> worker["@oel/engine<br/>Web Worker"]
+  worker -- "JSON + bytes" --> editors["@oel/docs · sheets · slides · img"]
+  editors -- "Yjs (live model)" --> idb[(IndexedDB)]
+  editors --> bureau["apps/web /bureau<br/>(@oel/desk + @oel/links)"]
 ```
 
-- `detectKind` picks the workspace (magic bytes beat extensions for PDF/images).
-- `previewEngine` (JS) is the fallback: it reads .docx/.xlsx/.pptx/.odt/.ods/.odp text via a
-  tiny ZIP reader + `DecompressionStream`, CSV/TSV/TXT/MD, PDF page count / scanned
-  detection, image dimensions. Enough for the UX flow on real files today.
-- `createWasmEngine` / `createOeldocxEngine` wrap a wasm-bindgen package and lazy-load it in
-  the worker on first use. To wire **oeldocx-rs** (sibling repo):
-  1. add `"oeldocx-rs": "file:../../oeldocx_rs/pkg"` to `packages/engine/package.json`;
-  2. in `src/worker/engine.worker.ts`:
-     `registry.register(createOeldocxEngine(() => import('oeldocx-rs')))`;
-  3. align the `EditorState → Preview` mapping in `engines/wasm.ts` with the crate's state.
-  Registered engines take precedence over the preview engine for their kinds.
-  oelimg-rs plugs in the same way for `image`.
+Files are import/export; the live model of every open file is a Yjs document, saved on the device (and synced to
+the server in the team edition). The editor shell never parses a file: it asks the engine worker. Layer rules and the
+reasoning are in [`ARCHITECTURE.md`](ARCHITECTURE.md); each package in detail in
+[`docs/packages.md`](docs/packages.md).
 
-In the document workspace the ribbon currently drives `contentEditable`/`execCommand`;
-each command maps 1:1 onto `DocxController` (`set_bold`, `set_alignment_*`,
-`toggle_bullet_list`, `apply_style`…), which is what replaces it.
+## The Rust crates
 
-## What's real and what's stubbed
+The most reusable part of the project: lossless OOXML in Rust is rare. Each crate builds natively and, with its
+`wasm` feature, for the browser and Node.
 
-| Area | State |
-|---|---|
-| Desk: select, lasso, drag, nudge, zoom/pan, LOD piles/thumbnails, minimap, threads, undo | Working |
-| Contextual toolbar per type (B2), multi-selection actions (B7), comments | Working |
-| Open in place (B4): document (rich text), slides (filmstrip + notes), spreadsheet (editable grid, live sum), PDF (read-only + annotate rail), image, note | Working UI; edits stay in memory |
-| Import (B8): drop / file picker → worker → paper with progress, read-only states, toast | Working with the JS preview engine |
-| PDF → editable document (06) | **Simulated progress**; the new document says so |
-| Crop/OCR/cut-out, themes, export, "one PDF from selection" | Disabled tools that explain why (engines not wired) |
-| Presence (avatars, named cursors) | Static demo data; no sync layer |
-| Persistence | None yet (state is in memory) |
+| Crate | Library | What it does |
+|---|---|---|
+| `oel-opc` | `oel_opc` | XML DOM that keeps what it doesn't understand, OPC packages (parts, relationships, content types) |
+| `oel-docx` | `oeldocx` | `.docx` → editor JSON → `.docx`, rewriting only what changed |
+| `oel-xlsx` | `oelxlsx` | `.xlsx` and `.csv` ⇄ workbook JSON, formulas computed with IronCalc |
+| `oel-pptx` | `oelpptx` | `.pptx` ⇄ deck JSON (layouts, themes, DrawingML) |
+| `oel-chart` | `oelchart` | every Office chart type read to a `ChartSpec`, charts written back |
+| `oel-img` | `oelimg` | recipe-based image retouching, CPU reference and wgpu (parity-tested) |
 
-## Figma ↔ code
+```bash
+cargo test --workspace
+cargo run -p oel-xlsx --example recalc -- in.xlsx out.xlsx   # compute formulas and chart caches of any workbook
+```
 
-| Figma | Code |
-|---|---|
-| Color · emboss/* (Light/Dark), Spacing, Radius | `packages/emboss/src/styles/tokens.css` |
-| Emboss/Raised, Pressed, Well, Sheet, Knob, Ink… effect styles | `--shadow-*` tokens |
-| Button/Primary · Secondary · Ghost · Destructive · Success | `Button` (`variant`, `size`) |
-| Ribbon, .Building Blocks/Toolbar Toggle, Toolbar Separator | `Toolbar`, `ToolbarToggle`, `ToolButton`, `ToolbarSeparator` |
-| Text Field, Number Field (+ Stepper Key), Select (+ Menu, Option) | `TextField`, `NumberField`, `Select`/`SelectItem` |
-| Checkbox, Radio/Radio Group, Switch, Slider, Tabs | same names |
-| Tooltip, Popover, Dialog, Toast | `Tooltip`/`WithTooltip`, `Popover`, `SheetDialog`+`DialogOverlay`, `ToastRegion`/`toast()` |
-| Badge (Stamp/Tinted), Card, Sidebar/Nav Item, Pagination | same names |
-| Date Picker | not ported yet |
-| B1 desk (papers, pills, dock, minimap, cursors) | `apps/web/src/bureau/*` (`seed.ts` reproduces B1) |
+## Status
+
+Working: the desk (selection, zoom, notes, galleries, list view, saved on the device, `.zip` backup), documents,
+spreadsheets with charts, presentations with slideshow and presenter view, the image workshop, linked copies
+(charts, ranges, images) written into exports. Not yet: PDF viewing and annotation (a PDF keeps its page count only),
+editing charts inside slides and documents, animations and SmartArt (kept, not editable), a translated Bureau UI.
+The full table is in [`docs/packages.md`](docs/packages.md#whats-real-and-whats-stubbed); what users see is in the
+site's documentation (`/docs`, `/en/docs`).
+
+**Next:** the team edition on a Canadian-hosted server (accounts, sharing, forms backend —
+`docs/plans/2026-10-backend-mvp.md`), a mobile layout, the PDF engine, a desktop app (Tauri).
+
+## For AI agents
+
+Start with [`AGENTS.md`](AGENTS.md): commands, conventions, the edition switch and where things live. Task-specific
+guides are in `.claude/skills/oel-*/SKILL.md` (plain Markdown, usable by any agent): `oel-architecture` first, then
+`oel-rust-engine`, `oel-file-kind`, `oel-editor-feature`, `oel-charts` or `oel-collab-backend`, and `oel-verify` to
+finish. Plans with their status live in `docs/plans/`.
+
+## Contributing, security, licence
+
+- How to contribute: [`CONTRIBUTING.md`](CONTRIBUTING.md). Reporting a vulnerability: [`SECURITY.md`](SECURITY.md).
+- Licensed under the [Mozilla Public License 2.0](LICENSE): use the crates and packages in your own projects; changes
+  to these files stay open.
+- Third-party code, fonts and icons: [`THIRD_PARTY.md`](THIRD_PARTY.md).

@@ -1,0 +1,33 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import { shortcutGroups } from '../../../bureau/shortcuts';
+const groups = shortcutGroups('en');
+---
+<DocsLayout lang="en" id="clavier" description="Every keyboard shortcut of the Bureau, and what makes it usable without a mouse and with a screen reader.">
+  <p class="prose__lead">Everything the mouse does can be done with the keyboard. In the Bureau, <kbd>?</kbd> shows this list.</p>
+
+  {groups.map((g) => (
+    <section>
+      <h2>{g.title}</h2>
+      <table>
+        <tbody>
+          {g.rows.map((r) => (
+            <tr>
+              <th scope="row">{r.keys.map((k) => <kbd>{k}</kbd>)}</th>
+              <td>{r.what}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  ))}
+
+  <h2 id="accessibility">Accessibility</h2>
+  <ul>
+    <li>The desk is a list of items you move through with the arrows; each paper announces its title, type and state. Moves, selection, zoom and undo are announced.</li>
+    <li>“Vue liste” shows the same files in an ordinary list, with the same selection.</li>
+    <li>Each tool says its name, shortcut and what it does; an unavailable tool stays reachable and says why.</li>
+    <li>Selection and focus outlines stay visible in high-contrast mode; the system’s “reduce motion” turns animations off.</li>
+    <li>Light or dark theme: menu, “Display”, or the system’s.</li>
+  </ul>
+</DocsLayout>

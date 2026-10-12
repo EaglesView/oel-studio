@@ -1,0 +1,42 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import { docHref } from '../../i18n';
+---
+<DocsLayout lang="fr" id="bureau" description="Sélectionner, déplacer, zoomer, coller des notes, ranger des images en galerie et retrouver ses fichiers dans le menu.">
+  <p class="prose__lead">Le bureau est une table infinie. Chaque fichier y est un papier ; on le prend, on le pose, on le colle.</p>
+
+  <h2 id="selection">Sélectionner et déplacer</h2>
+  <ul>
+    <li>Un clic sélectionne ; <kbd>Maj</kbd> + clic ajoute ; tirer sur le bureau vide trace un lasso.</li>
+    <li>Glissez un papier pour le déplacer, ou <kbd>Alt</kbd> + flèches (<kbd>Maj</kbd> : plus loin).</li>
+    <li>Tirez les poignées pour agrandir : les documents et les diapos gardent leurs proportions, les notes se remettent en page.</li>
+    <li><kbd>Suppr</kbd> retire du bureau ; <kbd>Ctrl</kbd> <kbd>Z</kbd> annule, même après une suppression.</li>
+  </ul>
+  <p>Quand un papier est sélectionné, une barre d’outils apparaît au-dessus de lui avec ce qui le concerne : « Présenter » pour une présentation, « Retoucher » et « Lier dans… » pour une image. Un outil indisponible reste visible et dit pourquoi.</p>
+
+  <h2 id="vue">Zoom et vue</h2>
+  <p><kbd>Ctrl</kbd> + molette (ou pincer) zoome au pointeur, de 25 % à 400 % ; la molette seule fait défiler. En dessous de 50 %, les papiers deviennent des vignettes. La mini-carte, en bas à droite, montre où vous êtes. « Vue liste », dans la pastille du projet, présente les mêmes fichiers en liste, pratique au clavier et avec un lecteur d’écran.</p>
+
+  <h2 id="notes">Notes collées</h2>
+  <p><kbd>N</kbd> pose une note ; tapez directement pour écrire. Une note se colle à un papier pour le suivre partout :</p>
+  <ul>
+    <li><kbd>P</kbd> colle la note au papier qui est dessous, ou la décolle ;</li>
+    <li><kbd>Maj</kbd> <kbd>P</kbd> ouvre « Coller à… » pour choisir le papier ;</li>
+    <li>ou lâchez la note sur un papier en tenant <kbd>Alt</kbd>.</li>
+  </ul>
+  <p>Quatre couleurs, dans la barre d’outils de la note.</p>
+
+  <h2 id="galeries">Galeries d’images</h2>
+  <p>Sélectionnez plusieurs images, puis « Modifier les images » : elles sont réunies dans une galerie, une planche qui se déplace d’un bloc. Les images d’une galerie partagent un style (lumière, couleur), chacune peut garder ses propres réglages, et « Exporter » les enregistre toutes, retouchées, dans un .zip.</p>
+
+  <h2 id="barre">La barre du bas et le menu</h2>
+  <p>En bas : le logo (le menu), « Note », « Importer », le zoom et le « + ». Le menu, plein écran, regroupe :</p>
+  <ul>
+    <li><strong>Accueil</strong> et <strong>Nouveau</strong> : les fichiers récents, créer un fichier ;</li>
+    <li><strong>Ouvrir et importer</strong> : importer, tous les fichiers du bureau, et « Ce bureau » (exporter, importer, réinitialiser la démo, vider) ;</li>
+    <li><strong>Paramètres</strong> : ranger les fichiers qui arrivent par type ;</li>
+    <li><strong>Fils du bureau</strong> (<kbd>Ctrl</kbd> <kbd>Maj</kbd> <kbd>L</kbd>) : toutes les copies liées, voir <a href={docHref('fr', 'liens')}>Fils de liaison</a> ;</li>
+    <li><strong>Affichage</strong> : thème clair ou sombre, vue liste, mini-carte, fils visibles ;</li>
+    <li><strong>Raccourcis clavier</strong> et <strong>Aide</strong>.</li>
+  </ul>
+</DocsLayout>

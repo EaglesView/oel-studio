@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { features } from '../edition';
+import { DocumentPage } from '../document/DocumentPage';
+// Share-link landing: single-user builds have no share links (plan solo MVP, S-5).
+if (!features.collab) return Astro.redirect('/bureau');
+---
+<Base title="Document · OutilsEnLigne" description="Éditeur de documents collaboratif, compatible Word." app>
+  <!-- Yjs, IndexedDB and the engine worker: client only. The share token stays in the URL fragment. -->
+  <DocumentPage client:only="react" />
+  <noscript><p class="page"><span data-lang="fr">L’éditeur de documents a besoin de JavaScript.</span><span data-lang="en">The document editor needs JavaScript.</span></p></noscript>
+</Base>

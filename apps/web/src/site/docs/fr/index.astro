@@ -1,0 +1,42 @@
+---
+import DocsLayout from '../../DocsLayout.astro';
+import Capture from '../../Capture.astro';
+import { docHref } from '../../i18n';
+---
+<DocsLayout lang="fr" id="index" description="Ouvrir le Bureau, déposer ses fichiers, ouvrir un papier sur place ou en plein écran, et revenir au bureau.">
+  <p class="prose__lead">Le Bureau pose tous les fichiers d’un projet côte à côte, comme du papier sur une table. Les outils suivent ce que vous touchez.</p>
+  <Capture lang="fr" id="desk" alt="Le bureau de démonstration : un tableur, une présentation, une image et un document, reliés par des fils." />
+
+  <h2 id="ouvrir">Ouvrir le Bureau</h2>
+  <p>Allez à <a href="/bureau?lang=fr">/bureau</a>. Aucun compte n’est demandé. La première fois, le bureau contient une démo : un tableur de temps de course, une présentation de bienvenue, un logo et un document. Tout ce que vous y faites reste dans ce navigateur.</p>
+  <p class="note">Le Bureau parle français ou anglais : il le demande à la première visite (ou suit la langue de ce site quand vous l’ouvrez d’ici), et la langue se change dans le menu, « Paramètres ».</p>
+
+  <h2 id="deposer">Déposer des fichiers</h2>
+  <p>Glissez des fichiers sur le bureau, ou utilisez <kbd>Ctrl</kbd> <kbd>O</kbd> (« Importer » dans la barre du bas). Ils se posent là où vous les lâchez, en éventail, et chacun montre où il en est : lecture, conversion, prêt.</p>
+  <table>
+    <thead><tr><th>Format</th><th>Sur le bureau</th></tr></thead>
+    <tbody>
+      <tr><td>Word (.docx)</td><td>Document modifiable</td></tr>
+      <tr><td>Excel (.xlsx), .csv, .tsv</td><td>Tableur modifiable, formules calculées</td></tr>
+      <tr><td>PowerPoint (.pptx)</td><td>Présentation modifiable</td></tr>
+      <tr><td>Images (PNG, JPEG, WebP…)</td><td>Image retouchable</td></tr>
+      <tr><td>PDF</td><td>Gardé avec son nombre de pages (lecture à venir)</td></tr>
+      <tr><td>.odt, .ods, .odp, .txt, .md</td><td>Aperçu du texte</td></tr>
+    </tbody>
+  </table>
+  <p>Un fichier peut peser jusqu’à 100 Mo.</p>
+
+  <h2 id="niveaux">Trois niveaux, un geste pour revenir</h2>
+  <ol>
+    <li><strong>Le bureau</strong> : tous les papiers, à la taille que vous voulez.</li>
+    <li><strong>Ouvert sur place</strong> : double-cliquez sur un papier (ou <kbd>Entrée</kbd>). Il s’ouvre par-dessus le bureau, qui reste visible autour.</li>
+    <li><strong>Plein écran</strong> : <kbd>Ctrl</kbd> <kbd>Maj</kbd> <kbd>Entrée</kbd>, ou « Agrandir ». Menus complets, plan, barre d’état.</li>
+  </ol>
+  <p><kbd>Échap</kbd> revient d’un niveau à la fois ; il termine d’abord ce qui est en cours (un menu, une recherche). Le bouton Retour du navigateur fait la même chose : chaque niveau a sa propre adresse. En revenant, le papier reprend sa place, sélectionné, avec sa vignette à jour.</p>
+
+  <h2 id="creer">Créer</h2>
+  <p>Le « + » rond, à droite de la barre du bas (<kbd>Alt</kbd> <kbd>N</kbd>), crée un document, une présentation ou un tableur au centre de la vue. <kbd>N</kbd> pose une note.</p>
+
+  <h2 id="garder">Garder son travail</h2>
+  <p>Le bureau s’enregistre tout seul sur cet appareil. Pour en garder une copie ailleurs, ouvrez le menu (le logo, en bas à gauche), « Ouvrir et importer », puis « Exporter le bureau (.zip) ». Chaque fichier se télécharge aussi dans son format d’origine depuis son propre menu. Voir <a href={docHref('fr', 'formats')}>Formats et confidentialité</a>.</p>
+</DocsLayout>

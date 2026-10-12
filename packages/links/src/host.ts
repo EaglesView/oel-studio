@@ -1,0 +1,74 @@
+/**
+ * What editors need from the app about links: the state of a copy, and a way
+ * to manage it (the app shows the thread popover, Figma G3/G4). Editors don't
+ * know about the desk or other files; the app installs a host, and without one
+ * copies show their mode only.
+ */
+import type { Carries, LinkedTable, LinkState, LinkTheme, Overflow } from './types';
+
+export interface LinkHost {
+  /** State of a link by id (`waiting` when unknown). */
+  state(linkId: string): LinkState;
+  /** Open the link popover next to a rectangle on screen (the copy's badge). */
+  manage(linkId: string, anchor: { x: number; y: number; width: number; height: number }): void;
+  /** Update a manual link now. */
+  update(linkId: string): void;
+  /** « Délier »: the copy stays as it is, with no link. */
+  unlink(linkId: string): void;
+  /** « Voir la source »: open the source file with the linked object shown; false when it is not on the desk. */
+  openSource(linkId: string): boolean;
+  /** « Graphique et style » / « Données seulement » (a copy restyled here keeps its own look). */
+  setCarries(linkId: string, carries: Carries): void;
+  /** Linked tables: whose theme the copy wears, and what a slide shows when the table is too tall (Figma I2, I6 §2–3). */
+  setLinkOptions(linkId: string, patch: { theme?: LinkTheme; overflow?: Overflow }): void;
+  /**
+   * A person changed the style of a cell in a linked table copy (Figma I6 §1):
+   * record it as a local edit (or drop the edit when it matches the source again).
+   */
+  recordTableEdit(linkId: string, change: { r: number; c: number; prop: 'fill' | 'bold' | 'italic' | 'color'; value: string | boolean | null }): void;
+  /**
+   * « Envoyer vers un tableur… » on a table (Figma I3): the app asks where,
+   * writes the cells into a workbook and, by default, makes the table a linked
+   * copy of them. False when the app can't (no desk).
+   */
+  sendTableToSheet(req: { docId: string; kind: 'document' | 'slides'; objectId: string; table: LinkedTable; lossy: number }): boolean;
+  /** Title of a desk file by its doc id (« Lancement automne »), for links made from inside an editor. */
+  fileTitle(docId: string): string | null;
+  /** Called on any state change. */
+  subscribe(fn: () => void): () => void;
+  /** The link whose copy is this object (ids are unique across files), with its state; for editors without the Y.Doc at hand. */
+  copyOf(objectId: string): { linkId: string; source: string; state: LinkState; frozen: boolean; carries: Carries; theme?: LinkTheme; overflow?: Overflow } | null;
+}
+
+const NONE: LinkHost = {
+  state: () => 'waiting',
+  manage: () => {},
+  update: () => {},
+  unlink: () => {},
+  openSource: () => false,
+  setCarries: () => {},
+  fileTitle: () => null,
+  setLinkOptions: () => {},
+  recordTableEdit: () => {},
+  sendTableToSheet: () => false,
+  copyOf: () => null,
+  subscribe: () => () => {},
+};
+
+let current: LinkHost = NONE;
+const listeners = new Set<() => void>();
+
+export function setLinkHost(host: LinkHost | null) {
+  current = host ?? NONE;
+  listeners.forEach((f) => f());
+}
+
+export function linkHost(): LinkHost {
+  return current;
+}
+
+/** Called when the host itself changes (install/uninstall). */
+export function onLinkHost(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}

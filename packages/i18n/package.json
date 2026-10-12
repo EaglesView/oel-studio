@@ -1,0 +1,11 @@
+{
+  "name": "@oel/i18n",
+  "license": "MPL-2.0",
+  "version": "0.1.0",
+  "description": "Interface language of the Bureau (French by default, English): the page's language and typed message tables, French and English side by side.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
