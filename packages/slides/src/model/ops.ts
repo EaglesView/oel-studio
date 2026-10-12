@@ -7,6 +7,7 @@ import { DEFAULT_LEVEL } from './text';
 import type { SlideData, DeckInfo } from './ydoc';
 import type { ChartSpec } from '@oel/charts';
 import type { Element, Layout, Level, Paint, Placeholder, Slide, TextBody } from './types';
+import { tr } from '@oel/i18n';
 
 let counter = 0;
 /** A new id, unique enough within a deck (`n-…`). */
@@ -98,12 +99,12 @@ export function shape(info: DeckInfo, prst: string, box: { x: number; y: number;
   const accent = themeColor(info, 'accent1', '#4472C4');
   const light = themeColor(info, 'lt1', '#FFFFFF');
   if (prst === 'line') {
-    return { id: newId('l'), kind: 'connector', name: 'Connecteur', ...box, cy: 0, geom: { type: 'preset', prst: 'line' }, line: { paint: { type: 'solid', color: accent }, width: 19050 } };
+    return { id: newId('l'), kind: 'connector', name: tr('Connecteur', 'Connector'), ...box, cy: 0, geom: { type: 'preset', prst: 'line' }, line: { paint: { type: 'solid', color: accent }, width: 19050 } };
   }
   return {
     id: newId('f'),
     kind: 'shape',
-    name: 'Forme',
+    name: tr('Forme', 'Shape'),
     ...box,
     geom: { type: 'preset', prst },
     fill: { type: 'solid', color: accent },
@@ -117,7 +118,7 @@ export function picture(media: string, mime: string, box: { x: number; y: number
 }
 
 /** A chart frame (a linked copy, Figma G2), drawn by @oel/charts from the values cached in the spec. */
-export function chartFrame(spec: ChartSpec, box: { x: number; y: number; cx: number; cy: number }, name = 'Graphique'): Element {
+export function chartFrame(spec: ChartSpec, box: { x: number; y: number; cx: number; cy: number }, name = tr('Graphique', 'Chart')): Element {
   return { id: newId('c'), kind: 'graphic', name, ...box, chart: { ...spec, part: '' } };
 }
 

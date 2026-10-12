@@ -21,6 +21,7 @@ import { SlidesToolbar } from './SlidesToolbar';
 import { Slideshow, openPresenterWindow } from './Slideshow';
 import type { Recipe } from '@oel/img';
 import { RetouchDock } from '@oel/img/ui';
+import { tr } from '@oel/i18n';
 
 export interface ExportRequest {
   format: 'pptx';
@@ -143,7 +144,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       const notice = fontNotice(report);
       // TODO(ux): once this toast is dismissed (or times out) the fonts dialog cannot be reached again;
       // decide where it lives (a font menu entry, the info panel, the toast history…).
-      if (notice && firstFontNotice(session.status.docId)) toast({ ...notice, tone: 'warning', action: { label: 'Voir plus', onAction: () => setFontsOpen(true) } });
+      if (notice && firstFontNotice(session.status.docId)) toast({ ...notice, tone: 'warning', action: { label: tr('Voir plus', 'See more'), onAction: () => setFontsOpen(true) } });
     });
     return () => void (alive = false);
   }, [info.fonts, session]);
@@ -175,7 +176,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
       const bytes = await props.exportFile({ format: 'pptx', ...input });
       download(bytes, `${safeFileName(props.title)}.pptx`, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     } catch (e) {
-      toast({ title: 'Exportation impossible', description: (e as Error).message, tone: 'danger' });
+      toast({ title: tr('Exportation impossible', 'Export failed'), description: (e as Error).message, tone: 'danger' });
     }
   };
 
@@ -188,84 +189,84 @@ export function SlidesEditor(props: SlidesEditorProps) {
     }
   };
 
-  const layouts = info.layouts.map((l) => ({ id: `layout:${l.id}`, label: l.name || 'Disposition', checked: l.id === ctl.slide?.layout }));
+  const layouts = info.layouts.map((l) => ({ id: `layout:${l.id}`, label: l.name || tr('Disposition', 'Layout'), checked: l.id === ctl.slide?.layout }));
   const local = status.connection === 'local';
   const collab = props.collab ?? true;
   const spec: MenuSpec = [
     {
-      label: 'Fichier',
+      label: tr('Fichier', 'File'),
       items: [
-        ...(props.onNewPresentation ? [{ id: 'new', label: 'Nouvelle présentation', icon: 'plus' as const }] : []),
-        ...(props.onOpenFile ? [{ id: 'open', label: 'Ouvrir un fichier .pptx…', icon: 'upload' as const }] : []),
-        { id: 'dl-pptx', label: 'Télécharger en PowerPoint (.pptx)', icon: 'download', disabled: !props.exportFile },
-        { id: 'print', label: 'Imprimer / PDF', icon: 'print', shortcut: 'Ctrl+P' },
+        ...(props.onNewPresentation ? [{ id: 'new', label: tr('Nouvelle présentation', 'New presentation'), icon: 'plus' as const }] : []),
+        ...(props.onOpenFile ? [{ id: 'open', label: tr('Ouvrir un fichier .pptx…', 'Open a .pptx file…'), icon: 'upload' as const }] : []),
+        { id: 'dl-pptx', label: tr('Télécharger en PowerPoint (.pptx)', 'Download as PowerPoint (.pptx)'), icon: 'download', disabled: !props.exportFile },
+        { id: 'print', label: tr('Imprimer / PDF', 'Print / PDF'), icon: 'print', shortcut: 'Ctrl+P' },
         '-',
-        { id: 'share', label: 'Partager…', icon: 'share', hidden: !collab },
-        { id: 'history', label: 'Historique des versions', icon: 'history', disabled: local || status.role === 'viewer', hidden: !collab },
-        { id: 'identity', label: 'Votre nom et couleur…', icon: 'user', hidden: !collab },
+        { id: 'share', label: tr('Partager…', 'Share…'), icon: 'share', hidden: !collab },
+        { id: 'history', label: tr('Historique des versions', 'Version history'), icon: 'history', disabled: local || status.role === 'viewer', hidden: !collab },
+        { id: 'identity', label: tr('Votre nom et couleur…', 'Your name and colour…'), icon: 'user', hidden: !collab },
       ],
     },
     {
-      label: 'Édition',
+      label: tr('Édition', 'Edit'),
       items: [
-        { id: 'undo', label: 'Annuler', icon: 'undo', shortcut: 'Ctrl+Z', disabled: ro },
-        { id: 'redo', label: 'Rétablir', icon: 'redo', shortcut: 'Ctrl+Y', disabled: ro },
+        { id: 'undo', label: tr('Annuler', 'Undo'), icon: 'undo', shortcut: 'Ctrl+Z', disabled: ro },
+        { id: 'redo', label: tr('Rétablir', 'Redo'), icon: 'redo', shortcut: 'Ctrl+Y', disabled: ro },
         '-',
-        { id: 'cut', label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', disabled: ro || !ctl.selection.length },
-        { id: 'copy', label: 'Copier', icon: 'copy', shortcut: 'Ctrl+C', disabled: !ctl.selection.length },
-        { id: 'paste', label: 'Coller', icon: 'paste', shortcut: 'Ctrl+V', disabled: ro || !ctl.canPaste },
-        { id: 'duplicate', label: 'Dupliquer', shortcut: 'Ctrl+D', disabled: ro || !ctl.selection.length },
-        { id: 'delete', label: 'Supprimer', icon: 'trash', shortcut: 'Suppr', disabled: ro || !ctl.selection.length },
+        { id: 'cut', label: tr('Couper', 'Cut'), icon: 'cut', shortcut: 'Ctrl+X', disabled: ro || !ctl.selection.length },
+        { id: 'copy', label: tr('Copier', 'Copy'), icon: 'copy', shortcut: 'Ctrl+C', disabled: !ctl.selection.length },
+        { id: 'paste', label: tr('Coller', 'Paste'), icon: 'paste', shortcut: 'Ctrl+V', disabled: ro || !ctl.canPaste },
+        { id: 'duplicate', label: tr('Dupliquer', 'Duplicate'), shortcut: 'Ctrl+D', disabled: ro || !ctl.selection.length },
+        { id: 'delete', label: tr('Supprimer', 'Delete'), icon: 'trash', shortcut: 'Suppr', disabled: ro || !ctl.selection.length },
         '-',
-        { id: 'select-all', label: 'Tout sélectionner', shortcut: 'Ctrl+A' },
+        { id: 'select-all', label: tr('Tout sélectionner', 'Select all'), shortcut: 'Ctrl+A' },
       ],
     },
     {
-      label: 'Affichage',
+      label: tr('Affichage', 'View'),
       items: [
-        { id: 'present', label: 'Diaporama depuis le début', icon: 'play', shortcut: 'F5' },
-        { id: 'present-here', label: 'Diaporama depuis cette diapositive', shortcut: 'Maj+F5' },
-        { id: 'presenter', label: 'Vue présentateur', icon: 'laptop', shortcut: 'Alt+F5' },
+        { id: 'present', label: tr('Diaporama depuis le début', 'Slideshow from the start'), icon: 'play', shortcut: 'F5' },
+        { id: 'present-here', label: tr('Diaporama depuis cette diapositive', 'Slideshow from this slide'), shortcut: 'Maj+F5' },
+        { id: 'presenter', label: tr('Vue présentateur', 'Presenter view'), icon: 'laptop', shortcut: 'Alt+F5' },
         '-',
-        { id: 'notes', label: 'Notes de l’orateur', checked: showNotes },
-        { id: 'zoom-fit', label: 'Ajuster à la fenêtre', checked: zoom === 'fit' },
+        { id: 'notes', label: tr('Notes de l’orateur', 'Speaker notes'), checked: showNotes },
+        { id: 'zoom-fit', label: tr('Ajuster à la fenêtre', 'Fit to the window'), checked: zoom === 'fit' },
       ],
     },
     {
-      label: 'Insertion',
+      label: tr('Insertion', 'Insert'),
       items: [
-        { id: 'new-slide', label: 'Nouvelle diapositive', icon: 'new-page', shortcut: 'Ctrl+M', disabled: ro },
-        { id: 'dup-slide', label: 'Dupliquer la diapositive', icon: 'copy', disabled: ro },
+        { id: 'new-slide', label: tr('Nouvelle diapositive', 'New slide'), icon: 'new-page', shortcut: 'Ctrl+M', disabled: ro },
+        { id: 'dup-slide', label: tr('Dupliquer la diapositive', 'Duplicate the slide'), icon: 'copy', disabled: ro },
         '-',
-        { id: 'text', label: 'Zone de texte', icon: 'text-box', disabled: ro },
-        { id: 'image', label: 'Image…', icon: 'image', disabled: ro },
-        { id: 'shapes', label: 'Formes', icon: 'shape', disabled: ro, children: SHAPE_CHOICES.map((s) => ({ id: `shape:${s.prst}`, label: s.label })) },
+        { id: 'text', label: tr('Zone de texte', 'Text box'), icon: 'text-box', disabled: ro },
+        { id: 'image', label: tr('Image…', 'Image…'), icon: 'image', disabled: ro },
+        { id: 'shapes', label: tr('Formes', 'Shapes'), icon: 'shape', disabled: ro, children: SHAPE_CHOICES.map((s) => ({ id: `shape:${s.prst}`, label: s.label })) },
       ],
     },
     {
-      label: 'Diapositive',
+      label: tr('Diapositive', 'Slide'),
       items: [
-        { id: 'layouts', label: 'Disposition', icon: 'layout', disabled: ro, children: layouts },
-        { id: 'background', label: 'Arrière-plan…', icon: 'fill-color', disabled: ro },
-        { id: 'hide', label: ctl.slide?.hidden ? 'Afficher pendant le diaporama' : 'Masquer pendant le diaporama', icon: 'eye', disabled: ro },
+        { id: 'layouts', label: tr('Disposition', 'Layout'), icon: 'layout', disabled: ro, children: layouts },
+        { id: 'background', label: tr('Arrière-plan…', 'Background…'), icon: 'fill-color', disabled: ro },
+        { id: 'hide', label: ctl.slide?.hidden ? tr('Afficher pendant le diaporama', 'Show during the slideshow') : tr('Masquer pendant le diaporama', 'Hide during the slideshow'), icon: 'eye', disabled: ro },
         '-',
-        { id: 'delete-slide', label: 'Supprimer la diapositive', icon: 'trash', disabled: ro || ctl.doc.slideIds().length < 2 },
+        { id: 'delete-slide', label: tr('Supprimer la diapositive', 'Delete the slide'), icon: 'trash', disabled: ro || ctl.doc.slideIds().length < 2 },
       ],
     },
     {
-      label: 'Organiser',
+      label: tr('Organiser', 'Arrange'),
       items: [
-        { id: 'arrange:front', label: 'Mettre au premier plan', disabled: ro || !ctl.selection.length },
-        { id: 'arrange:forward', label: 'Avancer', disabled: ro || !ctl.selection.length },
-        { id: 'arrange:backward', label: 'Reculer', disabled: ro || !ctl.selection.length },
-        { id: 'arrange:back', label: 'Mettre à l’arrière-plan', disabled: ro || !ctl.selection.length },
+        { id: 'arrange:front', label: tr('Mettre au premier plan', 'Bring to front'), disabled: ro || !ctl.selection.length },
+        { id: 'arrange:forward', label: tr('Avancer', 'Bring forward'), disabled: ro || !ctl.selection.length },
+        { id: 'arrange:backward', label: tr('Reculer', 'Send backward'), disabled: ro || !ctl.selection.length },
+        { id: 'arrange:back', label: tr('Mettre à l’arrière-plan', 'Send to back'), disabled: ro || !ctl.selection.length },
         '-',
-        { id: 'align:left', label: 'Aligner à gauche', disabled: ro || !ctl.selection.length },
-        { id: 'align:center', label: 'Centrer horizontalement', disabled: ro || !ctl.selection.length },
-        { id: 'align:right', label: 'Aligner à droite', disabled: ro || !ctl.selection.length },
-        { id: 'align:top', label: 'Aligner en haut', disabled: ro || !ctl.selection.length },
-        { id: 'align:middle', label: 'Centrer verticalement', disabled: ro || !ctl.selection.length },
-        { id: 'align:bottom', label: 'Aligner en bas', disabled: ro || !ctl.selection.length },
+        { id: 'align:left', label: tr('Aligner à gauche', 'Align left'), disabled: ro || !ctl.selection.length },
+        { id: 'align:center', label: tr('Centrer horizontalement', 'Centre horizontally'), disabled: ro || !ctl.selection.length },
+        { id: 'align:right', label: tr('Aligner à droite', 'Align right'), disabled: ro || !ctl.selection.length },
+        { id: 'align:top', label: tr('Aligner en haut', 'Align top'), disabled: ro || !ctl.selection.length },
+        { id: 'align:middle', label: tr('Centrer verticalement', 'Centre vertically'), disabled: ro || !ctl.selection.length },
+        { id: 'align:bottom', label: tr('Aligner en bas', 'Align bottom'), disabled: ro || !ctl.selection.length },
       ],
     },
   ];
@@ -350,7 +351,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
   );
   const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
-      Partager
+      {tr('Partager', 'Share')}
     </Button>
   );
   const preserved = info.preserved;
@@ -367,7 +368,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
     <div className={`oel-slides oel-slides--${variant}`} data-slides={status.docId} onKeyDown={onKeyDown}>
       {!compact && (
         <header className="oel-slides__top">
-          <nav className="oel-slides__crumbs" aria-label="Fil d’Ariane">
+          <nav className="oel-slides__crumbs" aria-label={tr('Fil d’Ariane', 'Breadcrumb')}>
             {props.onBureau && (
               <Button variant="ghost" size="sm" leadingIcon="chevron-left" onPress={props.onBureau}>
                 Bureau
@@ -382,27 +383,27 @@ export function SlidesEditor(props: SlidesEditorProps) {
             <div className="oel-slides__titlerow">
               <input
                 className="oel-slides__title"
-                aria-label="Titre de la présentation"
+                aria-label={tr('Titre de la présentation', 'Presentation title')}
                 value={titleDraft}
                 readOnly={ro}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={commitTitle}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               />
-              {ro && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
-              <SyncStatus status={status} noun="présentation" collab={collab} />
+              {ro && <Badge appearance="stamp" tone="neutral" dot={false}>{tr('Lecture seule', 'Read-only')}</Badge>}
+              <SyncStatus status={status} noun={tr('présentation', 'presentation')} collab={collab} />
             </div>
-            <MenuBar spec={spec} onAction={act} label="Menus de la présentation" />
+            <MenuBar spec={spec} onAction={act} label={tr('Menus de la présentation', 'Presentation menus')} />
           </div>
           <div className="oel-slides__right">
             {preservedChip}
             {props.onReduce && (
               <Button size="sm" variant="ghost" leadingIcon="collapse" aria-keyshortcuts="Control+Shift+Enter" onPress={props.onReduce}>
-                Réduire
+                {tr('Réduire', 'Reduce')}
               </Button>
             )}
-            {collab && <Peers status={status} noun="présentation" />}
-            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
+            {collab && <Peers status={status} noun={tr('présentation', 'presentation')} />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label={tr('Historique des versions', 'Version history')} isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportButton}
             {shareButton}
           </div>
@@ -414,9 +415,9 @@ export function SlidesEditor(props: SlidesEditorProps) {
         {compact && (
           <div className="oel-slides__sheet-actions">
             {preservedChip}
-            <SyncStatus status={status} noun="présentation" collab={collab} />
-            {collab && <Peers status={status} noun="présentation" />}
-            {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label="Plein écran (Ctrl+Maj+Entrée)" onPress={props.onExpand} />}
+            <SyncStatus status={status} noun={tr('présentation', 'presentation')} collab={collab} />
+            {collab && <Peers status={status} noun={tr('présentation', 'presentation')} />}
+            {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label={tr('Plein écran (Ctrl+Maj+Entrée)', 'Full screen (Ctrl+Shift+Enter)')} onPress={props.onExpand} />}
             {exportButton}
             {shareButton}
           </div>
@@ -427,7 +428,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
         <Filmstrip ctl={ctl} ctx={ctx} onPresent={present} />
         <div className="oel-slides__main">
           <div ref={stageBox} className="oel-slides__stage">
-            <Canvas ctl={ctl} ctx={ctx} zoom={k} canRetouch={!!props.createImageWorker} label={`Diapositive ${ctl.index + 1} sur ${ctl.doc.slideIds().length}`} />
+            <Canvas ctl={ctl} ctx={ctx} zoom={k} canRetouch={!!props.createImageWorker} label={tr(`Diapositive ${ctl.index + 1} sur ${ctl.doc.slideIds().length}`, `Slide ${ctl.index + 1} of ${ctl.doc.slideIds().length}`)} />
           </div>
           {showNotes && notes && <NotesPane key={slide!.id} text={notes} ro={ro} />}
         </div>
@@ -454,12 +455,12 @@ export function SlidesEditor(props: SlidesEditorProps) {
             Diapositive {ctl.index + 1} sur {ctl.doc.slideIds().length}
           </span>
           {layoutName && <span className="oel-slides__status-layout">{layoutName}</span>}
-          {slide?.hidden && <Badge tone="neutral" dot={false}>Masquée</Badge>}
+          {slide?.hidden && <Badge tone="neutral" dot={false}>{tr('Masquée', 'Hidden')}</Badge>}
           <span className="oel-slides__status-spacer" />
           <Button size="sm" variant="ghost" leadingIcon="note" onPress={() => setShowNotes((v) => !v)} aria-pressed={showNotes}>
             Notes
           </Button>
-          <span>{zoom === 'fit' ? 'Ajusté' : `${Math.round(Number(zoom) * 100)} %`}</span>
+          <span>{zoom === 'fit' ? tr('Ajusté', 'Fit') : `${Math.round(Number(zoom) * 100)} %`}</span>
         </footer>
       )}
 
@@ -482,13 +483,13 @@ function NotesPane({ text, ro }: { text: Y.Text; ro: boolean }) {
     return () => text.unobserve(on);
   }, [text]);
   return (
-    <section className="oel-notes" aria-label="Notes de l’orateur">
+    <section className="oel-notes" aria-label={tr('Notes de l’orateur', 'Speaker notes')}>
       <textarea
         className="oel-notes__input"
         value={value}
         readOnly={ro}
-        placeholder="Cliquez pour ajouter des notes"
-        aria-label="Notes de l’orateur"
+        placeholder={tr('Cliquez pour ajouter des notes', 'Click to add notes')}
+        aria-label={tr('Notes de l’orateur', 'Speaker notes')}
         onFocus={() => (focused.current = true)}
         onBlur={() => {
           focused.current = false;
@@ -510,11 +511,11 @@ function PreservedChip({ items }: { items: Array<{ kind: string; label: string; 
   return (
     <>
       <button ref={ref} type="button" className="oel-slides__chip" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <Icon name="lock" size={14} /> Conservé · {items.map((i) => i.label).join(', ')}
+        <Icon name="lock" size={14} /> {tr('Conservé', 'Kept')} · {items.map((i) => i.label).join(', ')}
       </button>
       <Popover triggerRef={ref as RefObject<HTMLButtonElement>} isOpen={open} onOpenChange={setOpen} placement="bottom end">
-        <Dialog className="oel-popover-dialog oel-preserved" aria-label="Éléments conservés">
-          <p>Ces éléments du fichier sont gardés tels quels à l’exportation, mais ne se modifient pas ici :</p>
+        <Dialog className="oel-popover-dialog oel-preserved" aria-label={tr('Éléments conservés', 'Kept elements')}>
+          <p>{tr('Ces éléments du fichier sont gardés tels quels à l’exportation, mais ne se modifient pas ici :', 'These elements of the file are kept as they are on export, but can’t be edited here:')}</p>
           <ul>
             {items.map((i) => (
               <li key={i.kind}>
@@ -540,28 +541,28 @@ function BackgroundDialog({ ctl, isOpen, onClose }: { ctl: SlidesController; isO
   };
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Arrière-plan de la diapositive" width={380}>
+      <SheetDialog title={tr('Arrière-plan de la diapositive', 'Slide background')} width={380}>
         <div className="oel-swatches">
           <button type="button" className="oel-swatch oel-swatch--none" onClick={() => pick(null)}>
-            Celui de la disposition
+            {tr('Celui de la disposition', 'The layout’s')}
           </button>
-          <p className="oel-swatches__label">Couleurs du thème</p>
+          <p className="oel-swatches__label">{tr('Couleurs du thème', 'Theme colours')}</p>
           <div className="oel-swatches__grid">
             {theme.map((c) => (
               <button key={c.name} type="button" className={`oel-swatch${current === c.color ? ' is-on' : ''}`} style={{ background: c.color }} aria-label={c.color} onClick={() => pick(c.color)} />
             ))}
           </div>
-          <p className="oel-swatches__label">Autres</p>
+          <p className="oel-swatches__label">{tr('Autres', 'Others')}</p>
           <div className="oel-swatches__grid">
             {BG_COLORS.map((c) => (
               <button key={c} type="button" className={`oel-swatch${current === c ? ' is-on' : ''}`} style={{ background: c }} aria-label={c} onClick={() => pick(c)} />
             ))}
           </div>
           <label className="oel-swatches__custom">
-            Personnalisée <input type="color" onChange={(e) => pick(e.target.value.toUpperCase())} />
+            {tr('Personnalisée', 'Custom')} <input type="color" onChange={(e) => pick(e.target.value.toUpperCase())} />
           </label>
           <Checkbox isSelected={all} onChange={setAll}>
-            Appliquer à toutes les diapositives
+            {tr('Appliquer à toutes les diapositives', 'Apply to every slide')}
           </Checkbox>
         </div>
       </SheetDialog>
@@ -607,7 +608,7 @@ function VersionPreview({ doc, media }: { doc: Y.Doc; media: (path: string) => s
   const d = useMemo(() => new SlidesDoc(doc), [doc]);
   const info = d.info();
   const ids = d.slideIds().slice(0, 6);
-  if (!ids.length) return <p className="oel-panel__empty">Version vide.</p>;
+  if (!ids.length) return <p className="oel-panel__empty">{tr('Version vide.', 'Empty version.')}</p>;
   const ctx: RenderCtx = { theme: info.theme, fonts: info.fonts, media, editing: false };
   return (
     <div className="oel-versions__slides">
@@ -619,7 +620,7 @@ function VersionPreview({ doc, media }: { doc: Y.Doc; media: (path: string) => s
   );
 }
 
-const RETOUCH_NOTE = 'Le fichier PowerPoint garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
+const RETOUCH_NOTE = tr('Le fichier PowerPoint garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.', 'The PowerPoint file keeps the retouched image and, separately, the original and the recipe: reopened in OEL, everything stays editable.');
 
 /** L3 · the atelier docked at the right of the slide; the slide and the filmstrip show the live rendering. */
 function SlideRetouch({ ctl, createWorker }: { ctl: SlidesController; createWorker: () => Worker }) {

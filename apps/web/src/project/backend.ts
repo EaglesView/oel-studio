@@ -1,5 +1,6 @@
 import type { Member, Project, Role } from './model';
 import { isValid, SETTINGS, type Scope, type SettingKey, type SettingValue, type SettingValues } from './settings';
+import { tr } from '@oel/i18n';
 
 /**
  * What the app needs from the projects service (Figma N). The UI depends only
@@ -127,16 +128,16 @@ export function createLocalProjectsBackend(opts: LocalProjectsOptions = {}): Pro
     },
     async setSetting(target, key, value) {
       const scopes: readonly Scope[] = SETTINGS[key].scopes;
-      if (!scopes.includes(target.scope)) throw new ProjectsError(`« ${SETTINGS[key].label} » ne se règle pas à ce niveau.`);
-      if (value !== undefined && !isValid(key, value)) throw new ProjectsError(`Valeur invalide pour « ${SETTINGS[key].label} ».`);
+      if (!scopes.includes(target.scope)) throw new ProjectsError(tr(`« ${SETTINGS[key].label} » ne se règle pas à ce niveau.`, `“${SETTINGS[key].label}” can’t be set at this level.`));
+      if (value !== undefined && !isValid(key, value)) throw new ProjectsError(tr(`Valeur invalide pour « ${SETTINGS[key].label} ».`, `Invalid value for “${SETTINGS[key].label}”.`));
       const s = load();
       let layer: Partial<SettingValues>;
       if (target.scope === 'account') layer = s.account;
       else {
         const p = s.projects.find((x) => x.id === target.projectId);
-        if (!p) throw new ProjectsError('Projet introuvable.');
+        if (!p) throw new ProjectsError(tr('Projet introuvable.', 'Project not found.'));
         // TODO(backend): the server refuses this for non-owners (N-3); the client guard only hides the controls.
-        if (role(p) !== 'owner' && target.scope === 'project') throw new ProjectsError('Seuls les propriétaires règlent le projet.');
+        if (role(p) !== 'owner' && target.scope === 'project') throw new ProjectsError(tr('Seuls les propriétaires règlent le projet.', 'Only owners set the project.'));
         layer = target.scope === 'project' ? p.settings : (p.fileSettings[target.fileId] ??= {});
       }
       if (value === undefined) delete layer[key];

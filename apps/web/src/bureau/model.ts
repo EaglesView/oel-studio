@@ -3,6 +3,65 @@ import { KIND_LABEL, type FileKind, type Preview } from '@oel/engine';
 import type { IconName, Tone } from '@oel/emboss';
 import type { FormDef } from '@oel/forms/model';
 import type { Recipe } from '@oel/img';
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    colours: { jaune: 'Jaune', rose: 'Rose', vert: 'Vert', bleu: 'Bleu' },
+    document: 'Document',
+    slides: 'Présentation',
+    spreadsheet: 'Tableur',
+    form: 'Formulaire',
+    gallery: 'Galerie',
+    file: 'Fichier',
+    readonly: (reason: string) => `Lecture seule. ${reason}`,
+    error: (reason: string) => `Erreur. ${reason}`,
+    responses: (n: number, held: number) => `${n} réponses${held ? `, ${held} à vérifier` : ''}`,
+    draft: 'brouillon',
+    untitled: {
+      document: 'Document sans titre',
+      slides: 'Présentation sans titre',
+      spreadsheet: 'Tableur sans titre',
+      note: 'Note',
+      pdf: 'PDF',
+      image: 'Image',
+      file: 'Fichier',
+      form: 'Formulaire sans titre',
+      gallery: 'Galerie sans titre',
+    },
+    heading: 'Titre',
+    sheet1: 'Feuille 1',
+  },
+  {
+    colours: { jaune: 'Yellow', rose: 'Pink', vert: 'Green', bleu: 'Blue' },
+    document: 'Document',
+    slides: 'Presentation',
+    spreadsheet: 'Spreadsheet',
+    form: 'Form',
+    gallery: 'Gallery',
+    file: 'File',
+    readonly: (reason) => `Read-only. ${reason}`,
+    error: (reason) => `Error. ${reason}`,
+    responses: (n, held) => `${n} responses${held ? `, ${held} to check` : ''}`,
+    draft: 'draft',
+    untitled: {
+      document: 'Untitled document',
+      slides: 'Untitled presentation',
+      spreadsheet: 'Untitled spreadsheet',
+      note: 'Note',
+      pdf: 'PDF',
+      image: 'Image',
+      file: 'File',
+      form: 'Untitled form',
+      gallery: 'Untitled gallery',
+    },
+    heading: 'Title',
+    sheet1: 'Sheet1',
+  },
+);
+
+/** Name of the first sheet of a new workbook (« Feuille 1 », or « Sheet1 » in English). */
+export const FIRST_SHEET = t.sheet1;
 
 /**
  * Desk paper kinds = engine file kinds (minus "unsupported" which shows as a generic file),
@@ -55,7 +114,7 @@ export interface PaperData {
 }
 
 export type NoteColor = 'jaune' | 'rose' | 'vert' | 'bleu';
-export const NOTE_COLORS: Record<NoteColor, string> = { jaune: 'Jaune', rose: 'Rose', vert: 'Vert', bleu: 'Bleu' };
+export const NOTE_COLORS: Record<NoteColor, string> = t.colours;
 
 export type Paper = DeskNode<PaperData> & { kind: PaperKind };
 export type Bureau = DeskStore<PaperData>;
@@ -74,16 +133,16 @@ export const KIND_ICON: Record<PaperKind, IconName> = {
 
 /** Kinds that carry a coloured tab on the desk (and a tinted icon elsewhere): the OEL palette, one colour per editor. */
 export const KIND_TAB: Partial<Record<PaperKind, string>> = {
-  document: 'Document',
-  slides: 'Présentation',
-  spreadsheet: 'Tableur',
-  form: 'Formulaire',
+  document: t.document,
+  slides: t.slides,
+  spreadsheet: t.spreadsheet,
+  form: t.form,
 };
 
 export function kindLabel(kind: string): string {
-  if (kind === 'form') return 'Formulaire';
-  if (kind === 'gallery') return 'Galerie';
-  return kind === 'file' ? 'Fichier' : (KIND_LABEL[kind as FileKind] ?? 'Fichier');
+  if (kind === 'form') return t.form;
+  if (kind === 'gallery') return t.gallery;
+  return kind === 'file' ? t.file : (KIND_LABEL[kind as FileKind] ?? t.file);
 }
 
 /**
@@ -132,8 +191,8 @@ export function paperSizeFor(kind: PaperKind, preview?: Preview | null): { w: nu
 export function statusText(p: Paper): string {
   const s = p.data.status;
   if (s.state === 'importing') return `${s.stage}${s.progress != null ? ` ${Math.round(s.progress * 100)} %` : ''}`;
-  if (s.state === 'readonly') return `Lecture seule. ${s.reason}`;
-  if (s.state === 'error') return `Erreur. ${s.reason}`;
+  if (s.state === 'readonly') return t.readonly(s.reason);
+  if (s.state === 'error') return t.error(s.reason);
   return '';
 }
 
@@ -143,43 +202,35 @@ export function describePaper(p: Paper): string {
   if (p.data.stamp) parts.push(p.data.stamp.label);
   if (p.kind === 'form') {
     const st = p.data.formStats;
-    parts.push(p.data.form?.publication ? `${st?.accepted ?? 0} réponses${st?.held ? `, ${st.held} à vérifier` : ''}` : 'brouillon');
+    parts.push(p.data.form?.publication ? t.responses(st?.accepted ?? 0, st?.held ?? 0) : t.draft);
   }
   const st = statusText(p);
   if (st) parts.push(st);
   return parts.join(', ');
 }
 
+/** « Document sans titre », « Note »…: the title of a new paper of this kind. */
+export const blankTitle = (kind: PaperKind): string => t.untitled[kind];
+
 let counter = 0;
 export const uid = (prefix = 'p') => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
 export function blankPaper(kind: PaperKind, at: { x: number; y: number }): Paper {
   const size = PAPER_SIZE[kind];
-  const titles: Record<PaperKind, string> = {
-    document: 'Document sans titre',
-    slides: 'Présentation sans titre',
-    spreadsheet: 'Tableur sans titre',
-    note: 'Note',
-    pdf: 'PDF',
-    image: 'Image',
-    file: 'Fichier',
-    form: 'Formulaire sans titre',
-    gallery: 'Galerie sans titre',
-  };
   const preview: Preview =
     kind === 'document'
-      ? { kind: 'document', blocks: [{ type: 'heading', text: 'Titre' }, { type: 'paragraph', text: '' }] }
+      ? { kind: 'document', blocks: [{ type: 'heading', text: t.heading }, { type: 'paragraph', text: '' }] }
       : kind === 'slides'
         ? { kind: 'slides', slides: [] }
         : kind === 'spreadsheet'
-          ? { kind: 'spreadsheet', sheets: ['Feuille 1'], rows: [['', ''], ['', '']] }
+          ? { kind: 'spreadsheet', sheets: [FIRST_SHEET], rows: [['', ''], ['', '']] }
           : kind === 'note'
             ? { kind: 'note', text: '' }
             : { kind: 'unsupported' };
   return {
     id: uid(),
     kind,
-    title: titles[kind],
+    title: blankTitle(kind),
     x: at.x - size.w / 2,
     y: at.y - size.h / 2,
     w: size.w,

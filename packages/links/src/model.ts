@@ -1,5 +1,6 @@
 /** Revisions, states, cycles and the words for them (Figma G1, G3, G6, G7). */
 import type { Carries, CellStyleEdit, LinkDef, LinkedTable, LinkMode, LinkState, LinkTheme, LocalEdit, Overflow, SourceRef } from './types';
+import { locale, messages } from '@oel/i18n';
 
 // ---------------------------------------------------------------------------
 // Revision: a hash of the source content a copy shows
@@ -83,47 +84,85 @@ export function createsCycle(edges: Iterable<{ from: string; to: string }>, from
 }
 
 // ---------------------------------------------------------------------------
-// Words (fr-CA)
+// Words (fr-CA or English, @oel/i18n)
 // ---------------------------------------------------------------------------
 
-export const MODE_LABEL: Record<LinkMode, string> = { live: 'En direct', manual: 'Manuel', frozen: 'Figé' };
+const t = messages(
+  {
+    mode: { live: 'En direct', manual: 'Manuel', frozen: 'Figé' } as Record<LinkMode, string>,
+    modeHint: {
+      live: 'Suit chaque changement de la source, en moins d’une seconde.',
+      manual: 'Signale les changements, puis met à jour sur demande.',
+      frozen: 'Ne change plus jamais (une photo de la source).',
+    } as Record<LinkMode, string>,
+    carries: { chart: 'Graphique et style', 'chart-data': 'Données seulement', picture: 'Image', table: 'Tableau', value: 'Valeur' } as Record<Carries, string>,
+    theme: { source: 'Thème du tableur', target: 'Thème du document' } as Record<LinkTheme, string>,
+    overflow: { truncate: 'Tronquer', all: 'Tout afficher', rows: 'Choisir les lignes…' } as Record<Overflow, string>,
+    state: { fresh: 'À jour', stale: 'En retard', updating: 'Mise à jour…', frozen: 'Figé', broken: 'Rompu', waiting: 'En attente' } as Record<LinkState, string>,
+    what: { chart: 'graphique', range: 'tableau', cell: 'valeur', image: 'image' } as Record<SourceRef['kind'], string>,
+    accessRemoved: 'Accès retiré',
+    sourceDeleted: 'Source supprimée',
+    frozenOn: (date: string) => `Figé · ${date}`,
+    waiting: 'En attente de la source',
+    justNow: 'à l’instant',
+    minutes: (m: number) => `il y a ${m} min`,
+    hours: (h: number) => `il y a ${h} h`,
+    on: (date: string) => `le ${date}`,
+    prop: { fill: 'Fond', bold: 'Gras', italic: 'Italique', color: 'Couleur du texte' } as Record<CellStyleEdit['prop'], string>,
+    removed: (prop: string) => `${prop} retiré`,
+  },
+  {
+    mode: { live: 'Live', manual: 'Manual', frozen: 'Frozen' },
+    modeHint: {
+      live: 'Follows every change of the source, in under a second.',
+      manual: 'Flags changes, then updates on request.',
+      frozen: 'Never changes again (a snapshot of the source).',
+    },
+    carries: { chart: 'Chart and style', 'chart-data': 'Data only', picture: 'Image', table: 'Table', value: 'Value' },
+    theme: { source: 'Spreadsheet theme', target: 'Document theme' },
+    overflow: { truncate: 'Truncate', all: 'Show all', rows: 'Choose rows…' },
+    state: { fresh: 'Up to date', stale: 'Out of date', updating: 'Updating…', frozen: 'Frozen', broken: 'Broken', waiting: 'Waiting' },
+    what: { chart: 'chart', range: 'table', cell: 'value', image: 'image' },
+    accessRemoved: 'Access removed',
+    sourceDeleted: 'Source deleted',
+    frozenOn: (date) => `Frozen · ${date}`,
+    waiting: 'Waiting for the source',
+    justNow: 'just now',
+    minutes: (m) => `${m} min ago`,
+    hours: (h) => `${h} h ago`,
+    on: (date) => `on ${date}`,
+    prop: { fill: 'Fill', bold: 'Bold', italic: 'Italic', color: 'Text colour' },
+    removed: (prop) => `${prop} removed`,
+  },
+);
 
-export const MODE_HINT: Record<LinkMode, string> = {
-  live: 'Suit chaque changement de la source, en moins d’une seconde.',
-  manual: 'Signale les changements, puis met à jour sur demande.',
-  frozen: 'Ne change plus jamais (une photo de la source).',
-};
+export const MODE_LABEL: Record<LinkMode, string> = t.mode;
 
-export const CARRIES_LABEL: Record<Carries, string> = { chart: 'Graphique et style', 'chart-data': 'Données seulement', picture: 'Image', table: 'Tableau', value: 'Valeur' };
+export const MODE_HINT: Record<LinkMode, string> = t.modeHint;
 
-export const THEME_LABEL: Record<LinkTheme, string> = { source: 'Thème du tableur', target: 'Thème du document' };
+export const CARRIES_LABEL: Record<Carries, string> = t.carries;
 
-export const OVERFLOW_LABEL: Record<Overflow, string> = { truncate: 'Tronquer', all: 'Tout afficher', rows: 'Choisir les lignes…' };
+export const THEME_LABEL: Record<LinkTheme, string> = t.theme;
+
+export const OVERFLOW_LABEL: Record<Overflow, string> = t.overflow;
 
 /** What a source kind carries when nothing else is said. */
 export function defaultCarries(ref: SourceRef): Carries {
   return ref.kind === 'chart' ? 'chart' : ref.kind === 'image' ? 'picture' : ref.kind === 'cell' ? 'value' : 'table';
 }
 
-export const STATE_LABEL: Record<LinkState, string> = {
-  fresh: 'À jour',
-  stale: 'En retard',
-  updating: 'Mise à jour…',
-  frozen: 'Figé',
-  broken: 'Rompu',
-  waiting: 'En attente',
-};
+export const STATE_LABEL: Record<LinkState, string> = t.state;
 
-const WHAT: Record<SourceRef['kind'], string> = { chart: 'graphique', range: 'tableau', cell: 'valeur', image: 'image' };
+const WHAT: Record<SourceRef['kind'], string> = t.what;
 
-export const shortDate = (at: number) => new Date(at).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' });
+export const shortDate = (at: number) => new Date(at).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
 /** The chip on a thread (Figma G1): « À jour · graphique », « Figé · 3 oct. », « Source supprimée ». */
 export function chipLabel(def: LinkDef, state: LinkState): string {
-  if (state === 'broken') return def.broken?.reason === 'access' ? 'Accès retiré' : 'Source supprimée';
-  if (state === 'updating') return 'Mise à jour…';
-  if (state === 'frozen') return `Figé · ${shortDate(def.snapshot.at)}`;
-  if (state === 'waiting') return 'En attente de la source';
+  if (state === 'broken') return def.broken?.reason === 'access' ? t.accessRemoved : t.sourceDeleted;
+  if (state === 'updating') return STATE_LABEL.updating;
+  if (state === 'frozen') return t.frozenOn(shortDate(def.snapshot.at));
+  if (state === 'waiting') return t.waiting;
   return `${STATE_LABEL[state]} · ${WHAT[def.source.ref.kind]}`;
 }
 
@@ -135,12 +174,12 @@ export function fullLabel(def: LinkDef, targetTitle: string): string {
 /** « il y a 2 min », « il y a 3 h », « le 3 oct. ». */
 export function ago(at: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - at) / 1000));
-  if (s < 45) return 'à l’instant';
+  if (s < 45) return t.justNow;
   const m = Math.round(s / 60);
-  if (m < 60) return `il y a ${m} min`;
+  if (m < 60) return t.minutes(m);
   const h = Math.round(m / 60);
-  if (h < 24) return `il y a ${h} h`;
-  return `le ${shortDate(at)}`;
+  if (h < 24) return t.hours(h);
+  return t.on(shortDate(at));
 }
 
 // ---------------------------------------------------------------------------
@@ -179,10 +218,10 @@ export function applyCellEdits(table: LinkedTable, edits: LocalEdit[] | undefine
   return { ...table, rows };
 }
 
-const PROP_LABEL: Record<CellStyleEdit['prop'], string> = { fill: 'Fond', bold: 'Gras', italic: 'Italique', color: 'Couleur du texte' };
+const PROP_LABEL: Record<CellStyleEdit['prop'], string> = t.prop;
 
 /** « Fond #FFF4D6 · Total, T2 », « Gras retiré · Salaires, T1 ». */
 export function cellEditLabel(e: CellStyleEdit, where: string): string {
-  const what = e.prop === 'bold' || e.prop === 'italic' ? `${PROP_LABEL[e.prop]}${e.value ? '' : ' retiré'}` : e.value ? `${PROP_LABEL[e.prop]} ${e.value}` : `${PROP_LABEL[e.prop]} retiré`;
+  const what = e.prop === 'bold' || e.prop === 'italic' ? (e.value ? PROP_LABEL[e.prop] : t.removed(PROP_LABEL[e.prop])) : e.value ? `${PROP_LABEL[e.prop]} ${e.value}` : t.removed(PROP_LABEL[e.prop]);
   return `${what} · ${where}`;
 }

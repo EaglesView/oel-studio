@@ -13,6 +13,43 @@ import {
   readingOrder,
 } from './geometry';
 import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, ResizeMode, Vec, Viewport, ZoomLimits } from './types';
+import { messages } from '@oel/i18n';
+
+/** Undo step names (« Annulé : Déplacement »), in the interface language. */
+const t = messages(
+  {
+    attach: 'Collage',
+    detach: 'Décollage',
+    parent: 'Rangement dans un dossier',
+    unparent: 'Sortie du dossier',
+    resize: 'Redimensionnement',
+    add: (title: string) => `Ajout de ${title}`,
+    addMany: (n: number) => `Ajout de ${n} fichiers`,
+    edit: 'Modification',
+    remove: 'Suppression',
+    removeMany: (n: number) => `Suppression de ${n} fichiers`,
+    move: 'Déplacement',
+    align: 'Alignement',
+    arrange: 'Rangement',
+    links: 'Liens',
+  },
+  {
+    attach: 'Stick',
+    detach: 'Unstick',
+    parent: 'Put in a folder',
+    unparent: 'Take out of the folder',
+    resize: 'Resize',
+    add: (title) => `Add ${title}`,
+    addMany: (n) => `Add ${n} files`,
+    edit: 'Edit',
+    remove: 'Delete',
+    removeMany: (n) => `Delete ${n} files`,
+    move: 'Move',
+    align: 'Align',
+    arrange: 'Arrange',
+    links: 'Links',
+  },
+);
 
 /** Smallest side a resize leaves (world px). */
 export const MIN_NODE_SIZE = 48;
@@ -154,7 +191,7 @@ export class DeskStore<D = unknown> {
    * Stick `id` to `to`, at `at` (world top-left; default: where it is). Drawn
    * just above its target. Returns false when not allowed (see `canAttach`).
    */
-  attach(id: string, to: string, at?: Vec, { label = 'Collage' } = {}): boolean {
+  attach(id: string, to: string, at?: Vec, { label = t.attach } = {}): boolean {
     if (!this.canAttach(id, to)) return false;
     this.commit(label, () => {
       const n = this.state.nodes[id]!;
@@ -169,7 +206,7 @@ export class DeskStore<D = unknown> {
   }
 
   /** Unstick nodes where they are. Returns the ids that were attached. */
-  detach(ids: string[], { label = 'Décollage', history = true } = {}): string[] {
+  detach(ids: string[], { label = t.detach, history = true } = {}): string[] {
     const hit = ids.filter((id) => this.state.nodes[id]?.attach);
     if (!hit.length) return [];
     const run = () => {
@@ -204,7 +241,7 @@ export class DeskStore<D = unknown> {
    * Put nodes inside `container` (or take them out with `null`), where they are on the desk.
    * Returns the ids that changed. Runs inside a gesture's undo step when one is open.
    */
-  setParent(ids: string[], container: string | null, { label = container ? 'Rangement dans un dossier' : 'Sortie du dossier' } = {}): string[] {
+  setParent(ids: string[], container: string | null, { label = container ? t.parent : t.unparent } = {}): string[] {
     const { nodes } = this.state;
     const c = container ? nodes[container] : null;
     const hit = ids.filter((id) => (container ? this.canParent(id, container) && nodes[id]!.parent?.id !== container : !!nodes[id]?.parent));
@@ -284,7 +321,7 @@ export class DeskStore<D = unknown> {
 
   /** One-step resize (keyboard, toolbar). */
   resize(id: string, r: Rect, opts: { mode?: ResizeMode; min?: number; label?: string } = {}) {
-    this.commit(opts.label ?? 'Redimensionnement', () => this.resizeTo(id, r, opts));
+    this.commit(opts.label ?? t.resize, () => this.resizeTo(id, r, opts));
   }
 
   /* ── history ──────────────────────────────────────────────────── */
@@ -353,7 +390,7 @@ export class DeskStore<D = unknown> {
   /* ── nodes ────────────────────────────────────────────────────── */
 
   add(nodes: DeskNode<D>[], { select = true } = {}) {
-    this.commit(nodes.length > 1 ? `Ajout de ${nodes.length} fichiers` : `Ajout de ${nodes[0]?.title}`, () => {
+    this.commit(nodes.length > 1 ? t.addMany(nodes.length) : t.add(nodes[0]?.title ?? ''), () => {
       let map = { ...this.state.nodes };
       for (const n of nodes) map[n.id] = n;
       map = settle(map);
@@ -366,7 +403,7 @@ export class DeskStore<D = unknown> {
   }
 
   /** Patch nodes. Pass `history: false` for live updates (progress, engine results). */
-  update(id: string, patch: Partial<DeskNode<D>>, { history = true, label = 'Modification' } = {}) {
+  update(id: string, patch: Partial<DeskNode<D>>, { history = true, label = t.edit } = {}) {
     const run = () => {
       const n = this.state.nodes[id];
       if (!n) return;
@@ -391,7 +428,7 @@ export class DeskStore<D = unknown> {
   remove(ids: string[]): string[] {
     if (ids.length === 0) return [];
     const freed: string[] = [];
-    this.commit(ids.length > 1 ? `Suppression de ${ids.length} fichiers` : 'Suppression', () => {
+    this.commit(ids.length > 1 ? t.removeMany(ids.length) : t.remove, () => {
       const map = { ...this.state.nodes };
       for (const id of ids) delete map[id];
       for (const [id, n] of Object.entries(map)) {
@@ -438,7 +475,7 @@ export class DeskStore<D = unknown> {
 
   /** Keyboard nudge — one undo step per press. */
   nudge(ids: string[], d: Vec) {
-    this.commit('Déplacement', () => this.moveBy(ids, d));
+    this.commit(t.move, () => this.moveBy(ids, d));
   }
 
   /** Raise nodes (with what is stuck to them) above the rest. */
@@ -452,7 +489,7 @@ export class DeskStore<D = unknown> {
     ids = this.free(ids);
     const b = this.bounds(ids);
     if (!b || ids.length < 2) return;
-    this.commit('Alignement', () => {
+    this.commit(t.align, () => {
       const map = { ...this.state.nodes };
       for (const id of ids) {
         const n = map[id];
@@ -471,7 +508,7 @@ export class DeskStore<D = unknown> {
     const list = readingOrder(this.free(ids).map((id) => this.state.nodes[id]).filter((n): n is DeskNode<D> => !!n));
     const first = list[0];
     if (!first || list.length < 2) return;
-    this.commit('Rangement', () => {
+    this.commit(t.arrange, () => {
       const map = { ...this.state.nodes };
       let x = first.x;
       for (const n of list) {
@@ -490,7 +527,7 @@ export class DeskStore<D = unknown> {
   /* ── links ────────────────────────────────────────────────────── */
 
   /** Replace the threads. `history: false` for threads derived from elsewhere (they are not the person's edits). */
-  setLinks(links: DeskLink[], label = 'Liens', { history = true } = {}) {
+  setLinks(links: DeskLink[], label = t.links, { history = true } = {}) {
     if (history) this.commit(label, () => this.set({ links }));
     else this.set({ links });
   }

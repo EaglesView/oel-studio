@@ -22,6 +22,8 @@ import {
 } from 'react-aria-components';
 import { Icon, type IconName } from '../icons/Icon';
 import { cx } from '../utils';
+import { keyLabel } from '../keys';
+import { tr } from '@oel/i18n';
 
 export { DialogTrigger, MenuTrigger, SubmenuTrigger };
 
@@ -84,7 +86,7 @@ export function SheetDialog({ title, children, actions, tone = 'default', width 
             <Heading slot="title" className="emb-t-dialog-title emb-dialog__title">
               {title}
             </Heading>
-            <RACButton className="emb-button emb-button--ghost emb-button--icon-sm" aria-label="Fermer" onPress={close}>
+            <RACButton className="emb-button emb-button--ghost emb-button--icon-sm" aria-label={tr('Fermer', 'Close')} onPress={close}>
               <Icon name="close" size={18} />
             </RACButton>
           </header>
@@ -132,7 +134,7 @@ export function MenuItem({
         <>
           {icon && <Icon name={icon} size={18} />}
           <span className="emb-menu-item__label">{content}</span>
-          {shortcut && <kbd>{shortcut}</kbd>}
+          {shortcut && <kbd>{keyLabel(shortcut)}</kbd>}
           {hasSubmenu && <Icon name="chevron-right" size={16} className="emb-menu-item__submenu" />}
         </>
       ))}

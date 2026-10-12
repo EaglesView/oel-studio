@@ -4,14 +4,15 @@ import { DEFAULT_STYLE, SheetSession, parseInput, type Cell, type ExportRequest,
 import { asWorkbookPayload } from '@oel/engine';
 import { collabApi, identity } from './docs';
 import { engineHost } from './importFiles';
-import type { Bureau, Paper } from './model';
+import { FIRST_SHEET, type Bureau, type Paper } from './model';
+import { namedWorker } from '../lang';
 
-export const createCalcWorker = () => new CalcWorker();
+export const createCalcWorker = () => namedWorker(CalcWorker, 'oel-calc');
 
 const sessions = new Map<string, Promise<SheetSession>>();
 
 /** A workbook from the desk preview rows (papers seeded on the desk, sheets made by forms). */
-export function workbookFromRows(rows: string[][], tab = 'Feuille 1'): Workbook {
+export function workbookFromRows(rows: string[][], tab = FIRST_SHEET): Workbook {
   const cells: Cell[] = [];
   rows.forEach((row, r) =>
     row.forEach((text, c) => {
@@ -21,7 +22,7 @@ export function workbookFromRows(rows: string[][], tab = 'Feuille 1'): Workbook 
       else if (p.t) cells.push({ r, c, t: p.t, v: p.v });
     }),
   );
-  return { sheets: [{ id: 'xl/worksheets/sheet1.xml', name: tab.slice(0, 31) || 'Feuille 1', cells }], styles: [DEFAULT_STYLE], baseStyles: 1, source: 'new' };
+  return { sheets: [{ id: 'xl/worksheets/sheet1.xml', name: tab.slice(0, 31) || FIRST_SHEET, cells }], styles: [DEFAULT_STYLE], baseStyles: 1, source: 'new' };
 }
 
 /** Create the shared workbook for an imported .xlsx/.csv; returns its id. */
@@ -38,7 +39,7 @@ export function sheetSessionFor(paper: Paper, onCreated: (docId: string) => void
   if (known) return known;
   const p = (async () => {
     if (paper.data.docId) return SheetSession.open({ docId: paper.data.docId, api: collabApi, identity: identity() });
-    const pv = paper.data.preview.kind === 'spreadsheet' ? paper.data.preview : { sheets: ['Feuille 1'], rows: [] as string[][] };
+    const pv = paper.data.preview.kind === 'spreadsheet' ? paper.data.preview : { sheets: [FIRST_SHEET], rows: [] as string[][] };
     const s = await SheetSession.create({ api: collabApi, identity: identity(), seed: { workbook: workbookFromRows(pv.rows, pv.sheets[0]), title: paper.title } });
     onCreated(s.status.docId);
     return s;
@@ -94,7 +95,7 @@ export async function paperRows(paper: Paper): Promise<string[][]> {
 
 /** Replace a spreadsheet paper's rows (workbook and desk thumbnail). */
 export async function setPaperRows(store: Bureau, paper: Paper, rows: string[][], flash?: { label: string; at: number }) {
-  const pv = paper.data.preview.kind === 'spreadsheet' ? paper.data.preview : { kind: 'spreadsheet' as const, sheets: ['Feuille 1'], rows: [] };
+  const pv = paper.data.preview.kind === 'spreadsheet' ? paper.data.preview : { kind: 'spreadsheet' as const, sheets: [FIRST_SHEET], rows: [] };
   if (paper.data.docId) writeSheetRows(await sheetSessionFor(paper, () => {}), rows);
   const current = store.node(paper.id) as Paper | undefined;
   if (!current) return;

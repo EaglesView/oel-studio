@@ -7,9 +7,10 @@
  */
 import type { Capability, ExportOptions, FromImage, GpuPreference, Raster, ToImage } from './protocol';
 import { outputSize, type Recipe } from './recipe';
+import { tr } from '@oel/i18n';
 
 /** Shown in the atelier when nothing faster than the CPU is available. */
-export const SLOW_PREVIEW_NOTICE = 'Aperçu ralenti : processeur graphique indisponible';
+export const SLOW_PREVIEW_NOTICE = tr('Aperçu ralenti : processeur graphique indisponible', 'Slower preview: graphics processor unavailable');
 
 export interface Histogram {
   r: Uint32Array;
@@ -44,7 +45,7 @@ export class ImageEngine {
       if (e.data.op === 'error') p.reject(new Error(e.data.message));
       else p.resolve(e.data);
     };
-    worker.onerror = (e) => this.failAll(new Error(e.message || 'Erreur du moteur d’image'));
+    worker.onerror = (e) => this.failAll(new Error(e.message || tr('Erreur du moteur d’image', 'Image engine error')));
   }
 
   static async create(opts: ImageEngineOptions): Promise<ImageEngine> {
@@ -119,6 +120,6 @@ export class ImageEngine {
 
   dispose() {
     this.worker.terminate();
-    this.failAll(new Error('Moteur d’image arrêté'));
+    this.failAll(new Error(tr('Moteur d’image arrêté', 'Image engine stopped')));
   }
 }

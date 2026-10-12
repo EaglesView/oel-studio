@@ -4,6 +4,7 @@
  */
 import { flattenRecipe, isGeometryPath } from './recipeDoc';
 import type { Recipe } from '../recipe';
+import { tr } from '@oel/i18n';
 
 export interface Style {
   id: string;
@@ -12,10 +13,10 @@ export interface Style {
 }
 
 export const BUILTIN_STYLES: Style[] = [
-  { id: 'naturel', label: 'Naturel', recipe: {} },
+  { id: 'naturel', label: tr('Naturel', 'Natural'), recipe: {} },
   {
     id: 'chaud',
-    label: 'Chaud',
+    label: tr('Chaud', 'Warm'),
     recipe: {
       whiteBalance: { tempK: 7600, tint: 6 },
       contrast: 10,
@@ -25,10 +26,10 @@ export const BUILTIN_STYLES: Style[] = [
   },
   {
     id: 'doux',
-    label: 'Doux',
+    label: tr('Doux', 'Soft'),
     recipe: { contrast: -20, highlights: -25, shadows: 25, blacks: 20, presence: { clarity: -15, saturation: -12 } },
   },
-  { id: 'nb', label: 'N&B', recipe: { contrast: 18, presence: { saturation: -100, clarity: 10 } } },
+  { id: 'nb', label: tr('N&B', 'B&W'), recipe: { contrast: 18, presence: { saturation: -100, clarity: 10 } } },
 ];
 
 /** The non-geometry leaves of `r`. */

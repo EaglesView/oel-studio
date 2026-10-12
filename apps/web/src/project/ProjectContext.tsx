@@ -3,6 +3,7 @@ import { createLocalProjectsBackend, type ProjectsBackend, type SettingTarget } 
 import { features } from '../edition';
 import type { Project, ProjectContextValue } from './model';
 import { resolveSetting, type Resolved, type SettingKey, type SettingValue, type SettingValues } from './settings';
+import { tr } from '@oel/i18n';
 
 let backend: ProjectsBackend | null = null;
 
@@ -22,12 +23,24 @@ interface State {
 
 const Ctx = createContext<(State & { backend: ProjectsBackend }) | null>(null);
 
+/**
+ * Names the local backend seeds in French (`backend.ts`), shown in the interface language as long
+ * as nobody renamed them: the seed is written once, before the person picks a language.
+ */
+const SEEDED: Record<string, string> = {
+  'Mon bureau': tr('Mon bureau', 'My desk'),
+  'Lancement automne 2026': tr('Lancement automne 2026', 'Fall 2026 launch'),
+  Vous: tr('Vous', 'You'),
+};
+const shown = <T extends { name: string }>(x: T): T => (SEEDED[x.name] ? { ...x, name: SEEDED[x.name]! } : x);
+
 async function loadState(b: ProjectsBackend, projectId?: string): Promise<State> {
   const id = projectId ?? (await b.currentProjectId());
-  const [p, account] = await Promise.all([b.getProject(id), b.accountSettings()]);
-  if (!p) throw new Error(`Projet introuvable : ${id}`);
+  const [stored, account] = await Promise.all([b.getProject(id), b.accountSettings()]);
+  if (!stored) throw new Error(tr(`Projet introuvable : ${id}`, `Project not found: ${id}`));
+  const p = { ...shown(stored), members: stored.members.map(shown) };
   const me = p.members.find((m) => m.id === b.accountId());
-  if (!me) throw new Error(`Vous n’êtes pas membre de « ${p.name} ».`);
+  if (!me) throw new Error(tr(`Vous n’êtes pas membre de « ${p.name} ».`, `You are not a member of “${p.name}”.`));
   return {
     ctx: { id: p.id, slug: p.slug, name: p.name, role: me.role, me, members: p.members, settings: { account, project: p.settings } },
     fileSettings: p.fileSettings,

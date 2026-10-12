@@ -8,6 +8,7 @@ import type { KeyboardEvent as RKeyboardEvent } from 'react';
 import { Icon, Menu, MenuItem, MenuPopover, MenuSeparator } from '@oel/emboss';
 import { ScaledSlide, type RenderCtx } from './render';
 import type { SlidesController } from './controller';
+import { tr } from '@oel/i18n';
 
 /** Room around a thumbnail in its row: list padding (4 + 12), number column (22), gap (4), border (2 × 2). */
 const AROUND = 46;
@@ -80,7 +81,7 @@ export function Filmstrip({ ctl, ctx, onPresent }: { ctl: SlidesController; ctx:
   };
 
   return (
-    <nav className="oel-film" aria-label="Diapositives">
+    <nav className="oel-film" aria-label={tr('Diapositives', 'Slides')}>
       <ol ref={list} className="oel-film__list" onKeyDown={onKey}>
         {ids.map((id, i) => {
           const s = ctl.doc.slide(id);
@@ -125,14 +126,14 @@ export function Filmstrip({ ctl, ctx, onPresent }: { ctl: SlidesController; ctx:
                 type="button"
                 className="oel-film__button"
                 tabIndex={current ? 0 : -1}
-                aria-label={`Diapositive ${i + 1}${s?.hidden ? ' (masquée)' : ''}`}
+                aria-label={tr(`Diapositive ${i + 1}${s?.hidden ? ' (masquée)' : ''}`, `Slide ${i + 1}${s?.hidden ? ' (hidden)' : ''}`)}
                 onClick={() => ctl.goTo(id)}
                 onDoubleClick={() => onPresent(i)}
               >
                 <Thumb ctl={ctl} id={id} width={thumb} ctx={{ ...ctx, editing: false, editingText: null, slideNumber: i + 1 }} />
               </button>
               {s?.hidden && (
-                <span className="oel-film__hidden" title="Masquée pendant le diaporama">
+                <span className="oel-film__hidden" title={tr('Masquée pendant le diaporama', 'Hidden during the slideshow')}>
                   <Icon name="eye" size={14} />
                 </span>
               )}
@@ -170,20 +171,20 @@ function SlideMenu({ ctl, at, onPresent, onClose }: { ctl: SlidesController; at:
       <span ref={ref} style={{ position: 'fixed', left: at.x, top: at.y }} aria-hidden />
       <MenuPopover triggerRef={ref as RefObject<HTMLSpanElement>} isOpen onOpenChange={(o) => !o && onClose()} placement="bottom start">
         <Menu
-          aria-label="Diapositive"
+          aria-label={tr('Diapositive', 'Slide')}
           autoFocus="first"
           onAction={(k) => (actions[String(k)]?.(), onClose())}
           disabledKeys={ro ? ['new', 'duplicate', 'delete', 'hide', 'up', 'down'] : [...(ids.length < 2 ? ['delete'] : []), ...(i === 0 ? ['up'] : []), ...(i === ids.length - 1 ? ['down'] : [])]}
         >
-          <MenuItem id="new" icon="plus">Nouvelle diapositive</MenuItem>
-          <MenuItem id="duplicate" icon="copy">Dupliquer</MenuItem>
-          <MenuItem id="delete" icon="trash">Supprimer</MenuItem>
+          <MenuItem id="new" icon="plus">{tr('Nouvelle diapositive', 'New slide')}</MenuItem>
+          <MenuItem id="duplicate" icon="copy">{tr('Dupliquer', 'Duplicate')}</MenuItem>
+          <MenuItem id="delete" icon="trash">{tr('Supprimer', 'Delete')}</MenuItem>
           <MenuSeparator />
-          <MenuItem id="hide" icon="eye">{s?.hidden ? 'Afficher pendant le diaporama' : 'Masquer pendant le diaporama'}</MenuItem>
-          <MenuItem id="up" icon="chevron-up">Monter</MenuItem>
-          <MenuItem id="down" icon="chevron-down">Descendre</MenuItem>
+          <MenuItem id="hide" icon="eye">{s?.hidden ? tr('Afficher pendant le diaporama', 'Show during the slideshow') : tr('Masquer pendant le diaporama', 'Hide during the slideshow')}</MenuItem>
+          <MenuItem id="up" icon="chevron-up">{tr('Monter', 'Move up')}</MenuItem>
+          <MenuItem id="down" icon="chevron-down">{tr('Descendre', 'Move down')}</MenuItem>
           <MenuSeparator />
-          <MenuItem id="present" icon="slide">Présenter à partir d’ici</MenuItem>
+          <MenuItem id="present" icon="slide">{tr('Présenter à partir d’ici', 'Present from here')}</MenuItem>
         </Menu>
       </MenuPopover>
     </>

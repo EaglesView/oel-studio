@@ -4,6 +4,7 @@
  */
 import { fieldSpec, leafValue, type Recipe } from '../recipe';
 import type { Display } from './format';
+import { tr } from '@oel/i18n';
 
 export interface SliderControl {
   /** Leaf path (Avancé) or Simple control id. */
@@ -44,11 +45,11 @@ export const kelvinToWarmth = (k: number) => Math.round((MIRED_6500 - 1e6 / k) /
 export const SIMPLE_GROUPS: Array<{ id: string; label: string; controls: SimpleControl[] }> = [
   {
     id: 'lumiere',
-    label: 'Lumière',
+    label: tr('Lumière', 'Light'),
     controls: [
       {
         id: 'luminosite',
-        label: 'Luminosité',
+        label: tr('Luminosité', 'Brightness'),
         min: -2,
         max: 2,
         step: 0.05,
@@ -59,7 +60,7 @@ export const SIMPLE_GROUPS: Array<{ id: string; label: string; controls: SimpleC
       },
       {
         id: 'contraste',
-        label: 'Contraste',
+        label: tr('Contraste', 'Contrast'),
         min: -100,
         max: 100,
         step: 1,
@@ -69,7 +70,7 @@ export const SIMPLE_GROUPS: Array<{ id: string; label: string; controls: SimpleC
       },
       {
         id: 'ombres',
-        label: 'Ombres',
+        label: tr('Ombres', 'Shadows'),
         min: -100,
         max: 100,
         step: 1,
@@ -81,11 +82,11 @@ export const SIMPLE_GROUPS: Array<{ id: string; label: string; controls: SimpleC
   },
   {
     id: 'couleur',
-    label: 'Couleur',
+    label: tr('Couleur', 'Colour'),
     controls: [
       {
         id: 'chaleur',
-        label: 'Chaleur',
+        label: tr('Chaleur', 'Warmth'),
         min: -100,
         max: 100,
         step: 1,
@@ -96,7 +97,7 @@ export const SIMPLE_GROUPS: Array<{ id: string; label: string; controls: SimpleC
       },
       {
         id: 'eclat',
-        label: 'Éclat',
+        label: tr('Éclat', 'Vividness'),
         min: -100,
         max: 100,
         step: 1,
@@ -132,21 +133,21 @@ const plain: Display = {};
 export const ADVANCED_PANELS: Panel[] = [
   {
     id: 'base',
-    label: 'Base',
+    label: tr('Base', 'Basic'),
     open: true,
     body: {
       kind: 'sliders',
       groups: [
         {
           sliders: [
-            s('whiteBalance.tempK', 'Température', { kelvin: true }, 'temp'),
-            s('whiteBalance.tint', 'Teinte', { signed: true }, 'tint'),
-            s('exposure', 'Exposition', { signed: true, digits: 2 }),
-            s('contrast', 'Contraste'),
-            s('highlights', 'Hautes lumières'),
-            s('shadows', 'Ombres'),
-            s('whites', 'Blancs'),
-            s('blacks', 'Noirs'),
+            s('whiteBalance.tempK', tr('Température', 'Temperature'), { kelvin: true }, 'temp'),
+            s('whiteBalance.tint', tr('Teinte', 'Tint'), { signed: true }, 'tint'),
+            s('exposure', tr('Exposition', 'Exposure'), { signed: true, digits: 2 }),
+            s('contrast', tr('Contraste', 'Contrast')),
+            s('highlights', tr('Hautes lumières', 'Highlights')),
+            s('shadows', tr('Ombres', 'Shadows')),
+            s('whites', tr('Blancs', 'Whites')),
+            s('blacks', tr('Noirs', 'Blacks')),
           ],
         },
       ],
@@ -154,7 +155,7 @@ export const ADVANCED_PANELS: Panel[] = [
   },
   {
     id: 'presence',
-    label: 'Présence',
+    label: tr('Présence', 'Presence'),
     open: true,
     body: {
       kind: 'sliders',
@@ -162,8 +163,8 @@ export const ADVANCED_PANELS: Panel[] = [
         {
           sliders: [
             s('presence.texture', 'Texture'),
-            s('presence.clarity', 'Clarté'),
-            s('presence.dehaze', 'Correction du voile'),
+            s('presence.clarity', tr('Clarté', 'Clarity')),
+            s('presence.dehaze', tr('Correction du voile', 'Dehaze')),
             s('presence.vibrance', 'Vibrance'),
             s('presence.saturation', 'Saturation'),
           ],
@@ -171,73 +172,73 @@ export const ADVANCED_PANELS: Panel[] = [
       ],
     },
   },
-  { id: 'curve', label: 'Courbe des tonalités', body: { kind: 'curve' } },
-  { id: 'hsl', label: 'Mélangeur de couleurs (TSL)', body: { kind: 'hsl' } },
-  { id: 'grading', label: 'Étalonnage des couleurs', body: { kind: 'grading' } },
+  { id: 'curve', label: tr('Courbe des tonalités', 'Tone curve'), body: { kind: 'curve' } },
+  { id: 'hsl', label: tr('Mélangeur de couleurs (TSL)', 'Colour mixer (HSL)'), body: { kind: 'hsl' } },
+  { id: 'grading', label: tr('Étalonnage des couleurs', 'Colour grading'), body: { kind: 'grading' } },
   {
     id: 'detail',
-    label: 'Détail (netteté, bruit)',
+    label: tr('Détail (netteté, bruit)', 'Detail (sharpening, noise)'),
     body: {
       kind: 'sliders',
       groups: [
         {
-          label: 'Netteté',
+          label: tr('Netteté', 'Sharpening'),
           sliders: [
-            s('detail.sharpen.amount', 'Quantité', plain),
-            s('detail.sharpen.radius', 'Rayon', { digits: 1 }),
-            s('detail.sharpen.detail', 'Détail', plain),
-            s('detail.sharpen.masking', 'Masquage', plain),
+            s('detail.sharpen.amount', tr('Quantité', 'Amount'), plain),
+            s('detail.sharpen.radius', tr('Rayon', 'Radius'), { digits: 1 }),
+            s('detail.sharpen.detail', tr('Détail', 'Detail'), plain),
+            s('detail.sharpen.masking', tr('Masquage', 'Masking'), plain),
           ],
         },
-        { label: 'Réduction du bruit', sliders: [s('detail.noise.luma', 'Luminance', plain), s('detail.noise.color', 'Couleur', plain)] },
+        { label: tr('Réduction du bruit', 'Noise reduction'), sliders: [s('detail.noise.luma', 'Luminance', plain), s('detail.noise.color', tr('Couleur', 'Colour'), plain)] },
       ],
     },
   },
-  { id: 'geometry', label: 'Optique et géométrie', body: { kind: 'geometry' } },
+  { id: 'geometry', label: tr('Optique et géométrie', 'Optics and geometry'), body: { kind: 'geometry' } },
   {
     id: 'effects',
-    label: 'Effets (vignette, grain)',
+    label: tr('Effets (vignette, grain)', 'Effects (vignette, grain)'),
     body: {
       kind: 'sliders',
       groups: [
         {
           label: 'Vignette',
           sliders: [
-            s('effects.vignette.amount', 'Quantité'),
-            s('effects.vignette.midpoint', 'Point milieu', plain),
-            s('effects.vignette.roundness', 'Rondeur'),
-            s('effects.vignette.feather', 'Contour progressif', plain),
+            s('effects.vignette.amount', tr('Quantité', 'Amount')),
+            s('effects.vignette.midpoint', tr('Point milieu', 'Midpoint'), plain),
+            s('effects.vignette.roundness', tr('Rondeur', 'Roundness')),
+            s('effects.vignette.feather', tr('Contour progressif', 'Feather'), plain),
           ],
         },
         {
           label: 'Grain',
-          sliders: [s('effects.grain.amount', 'Quantité', plain), s('effects.grain.size', 'Taille', plain), s('effects.grain.roughness', 'Rugosité', plain)],
+          sliders: [s('effects.grain.amount', tr('Quantité', 'Amount'), plain), s('effects.grain.size', tr('Taille', 'Size'), plain), s('effects.grain.roughness', tr('Rugosité', 'Roughness'), plain)],
         },
       ],
     },
   },
-  { id: 'masks', label: 'Masques', body: { kind: 'soon', text: 'Pinceau, dégradés, sujet et ciel : bientôt.' } },
+  { id: 'masks', label: tr('Masques', 'Masks'), body: { kind: 'soon', text: tr('Pinceau, dégradés, sujet et ciel : bientôt.', 'Brush, gradients, subject and sky: coming soon.') } },
 ];
 
 export const HSL_BANDS: Array<{ id: string; label: string; color: string }> = [
-  { id: 'red', label: 'Rouge', color: '#d8433b' },
+  { id: 'red', label: tr('Rouge', 'Red'), color: '#d8433b' },
   { id: 'orange', label: 'Orange', color: '#e98a2f' },
-  { id: 'yellow', label: 'Jaune', color: '#e3c53a' },
-  { id: 'green', label: 'Vert', color: '#4fa64a' },
-  { id: 'aqua', label: 'Turquoise', color: '#3cb3b0' },
-  { id: 'blue', label: 'Bleu', color: '#3f6fd1' },
-  { id: 'purple', label: 'Violet', color: '#7d55c7' },
+  { id: 'yellow', label: tr('Jaune', 'Yellow'), color: '#e3c53a' },
+  { id: 'green', label: tr('Vert', 'Green'), color: '#4fa64a' },
+  { id: 'aqua', label: tr('Turquoise', 'Aqua'), color: '#3cb3b0' },
+  { id: 'blue', label: tr('Bleu', 'Blue'), color: '#3f6fd1' },
+  { id: 'purple', label: tr('Violet', 'Purple'), color: '#7d55c7' },
   { id: 'magenta', label: 'Magenta', color: '#c84aa8' },
 ];
 
 export const HSL_ASPECTS: Array<{ id: 'hue' | 'sat' | 'lum'; label: string }> = [
-  { id: 'hue', label: 'Teinte' },
+  { id: 'hue', label: tr('Teinte', 'Hue') },
   { id: 'sat', label: 'Saturation' },
   { id: 'lum', label: 'Luminance' },
 ];
 
 export const GRADING_WHEELS: Array<{ id: 'shadows' | 'midtones' | 'highlights'; label: string }> = [
-  { id: 'shadows', label: 'Ombres' },
-  { id: 'midtones', label: 'Tons moyens' },
-  { id: 'highlights', label: 'Hautes lumières' },
+  { id: 'shadows', label: tr('Ombres', 'Shadows') },
+  { id: 'midtones', label: tr('Tons moyens', 'Midtones') },
+  { id: 'highlights', label: tr('Hautes lumières', 'Highlights') },
 ];

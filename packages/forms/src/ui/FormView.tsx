@@ -3,6 +3,7 @@ import { Checkbox, CheckboxGroup, Label, Text } from 'react-aria-components';
 import { Icon, Radio, RadioGroup, Select, SelectItem, TextField, cx } from '@oel/emboss';
 import { accentVars } from '../model/contrast';
 import type { AnswerValue, Appearance, Choice, FormDef, Question } from '../model/types';
+import { tr } from '@oel/i18n';
 
 /** Root style of a form surface: accent variables + title font (E5 · Personnalisable). */
 export function formStyle(a: Appearance): CSSProperties {
@@ -38,11 +39,11 @@ export function FormCover({
     <header className={cx('form-cover', a.titleFont === 'noto-serif' && 'is-serif')}>
       <div className="form-cover__band" style={a.coverUrl ? { backgroundImage: `url(${a.coverUrl})` } : undefined}>
         <span className="form-cover__logo" aria-hidden={!a.logoUrl}>
-          {a.logoUrl ? <img src={a.logoUrl} alt={`Logo · ${form.organiser || form.title}`} /> : initialsOf(form.organiser || form.title)}
+          {a.logoUrl ? <img src={a.logoUrl} alt={tr(`Logo · ${form.organiser || form.title}`, `Logo · ${form.organiser || form.title}`)} /> : initialsOf(form.organiser || form.title)}
         </span>
       </div>
       <div className="form-cover__intro">
-        {titleSlot ?? <H className="form-cover__title">{form.title || 'Formulaire sans titre'}</H>}
+        {titleSlot ?? <H className="form-cover__title">{form.title || tr('Formulaire sans titre', 'Untitled form')}</H>}
         {subtitle && <p className="form-cover__subtitle">{subtitle}</p>}
         {descriptionSlot ?? (form.description ? <p className="form-cover__desc">{form.description}</p> : null)}
       </div>
@@ -56,9 +57,9 @@ export function FormFooter({ organiser }: { organiser: string }) {
     <footer className="form-footer">
       <Icon name="form" size={14} />
       <span>
-        Propulsé par <a href="/">OutilsEnLigne</a> · Les réponses vont à {organiser ? <strong>{organiser}</strong> : 'l’organisateur'} ·{' '}
+        {tr('Propulsé par', 'Powered by')} <a href="/">OutilsEnLigne</a> · {tr('Les réponses vont à', 'Responses go to')} {organiser ? <strong>{organiser}</strong> : tr('l’organisateur', 'the organizer')} ·{' '}
         {/* TODO(backend): real privacy page and abuse report endpoint (with the form slug). */}
-        <a href="/confidentialite">Confidentialité</a> · <a href="mailto:abus@outilsenligne.ca?subject=Signaler%20un%20formulaire">Signaler un abus</a>
+        <a href="/confidentialite">{tr('Confidentialité', 'Privacy')}</a> · <a href="mailto:abus@outilsenligne.ca?subject=Signaler%20un%20formulaire">{tr('Signaler un abus', 'Report abuse')}</a>
       </span>
     </footer>
   );
@@ -95,7 +96,7 @@ export interface QuestionFieldProps {
 export function QuestionField({ question: q, value, onChange, onBlur, error, isDisabled, other, onOtherChange, renderFile }: QuestionFieldProps) {
   const label = (
     <>
-      {q.title || 'Question sans titre'}
+      {q.title || tr('Question sans titre', 'Untitled question')}
       {q.required && (
         <span className="form-required" aria-hidden>
           {' '}*
@@ -183,10 +184,10 @@ export function QuestionField({ question: q, value, onChange, onBlur, error, isD
                 {choiceLabel(c)}
               </Radio>
             ))}
-            {q.allowOther && <Radio value={OTHER}>Autre</Radio>}
+            {q.allowOther && <Radio value={OTHER}>{tr('Autre', 'Other')}</Radio>}
           </RadioGroup>
           {q.allowOther && str === OTHER && (
-            <TextField aria-label="Précisez « Autre »" placeholder="Précisez" value={other ?? ''} onChange={onOtherChange} isDisabled={isDisabled} className="form-q__other" />
+            <TextField aria-label={tr('Précisez « Autre »', 'Specify “Other”')} placeholder={tr('Précisez', 'Specify')} value={other ?? ''} onChange={onOtherChange} isDisabled={isDisabled} className="form-q__other" />
           )}
           {error && (
             <span id={`${fieldId}-err`} className="emb-field__error">
@@ -213,14 +214,14 @@ export function QuestionField({ question: q, value, onChange, onBlur, error, isD
               {choiceLabel(c)}
             </KitCheckbox>
           ))}
-          {q.allowOther && <KitCheckbox value={OTHER}>Autre</KitCheckbox>}
+          {q.allowOther && <KitCheckbox value={OTHER}>{tr('Autre', 'Other')}</KitCheckbox>}
           {q.help && (
             <Text slot="description" className="emb-field__helper">
               {q.help}
             </Text>
           )}
           {q.allowOther && arr.includes(OTHER) && (
-            <TextField aria-label="Précisez « Autre »" placeholder="Précisez" value={other ?? ''} onChange={onOtherChange} isDisabled={isDisabled} className="form-q__other" />
+            <TextField aria-label={tr('Précisez « Autre »', 'Specify “Other”')} placeholder={tr('Précisez', 'Specify')} value={other ?? ''} onChange={onOtherChange} isDisabled={isDisabled} className="form-q__other" />
           )}
           {error && (
             <span id={`${fieldId}-err`} className="emb-field__error">
@@ -237,17 +238,17 @@ export function QuestionField({ question: q, value, onChange, onBlur, error, isD
             {...common}
             label={label}
             description={q.help}
-            placeholder="Choisir…"
+            placeholder={tr('Choisir…', 'Choose…')}
             selectedKey={str || null}
             onSelectionChange={(k) => onChange(k == null ? null : String(k))}
             onBlur={onBlur}
             disabledKeys={choices.filter((c) => c.remaining === 0).map((c) => c.id)}
             validationBehavior="aria"
           >
-            {[...choices.map((c) => <SelectItem key={c.id} id={c.id}>{choiceLabel(c)}</SelectItem>), ...(q.allowOther ? [<SelectItem key={OTHER} id={OTHER}>Autre</SelectItem>] : [])]}
+            {[...choices.map((c) => <SelectItem key={c.id} id={c.id}>{choiceLabel(c)}</SelectItem>), ...(q.allowOther ? [<SelectItem key={OTHER} id={OTHER}>{tr('Autre', 'Other')}</SelectItem>] : [])]}
           </Select>
           {q.allowOther && str === OTHER && (
-            <TextField aria-label="Précisez « Autre »" placeholder="Précisez" value={other ?? ''} onChange={onOtherChange} isDisabled={isDisabled} className="form-q__other" />
+            <TextField aria-label={tr('Précisez « Autre »', 'Specify “Other”')} placeholder={tr('Précisez', 'Specify')} value={other ?? ''} onChange={onOtherChange} isDisabled={isDisabled} className="form-q__other" />
           )}
           {error && <span className="emb-field__error">{error}</span>}
         </div>

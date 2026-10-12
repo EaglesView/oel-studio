@@ -11,6 +11,7 @@ import { adoptCopy, linkClip, linkHost, linksOf, newLinkId, pictureBytes, pictur
 import { setLevel, setParaProps, setRunProps } from '../model/text';
 import { emu, pt, type Element, type Line, type Paint, type ParaProps, type RunProps, type TextBody } from '../model/types';
 import type { SlideSession } from '../collab/session';
+import { tr } from '@oel/i18n';
 
 /** Recipe of a retouched picture (`oel-img-recipe@1`, see @oel/img). */
 type Recipe = Record<string, unknown>;
@@ -210,7 +211,7 @@ export class SlidesController {
     copy.elements = copy.elements.map((e) => (linked.has(e.id) ? { ...e, id: linked.get(e.id)! } : e));
     this.edit(() => {
       this.doc.insertSlide(at, copy);
-      for (const [from, to] of linked) adoptCopy(links, from, to, `diapo ${at + 1}`);
+      for (const [from, to] of linked) adoptCopy(links, from, to, tr(`diapo ${at + 1}`, `slide ${at + 1}`));
     });
     this.goTo(copy.id);
   }
@@ -391,7 +392,7 @@ export class SlidesController {
         .then((value) =>
           setLinkClip({
             // A linked copy pastes as another copy of its own source, never as a copy of a copy.
-            source: links.byObject(pic.id)?.source ?? { docId, kind: 'slides', ref: { kind: 'image', objectId: pic.id }, title: linkHost().fileTitle(docId) ?? 'Présentation', label: pic.name || 'Image' },
+            source: links.byObject(pic.id)?.source ?? { docId, kind: 'slides', ref: { kind: 'image', objectId: pic.id }, title: linkHost().fileTitle(docId) ?? tr('Présentation', 'Presentation'), label: pic.name || 'Image' },
             value,
             at: Date.now(),
           }),
@@ -420,7 +421,7 @@ export class SlidesController {
     const cy = Math.round(emu(height * 0.75) * k);
     const el = picture(path, media.mime, this.center(cx, cy), c.source.label);
     const linkId = newLinkId();
-    const where = `diapo ${this.index + 1}`;
+    const where = tr(`diapo ${this.index + 1}`, `slide ${this.index + 1}`);
     this.edit(() => {
       this.doc.addElement(this.current, el);
       linksOf(this.session.ydoc).put(
@@ -453,7 +454,7 @@ export class SlidesController {
       .map((e) => [e.id, { ...e, id: newId('c'), x: e.x + offset, y: e.y + offset, src: sameDeck ? e.src : undefined, ph: undefined }] as const);
     const els = pairs.map(([, e]) => e);
     if (!els.length) return;
-    const where = `diapo ${this.index + 1}`;
+    const where = tr(`diapo ${this.index + 1}`, `slide ${this.index + 1}`);
     this.edit(() => {
       for (const el of els) this.doc.addElement(this.current, el);
       for (const [from, el] of pairs) adoptCopy(linksOf(this.session.ydoc), from, el.id, where);

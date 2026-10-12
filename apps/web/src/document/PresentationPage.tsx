@@ -12,6 +12,8 @@ import { engineHost } from '../bureau/importFiles';
 import { exportSlides } from '../bureau/slides';
 import './document.css';
 import { ErrorBoundary } from './ErrorBoundary';
+import { tr } from '@oel/i18n';
+import { LocaleRoot } from '../LocaleRoot';
 
 /** Read `?d=<id>#t=<token>`, keep the token locally and drop it from the address bar. */
 function readLocation(): { docId: string | null } {
@@ -31,6 +33,14 @@ const ACCEPT = '.pptx,.pptm,.ppsx,.potx';
  * (no desk), and it doubles as a "new presentation / open a .pptx" page.
  */
 export function PresentationPage() {
+  return (
+    <LocaleRoot>
+      <PresentationPageContent />
+    </LocaleRoot>
+  );
+}
+
+function PresentationPageContent() {
   const [docId, setDocId] = useState<string | null>(() => readLocation().docId);
   const [session, setSession] = useState<SlideSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +96,7 @@ export function PresentationPage() {
 
   useEffect(() => {
     if (session && !session.isSeeded && (session.status.connection === 'local' || session.status.readOnly)) {
-      setError('Cette présentation n’est pas disponible ici. Demandez un nouveau lien de partage.');
+      setError(tr('Cette présentation n’est pas disponible ici. Demandez un nouveau lien de partage.', 'This presentation is not available here. Ask for a new share link.'));
     }
   }, [session]);
 
@@ -103,10 +113,10 @@ export function PresentationPage() {
   const create = async () => {
     setBusy(true);
     try {
-      const r = await engineHost().create('slides', 'Présentation sans titre');
+      const r = await engineHost().create('slides', tr('Présentation sans titre', 'Untitled presentation'));
       await start(asDeckPayload(r.payload), r.title);
     } catch (e) {
-      toast({ title: 'Création impossible', description: (e as Error).message, tone: 'danger' });
+      toast({ title: tr('Création impossible', 'Could not create'), description: (e as Error).message, tone: 'danger' });
     } finally {
       setBusy(false);
     }
@@ -117,10 +127,10 @@ export function PresentationPage() {
       setBusy(true);
       try {
         const r = await engineHost().import(f);
-        if (r.kind !== 'slides' || !r.payload) throw new Error('Seuls les fichiers PowerPoint (.pptx) peuvent être modifiés ici.');
+        if (r.kind !== 'slides' || !r.payload) throw new Error(tr('Seuls les fichiers PowerPoint (.pptx) peuvent être modifiés ici.', 'Only PowerPoint files (.pptx) can be edited here.'));
         await start(asDeckPayload(r.payload), r.title);
       } catch (e) {
-        toast({ title: 'Ouverture impossible', description: (e as Error).message, tone: 'danger' });
+        toast({ title: tr('Ouverture impossible', 'Could not open'), description: (e as Error).message, tone: 'danger' });
       } finally {
         setBusy(false);
       }
@@ -137,9 +147,9 @@ export function PresentationPage() {
   if (error) {
     body = (
       <div className="docpage__center">
-        <h1>Présentation inaccessible</h1>
+        <h1>{tr('Présentation inaccessible', 'Presentation unavailable')}</h1>
         <p>{error}</p>
-        <Button onPress={() => (history.pushState(null, '', location.pathname), setDocId(null), setError(null))}>Nouvelle présentation</Button>
+        <Button onPress={() => (history.pushState(null, '', location.pathname), setDocId(null), setError(null))}>{tr('Nouvelle présentation', 'New presentation')}</Button>
       </div>
     );
   } else if (docId && session) {
@@ -148,7 +158,7 @@ export function PresentationPage() {
         createImageWorker={createImageWorker}
         key={session.status.docId}
         session={session}
-        title={title || 'Présentation'}
+        title={title || tr('Présentation', 'Presentation')}
         onTitleChange={setTitle}
         identity={identity}
         collab={features.collab}
@@ -161,7 +171,7 @@ export function PresentationPage() {
       />
     );
   } else if (docId) {
-    body = <p className="docpage__center" aria-busy>Ouverture de la présentation…</p>;
+    body = <p className="docpage__center" aria-busy>{tr('Ouverture de la présentation…', 'Opening the presentation…')}</p>;
   } else {
     body = (
       <div
@@ -174,13 +184,13 @@ export function PresentationPage() {
         }}
       >
         <Logo />
-        <h1>Présentations</h1>
-        <p>Créez et présentez à plusieurs, hors ligne ou en ligne, et gardez vos fichiers PowerPoint intacts : dispositions, thèmes, animations.</p>
+        <h1>{tr('Présentations', 'Presentations')}</h1>
+        <p>{tr('Créez et présentez à plusieurs, hors ligne ou en ligne, et gardez vos fichiers PowerPoint intacts : dispositions, thèmes, animations.', 'Create and present together, offline or online, and keep your PowerPoint files intact: layouts, themes, animations.')}</p>
         <div className="docpage__actions">
-          <Button variant="primary" leadingIcon="plus" onPress={create} isDisabled={busy}>Nouvelle présentation</Button>
-          <Button leadingIcon="upload" onPress={() => open()} isDisabled={busy}>Ouvrir un fichier .pptx</Button>
+          <Button variant="primary" leadingIcon="plus" onPress={create} isDisabled={busy}>{tr('Nouvelle présentation', 'New presentation')}</Button>
+          <Button leadingIcon="upload" onPress={() => open()} isDisabled={busy}>{tr('Ouvrir un fichier .pptx', 'Open a .pptx file')}</Button>
         </div>
-        <p className="docpage__hint">ou déposez un fichier ici</p>
+        <p className="docpage__hint">{tr('ou déposez un fichier ici', 'or drop a file here')}</p>
       </div>
     );
   }

@@ -3,6 +3,7 @@
  * (headers on every page, version previews). Mirrors `ppr_css` in the codec.
  */
 import type { ParagraphAttrs } from './types';
+import { tr } from '@oel/i18n';
 
 const pt = (tw: number) => `${+(tw / 20).toFixed(2)}pt`;
 
@@ -42,7 +43,7 @@ export function paragraphCss(a: Partial<ParagraphAttrs>): string {
 
 /** Docs-style line spacing presets (value = w:line with lineRule auto). */
 export const LINE_SPACINGS = [
-  { label: 'Simple', line: 240 },
+  { label: tr('Simple', 'Single'), line: 240 },
   { label: '1,15', line: 276 },
   { label: '1,5', line: 360 },
   { label: 'Double', line: 480 },

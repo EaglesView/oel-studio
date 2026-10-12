@@ -1,3 +1,4 @@
+import { locale } from '@oel/i18n';
 /**
  * E5 · Garde-fou de contraste: a colour too light for text and buttons is
  * darkened automatically, and the organiser sees the correction
@@ -71,7 +72,7 @@ export function contrastGuard(picked: string): ContrastResult {
   return { picked: hex, applied, pickedRatio, appliedRatio: lightRatio(applied), adjusted: applied !== hex, appliedDark };
 }
 
-export const formatRatio = (r: number) => `${r.toLocaleString('fr-CA', { maximumFractionDigits: 1, minimumFractionDigits: 1 })}:1`;
+export const formatRatio = (r: number) => `${r.toLocaleString(locale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })}:1`;
 
 /** CSS custom properties the respondent page and builder canvas apply on the form root. */
 export function accentVars(picked: string): Record<string, string> {

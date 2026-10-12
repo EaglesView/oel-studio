@@ -10,6 +10,7 @@ import { StoryEditor } from './StoryEditor';
 import { Fields } from './Fields';
 import { AnchorLayer, anchorsOf, type PlacedAnchor } from './Anchors';
 import { createStory, linkToPrevious, noteOrder, pagesPerSection, removeStory, setSectionStory, toHTML } from './actions';
+import { tr } from '@oel/i18n';
 
 /** Live HTML (and floating objects) of every header/footer story, for drawing them on each sheet. */
 function useStories(session: DocSession) {
@@ -92,8 +93,8 @@ export interface PageViewProps {
   children?: ReactNode;
 }
 
-const SIDE_LABEL: Record<StorySide, string> = { header: 'En-tête', footer: 'Pied de page' };
-const KIND_LABEL: Record<HeaderFooterKind, string> = { default: '', first: ' · première page', even: ' · pages paires' };
+const SIDE_LABEL: Record<StorySide, string> = { header: tr('En-tête', 'Header'), footer: tr('Pied de page', 'Footer') };
+const KIND_LABEL: Record<HeaderFooterKind, string> = { default: '', first: tr(' · première page', ' · first page'), even: ' · pages paires' };
 
 export function PageView({ editor, session, docMeta, editable, paginated, zoom, onStoryFocus, editingStory, setEditingStory, children }: PageViewProps) {
   const pages = usePages(editor);
@@ -173,24 +174,24 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
     return (
       <div className="oel-hf__bar" onMouseDown={(ev) => ev.preventDefault()}>
         <span className="oel-hf__label">
-          {sections.length > 1 ? `Section ${e.section + 1} · ` : ''}
+          {sections.length > 1 ? tr(`Section ${e.section + 1} · `, `Section ${e.section + 1} · `) : ''}
           {SIDE_LABEL[e.side]}
           {KIND_LABEL[e.kind]}
         </span>
-        {users.length > 0 && <span className="oel-hf__shared">Aussi utilisé par {sectionsPhrase(users)}</span>}
+        {users.length > 0 && <span className="oel-hf__shared">{tr('Aussi utilisé par', 'Also used by')} {sectionsPhrase(users)}</span>}
         {e.section > 0 && (
           <Checkbox isSelected={linked} onChange={relink}>
-            Lier au précédent
+            {tr('Lier au précédent', 'Link to previous')}
           </Checkbox>
         )}
         <Checkbox isSelected={section.titlePg} onChange={(v) => updateSections(session, section.id, () => ({ titlePg: v }))}>
-          Première page différente
+          {tr('Première page différente', 'Different first page')}
         </Checkbox>
         <Button size="sm" variant="ghost" onPress={remove}>
-          Supprimer
+          {tr('Supprimer', 'Delete')}
         </Button>
         <Button size="sm" variant="secondary" onPress={() => setEditingStory(null)}>
-          Fermer
+          {tr('Fermer', 'Close')}
         </Button>
       </div>
     );
@@ -220,7 +221,7 @@ export function PageView({ editor, session, docMeta, editable, paginated, zoom, 
         className={`oel-hf oel-hf--${side}${editingHere ? ' is-editing' : ''}`}
         style={style}
         onDoubleClick={() => open(side, index)}
-        title={editable && !editingHere ? `Double-cliquez pour modifier : ${label.toLowerCase()}` : undefined}
+        title={editable && !editingHere ? tr(`Double-cliquez pour modifier : ${label.toLowerCase()}`, `Double-click to edit: ${label.toLowerCase()}`) : undefined}
       >
         {editingHere && editingStory ? (
           <div className="oel-hf__editor">
@@ -301,7 +302,7 @@ export function NotesArea({ editor, session, docMeta, editable, onFocus }: { edi
     () =>
       (['footnote', 'endnote'] as const)
         .filter((k) => order[k].length)
-        .map((kind) => ({ kind, ids: order[kind], title: kind === 'footnote' ? 'Notes de bas de page' : 'Notes de fin' })),
+        .map((kind) => ({ kind, ids: order[kind], title: kind === 'footnote' ? tr('Notes de bas de page', 'Footnotes') : tr('Notes de fin', 'Endnotes') })),
     [order],
   );
   if (!lists.length) return null;
@@ -321,7 +322,7 @@ export function NotesArea({ editor, session, docMeta, editable, onFocus }: { edi
           <ol className="oel-notes__list">
             {ids.map((id, i) => (
               <li key={id} className="oel-note" id={`oel-${kind}-${id}`}>
-                <button type="button" className="oel-note__num" onClick={() => jump(kind, id)} aria-label={`Aller à l’appel de note ${i + 1}`}>
+                <button type="button" className="oel-note__num" onClick={() => jump(kind, id)} aria-label={tr(`Aller à l’appel de note ${i + 1}`, `Go to note reference ${i + 1}`)}>
                   {kind === 'footnote' ? i + 1 : roman(i + 1)}
                 </button>
                 <StoryEditor session={session} fragment={noteKey(kind, id)} docMeta={docMeta} editable={editable} label={`Note ${i + 1}`} className="oel-note__body" onFocus={onFocus} />

@@ -4,7 +4,7 @@ import { Icon } from '@oel/emboss';
 import SiteLayout from './SiteLayout.astro';
 import Capture from './Capture.astro';
 import { HOME } from './home';
-import { SITE, UI, docHref, type Lang } from './i18n';
+import { SITE, UI, bureauHref, docHref, type Lang } from './i18n';
 
 interface Props {
   lang: Lang;
@@ -18,7 +18,7 @@ const t = UI[lang];
     <h1 id="hero-title" class="hero__title" data-reveal>{c.hero.title}</h1>
     <p class="band__lead" data-reveal style="--d: 90ms">{c.hero.lead}</p>
     <p class="hero__actions" data-reveal style="--d: 180ms">
-      <a class="site-button site-button--paper" href="/bureau">{c.hero.primary} <Icon name="arrow-right" size={16} /></a>
+      <a class="site-button site-button--paper" href={bureauHref(lang)}>{c.hero.primary} <Icon name="arrow-right" size={16} /></a>
       <a class="site-button site-button--ghost" href={docHref(lang, 'index')}>{c.hero.secondary}</a>
     </p>
     <div class="reveal-capture" data-reveal style="--d: 280ms"><Capture lang={lang} id={c.hero.capture.id} alt={c.hero.capture.alt} eager /></div>
@@ -76,6 +76,6 @@ const t = UI[lang];
 
   <section class="band band--violet cta" aria-labelledby="cta-title">
     <h2 id="cta-title" class="band__title" data-reveal>{c.cta.title}</h2>
-    <p data-reveal style="--d: 100ms"><a class="site-button site-button--paper" href="/bureau">{c.cta.button} <Icon name="arrow-right" size={16} /></a></p>
+    <p data-reveal style="--d: 100ms"><a class="site-button site-button--paper" href={bureauHref(lang)}>{c.cta.button} <Icon name="arrow-right" size={16} /></a></p>
   </section>
 </SiteLayout>

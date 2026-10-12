@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import type { DeskLink } from '@oel/desk';
 import { toast } from '@oel/emboss';
 import { applyResponses, headerRow, type FormDef, type FormResponse, type FormsBackend, type SheetLink, type SheetRef } from '@oel/forms';
-import { PAPER_SIZE, uid, type Bureau, type Paper } from './model';
+import { messages, plural } from '@oel/i18n';
+import { FIRST_SHEET, PAPER_SIZE, uid, type Bureau, type Paper } from './model';
 import { paperRows, setPaperRows } from './sheets';
 
 /**
@@ -23,15 +24,40 @@ export function sheetRefs(store: Bureau): SheetRef[] {
     .filter(isSheet)
     .map((p) => {
       const pv = p.data.preview as { kind: 'spreadsheet'; sheets: string[]; rows: string[][] };
-      return { id: p.id, title: p.title, tab: pv.sheets[0] ?? 'Feuille 1', rows: pv.rows };
+      return { id: p.id, title: p.title, tab: pv.sheets[0] ?? FIRST_SHEET, rows: pv.rows };
     });
 }
+
+const t = messages(
+  {
+    responses: 'Réponses',
+    threadRemoved: 'Fil retiré',
+    threadLabel: (tab: string) => `Réponses → ${tab} · en direct`,
+    threadStep: 'Fil Réponses',
+    held: (n: number, title: string) => `${n} ${plural(n, 'réponse mise', 'réponses mises')} de côté · ${title}`,
+    fresh: (title: string) => `Nouvelle réponse · ${title}`,
+    added: (sheet: string) => `Ajoutée au tableur « ${sheet} ».`,
+    toCheck: 'À vérifier dans l’onglet Réponses.',
+    rows: (n: number) => `+${n} ${plural(n, 'ligne', 'lignes')}`,
+  },
+  {
+    responses: 'Responses',
+    threadRemoved: 'Thread removed',
+    threadLabel: (tab) => `Responses → ${tab} · live`,
+    threadStep: 'Responses thread',
+    held: (n, title) => `${n} ${plural(n, 'response', 'responses')} set aside · ${title}`,
+    fresh: (title) => `New response · ${title}`,
+    added: (sheet) => `Added to the spreadsheet “${sheet}”.`,
+    toCheck: 'To check in the Responses tab.',
+    rows: (n) => `+${n} ${plural(n, 'row', 'rows')}`,
+  },
+);
 
 /** « Nouveau tableur « … — réponses » », laid next to the form. */
 export function createResponseSheet(store: Bureau, formPaperId: string, title: string, header: string[]): SheetRef {
   const form = store.node(formPaperId);
   const size = PAPER_SIZE.spreadsheet;
-  const tab = 'Réponses';
+  const tab = t.responses;
   const paper: Paper = {
     id: uid('sheet'),
     kind: 'spreadsheet',
@@ -55,13 +81,13 @@ export function ensureFormThread(store: Bureau, formPaperId: string, link: Sheet
   const id = threadId(formPaperId);
   const existing = links.find((l) => l.id === id);
   if (!link) {
-    if (existing) store.setLinks(links.filter((l) => l.id !== id), 'Fil retiré');
+    if (existing) store.setLinks(links.filter((l) => l.id !== id), t.threadRemoved);
     return;
   }
-  const label = `Réponses → ${link.tab} · en direct`;
+  const label = t.threadLabel(link.tab);
   if (existing && existing.to === link.sheetId && existing.label === label) return;
   const thread: DeskLink = { id, from: formPaperId, to: link.sheetId, label, state: 'fresh' };
-  store.setLinks([...links.filter((l) => l.id !== id), thread], 'Fil Réponses');
+  store.setLinks([...links.filter((l) => l.id !== id), thread], t.threadStep);
 }
 
 /** Write the header row of a freshly linked sheet so the columns show at once. */
@@ -115,8 +141,8 @@ export function useFormSync(store: Bureau, backend: () => FormsBackend, announce
       known.current.set(paperId, new Set(responses.map((r) => r.id)));
       if (fresh.length) {
         const heldNew = fresh.filter((r) => r.status === 'held').length;
-        const msg = heldNew === fresh.length ? `${heldNew} réponse${heldNew > 1 ? 's' : ''} mise${heldNew > 1 ? 's' : ''} de côté · ${form.title}` : `Nouvelle réponse · ${form.title}`;
-        toast({ title: msg, description: form.link && heldNew < fresh.length ? `Ajoutée au tableur « ${form.link.sheetTitle} ».` : 'À vérifier dans l’onglet Réponses.', tone: heldNew === fresh.length ? 'warning' : 'success' });
+        const msg = heldNew === fresh.length ? t.held(heldNew, form.title) : t.fresh(form.title);
+        toast({ title: msg, description: form.link && heldNew < fresh.length ? t.added(form.link.sheetTitle) : t.toCheck, tone: heldNew === fresh.length ? 'warning' : 'success' });
         announce(msg);
       }
 
@@ -127,7 +153,7 @@ export function useFormSync(store: Bureau, backend: () => FormsBackend, announce
         // The response sheet is a real workbook: rows are read from and written to it.
         void paperRows(sheet).then(async (rows) => {
           const res = applyResponses(form, link, rows, responses);
-          if (JSON.stringify(res.rows) !== JSON.stringify(rows)) await setPaperRows(store, sheet, res.rows, res.added ? { label: `+${res.added} ligne${res.added > 1 ? 's' : ''}`, at: Date.now() } : undefined);
+          if (JSON.stringify(res.rows) !== JSON.stringify(rows)) await setPaperRows(store, sheet, res.rows, res.added ? { label: t.rows(res.added), at: Date.now() } : undefined);
           if (JSON.stringify(res.link.rows) !== JSON.stringify(link.rows)) {
             const fresh = store.node(paperId) as Paper | undefined;
             if (fresh?.data.form) store.update(paperId, { data: { ...fresh.data, form: { ...fresh.data.form, link: res.link } } }, { history: false });
@@ -139,7 +165,7 @@ export function useFormSync(store: Bureau, backend: () => FormsBackend, announce
         if (JSON.stringify(res.rows) !== JSON.stringify(pv.rows)) {
           store.update(
             sheet.id,
-            { data: { ...sheet.data, preview: { ...pv, rows: res.rows }, flash: res.added ? { label: `+${res.added} ligne${res.added > 1 ? 's' : ''}`, at: Date.now() } : sheet.data.flash } },
+            { data: { ...sheet.data, preview: { ...pv, rows: res.rows }, flash: res.added ? { label: t.rows(res.added), at: Date.now() } : sheet.data.flash } },
             { history: false },
           );
         }

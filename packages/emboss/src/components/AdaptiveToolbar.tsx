@@ -11,6 +11,28 @@ import { Icon } from '../icons/Icon';
 import { cx } from '../utils';
 import { Toolbar, ToolbarSeparator } from './Toolbar';
 import { WithTooltip } from './Tooltip';
+import { messages, plural } from '@oel/i18n';
+
+const t = messages(
+  {
+    less: 'Moins',
+    moreTools: 'Plus d’outils',
+    more: (n: number) => `Plus +${n}`,
+    undock: 'Remettre la barre en haut',
+    dock: 'Ancrer la barre en bas',
+    dockDesc: 'Toute la barre au bas de la fenêtre, sous le pouce sur tablette.',
+    shown: (n: number) => `${n} ${plural(n, 'section affichée', 'sections affichées')}`,
+  },
+  {
+    less: 'Less',
+    moreTools: 'More tools',
+    more: (n) => `More +${n}`,
+    undock: 'Put the bar back at the top',
+    dock: 'Dock the bar at the bottom',
+    dockDesc: 'The whole bar at the bottom of the window, under your thumb on a tablet.',
+    shown: (n) => `${n} ${plural(n, 'section', 'sections')} shown`,
+  },
+);
 
 export interface ToolGroup {
   id: string;
@@ -182,9 +204,9 @@ export function AdaptiveToolbar({ label, groups, trailing, storageKey, docked = 
         ))}
         <span className="emb-adaptive__spacer" />
         {folded.length > 0 && !docked && (
-          <WithTooltip label={expanded ? 'Moins' : 'Plus d’outils'} shortcut={['Alt', 'Maj', '↓']} description={expanded ? undefined : `${hidden.map((g) => g.label).join(', ')}`}>
+          <WithTooltip label={expanded ? t.less : t.moreTools} shortcut={['Alt', 'Maj', '↓']} description={expanded ? undefined : `${hidden.map((g) => g.label).join(', ')}`}>
             <RACButton className="emb-adaptive__more" aria-expanded={expanded} onPress={() => setExpanded(!expanded)}>
-              {expanded ? 'Moins' : `Plus +${folded.length}`}
+              {expanded ? t.less : t.more(folded.length)}
               <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} />
             </RACButton>
           </WithTooltip>
@@ -192,15 +214,15 @@ export function AdaptiveToolbar({ label, groups, trailing, storageKey, docked = 
         {onDockedChange &&
           (docked ? (
             !forced && (
-              <WithTooltip label="Remettre la barre en haut" shortcut={['Alt', 'Maj', 'B']}>
-                <RACButton className="emb-tool" aria-label="Remettre la barre en haut" onPress={() => onDockedChange(false)}>
+              <WithTooltip label={t.undock} shortcut={['Alt', 'Maj', 'B']}>
+                <RACButton className="emb-tool" aria-label={t.undock} onPress={() => onDockedChange(false)}>
                   <Icon name="close" size={18} />
                 </RACButton>
               </WithTooltip>
             )
           ) : (
-            <WithTooltip label="Ancrer la barre en bas" shortcut={['Alt', 'Maj', 'B']} description="Toute la barre au bas de la fenêtre, sous le pouce sur tablette.">
-              <RACButton className="emb-tool" aria-label="Ancrer la barre en bas" onPress={() => onDockedChange(true)}>
+            <WithTooltip label={t.dock} shortcut={['Alt', 'Maj', 'B']} description={t.dockDesc}>
+              <RACButton className="emb-tool" aria-label={t.dock} onPress={() => onDockedChange(true)}>
                 <Icon name="dock-bottom" size={18} />
               </RACButton>
             </WithTooltip>
@@ -222,7 +244,7 @@ export function AdaptiveToolbar({ label, groups, trailing, storageKey, docked = 
         </div>
       </div>
       <span className="emb-adaptive__live" aria-live="polite">
-        {open ? `${hidden.length} section${hidden.length > 1 ? 's' : ''} affichée${hidden.length > 1 ? 's' : ''}` : ''}
+        {open ? t.shown(hidden.length) : ''}
       </span>
     </Toolbar>
   );

@@ -6,18 +6,90 @@
 import type { CSSProperties } from 'react';
 import { Dialog } from 'react-aria-components';
 import { Checkbox, Menu, MenuItem, MenuPopover, MenuTrigger, Popover, Radio, RadioGroup, Toolbar, ToolbarSeparator, ToolButton } from '@oel/emboss';
-import { applyType, chartFamily, CHART_TYPES } from '../catalog';
+import { applyType, chartFamily, CHART_TITLE, CHART_TYPES } from '../catalog';
 import type { Axis, ChartSpec, Group, Series } from '../types';
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    palettes: { office: 'Couleurs Office', emboss: 'OutilsEnLigne', colorful2: 'Couleurs vives', blue: 'Monochrome bleu', orange: 'Monochrome orange', green: 'Monochrome vert', grey: 'Niveaux de gris' } as Record<string, string>,
+    vAxisTitle: 'Titre de l’axe vertical',
+    hAxisTitle: 'Titre de l’axe horizontal',
+    elements: {
+      axes: 'Axes',
+      axisTitles: 'Titres des axes',
+      title: 'Titre du graphique',
+      labels: 'Étiquettes de données',
+      dataTable: 'Table de données',
+      errBars: 'Barres d’erreur',
+      grid: 'Quadrillage',
+      legend: 'Légende',
+      trend: 'Courbe de tendance',
+    },
+    legendPos: { r: 'À droite', t: 'En haut', l: 'À gauche', b: 'En bas' },
+    chartElements: 'Éléments du graphique',
+    legendPosition: 'Position de la légende',
+    colours: 'Couleurs',
+    exLocked: 'Graphique Office 2016+ : affiché et conservé, pas encore modifiable.',
+    linkedChart: 'Graphique lié',
+    chart: 'Graphique',
+    type: 'Type',
+    noVariant: 'Pas d’autre variante pour ce type de graphique.',
+    otherVariant: (family: string) => `Autre variante : ${family.toLocaleLowerCase('fr-CA')}`,
+    variant: 'Variante',
+    elementsShort: 'Éléments',
+    elementsDesc: 'Titre, axes, légende, étiquettes, quadrillage…',
+    source: 'Voir la source',
+    open: (source: string) => `Ouvrir ${source}`,
+    update: 'Mettre à jour',
+    link: (state: string) => `Lien · ${state}`,
+    linkDesc: 'Mode, mise à jour, couper le lien',
+  },
+  {
+    palettes: { office: 'Office colours', emboss: 'OutilsEnLigne', colorful2: 'Bright colours', blue: 'Blue monochrome', orange: 'Orange monochrome', green: 'Green monochrome', grey: 'Greyscale' },
+    vAxisTitle: 'Vertical axis title',
+    hAxisTitle: 'Horizontal axis title',
+    elements: {
+      axes: 'Axes',
+      axisTitles: 'Axis titles',
+      title: 'Chart title',
+      labels: 'Data labels',
+      dataTable: 'Data table',
+      errBars: 'Error bars',
+      grid: 'Gridlines',
+      legend: 'Legend',
+      trend: 'Trendline',
+    },
+    legendPos: { r: 'Right', t: 'Top', l: 'Left', b: 'Bottom' },
+    chartElements: 'Chart elements',
+    legendPosition: 'Legend position',
+    colours: 'Colours',
+    exLocked: 'Office 2016+ chart: shown and kept, not editable yet.',
+    linkedChart: 'Linked chart',
+    chart: 'Chart',
+    type: 'Type',
+    noVariant: 'No other variant for this chart type.',
+    otherVariant: (family) => `Other variant: ${family.toLocaleLowerCase('en-CA')}`,
+    variant: 'Variant',
+    elementsShort: 'Elements',
+    elementsDesc: 'Title, axes, legend, labels, gridlines…',
+    source: 'See the source',
+    open: (source) => `Open ${source}`,
+    update: 'Update',
+    link: (state) => `Link · ${state}`,
+    linkDesc: 'Mode, update, cut the link',
+  },
+);
 
 /** Office palettes offered by « Couleurs » (colourful, then monochrome). */
 export const PALETTES: Array<{ id: string; label: string; colors: string[] }> = [
-  { id: 'office', label: 'Couleurs Office', colors: ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47'] },
-  { id: 'emboss', label: 'OutilsEnLigne', colors: ['#7759C5', '#F0AD05', '#1E8E3E', '#E5484D', '#3B82F6', '#6B6375'] },
-  { id: 'colorful2', label: 'Couleurs vives', colors: ['#ED7D31', '#FFC000', '#70AD47', '#4472C4', '#5B9BD5', '#A5A5A5'] },
-  { id: 'blue', label: 'Monochrome bleu', colors: ['#1F3864', '#2F5597', '#4472C4', '#8FAADC', '#B4C7E7', '#DAE3F3'] },
-  { id: 'orange', label: 'Monochrome orange', colors: ['#843C0C', '#C55A11', '#ED7D31', '#F4B183', '#F8CBAD', '#FBE5D6'] },
-  { id: 'green', label: 'Monochrome vert', colors: ['#385723', '#548235', '#70AD47', '#A9D18E', '#C5E0B4', '#E2F0D9'] },
-  { id: 'grey', label: 'Niveaux de gris', colors: ['#262626', '#595959', '#7F7F7F', '#A6A6A6', '#BFBFBF', '#D9D9D9'] },
+  { id: 'office', label: t.palettes.office!, colors: ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47'] },
+  { id: 'emboss', label: t.palettes.emboss!, colors: ['#7759C5', '#F0AD05', '#1E8E3E', '#E5484D', '#3B82F6', '#6B6375'] },
+  { id: 'colorful2', label: t.palettes.colorful2!, colors: ['#ED7D31', '#FFC000', '#70AD47', '#4472C4', '#5B9BD5', '#A5A5A5'] },
+  { id: 'blue', label: t.palettes.blue!, colors: ['#1F3864', '#2F5597', '#4472C4', '#8FAADC', '#B4C7E7', '#DAE3F3'] },
+  { id: 'orange', label: t.palettes.orange!, colors: ['#843C0C', '#C55A11', '#ED7D31', '#F4B183', '#F8CBAD', '#FBE5D6'] },
+  { id: 'green', label: t.palettes.green!, colors: ['#385723', '#548235', '#70AD47', '#A9D18E', '#C5E0B4', '#E2F0D9'] },
+  { id: 'grey', label: t.palettes.grey!, colors: ['#262626', '#595959', '#7F7F7F', '#A6A6A6', '#BFBFBF', '#D9D9D9'] },
 ];
 
 export const allSeries = (s: ChartSpec) => s.groups.flatMap((g) => g.series);
@@ -45,43 +117,43 @@ export interface ElementDef {
   hidden?: (s: ChartSpec) => boolean;
 }
 
-const axisTitle = (a: Axis): string => (a.kind === 'val' ? 'Titre de l’axe vertical' : 'Titre de l’axe horizontal');
+const axisTitle = (a: Axis): string => (a.kind === 'val' ? t.vAxisTitle : t.hAxisTitle);
 
 export const ELEMENTS: ElementDef[] = [
-  { id: 'axes', label: 'Axes', hidden: pieLike, on: (s) => (s.axes ?? []).some((a) => !a.delete), toggle: (s, on) => mapAxes(s, (a) => ({ ...a, delete: !on })) },
-  { id: 'axisTitles', label: 'Titres des axes', hidden: pieLike, on: (s) => (s.axes ?? []).some((a) => !!a.title), toggle: (s, on) => mapAxes(s, (a) => ({ ...a, title: on && a.kind !== 'ser' ? (a.title ?? { text: axisTitle(a) }) : undefined })) },
-  { id: 'title', label: 'Titre du graphique', on: (s) => !!s.title || (!s.autoTitleDeleted && allSeries(s).length === 1), toggle: (s, on) => (on ? { ...s, title: s.title ?? { text: allSeries(s).length === 1 ? undefined : 'Titre du graphique' }, autoTitleDeleted: false } : { ...s, title: undefined, autoTitleDeleted: true }) },
+  { id: 'axes', label: t.elements.axes, hidden: pieLike, on: (s) => (s.axes ?? []).some((a) => !a.delete), toggle: (s, on) => mapAxes(s, (a) => ({ ...a, delete: !on })) },
+  { id: 'axisTitles', label: t.elements.axisTitles, hidden: pieLike, on: (s) => (s.axes ?? []).some((a) => !!a.title), toggle: (s, on) => mapAxes(s, (a) => ({ ...a, title: on && a.kind !== 'ser' ? (a.title ?? { text: axisTitle(a) }) : undefined })) },
+  { id: 'title', label: t.elements.title, on: (s) => !!s.title || (!s.autoTitleDeleted && allSeries(s).length === 1), toggle: (s, on) => (on ? { ...s, title: s.title ?? { text: allSeries(s).length === 1 ? undefined : CHART_TITLE }, autoTitleDeleted: false } : { ...s, title: undefined, autoTitleDeleted: true }) },
   {
     id: 'labels',
-    label: 'Étiquettes de données',
+    label: t.elements.labels,
     on: (s) => s.groups.some((g) => g.labels?.showVal || g.labels?.showPct || g.series.some((x) => x.labels?.showVal || x.labels?.showPct)),
     toggle: (s, on) => mapGroups(s, (g) => ({ ...g, labels: on ? { showVal: !pieLike(s), showPct: pieLike(s), pos: pieLike(s) ? 'bestFit' : undefined } : undefined, series: g.series.map((x) => ({ ...x, labels: undefined })) })),
   },
-  { id: 'dataTable', label: 'Table de données', hidden: pieLike, on: (s) => !!s.dataTable, toggle: (s, on) => ({ ...s, dataTable: on ? { horz: true, vert: true, outline: true, keys: true } : undefined }) },
+  { id: 'dataTable', label: t.elements.dataTable, hidden: pieLike, on: (s) => !!s.dataTable, toggle: (s, on) => ({ ...s, dataTable: on ? { horz: true, vert: true, outline: true, keys: true } : undefined }) },
   {
     id: 'errBars',
-    label: 'Barres d’erreur',
+    label: t.elements.errBars,
     hidden: (s) => pieLike(s) || !!s.groups[0]?.threeD,
     on: (s) => allSeries(s).some((x) => x.errBars?.length),
     toggle: (s, on) => mapSeries(s, (x) => ({ ...x, errBars: on ? [{ barType: 'both', valType: 'percentage', val: 5 }] : [] })),
   },
-  { id: 'grid', label: 'Quadrillage', hidden: pieLike, on: (s) => (s.axes ?? []).some((a) => a.kind === 'val' && !!a.majorGrid), toggle: (s, on) => mapAxes(s, (a) => (a.kind === 'val' ? { ...a, majorGrid: on ? (a.majorGrid ?? {}) : undefined } : a)) },
-  { id: 'legend', label: 'Légende', on: (s) => !!s.legend, toggle: (s, on) => ({ ...s, legend: on ? (s.legend ?? { pos: 'b' }) : undefined }) },
+  { id: 'grid', label: t.elements.grid, hidden: pieLike, on: (s) => (s.axes ?? []).some((a) => a.kind === 'val' && !!a.majorGrid), toggle: (s, on) => mapAxes(s, (a) => (a.kind === 'val' ? { ...a, majorGrid: on ? (a.majorGrid ?? {}) : undefined } : a)) },
+  { id: 'legend', label: t.elements.legend, on: (s) => !!s.legend, toggle: (s, on) => ({ ...s, legend: on ? (s.legend ?? { pos: 'b' }) : undefined }) },
   {
     id: 'trend',
-    label: 'Courbe de tendance',
+    label: t.elements.trend,
     hidden: (s) => pieLike(s) || !!s.groups[0]?.threeD || ['radar', 'surface', 'stock'].includes(s.groups[0]?.kind ?? '') || !!s.ex,
     on: (s) => allSeries(s).some((x) => x.trendlines?.length),
     toggle: (s, on) => mapSeries(s, (x, g) => (g === s.groups[0] && x.order === Math.min(...s.groups[0]!.series.map((y) => y.order)) ? { ...x, trendlines: on ? [{ kind: 'linear' }] : [] } : x)),
   },
 ];
 
-const LEGEND_POS: Array<[string, string]> = [['r', 'À droite'], ['t', 'En haut'], ['l', 'À gauche'], ['b', 'En bas']];
+const LEGEND_POS: Array<[string, string]> = [['r', t.legendPos.r], ['t', t.legendPos.t], ['l', t.legendPos.l], ['b', t.legendPos.b]];
 
 export function ElementsMenu({ spec, apply }: { spec: ChartSpec; apply: (fn: (s: ChartSpec) => ChartSpec) => void }) {
   return (
-    <Dialog className="oel-popover-dialog oel-chart-elements" aria-label="Éléments du graphique">
-      <p className="oel-chart-elements__title">Éléments du graphique</p>
+    <Dialog className="oel-popover-dialog oel-chart-elements" aria-label={t.chartElements}>
+      <p className="oel-chart-elements__title">{t.chartElements}</p>
       {ELEMENTS.filter((e) => !e.hidden?.(spec)).map((e) => (
         <Checkbox key={e.id} isSelected={e.on(spec)} onChange={(v) => apply((s) => e.toggle(s, v))}>
           {e.label}
@@ -89,8 +161,8 @@ export function ElementsMenu({ spec, apply }: { spec: ChartSpec; apply: (fn: (s:
       ))}
       {spec.legend && (
         <div className="oel-chart-elements__row">
-          <span>Position de la légende</span>
-          <RadioGroup aria-label="Position de la légende" orientation="horizontal" value={spec.legend.pos ?? 'r'} onChange={(v) => apply((s) => ({ ...s, legend: { ...s.legend, pos: v } }))}>
+          <span>{t.legendPosition}</span>
+          <RadioGroup aria-label={t.legendPosition} orientation="horizontal" value={spec.legend.pos ?? 'r'} onChange={(v) => apply((s) => ({ ...s, legend: { ...s.legend, pos: v } }))}>
             {LEGEND_POS.map(([v, l]) => (
               <Radio key={v} value={v}>
                 {l}
@@ -107,9 +179,9 @@ export function ElementsMenu({ spec, apply }: { spec: ChartSpec; apply: (fn: (s:
 export function PaletteMenu({ apply, unavailableReason }: { apply: (fn: (s: ChartSpec) => ChartSpec) => void; unavailableReason?: string }) {
   return (
     <MenuTrigger>
-      <ToolButton icon="palette" label="Couleurs" unavailableReason={unavailableReason} />
+      <ToolButton icon="palette" label={t.colours} unavailableReason={unavailableReason} />
       <MenuPopover placement="bottom start">
-        <Menu aria-label="Couleurs" onAction={(k) => apply((s) => withPalette(s, PALETTES.find((p) => p.id === k)!.colors))}>
+        <Menu aria-label={t.colours} onAction={(k) => apply((s) => withPalette(s, PALETTES.find((p) => p.id === k)!.colors))}>
           {PALETTES.map((p) => (
             <MenuItem key={p.id} id={p.id} textValue={p.label}>
               <span className="oel-chart-swatches" aria-hidden>
@@ -148,22 +220,22 @@ export interface CopyLinkInfo {
  */
 export function CopyChartBar({ spec, apply, lockReason, link, style, className }: { spec: ChartSpec; apply: (fn: (s: ChartSpec) => ChartSpec) => void; lockReason?: string; link?: CopyLinkInfo | null; style?: CSSProperties; className?: string }) {
   const current = chartFamily(spec);
-  const lock = lockReason ?? (spec.ex ? 'Graphique Office 2016+ : affiché et conservé, pas encore modifiable.' : undefined);
-  const variants = current ? CHART_TYPES.filter((t) => t.family === current.family && !t.ex) : [];
+  const lock = lockReason ?? (spec.ex ? t.exLocked : undefined);
+  const variants = current ? CHART_TYPES.filter((c) => c.family === current.family && !c.ex) : [];
   return (
     <div className={`oel-chart-bar${className ? ` ${className}` : ''}`} style={style} onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} onKeyDown={(e) => e.stopPropagation()}>
-      <Toolbar aria-label={link ? 'Graphique lié' : 'Graphique'}>
-        <span className="oel-chart-bar__label">{link ? 'Graphique lié' : 'Graphique'}</span>
+      <Toolbar aria-label={link ? t.linkedChart : t.chart}>
+        <span className="oel-chart-bar__label">{link ? t.linkedChart : t.chart}</span>
         {lock || variants.length < 2 ? (
-          <ToolButton icon="chart" label={current?.label ?? 'Type'} showLabel unavailableReason={lock ?? 'Pas d’autre variante pour ce type de graphique.'} />
+          <ToolButton icon="chart" label={current?.label ?? t.type} showLabel unavailableReason={lock ?? t.noVariant} />
         ) : (
           <MenuTrigger>
-            <ToolButton icon="chart" label={current!.label} showLabel description={`Autre variante : ${current!.family.toLocaleLowerCase('fr-CA')}`} />
+            <ToolButton icon="chart" label={current!.label} showLabel description={t.otherVariant(current!.family)} />
             <MenuPopover placement="bottom start">
-              <Menu aria-label="Variante" onAction={(k) => k !== current!.id && apply((s) => applyType(s, String(k)))}>
-                {variants.map((t) => (
-                  <MenuItem key={t.id} id={t.id} textValue={t.label}>
-                    {t.id === current!.id ? `✓ ${t.label}` : `\u2003${t.label}`}
+              <Menu aria-label={t.variant} onAction={(k) => k !== current!.id && apply((s) => applyType(s, String(k)))}>
+                {variants.map((v) => (
+                  <MenuItem key={v.id} id={v.id} textValue={v.label}>
+                    {v.id === current!.id ? `✓ ${v.label}` : `\u2003${v.label}`}
                   </MenuItem>
                 ))}
               </Menu>
@@ -172,10 +244,10 @@ export function CopyChartBar({ spec, apply, lockReason, link, style, className }
         )}
         <PaletteMenu apply={apply} unavailableReason={lock} />
         {lock ? (
-          <ToolButton icon="plus" label="Éléments" showLabel unavailableReason={lock} />
+          <ToolButton icon="plus" label={t.elementsShort} showLabel unavailableReason={lock} />
         ) : (
           <MenuTrigger>
-            <ToolButton icon="plus" label="Éléments" showLabel description="Titre, axes, légende, étiquettes, quadrillage…" />
+            <ToolButton icon="plus" label={t.elementsShort} showLabel description={t.elementsDesc} />
             <Popover placement="bottom">
               <ElementsMenu spec={spec} apply={apply} />
             </Popover>
@@ -184,12 +256,12 @@ export function CopyChartBar({ spec, apply, lockReason, link, style, className }
         {link && (
           <>
             <ToolbarSeparator />
-            <ToolButton icon="table" label="Voir la source" showLabel description={`Ouvrir ${link.source}`} unavailableReason={link.sourceUnavailable} onPress={link.onSource} />
-            {link.stale && !link.frozen && <ToolButton icon="refresh" label="Mettre à jour" showLabel onPress={link.onUpdate} />}
+            <ToolButton icon="table" label={t.source} showLabel description={t.open(link.source)} unavailableReason={link.sourceUnavailable} onPress={link.onSource} />
+            {link.stale && !link.frozen && <ToolButton icon="refresh" label={t.update} showLabel onPress={link.onUpdate} />}
             <ToolButton
               icon="link"
-              label={`Lien · ${link.stateLabel}`}
-              description="Mode, mise à jour, couper le lien"
+              label={t.link(link.stateLabel)}
+              description={t.linkDesc}
               onPress={() => {
                 const r = document.activeElement?.getBoundingClientRect() ?? { x: 0, y: 0, width: 0, height: 0 };
                 link.onManage({ x: r.x, y: r.y, width: r.width, height: r.height });

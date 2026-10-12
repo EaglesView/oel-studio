@@ -2,6 +2,7 @@ import { previewEngine } from './engines/preview';
 import { EngineRegistry } from './registry';
 import type { ExportRequest, FileKind, ImportProgress, ImportResult } from './types';
 import type { FromWorker, ToWorker } from './worker/protocol';
+import { messages, tr } from '@oel/i18n';
 
 type Pending = { resolve: (r: never) => void; reject: (e: Error) => void; onProgress?: (p: ImportProgress) => void };
 
@@ -24,7 +25,7 @@ export class EngineHost {
       try {
         this.worker = createWorker();
         this.worker.onmessage = (e: MessageEvent<FromWorker>) => this.onMessage(e.data);
-        this.worker.onerror = (e) => this.failAll(new Error(e.message || 'Erreur du moteur'));
+        this.worker.onerror = (e) => this.failAll(new Error(e.message || tr('Erreur du moteur', 'Engine error')));
       } catch {
         this.worker = null;
       }
@@ -78,6 +79,6 @@ export class EngineHost {
 
   dispose() {
     this.worker?.terminate();
-    this.failAll(new Error('Moteur arrêté'));
+    this.failAll(new Error(tr('Moteur arrêté', 'Engine stopped')));
   }
 }

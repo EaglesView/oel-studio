@@ -13,6 +13,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { CollabApi, CollabError, decodeToken, type DocKind, type Role, type ShareLink, type VersionInfo } from './api';
 import type { Identity } from './identity';
 import { localFiles, packageKey } from './local';
+import { tr } from '@oel/i18n';
 
 export interface Peer {
   clientId: number;
@@ -143,7 +144,7 @@ export class YSession {
         this.set({ readOnly: scope === 'readonly' || this.status.role === 'viewer', error: null });
         this.onAuthenticated();
       },
-      onAuthenticationFailed: ({ reason }) => this.set({ error: reason || 'Lien invalide ou révoqué', connection: 'offline' }),
+      onAuthenticationFailed: ({ reason }) => this.set({ error: reason || tr('Lien invalide ou révoqué', 'Invalid or revoked link'), connection: 'offline' }),
       onUnsyncedChanges: ({ number }) => this.set({ saved: number === 0 }),
       onAwarenessChange: ({ states }) => {
         const peers: Peer[] = [];
@@ -233,7 +234,7 @@ export class YSession {
   /** Put a local document on the server (keeps the same Y.Doc and editor). */
   async publish(title = ''): Promise<void> {
     if (this.status.connection !== 'local' || this.status.token) return;
-    if (!this.api || !(await this.api.health())) throw new CollabError('Serveur de collaboration injoignable', 0);
+    if (!this.api || !(await this.api.health())) throw new CollabError(tr('Serveur de collaboration injoignable', 'Collaboration server unreachable'), 0);
     const oldId = this.status.docId;
     const original = (await localFiles.get(packageKey(oldId)))?.bytes ?? null;
     const { docId, ownerToken } = await this.api.createDoc(original, title, this.kind);
@@ -250,7 +251,7 @@ export class YSession {
 
   protected need(): { docId: string; token: string; api: CollabApi } {
     const { docId, token } = this.status;
-    if (!this.api || !token || this.status.connection === 'local') throw new CollabError('Partagez d’abord le document pour activer cette fonction', 0);
+    if (!this.api || !token || this.status.connection === 'local') throw new CollabError(tr('Partagez d’abord le document pour activer cette fonction', 'Share the document first to turn this on'), 0);
     return { docId, token, api: this.api };
   }
 

@@ -2,6 +2,36 @@ import { useState } from 'react';
 import { Dialog, DialogTrigger, Heading } from 'react-aria-components';
 import { Button as EmbButton, Popover, Radio, RadioGroup, Slider } from '@oel/emboss';
 import type { ExportOptions } from '../protocol';
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    export: 'Exporter',
+    originalEach: 'Originale (chaque image)',
+    original: (w: number, h: number) => `Originale (${w} × ${h})`,
+    longSide: (n: number) => `${n} px (côté long)`,
+    title: 'Exporter l’image',
+    format: 'Format',
+    size: 'Taille',
+    quality: 'Qualité',
+    cancel: 'Annuler',
+    exporting: 'Exportation…',
+    exportAs: (format: string) => `Exporter en ${format}`,
+  },
+  {
+    export: 'Export',
+    originalEach: 'Original (each image)',
+    original: (w, h) => `Original (${w} × ${h})`,
+    longSide: (n) => `${n} px (long side)`,
+    title: 'Export the image',
+    format: 'Format',
+    size: 'Size',
+    quality: 'Quality',
+    cancel: 'Cancel',
+    exporting: 'Exporting…',
+    exportAs: (format) => `Export as ${format}`,
+  },
+);
 
 const FORMATS = [
   { mime: 'image/jpeg', label: 'JPEG', ext: 'jpg' },
@@ -13,7 +43,7 @@ const FORMATS = [
 export function ExportPopover({
   size,
   onExport,
-  label = 'Exporter',
+  label = t.export,
   sizeIsSample = false,
 }: {
   size: { width: number; height: number };
@@ -29,8 +59,8 @@ export function ExportPopover({
   const fmt = FORMATS.find((f) => f.mime === mime)!;
   const full = Math.max(size.width, size.height);
   const sizes = [
-    { id: 'original', label: sizeIsSample ? 'Originale (chaque image)' : `Originale (${size.width} × ${size.height})` },
-    ...[2048, 1280].filter((n) => n < full).map((n) => ({ id: String(n), label: `${n} px (côté long)` })),
+    { id: 'original', label: sizeIsSample ? t.originalEach : t.original(size.width, size.height) },
+    ...[2048, 1280].filter((n) => n < full).map((n) => ({ id: String(n), label: t.longSide(n) })),
   ];
   return (
     <DialogTrigger>
@@ -38,20 +68,20 @@ export function ExportPopover({
         {label}
       </EmbButton>
       <Popover placement="bottom end">
-        <Dialog className="atelier-export" aria-label="Exporter l’image">
+        <Dialog className="atelier-export" aria-label={t.title}>
           {({ close }) => (
             <>
               <Heading slot="title" className="atelier-export__title">
-                Exporter l’image
+                {t.title}
               </Heading>
-              <RadioGroup label="Format" value={mime} onChange={setMime} orientation="horizontal">
+              <RadioGroup label={t.format} value={mime} onChange={setMime} orientation="horizontal">
                 {FORMATS.map((f) => (
                   <Radio key={f.mime} value={f.mime}>
                     {f.label}
                   </Radio>
                 ))}
               </RadioGroup>
-              <RadioGroup label="Taille" value={long} onChange={setLong}>
+              <RadioGroup label={t.size} value={long} onChange={setLong}>
                 {sizes.map((s) => (
                   <Radio key={s.id} value={s.id}>
                     {s.label}
@@ -59,11 +89,11 @@ export function ExportPopover({
                 ))}
               </RadioGroup>
               {mime !== 'image/png' && (
-                <Slider label="Qualité" minValue={50} maxValue={100} value={quality} onChange={(v) => setQuality(v as number)} valueLabel={(v) => `${v} %`} />
+                <Slider label={t.quality} minValue={50} maxValue={100} value={quality} onChange={(v) => setQuality(v as number)} valueLabel={(v) => `${v} %`} />
               )}
               <div className="atelier-export__actions">
                 <EmbButton variant="ghost" size="sm" onPress={close}>
-                  Annuler
+                  {t.cancel}
                 </EmbButton>
                 <EmbButton
                   variant="primary"
@@ -79,7 +109,7 @@ export function ExportPopover({
                     }
                   }}
                 >
-                  {busy ? 'Exportation…' : `Exporter en ${fmt.label}`}
+                  {busy ? t.exporting : t.exportAs(fmt.label)}
                 </EmbButton>
               </div>
             </>

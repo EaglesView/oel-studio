@@ -1,5 +1,6 @@
 import { detectKind } from './detect';
 import type { DocumentEngine, ExportRequest, FileKind, ImportProgress, ImportRequest, ImportResult } from './types';
+import { tr } from '@oel/i18n';
 
 /**
  * Picks the engine for a file. Engines registered later win, so a WASM engine
@@ -20,19 +21,19 @@ export class EngineRegistry {
 
   async import(req: ImportRequest, onProgress: (p: ImportProgress) => void = () => {}): Promise<ImportResult> {
     const engine = this.pick(req);
-    if (!engine) throw new Error('Aucun moteur enregistré');
+    if (!engine) throw new Error(tr('Aucun moteur enregistré', 'No engine registered'));
     return engine.import(req, onProgress);
   }
 
   async export(req: ExportRequest): Promise<Uint8Array> {
     const engine = this.engines.find((e) => e.export && e.kinds.includes(req.kind));
-    if (!engine?.export) throw new Error(`Aucun moteur ne sait écrire « ${req.format} »`);
+    if (!engine?.export) throw new Error(tr(`Aucun moteur ne sait écrire « ${req.format} »`, `No engine can write “${req.format}”`));
     return engine.export(req);
   }
 
   async create(kind: FileKind, title: string): Promise<ImportResult> {
     const engine = this.engines.find((e) => e.create && e.kinds.includes(kind));
-    if (!engine?.create) throw new Error('Aucun moteur ne sait créer ce type de fichier');
+    if (!engine?.create) throw new Error(tr('Aucun moteur ne sait créer ce type de fichier', 'No engine can create this kind of file'));
     return engine.create(kind, title);
   }
 }

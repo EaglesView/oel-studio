@@ -1,3 +1,4 @@
+import { tr } from '@oel/i18n';
 /** HTTP client for apps/collab. Tokens travel as Bearer headers, never in URLs. */
 
 export type Role = 'owner' | 'editor' | 'viewer';
@@ -64,14 +65,14 @@ export class CollabApi {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers ?? {}) },
       });
     } catch {
-      throw new CollabError('Serveur de collaboration injoignable', 0);
+      throw new CollabError(tr('Serveur de collaboration injoignable', 'Collaboration server unreachable'), 0);
     }
     if (!r.ok) {
       const msg = await r
         .json()
         .then((j: { error?: string }) => j.error)
         .catch(() => null);
-      throw new CollabError(msg ?? `Erreur ${r.status}`, r.status);
+      throw new CollabError(msg ?? tr(`Erreur ${r.status}`, `Error ${r.status}`), r.status);
     }
     return r;
   }

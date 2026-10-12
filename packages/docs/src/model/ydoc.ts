@@ -23,6 +23,7 @@ import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from '@t
 import type { Schema } from '@tiptap/pm/model';
 import type { DocSettings, DocxJson, ExportJson, PMDoc, Section, StoryPart, StorySide, SyntheticListKind } from './types';
 import { DEFAULT_SETTINGS, defaultSection, sectionBreaks, sectionOrder } from './sections';
+import { tr } from '@oel/i18n';
 
 /** Y.Doc layout version; documents of another version are refused on open. */
 export const FORMAT_VERSION = 2;
@@ -47,7 +48,7 @@ export const mediaIndex = (d: Y.Doc) => d.getMap<{ mime: string; url?: string }>
 /** Thrown when a stored document uses another Y.Doc layout (dev data from an older build). */
 export class DocFormatError extends Error {
   constructor(readonly found: unknown) {
-    super('Ce document a été enregistré par une version antérieure de l’éditeur et ne peut plus être ouvert. Importez de nouveau le fichier .docx d’origine.');
+    super(tr('Ce document a été enregistré par une version antérieure de l’éditeur et ne peut plus être ouvert. Importez de nouveau le fichier .docx d’origine.', 'This document was saved by an earlier version of the editor and can no longer be opened. Import the original .docx file again.'));
     this.name = 'DocFormatError';
   }
 }

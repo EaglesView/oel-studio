@@ -22,6 +22,7 @@ import { FormulaBar } from './FormulaBar';
 import { SheetTabs } from './SheetTabs';
 import { SheetsToolbar } from './SheetsToolbar';
 import { CondFormatDialog, CsvDialog, FilterMenu, FindBar, FormatCellsDialog, LinkDialog, NamesDialog, PreservedNote, SortDialog, ValidationDialog, ValidationList, listChoices, validate } from './dialogs';
+import { messages, tr } from '@oel/i18n';
 
 export interface ExportRequest {
   format: 'xlsx' | 'csv' | 'tsv';
@@ -172,7 +173,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       const oid = ctl.doc.drawingId(ctl.sheetId, index);
       if (oid) setRetouch({ oid, crop });
     } : null,
-    replace: (index, file) => void replacePicture(ctl, session, index, file).catch(() => toast({ title: 'Image non remplacée', tone: 'danger' })),
+    replace: (index, file) => void replacePicture(ctl, session, index, file).catch(() => toast({ title: tr('Image non remplacée', 'Image not replaced'), tone: 'danger' })),
     open: !!retouch,
   };
 
@@ -191,21 +192,21 @@ export function SheetsEditor(props: SheetsEditorProps) {
   // ----- export ------------------------------------------------------------------
 
   const exportAs = async (format: ExportRequest['format']) => {
-    if (!props.exportFile) return toast({ title: 'Export indisponible', description: 'Le moteur de fichiers n’est pas chargé.', tone: 'warning' });
+    if (!props.exportFile) return toast({ title: tr('Export indisponible', 'Export unavailable'), description: tr('Le moteur de fichiers n’est pas chargé.', 'The file engine is not loaded.'), tone: 'warning' });
     try {
       const input = await session.exportInput();
-      if (format !== 'xlsx' && input.json.sheets.length > 1) toast({ title: `Seule la feuille « ${ctl.props.name} » est enregistrée`, description: 'Le format texte ne garde qu’une feuille, sans formules ni mise en forme.', tone: 'info' });
+      if (format !== 'xlsx' && input.json.sheets.length > 1) toast({ title: tr(`Seule la feuille « ${ctl.props.name} » est enregistrée`, `Only the sheet “${ctl.props.name}” is saved`), description: tr('Le format texte ne garde qu’une feuille, sans formules ni mise en forme.', 'The text format keeps one sheet only, without formulas or formatting.'), tone: 'info' });
       const xlsx = format === 'xlsx';
       const bytes = await props.exportFile({ format, json: input.json, original: xlsx ? input.original : null, media: xlsx ? input.media : [], sheet: ctl.sheetIndex });
       download(bytes, `${safeFileName(props.title)}.${format}`, MIME[format]);
     } catch (e) {
-      toast({ title: 'Export impossible', description: (e as Error).message, tone: 'warning' });
+      toast({ title: tr('Export impossible', 'Export failed'), description: (e as Error).message, tone: 'warning' });
     }
   };
 
   const print = () => {
     const u = ctl.doc.usedRange(ctl.sheetId);
-    if (!u) return toast({ title: 'Feuille vide', tone: 'info' });
+    if (!u) return toast({ title: tr('Feuille vide', 'Empty sheet'), tone: 'info' });
     const rg = current(ctl.sel);
     const area = rg.r0 !== rg.r1 || rg.c0 !== rg.c1 ? rg : u;
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -222,7 +223,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
     }
     html += '</table>';
     const w = window.open('', '_blank');
-    if (!w) return toast({ title: 'Fenêtre bloquée', description: 'Autorisez les fenêtres surgissantes pour imprimer.', tone: 'warning' });
+    if (!w) return toast({ title: tr('Fenêtre bloquée', 'Window blocked'), description: tr('Autorisez les fenêtres surgissantes pour imprimer.', 'Allow pop-up windows to print.'), tone: 'warning' });
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(props.title)} — ${esc(ctl.props.name)}</title><style>body{font:11pt Calibri,Carlito,sans-serif;margin:12mm}table{border-collapse:collapse}td{border:1px solid #ccc;padding:2px 6px;white-space:pre-wrap}</style>${html}`);
     w.document.close();
     w.focus();
@@ -252,14 +253,14 @@ export function SheetsEditor(props: SheetsEditorProps) {
       case 'print':
         return print();
       case 'save':
-        return toast({ title: 'Enregistrement automatique', description: 'Chaque modification est enregistrée dès qu’elle est faite.', tone: 'info' });
+        return toast({ title: tr('Enregistrement automatique', 'Autosave'), description: tr('Chaque modification est enregistrée dès qu’elle est faite.', 'Every change is saved as soon as it is made.'), tone: 'info' });
       case 'history':
         return setShowVersions((v) => !v);
       case 'csv-settings':
         return setDialog('csv');
       case 'to-xlsx':
         ctl.doc.doc.getMap('meta').set('source', 'xlsx');
-        toast({ title: 'Le classeur s’enregistre maintenant en .xlsx', description: 'Formules, mise en forme et feuilles sont conservées.', tone: 'success' });
+        toast({ title: tr('Le classeur s’enregistre maintenant en .xlsx', 'The workbook now saves as .xlsx'), description: tr('Formules, mise en forme et feuilles sont conservées.', 'Formulas, formatting and sheets are kept.'), tone: 'success' });
         return void exportAs('xlsx');
       case 'undo':
         return void ctl.undo.undo();
@@ -273,14 +274,14 @@ export function SheetsEditor(props: SheetsEditorProps) {
         return void navigator.clipboard
           .readText()
           .then((text) => ctl.paste({ text }))
-          .catch(() => toast({ title: 'Collez avec Ctrl+V', description: 'Le navigateur réserve le presse-papiers au raccourci clavier.', tone: 'info' }));
+          .catch(() => toast({ title: tr('Collez avec Ctrl+V', 'Paste with Ctrl+V'), description: tr('Le navigateur réserve le presse-papiers au raccourci clavier.', 'The browser keeps the clipboard for the keyboard shortcut.'), tone: 'info' }));
       case 'paste-values':
       case 'paste-formats':
       case 'paste-transpose':
         return void navigator.clipboard
           .readText()
           .then((text) => ctl.paste({ text }, id === 'paste-values' ? 'values' : id === 'paste-formats' ? 'formats' : 'transpose'))
-          .catch(() => toast({ title: 'Presse-papiers inaccessible', description: 'Autorisez la lecture du presse-papiers pour le collage spécial.', tone: 'info' }));
+          .catch(() => toast({ title: tr('Presse-papiers inaccessible', 'Clipboard unavailable'), description: tr('Autorisez la lecture du presse-papiers pour le collage spécial.', 'Allow reading the clipboard for paste special.'), tone: 'info' }));
       case 'find':
         return setFind({ replace: false });
       case 'replace':
@@ -333,18 +334,18 @@ export function SheetsEditor(props: SheetsEditorProps) {
       }
       case 'chart':
       case 'chart-gallery': {
-        if (source === 'csv') return toast({ title: 'Graphiques non enregistrés en CSV', description: 'Un fichier CSV ne garde que les valeurs. Enregistrez en .xlsx (Fichier) pour garder vos graphiques.', tone: 'warning' });
+        if (source === 'csv') return toast({ title: tr('Graphiques non enregistrés en CSV', 'Charts not saved in CSV'), description: tr('Un fichier CSV ne garde que les valeurs. Enregistrez en .xlsx (Fichier) pour garder vos graphiques.', 'A CSV file keeps the values only. Save as .xlsx (File) to keep your charts.'), tone: 'warning' });
         if (!chartBlock(ctl)) return act('chart-empty');
         if (id === 'chart-gallery') return setDialog('chart');
         insertChart(ctl);
         return;
       }
       case 'chart-empty':
-        return toast({ title: 'Sélectionnez des données', description: 'Placez-vous dans un tableau (ou sélectionnez une plage) avant d’insérer un graphique.', tone: 'info' });
+        return toast({ title: tr('Sélectionnez des données', 'Select data'), description: tr('Placez-vous dans un tableau (ou sélectionnez une plage) avant d’insérer un graphique.', 'Go into a table (or select a range) before inserting a chart.'), tone: 'info' });
       case 'link':
         return setDialog('link');
       case 'link-range': {
-        if (!ctl.onLinkRange) return toast({ title: 'Ouvrez ce classeur depuis le bureau', description: 'Les plages se lient dans les présentations et les documents du bureau.', tone: 'info' });
+        if (!ctl.onLinkRange) return toast({ title: tr('Ouvrez ce classeur depuis le bureau', 'Open this workbook from the desk'), description: tr('Les plages se lient dans les présentations et les documents du bureau.', 'Ranges link into the presentations and documents on the desk.'), tone: 'info' });
         const r = ctl.sel.ranges[ctl.sel.ranges.length - 1]!;
         return ctl.onLinkRange({ sheetId: ctl.sheetId, ids: ctl.doc.idRange(ctl.sheetId, r), label: `${ctl.doc.sheetName(ctl.sheetId) ?? ''}!${rangeA1(r)}` });
       }
@@ -393,7 +394,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
         return setDialog('names');
       case 'dedupe': {
         const n = ctl.removeDuplicates(guessHeader(ctl));
-        return toast({ title: n ? `${n} ligne${n > 1 ? 's' : ''} en double supprimée${n > 1 ? 's' : ''}` : 'Aucun doublon trouvé', tone: n ? 'success' : 'info' });
+        return toast({ title: n ? tr(`${n} ligne${n > 1 ? 's' : ''} en double supprimée${n > 1 ? 's' : ''}`, `${n} duplicate row${n > 1 ? 's' : ''} removed`) : tr('Aucun doublon trouvé', 'No duplicates found'), tone: n ? 'success' : 'info' });
       }
       case 'split':
         return setDialog('split');
@@ -415,147 +416,147 @@ export function SheetsEditor(props: SheetsEditorProps) {
 
   const spec: MenuSpec = [
     {
-      label: 'Fichier',
+      label: tr('Fichier', 'File'),
       items: [
-        { id: 'new', label: 'Nouveau classeur', icon: 'new-page', disabled: !props.onNewWorkbook },
-        { id: 'open', label: 'Ouvrir un fichier…', icon: 'upload', disabled: !props.onOpenFile },
+        { id: 'new', label: tr('Nouveau classeur', 'New workbook'), icon: 'new-page', disabled: !props.onNewWorkbook },
+        { id: 'open', label: tr('Ouvrir un fichier…', 'Open a file…'), icon: 'upload', disabled: !props.onOpenFile },
         '-',
         {
           id: 'download',
-          label: 'Télécharger',
+          label: tr('Télécharger', 'Download'),
           icon: 'download',
           children: [
-            { id: 'dl-xlsx', label: 'Classeur Excel (.xlsx)' },
-            { id: 'dl-csv', label: 'Valeurs séparées par des virgules (.csv, feuille active)' },
-            { id: 'dl-tsv', label: 'Valeurs séparées par des tabulations (.tsv, feuille active)' },
+            { id: 'dl-xlsx', label: tr('Classeur Excel (.xlsx)', 'Excel workbook (.xlsx)') },
+            { id: 'dl-csv', label: tr('Valeurs séparées par des virgules (.csv, feuille active)', 'Comma-separated values (.csv, active sheet)') },
+            { id: 'dl-tsv', label: tr('Valeurs séparées par des tabulations (.tsv, feuille active)', 'Tab-separated values (.tsv, active sheet)') },
           ],
         },
-        ...(source === 'csv' ? [{ id: 'csv-settings', label: 'Paramètres CSV…' }, { id: 'to-xlsx', label: 'Enregistrer en .xlsx' }] : []),
-        { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
+        ...(source === 'csv' ? [{ id: 'csv-settings', label: tr('Paramètres CSV…', 'CSV settings…') }, { id: 'to-xlsx', label: tr('Enregistrer en .xlsx', 'Save as .xlsx') }] : []),
+        { id: 'history', label: tr('Historique des versions', 'Version history'), icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
         '-',
-        { id: 'print', label: 'Imprimer', icon: 'print', shortcut: 'Ctrl+P' },
+        { id: 'print', label: tr('Imprimer', 'Print'), icon: 'print', shortcut: 'Ctrl+P' },
       ],
     },
     {
-      label: 'Édition',
+      label: tr('Édition', 'Edit'),
       items: [
-        { id: 'undo', label: 'Annuler', icon: 'undo', shortcut: 'Ctrl+Z', disabled: ro },
-        { id: 'redo', label: 'Rétablir', icon: 'redo', shortcut: 'Ctrl+Y', disabled: ro },
+        { id: 'undo', label: tr('Annuler', 'Undo'), icon: 'undo', shortcut: 'Ctrl+Z', disabled: ro },
+        { id: 'redo', label: tr('Rétablir', 'Redo'), icon: 'redo', shortcut: 'Ctrl+Y', disabled: ro },
         '-',
-        { id: 'cut', label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', disabled: ro },
-        { id: 'copy', label: 'Copier', icon: 'copy', shortcut: 'Ctrl+C' },
-        { id: 'paste', label: 'Coller', icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
+        { id: 'cut', label: tr('Couper', 'Cut'), icon: 'cut', shortcut: 'Ctrl+X', disabled: ro },
+        { id: 'copy', label: tr('Copier', 'Copy'), icon: 'copy', shortcut: 'Ctrl+C' },
+        { id: 'paste', label: tr('Coller', 'Paste'), icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
         {
           id: 'paste-special',
-          label: 'Collage spécial',
+          label: tr('Collage spécial', 'Paste special'),
           disabled: ro,
           children: [
-            { id: 'paste-values', label: 'Valeurs uniquement', shortcut: 'Ctrl+Maj+V' },
-            { id: 'paste-formats', label: 'Mise en forme uniquement' },
-            { id: 'paste-transpose', label: 'Transposé' },
+            { id: 'paste-values', label: tr('Valeurs uniquement', 'Values only'), shortcut: 'Ctrl+Maj+V' },
+            { id: 'paste-formats', label: tr('Mise en forme uniquement', 'Formatting only') },
+            { id: 'paste-transpose', label: tr('Transposé', 'Transposed') },
           ],
         },
         '-',
-        { id: 'find', label: 'Rechercher', icon: 'search', shortcut: 'Ctrl+F' },
-        { id: 'replace', label: 'Rechercher et remplacer', shortcut: 'Ctrl+H', disabled: ro },
+        { id: 'find', label: tr('Rechercher', 'Find'), icon: 'search', shortcut: 'Ctrl+F' },
+        { id: 'replace', label: tr('Rechercher et remplacer', 'Find and replace'), shortcut: 'Ctrl+H', disabled: ro },
         '-',
-        { id: 'clear-values', label: 'Effacer les valeurs', shortcut: 'Suppr', disabled: ro },
-        { id: 'delete-rows', label: 'Supprimer les lignes', icon: 'trash', disabled: ro },
-        { id: 'delete-cols', label: 'Supprimer les colonnes', disabled: ro },
+        { id: 'clear-values', label: tr('Effacer les valeurs', 'Clear values'), shortcut: 'Suppr', disabled: ro },
+        { id: 'delete-rows', label: tr('Supprimer les lignes', 'Delete rows'), icon: 'trash', disabled: ro },
+        { id: 'delete-cols', label: tr('Supprimer les colonnes', 'Delete columns'), disabled: ro },
       ],
     },
     {
-      label: 'Affichage',
+      label: tr('Affichage', 'View'),
       items: [
         {
           id: 'freeze',
-          label: 'Figer',
+          label: tr('Figer', 'Freeze'),
           icon: 'freeze',
           children: [
-            { id: 'freeze-row', label: 'La première ligne' },
-            { id: 'freeze-col', label: 'La première colonne' },
-            { id: 'freeze-here', label: 'Jusqu’à la cellule active' },
-            { id: 'unfreeze', label: 'Libérer les volets' },
+            { id: 'freeze-row', label: tr('La première ligne', 'The first row') },
+            { id: 'freeze-col', label: tr('La première colonne', 'The first column') },
+            { id: 'freeze-here', label: tr('Jusqu’à la cellule active', 'Up to the active cell') },
+            { id: 'unfreeze', label: tr('Libérer les volets', 'Unfreeze panes') },
           ],
         },
-        { id: 'grid', label: 'Quadrillage', checked: ctl.props.showGrid },
-        { id: 'formulas', label: 'Afficher les formules', shortcut: 'Ctrl+`', checked: ctl.showFormulas },
+        { id: 'grid', label: tr('Quadrillage', 'Gridlines'), checked: ctl.props.showGrid },
+        { id: 'formulas', label: tr('Afficher les formules', 'Show formulas'), shortcut: 'Ctrl+`', checked: ctl.showFormulas },
       ],
     },
     {
-      label: 'Insertion',
+      label: tr('Insertion', 'Insert'),
       items: [
-        { id: 'ins-row-above', label: 'Ligne au-dessus', icon: 'table-rows', disabled: ro },
-        { id: 'ins-row-below', label: 'Ligne en dessous', disabled: ro },
-        { id: 'ins-col-left', label: 'Colonne à gauche', icon: 'insert-col', disabled: ro },
-        { id: 'ins-col-right', label: 'Colonne à droite', disabled: ro },
-        { id: 'ins-sheet', label: 'Feuille', icon: 'plus', disabled: ro || source === 'csv' },
+        { id: 'ins-row-above', label: tr('Ligne au-dessus', 'Row above'), icon: 'table-rows', disabled: ro },
+        { id: 'ins-row-below', label: tr('Ligne en dessous', 'Row below'), disabled: ro },
+        { id: 'ins-col-left', label: tr('Colonne à gauche', 'Column left'), icon: 'insert-col', disabled: ro },
+        { id: 'ins-col-right', label: tr('Colonne à droite', 'Column right'), disabled: ro },
+        { id: 'ins-sheet', label: tr('Feuille', 'Sheet'), icon: 'plus', disabled: ro || source === 'csv' },
         '-',
         {
           id: 'functions',
-          label: 'Fonction',
+          label: tr('Fonction', 'Function'),
           icon: 'sum',
           disabled: ro,
           children: ['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'IF', 'VLOOKUP', 'XLOOKUP', 'SUMIF', 'COUNTIF', 'ROUND', 'CONCAT', 'TODAY'].map((f) => ({ id: `fn:${f}`, label: f })),
         },
-        { id: 'chart-gallery', label: 'Graphique…', icon: 'chart', shortcut: 'Alt+F1', disabled: ro },
-        { id: 'link', label: 'Lien', icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
-        { id: 'ins-checkbox', label: 'Case à cocher (VRAI/FAUX)', icon: 'checklist', disabled: ro },
-        { id: 'ins-date', label: 'Date du jour', icon: 'calendar', shortcut: 'Ctrl+;', disabled: ro },
+        { id: 'chart-gallery', label: tr('Graphique…', 'Chart…'), icon: 'chart', shortcut: 'Alt+F1', disabled: ro },
+        { id: 'link', label: tr('Lien', 'Link'), icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
+        { id: 'ins-checkbox', label: tr('Case à cocher (VRAI/FAUX)', 'Checkbox (TRUE/FALSE)'), icon: 'checklist', disabled: ro },
+        { id: 'ins-date', label: tr('Date du jour', 'Today’s date'), icon: 'calendar', shortcut: 'Ctrl+;', disabled: ro },
       ],
     },
     {
       label: 'Format',
       items: [
-        { id: 'numfmt', label: 'Nombre', icon: 'word-count', disabled: ro, children: NUMBER_FORMATS.map((f) => ({ id: `fmt:${f.id}`, label: `${f.label} — ${f.example}` })) },
-        { id: 'format-cells', label: 'Format des nombres…', shortcut: 'Ctrl+1', disabled: ro },
+        { id: 'numfmt', label: tr('Nombre', 'Number'), icon: 'word-count', disabled: ro, children: NUMBER_FORMATS.map((f) => ({ id: `fmt:${f.id}`, label: `${f.label} — ${f.example}` })) },
+        { id: 'format-cells', label: tr('Format des nombres…', 'Number format…'), shortcut: 'Ctrl+1', disabled: ro },
         '-',
-        { id: 'bold', label: 'Gras', icon: 'bold', shortcut: 'Ctrl+B', disabled: ro },
-        { id: 'italic', label: 'Italique', icon: 'italic', shortcut: 'Ctrl+I', disabled: ro },
-        { id: 'underline', label: 'Souligné', icon: 'underline', shortcut: 'Ctrl+U', disabled: ro },
-        { id: 'strike', label: 'Barré', icon: 'strikethrough', shortcut: 'Ctrl+5', disabled: ro },
+        { id: 'bold', label: tr('Gras', 'Bold'), icon: 'bold', shortcut: 'Ctrl+B', disabled: ro },
+        { id: 'italic', label: tr('Italique', 'Italic'), icon: 'italic', shortcut: 'Ctrl+I', disabled: ro },
+        { id: 'underline', label: tr('Souligné', 'Underline'), icon: 'underline', shortcut: 'Ctrl+U', disabled: ro },
+        { id: 'strike', label: tr('Barré', 'Strikethrough'), icon: 'strikethrough', shortcut: 'Ctrl+5', disabled: ro },
         {
           id: 'align',
-          label: 'Alignement',
+          label: tr('Alignement', 'Alignment'),
           icon: 'align-left',
           disabled: ro,
           children: [
-            { id: 'align:general', label: 'Automatique' },
-            { id: 'align:left', label: 'Gauche' },
-            { id: 'align:center', label: 'Centré' },
-            { id: 'align:right', label: 'Droite' },
+            { id: 'align:general', label: tr('Automatique', 'Automatic') },
+            { id: 'align:left', label: tr('Gauche', 'Left') },
+            { id: 'align:center', label: tr('Centré', 'Centre') },
+            { id: 'align:right', label: tr('Droite', 'Right') },
           ],
         },
-        { id: 'wrap', label: 'Renvoyer à la ligne', icon: 'wrap-text', checked: !!ctl.activeStyle.align.wrap, disabled: ro },
-        { id: 'merge-cells', label: 'Fusionner', icon: 'merge', disabled: ro, children: [{ id: 'merge-center', label: 'Fusionner et centrer' }, { id: 'merge', label: 'Fusionner' }, { id: 'unmerge', label: 'Annuler la fusion' }] },
-        { id: 'cf', label: 'Mise en forme conditionnelle…', icon: 'palette', disabled: ro },
+        { id: 'wrap', label: tr('Renvoyer à la ligne', 'Wrap text'), icon: 'wrap-text', checked: !!ctl.activeStyle.align.wrap, disabled: ro },
+        { id: 'merge-cells', label: tr('Fusionner', 'Merge'), icon: 'merge', disabled: ro, children: [{ id: 'merge-center', label: tr('Fusionner et centrer', 'Merge and centre') }, { id: 'merge', label: tr('Fusionner', 'Merge') }, { id: 'unmerge', label: tr('Annuler la fusion', 'Unmerge') }] },
+        { id: 'cf', label: tr('Mise en forme conditionnelle…', 'Conditional formatting…'), icon: 'palette', disabled: ro },
         '-',
-        { id: 'row-height', label: 'Hauteur de ligne…', disabled: ro },
-        { id: 'col-width', label: 'Largeur de colonne…', disabled: ro },
-        { id: 'hide', label: 'Masquer et afficher', disabled: ro, children: [{ id: 'hide-rows', label: 'Masquer les lignes' }, { id: 'show-rows', label: 'Afficher les lignes' }, { id: 'hide-cols', label: 'Masquer les colonnes' }, { id: 'show-cols', label: 'Afficher les colonnes' }] },
-        { id: 'clear-formats', label: 'Effacer la mise en forme', icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro },
+        { id: 'row-height', label: tr('Hauteur de ligne…', 'Row height…'), disabled: ro },
+        { id: 'col-width', label: tr('Largeur de colonne…', 'Column width…'), disabled: ro },
+        { id: 'hide', label: tr('Masquer et afficher', 'Hide and show'), disabled: ro, children: [{ id: 'hide-rows', label: tr('Masquer les lignes', 'Hide rows') }, { id: 'show-rows', label: tr('Afficher les lignes', 'Show rows') }, { id: 'hide-cols', label: tr('Masquer les colonnes', 'Hide columns') }, { id: 'show-cols', label: tr('Afficher les colonnes', 'Show columns') }] },
+        { id: 'clear-formats', label: tr('Effacer la mise en forme', 'Clear formatting'), icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro },
       ],
     },
     {
-      label: 'Données',
+      label: tr('Données', 'Data'),
       items: [
-        { id: 'sort-asc', label: 'Trier de A à Z', icon: 'sort-asc', disabled: ro },
-        { id: 'sort-desc', label: 'Trier de Z à A', icon: 'sort-desc', disabled: ro },
-        { id: 'sort', label: 'Trier la plage…', disabled: ro },
-        { id: 'filter', label: ctl.doc.filter(ctl.sheetId) ? 'Retirer le filtre' : 'Créer un filtre', icon: 'filter', shortcut: 'Ctrl+Maj+L', disabled: ro },
+        { id: 'sort-asc', label: tr('Trier de A à Z', 'Sort A to Z'), icon: 'sort-asc', disabled: ro },
+        { id: 'sort-desc', label: tr('Trier de Z à A', 'Sort Z to A'), icon: 'sort-desc', disabled: ro },
+        { id: 'sort', label: tr('Trier la plage…', 'Sort range…'), disabled: ro },
+        { id: 'filter', label: ctl.doc.filter(ctl.sheetId) ? tr('Retirer le filtre', 'Remove the filter') : tr('Créer un filtre', 'Create a filter'), icon: 'filter', shortcut: 'Ctrl+Maj+L', disabled: ro },
         '-',
-        { id: 'validation', label: 'Validation des données…', icon: 'validation', disabled: ro },
-        { id: 'names', label: 'Plages nommées…' },
+        { id: 'validation', label: tr('Validation des données…', 'Data validation…'), icon: 'validation', disabled: ro },
+        { id: 'names', label: tr('Plages nommées…', 'Named ranges…') },
         '-',
-        { id: 'dedupe', label: 'Supprimer les doublons', disabled: ro },
-        { id: 'split', label: 'Fractionner le texte en colonnes…', disabled: ro },
+        { id: 'dedupe', label: tr('Supprimer les doublons', 'Remove duplicates'), disabled: ro },
+        { id: 'split', label: tr('Fractionner le texte en colonnes…', 'Split text to columns…'), disabled: ro },
       ],
     },
     {
-      label: 'Outils',
+      label: tr('Outils', 'Tools'),
       items: [
-        { id: 'identity', label: 'Votre nom…', icon: 'user', hidden: !collab },
-        { id: 'scripts', label: 'Scripts (Python, Lua) — bientôt', disabled: true },
+        { id: 'identity', label: tr('Votre nom…', 'Your name…'), icon: 'user', hidden: !collab },
+        { id: 'scripts', label: tr('Scripts (Python, Lua) — bientôt', 'Scripts (Python, Lua) — coming soon'), disabled: true },
       ],
     },
   ];
@@ -601,21 +602,21 @@ export function SheetsEditor(props: SheetsEditorProps) {
   const exportMenu = (
     <MenuTrigger>
       <Button size="sm" variant="secondary" leadingIcon="download">
-        Exporter
+        {tr('Exporter', 'Export')}
       </Button>
       <MenuPopover placement="bottom end">
-        <Menu aria-label="Exporter" onAction={(k) => act(String(k))}>
+        <Menu aria-label={tr('Exporter', 'Export')} onAction={(k) => act(String(k))}>
           <MenuItem id="dl-xlsx" icon="table">Excel (.xlsx)</MenuItem>
           <MenuItem id="dl-csv">CSV (.csv)</MenuItem>
-          <MenuItem id="dl-tsv">Texte tabulé (.tsv)</MenuItem>
-          <MenuItem id="print" icon="print">Imprimer / PDF</MenuItem>
+          <MenuItem id="dl-tsv">{tr('Texte tabulé (.tsv)', 'Tab-separated text (.tsv)')}</MenuItem>
+          <MenuItem id="print" icon="print">{tr('Imprimer / PDF', 'Print / PDF')}</MenuItem>
         </Menu>
       </MenuPopover>
     </MenuTrigger>
   );
   const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
-      Partager
+      {tr('Partager', 'Share')}
     </Button>
   );
   const preservedChip = preserved.length > 0 && (
@@ -629,7 +630,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
     <div className={`oel-sheets oel-sheets--${variant}`} data-sheets={status.docId} onKeyDown={onKeyDown}>
       {!compact && (
         <header className="oel-sheets__top">
-          <nav className="oel-sheets__crumbs" aria-label="Fil d’Ariane">
+          <nav className="oel-sheets__crumbs" aria-label={tr('Fil d’Ariane', 'Breadcrumb')}>
             {props.onBureau && (
               <Button variant="ghost" size="sm" leadingIcon="chevron-left" onPress={props.onBureau} aria-keyshortcuts={props.onReduce ? undefined : 'Escape'}>
                 Bureau
@@ -644,28 +645,28 @@ export function SheetsEditor(props: SheetsEditorProps) {
             <div className="oel-sheets__titlerow">
               <input
                 className="oel-sheets__title"
-                aria-label="Titre du classeur"
+                aria-label={tr('Titre du classeur', 'Workbook title')}
                 value={titleDraft}
                 readOnly={ro}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={commitTitle}
                 onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), gridFocus())}
               />
-              {ro && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
+              {ro && <Badge appearance="stamp" tone="neutral" dot={false}>{tr('Lecture seule', 'Read-only')}</Badge>}
               {source === 'csv' && <Badge tone="neutral" dot={false}>CSV</Badge>}
-              <SyncStatus status={status} noun="classeur" collab={collab} />
+              <SyncStatus status={status} noun={tr('classeur', 'workbook')} collab={collab} />
             </div>
-            <MenuBar spec={spec} onAction={act} label="Menus du classeur" />
+            <MenuBar spec={spec} onAction={act} label={tr('Menus du classeur', 'Workbook menus')} />
           </div>
           <div className="oel-sheets__right">
             {preservedChip}
             {props.onReduce && (
               <Button size="sm" variant="ghost" leadingIcon="collapse" aria-keyshortcuts="Control+Shift+Enter" onPress={props.onReduce}>
-                Réduire
+                {tr('Réduire', 'Reduce')}
               </Button>
             )}
-            {collab && <Peers status={status} noun="classeur" />}
-            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
+            {collab && <Peers status={status} noun={tr('classeur', 'workbook')} />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label={tr('Historique des versions', 'Version history')} isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -677,9 +678,9 @@ export function SheetsEditor(props: SheetsEditorProps) {
         {compact && (
           <div className="oel-sheets__sheet-actions">
             {preservedChip}
-            <SyncStatus status={status} noun="classeur" collab={collab} />
-            {collab && <Peers status={status} noun="classeur" />}
-            {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label="Plein écran (Ctrl+Maj+Entrée)" onPress={props.onExpand} />}
+            <SyncStatus status={status} noun={tr('classeur', 'workbook')} collab={collab} />
+            {collab && <Peers status={status} noun={tr('classeur', 'workbook')} />}
+            {props.onExpand && <Button size="icon-sm" variant="ghost" leadingIcon="expand" aria-label={tr('Plein écran (Ctrl+Maj+Entrée)', 'Full screen (Ctrl+Shift+Enter)')} onPress={props.onExpand} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -689,12 +690,12 @@ export function SheetsEditor(props: SheetsEditorProps) {
       {source === 'csv' && (
         <div className="oel-sheets__banner" role="note">
           <Icon name="info" size={16} />
-          <span>Fichier CSV — les formules et la mise en forme ne sont pas enregistrées dans ce format.</span>
+          <span>{tr('Fichier CSV — les formules et la mise en forme ne sont pas enregistrées dans ce format.', 'CSV file — formulas and formatting are not saved in this format.')}</span>
           <Button size="sm" variant="ghost" onPress={() => act('csv-settings')}>
-            Paramètres CSV
+            {tr('Paramètres CSV', 'CSV settings')}
           </Button>
           <Button size="sm" variant="secondary" isDisabled={ro} onPress={() => act('to-xlsx')}>
-            Enregistrer en .xlsx
+            {tr('Enregistrer en .xlsx', 'Save as .xlsx')}
           </Button>
         </div>
       )}
@@ -705,7 +706,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
         <Grid
           ctl={ctl}
           zoom={zoom}
-          label={`${props.title}, feuille ${ctl.props.name}`}
+          label={tr(`${props.title}, feuille ${ctl.props.name}`, `${props.title}, sheet ${ctl.props.name}`)}
           onCommand={act}
           onFilterMenu={(col, at) => setFilterMenu({ col, at })}
           onContextMenu={(at, kind) => setCtxMenu({ ...at, kind })}
@@ -801,10 +802,10 @@ function PreservedChip({ items }: { items: Array<{ kind: string; label: string }
   return (
     <>
       <button ref={ref} type="button" className="oel-sheets__chip" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <Icon name="lock" size={14} /> Conservé · {items.map((i) => i.label).join(', ')}
+        <Icon name="lock" size={14} /> {tr('Conservé', 'Kept')} · {items.map((i) => i.label).join(', ')}
       </button>
       <Popover triggerRef={ref as RefObject<HTMLButtonElement>} isOpen={open} onOpenChange={setOpen} placement="bottom end">
-        <Dialog className="oel-popover-dialog" aria-label="Éléments conservés">
+        <Dialog className="oel-popover-dialog" aria-label={tr('Éléments conservés', 'Kept elements')}>
           <PreservedNote items={items} />
         </Dialog>
       </Popover>
@@ -815,32 +816,32 @@ function PreservedChip({ items }: { items: Array<{ kind: string; label: string }
 function ContextMenu({ at, kind, ro, onAction, onClose }: { at: { x: number; y: number }; kind: 'cell' | 'row' | 'col'; ro: boolean; onAction: (id: string) => void; onClose: () => void }) {
   const ref = useRef<HTMLSpanElement>(null);
   const items: Array<{ id: string; label: string } | '-'> = [
-    { id: 'cut', label: 'Couper' },
-    { id: 'copy', label: 'Copier' },
-    { id: 'paste', label: 'Coller' },
-    { id: 'paste-values', label: 'Coller les valeurs' },
+    { id: 'cut', label: tr('Couper', 'Cut') },
+    { id: 'copy', label: tr('Copier', 'Copy') },
+    { id: 'paste', label: tr('Coller', 'Paste') },
+    { id: 'paste-values', label: tr('Coller les valeurs', 'Paste values') },
     '-',
-    ...(kind !== 'col' ? [{ id: 'ins-row-above', label: 'Insérer une ligne au-dessus' }, { id: 'ins-row-below', label: 'Insérer une ligne en dessous' }, { id: 'delete-rows', label: 'Supprimer les lignes' }] : []),
-    ...(kind !== 'row' ? [{ id: 'ins-col-left', label: 'Insérer une colonne à gauche' }, { id: 'ins-col-right', label: 'Insérer une colonne à droite' }, { id: 'delete-cols', label: 'Supprimer les colonnes' }] : []),
-    ...(kind === 'row' ? [{ id: 'hide-rows', label: 'Masquer les lignes' }, { id: 'show-rows', label: 'Afficher les lignes' }, { id: 'row-height', label: 'Hauteur de ligne…' }] : []),
-    ...(kind === 'col' ? [{ id: 'hide-cols', label: 'Masquer les colonnes' }, { id: 'show-cols', label: 'Afficher les colonnes' }, { id: 'col-width', label: 'Largeur de colonne…' }] : []),
+    ...(kind !== 'col' ? [{ id: 'ins-row-above', label: tr('Insérer une ligne au-dessus', 'Insert row above') }, { id: 'ins-row-below', label: tr('Insérer une ligne en dessous', 'Insert row below') }, { id: 'delete-rows', label: tr('Supprimer les lignes', 'Delete rows') }] : []),
+    ...(kind !== 'row' ? [{ id: 'ins-col-left', label: tr('Insérer une colonne à gauche', 'Insert column left') }, { id: 'ins-col-right', label: tr('Insérer une colonne à droite', 'Insert column right') }, { id: 'delete-cols', label: tr('Supprimer les colonnes', 'Delete columns') }] : []),
+    ...(kind === 'row' ? [{ id: 'hide-rows', label: tr('Masquer les lignes', 'Hide rows') }, { id: 'show-rows', label: tr('Afficher les lignes', 'Show rows') }, { id: 'row-height', label: tr('Hauteur de ligne…', 'Row height…') }] : []),
+    ...(kind === 'col' ? [{ id: 'hide-cols', label: tr('Masquer les colonnes', 'Hide columns') }, { id: 'show-cols', label: tr('Afficher les colonnes', 'Show columns') }, { id: 'col-width', label: tr('Largeur de colonne…', 'Column width…') }] : []),
     '-',
-    { id: 'clear-values', label: 'Effacer les valeurs' },
-    { id: 'sort-asc', label: 'Trier de A à Z' },
-    { id: 'sort-desc', label: 'Trier de Z à A' },
-    { id: 'filter', label: 'Filtre' },
-    { id: 'link', label: 'Insérer un lien' },
-    { id: 'link-range', label: 'Lier dans un fichier du bureau…' },
-    { id: 'cf', label: 'Mise en forme conditionnelle…' },
-    { id: 'validation', label: 'Validation des données…' },
-    { id: 'format-cells', label: 'Format des nombres…' },
+    { id: 'clear-values', label: tr('Effacer les valeurs', 'Clear values') },
+    { id: 'sort-asc', label: tr('Trier de A à Z', 'Sort A to Z') },
+    { id: 'sort-desc', label: tr('Trier de Z à A', 'Sort Z to A') },
+    { id: 'filter', label: tr('Filtre', 'Filter') },
+    { id: 'link', label: tr('Insérer un lien', 'Insert a link') },
+    { id: 'link-range', label: tr('Lier dans un fichier du bureau…', 'Link into a file on the desk…') },
+    { id: 'cf', label: tr('Mise en forme conditionnelle…', 'Conditional formatting…') },
+    { id: 'validation', label: tr('Validation des données…', 'Data validation…') },
+    { id: 'format-cells', label: tr('Format des nombres…', 'Number format…') },
   ];
   const readOnlySafe = new Set(['copy']);
   return (
     <>
       <span ref={ref} className="oel-anchor" style={{ left: at.x, top: at.y }} aria-hidden />
       <MenuPopover triggerRef={ref as RefObject<HTMLSpanElement>} isOpen onOpenChange={(o) => !o && onClose()} placement="bottom start">
-        <Menu aria-label="Actions sur la sélection" autoFocus="first" onAction={(k) => onAction(String(k))} disabledKeys={ro ? items.filter((i): i is { id: string; label: string } => i !== '-' && !readOnlySafe.has(i.id)).map((i) => i.id) : []}>
+        <Menu aria-label={tr('Actions sur la sélection', 'Selection actions')} autoFocus="first" onAction={(k) => onAction(String(k))} disabledKeys={ro ? items.filter((i): i is { id: string; label: string } => i !== '-' && !readOnlySafe.has(i.id)).map((i) => i.id) : []}>
           {items.map((it, i) => (it === '-' ? <MenuSeparator key={`s${i}`} /> : <MenuItem key={it.id} id={it.id}>{it.label}</MenuItem>))}
         </Menu>
       </MenuPopover>
@@ -853,8 +854,8 @@ function SizeDialog({ isOpen, kind, initial, onSave, onClose }: { isOpen: boolea
   useEffect(() => void (isOpen && setV(Math.round(initial * 100) / 100)), [isOpen, initial]);
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title={kind === 'row' ? 'Hauteur de ligne' : 'Largeur de colonne'} width={360} actions={() => <Button onPress={() => (onSave(v), onClose())}>Appliquer</Button>}>
-        <NumberField label={kind === 'row' ? 'Hauteur (points)' : 'Largeur (caractères)'} value={v} onChange={setV} minValue={0} maxValue={kind === 'row' ? 409 : 255} step={kind === 'row' ? 0.75 : 0.5} autoFocus />
+      <SheetDialog title={kind === 'row' ? tr('Hauteur de ligne', 'Row height') : tr('Largeur de colonne', 'Column width')} width={360} actions={() => <Button onPress={() => (onSave(v), onClose())}>{tr('Appliquer', 'Apply')}</Button>}>
+        <NumberField label={kind === 'row' ? 'Hauteur (points)' : tr('Largeur (caractères)', 'Width (characters)')} value={v} onChange={setV} minValue={0} maxValue={kind === 'row' ? 409 : 255} step={kind === 'row' ? 0.75 : 0.5} autoFocus />
       </SheetDialog>
     </DialogOverlay>
   );
@@ -864,8 +865,8 @@ function SplitDialog({ isOpen, onSave, onClose }: { isOpen: boolean; onSave: (d:
   const [d, setD] = useState(',');
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Fractionner le texte en colonnes" width={380} actions={() => <Button onPress={() => (onSave(d === 'Tab' ? '\t' : d), onClose())}>Fractionner</Button>}>
-        <TextField label="Séparateur" value={d} onChange={setD} description="Virgule, point-virgule, espace, « Tab »… Le texte de la première colonne sélectionnée est réparti vers la droite." autoFocus />
+      <SheetDialog title={tr('Fractionner le texte en colonnes', 'Split text to columns')} width={380} actions={() => <Button onPress={() => (onSave(d === 'Tab' ? '\t' : d), onClose())}>{tr('Fractionner', 'Split')}</Button>}>
+        <TextField label={tr('Séparateur', 'Separator')} value={d} onChange={setD} description={tr('Virgule, point-virgule, espace, « Tab »… Le texte de la première colonne sélectionnée est réparti vers la droite.', 'Comma, semicolon, space, “Tab”… The text of the first selected column is spread to the right.')} autoFocus />
       </SheetDialog>
     </DialogOverlay>
   );
@@ -875,7 +876,7 @@ function SplitDialog({ isOpen, onSave, onClose }: { isOpen: boolean; onSave: (d:
 function VersionPreview({ doc }: { doc: Y.Doc }) {
   const d = useMemo(() => new SheetDoc(doc), [doc]);
   const first = d.sheetIds()[0];
-  if (!first) return <p className="oel-panel__empty">Version vide.</p>;
+  if (!first) return <p className="oel-panel__empty">{tr('Version vide.', 'Empty version.')}</p>;
   const used = d.usedRange(first);
   const rows = used ? Math.min(used.r1, 30) : 0;
   const cols = used ? Math.min(used.c1, 8) : 0;
@@ -897,7 +898,7 @@ function VersionPreview({ doc }: { doc: Y.Doc }) {
   );
 }
 
-const RETOUCH_NOTE = 'Le fichier Excel garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
+const RETOUCH_NOTE = tr('Le fichier Excel garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.', 'The Excel file keeps the retouched image and, separately, the original and the recipe: reopened in OEL, everything stays editable.');
 
 /** L3 · the atelier docked at the right of the grid; the grid shows the live rendering. */
 function SheetRetouch(p: { ctl: SheetController; session: SheetSession; calc: CalcClient; oid: string; crop: boolean; createWorker: () => Worker; onPreview: (v: { path: string; url: string } | null) => void; onClose: () => void }) {

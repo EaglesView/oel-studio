@@ -11,11 +11,13 @@ import ImageWorker from '@oel/img/worker?worker';
 import { writeZip } from '@oel/engine';
 import { ImageEngine, RecipeDoc, isEmptyRecipe, lookOf, originals, stackRecipes, unflattenRecipe, type ExportOptions, type Raster, type Recipe } from '@oel/img';
 import type { Bureau, Paper } from './model';
+import { tr } from '@oel/i18n';
+import { namedWorker } from '../lang';
 export { GALLERY_PAD, createGallery, layoutGallery } from './galleries';
 
 /* ── platform seams (a native app replaces these) ─────────────────────────────────────────── */
 
-export const createImageWorker = () => new ImageWorker();
+export const createImageWorker = () => namedWorker(ImageWorker, 'oel-img');
 
 export function saveFile(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -271,7 +273,7 @@ export async function exportGallery(store: Bureau, galleryId: string, o: ExportO
     names.add(name);
     files.push({ name, data: new Uint8Array(await out.arrayBuffer()) });
   }
-  if (!files.length) throw new Error('Aucune image de la galerie n’a de fichier à exporter.');
+  if (!files.length) throw new Error(tr('Aucune image de la galerie n’a de fichier à exporter.', 'No image in the gallery has a file to export.'));
   const zip = writeZip(files);
-  saveFile(new Blob([zip as Uint8Array<ArrayBuffer>], { type: 'application/zip' }), `${(g.title || 'galerie').replace(/[\\/:*?"<>|]+/g, '-')}.zip`);
+  saveFile(new Blob([zip as Uint8Array<ArrayBuffer>], { type: 'application/zip' }), `${(g.title || tr('galerie', 'gallery')).replace(/[\\/:*?"<>|]+/g, '-')}.zip`);
 }

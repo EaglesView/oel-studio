@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@oel/emboss';
+import { tr } from '@oel/i18n';
 
 type Theme = 'light' | 'dark';
 /** What the person picked: a theme, or follow the system (Affichage, menu M-5). */
@@ -50,7 +51,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon-sm"
       leadingIcon={theme === 'dark' ? 'sun' : 'moon'}
-      aria-label={next === 'dark' ? 'Passer au thème sombre' : 'Passer au thème clair'}
+      aria-label={next === 'dark' ? tr('Passer au thème sombre', 'Switch to the dark theme') : tr('Passer au thème clair', 'Switch to the light theme')}
       onPress={() => {
         applyTheme(next);
         setTheme(next);

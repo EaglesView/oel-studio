@@ -841,3 +841,12 @@
 /* « Coller ▾ » (K1): split button like « Présenter », main part + arrow. */
 .context-bar__split { display: inline-flex; align-items: center; }
 .context-bar__split > :last-child { border-left: 1px solid var(--emboss-edge); border-radius: 0 10px 10px 0; padding-inline: 6px; }
+
+/* ── First-visit welcome (Welcome.tsx) ──────────────────────────────── */
+.welcome { display: flex; flex-direction: column; gap: 14px; font: 400 14px/22px var(--font-sans); color: var(--emboss-text); }
+.welcome p { margin: 0; }
+.welcome a { color: var(--emboss-fill-primary); }
+.welcome__h3 { margin: 4px 0 6px; font: 600 12px/16px var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--emboss-ink-muted); }
+.welcome__note { font-size: 12px; line-height: 18px; color: var(--emboss-ink-muted); }
+.welcome__switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; background: var(--emboss-well); }
+.welcome__links { margin: 0; padding-left: 18px; display: grid; gap: 2px; }

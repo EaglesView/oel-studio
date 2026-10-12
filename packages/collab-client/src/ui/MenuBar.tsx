@@ -2,6 +2,7 @@ import { Fragment, useRef, type RefObject } from 'react';
 import { MenuTrigger, SubmenuTrigger } from 'react-aria-components';
 import { Button, Menu, MenuItem, MenuPopover, MenuSeparator, ToolButton, type IconName } from '@oel/emboss';
 import { visibleItems } from './menuItems';
+import { tr } from '@oel/i18n';
 
 export interface MenuEntry {
   id: string;
@@ -72,9 +73,9 @@ export function MenuBar({ spec, onAction, label = "Menus du document" }: { spec:
 export function MoreMenu({ spec, onAction }: { spec: MenuSpec; onAction: (id: string) => void }) {
   return (
     <MenuTrigger>
-      <ToolButton icon="more" label="Plus de commandes" description="Fichier, Édition, Affichage, Insertion, Format et Outils." />
+      <ToolButton icon="more" label={tr('Plus de commandes', 'More commands')} description={tr('Fichier, Édition, Affichage, Insertion, Format et Outils.', 'File, Edit, View, Insert, Format and Tools.')} />
       <MenuPopover placement="bottom end">
-        <Menu aria-label="Plus de commandes" onAction={(k) => onAction(String(k))}>
+        <Menu aria-label={tr('Plus de commandes', 'More commands')} onAction={(k) => onAction(String(k))}>
           {renderItems(
             spec.map((m) => ({ id: `menu:${m.label}`, label: m.label, children: m.items.filter((i): i is MenuEntry => i !== '-') })),
             onAction,

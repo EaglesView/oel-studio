@@ -16,6 +16,7 @@
  */
 import * as Y from 'yjs';
 import type { Deck, Element, Layout, Paint, Slide } from './types';
+import { tr } from '@oel/i18n';
 
 export const FORMAT_VERSION = 1;
 
@@ -24,7 +25,7 @@ export const LOCAL = Symbol('oel-slides-local');
 
 export class SlidesFormatError extends Error {
   constructor(found: unknown) {
-    super(`Cette présentation a été enregistrée par une autre version de l’éditeur (format ${String(found)}). Importez de nouveau le fichier .pptx.`);
+    super(tr(`Cette présentation a été enregistrée par une autre version de l’éditeur (format ${String(found)}). Importez de nouveau le fichier .pptx.`, `This presentation was saved by another version of the editor (format ${String(found)}). Import the .pptx file again.`));
     this.name = 'SlidesFormatError';
   }
 }

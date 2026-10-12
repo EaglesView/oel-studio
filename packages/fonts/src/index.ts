@@ -1,3 +1,4 @@
+import { tr } from '@oel/i18n';
 /// <reference path="./fontsource.d.ts" />
 /**
  * Fonts of opened files, in the browser, for every editor (@oel/docs,
@@ -134,7 +135,7 @@ export function loadWebFont(family: string): Promise<unknown> {
 export function fontLabel(name: string, fonts: FontSpec[], available: (name: string) => boolean = isFontAvailable): string {
   const f = fonts.find((x) => x.name === name);
   if (!f?.substitute || f.embedded?.length || available(name)) return name;
-  return `${name} (remplacée par ${f.substitute})`;
+  return tr(`${name} (remplacée par ${f.substitute})`, `${name} (replaced by ${f.substitute})`);
 }
 
 const registered = new Set<string>();
@@ -262,8 +263,8 @@ export function fontNotice(report: FontReport): { title: string; description: st
   const n = report.substituted.length + report.missing.length;
   if (!n) return null;
   return n > 1
-    ? { title: `${n} polices manquantes`, description: 'Elles sont affichées avec des polices de remplacement.' }
-    : { title: 'Une police manquante', description: 'Elle est affichée avec une police de remplacement.' };
+    ? { title: tr(`${n} polices manquantes`, `${n} missing fonts`), description: tr('Elles sont affichées avec des polices de remplacement.', 'They are shown with replacement fonts.') }
+    : { title: tr('Une police manquante', 'One missing font'), description: tr('Elle est affichée avec une police de remplacement.', 'It is shown with a replacement font.') };
 }
 
 /** Whether the font notice for a file still has to be shown in this browser (then remembers it was). */

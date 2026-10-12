@@ -11,6 +11,7 @@ import { CodeInput } from './CodeInput';
 import { FileQuestion } from './FileQuestion';
 import { FormCover, FormFooter, OTHER, QuestionField, formStyle } from './FormView';
 import { download } from './qr';
+import { messages, tr } from '@oel/i18n';
 
 type Phase = 'welcome' | 'email' | 'steps' | 'review' | 'done';
 
@@ -107,7 +108,7 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
     const v = answers[q.id];
     const pickedOther = v === OTHER || (Array.isArray(v) && (v as string[]).includes(OTHER));
     if (q.allowOther && pickedOther && !String(answers[otherKey(q.id)] ?? '').trim()) {
-      return { questionId: q.id, summary: `${q.title} : précisez « Autre »`, message: 'Écrivez votre réponse « Autre » pour continuer.' };
+      return { questionId: q.id, summary: tr(`${q.title} : précisez « Autre »`, `${q.title}: specify “Other”`), message: tr('Écrivez votre réponse « Autre » pour continuer.', 'Write your “Other” answer to continue.') };
     }
     return null;
   };
@@ -135,7 +136,7 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
     e?.preventDefault();
     const st = steps[step];
     const errs = (st?.questions ?? []).map(errorFor).filter((x): x is FieldError => !!x);
-    if (step === 0 && emailError) errs.unshift({ questionId: '__email', summary: 'Courriel : l’adresse n’est pas complète', message: emailError });
+    if (step === 0 && emailError) errs.unshift({ questionId: '__email', summary: tr('Courriel : l’adresse n’est pas complète', 'Email: the address is incomplete'), message: emailError });
     if (errs.length) {
       setSummary(errs);
       setTouched((t) => new Set([...t, ...errs.map((x) => x.questionId)]));
@@ -170,8 +171,8 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
     for (const q of questions) {
       let v = answers[q.id] ?? null;
       const other = String(answers[otherKey(q.id)] ?? '').trim();
-      if (v === OTHER) v = `Autre : ${other}`;
-      else if (Array.isArray(v) && (v as string[]).includes(OTHER)) v = (v as string[]).map((x) => (x === OTHER ? `Autre : ${other}` : x));
+      if (v === OTHER) v = tr(`Autre : ${other}`, `Other: ${other}`);
+      else if (Array.isArray(v) && (v as string[]).includes(OTHER)) v = (v as string[]).map((x) => (x === OTHER ? tr(`Autre : ${other}`, `Other: ${other}`) : x));
       out[q.id] = v;
     }
     return out;
@@ -179,8 +180,8 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
 
   // ── Rendering ──────────────────────────────────────────────────────
   const total = steps.length + 1; // + Vérifier
-  const stepTitle = phase === 'review' ? 'Vérifier' : steps[step]?.title;
-  const overline = phase === 'review' || phase === 'steps' ? `Étape ${phase === 'review' ? total : step + 1} sur ${total}${stepTitle ? ` · ${stepTitle}` : ''}` : null;
+  const stepTitle = phase === 'review' ? tr('Vérifier', 'Check') : steps[step]?.title;
+  const overline = phase === 'review' || phase === 'steps' ? `${tr(`Étape ${phase === 'review' ? total : step + 1} sur ${total}`, `Step ${phase === 'review' ? total : step + 1} of ${total}`)}${stepTitle ? ` · ${stepTitle}` : ''}` : null;
   const progress = phase === 'review' ? total : step + 1;
 
   let body;
@@ -189,7 +190,7 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
       <section className="form-screen form-screen--center" aria-labelledby="form-screen-title">
         <Icon name="lock" size={32} />
         <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="form-screen__title">
-          Formulaire fermé
+          {tr('Formulaire fermé', 'Form closed')}
         </h2>
         <p>{closed}</p>
       </section>
@@ -198,9 +199,9 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
     body = (
       <section className="form-screen" aria-labelledby="form-screen-title">
         <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="emb-visually-hidden">
-          Accueil
+          {tr('Accueil', 'Welcome')}
         </h2>
-        <ul className="form-facts" aria-label="En bref">
+        <ul className="form-facts" aria-label={tr('En bref', 'In brief')}>
           <li>
             <Badge tone="neutral" dot={false}>≈ {estimateMinutes(form)} minute{estimateMinutes(form) > 1 ? 's' : ''}</Badge>
           </li>
@@ -215,12 +216,12 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
         </ul>
         {form.appearance.welcome && <p className="form-screen__lead">{form.appearance.welcome}</p>}
         <p className="form-screen__note">
-          Vos réponses sont envoyées {form.organiser ? <>à <strong>{form.organiser}</strong></> : 'à l’organisateur'}.
+          {tr('Vos réponses sont envoyées', 'Your answers are sent')} {form.organiser ? <>{tr('à', 'to')} <strong>{form.organiser}</strong></> : tr('à l’organisateur', 'to the organizer')}.
           {!preview && ' Vous pouvez quitter et reprendre plus tard : le brouillon reste sur cet appareil.'}
         </p>
         <div className="form-nav form-nav--end">
           <Button variant="primary" trailingIcon="arrow-right" onPress={() => (s.identity === 'verified-email' && !emailToken && !preview ? setPhase('email') : setPhase('steps'))}>
-            {draft && Object.keys(draft.answers).length ? 'Reprendre où vous étiez' : 'Commencer'}
+            {draft && Object.keys(draft.answers).length ? tr('Reprendre où vous étiez', 'Pick up where you left off') : tr('Commencer', 'Start')}
           </Button>
         </div>
       </section>
@@ -246,14 +247,14 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
     body = (
       <form className="form-screen" onSubmit={next} noValidate aria-labelledby="form-screen-title">
         <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="form-step__heading">
-          {stepTitle || `Étape ${step + 1}`}
+          {stepTitle || tr(`Étape ${step + 1}`, `Step ${step + 1}`)}
         </h2>
         {summary.length > 0 && <ErrorSummary errors={summary} refEl={summaryRef} onGo={(id) => (id === '__email' ? document.getElementById('form-email')?.focus() : goToQuestion(id))} />}
         {step === 0 && s.identity === 'optional-email' && (
           <TextField
             id="form-email"
-            label="Courriel (facultatif)"
-            description="Pour recevoir une copie de vos réponses."
+            label={tr('Courriel (facultatif)', 'Email (optional)')}
+            description={tr('Pour recevoir une copie de vos réponses.', 'To get a copy of your answers.')}
             type="email"
             inputMode="email"
             autoComplete="email"
@@ -300,13 +301,13 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
         )}
         <div className="form-nav">
           <Button variant="ghost" leadingIcon="chevron-left" onPress={back}>
-            Précédent
+            {tr('Précédent', 'Previous')}
           </Button>
           <span className="form-nav__saved" role="status">
-            {preview ? 'Aperçu : rien n’est enregistré' : saved ? 'Brouillon enregistré sur cet appareil' : ''}
+            {preview ? tr('Aperçu : rien n’est enregistré', 'Preview: nothing is saved') : saved ? tr('Brouillon enregistré sur cet appareil', 'Draft saved on this device') : ''}
           </span>
           <Button variant="primary" type="submit" trailingIcon="arrow-right">
-            Suivant
+            {tr('Suivant', 'Next')}
           </Button>
         </div>
       </form>
@@ -360,21 +361,21 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
           <Icon name="check" size={28} />
         </span>
         <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="form-screen__title">
-          {editing ? 'Réponse modifiée' : firstName ? `Merci, ${firstName} !` : 'Merci !'}
+          {editing ? tr('Réponse modifiée', 'Response edited') : firstName ? tr(`Merci, ${firstName} !`, `Thank you, ${firstName}!`) : tr('Merci !', 'Thank you!')}
         </h2>
         {preview ? (
-          <p>Aperçu : rien n’a été envoyé.</p>
+          <p>{tr('Aperçu : rien n’a été envoyé.', 'Preview: nothing was sent.')}</p>
         ) : (
           <>
             <p>{form.appearance.thanks}</p>
-            {sendCopy && contactEmail && s.sendCopy && !editing && <p>Une copie de vos réponses arrive à {contactEmail}.</p>}
+            {sendCopy && contactEmail && s.sendCopy && !editing && <p>{tr(`Une copie de vos réponses arrive à ${contactEmail}.`, `A copy of your answers is on its way to ${contactEmail}.`)}</p>}
             {form.appearance.signature && <p className="form-done__signature">— {form.appearance.signature}</p>}
           </>
         )}
         <div className="form-done__actions">
           {editUrl && (
             <Button leadingIcon="highlight" onPress={() => location.assign(editUrl)}>
-              Modifier ma réponse
+              {tr('Modifier ma réponse', 'Edit my response')}
             </Button>
           )}
           {dateQ && (
@@ -382,16 +383,16 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
               leadingIcon="calendar"
               onPress={() => download(`${form.title}.ics`, icsFor(form.title, answers[dateQ.id] as string, `${dateQ.title} · ${form.organiser}`), 'text/calendar')}
             >
-              Ajouter au calendrier
+              {tr('Ajouter au calendrier', 'Add to calendar')}
             </Button>
           )}
           {form.appearance.redirectUrl && !preview && (
             <Button variant="primary" trailingIcon="arrow-right" onPress={() => location.assign(form.appearance.redirectUrl!)}>
-              Continuer
+              {tr('Continuer', 'Continue')}
             </Button>
           )}
         </div>
-        {editUrl && <p className="form-done__hint">Gardez ce lien pour modifier votre réponse plus tard : il est aussi mémorisé sur cet appareil.</p>}
+        {editUrl && <p className="form-done__hint">{tr('Gardez ce lien pour modifier votre réponse plus tard : il est aussi mémorisé sur cet appareil.', 'Keep this link to edit your response later: it is also remembered on this device.')}</p>}
       </section>
     );
   }
@@ -400,7 +401,7 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
     <div className={cx('form-page', compact && 'is-compact')} style={formStyle(form.appearance)}>
       {preview && !compact && (
         <p className="form-preview-banner" role="note">
-          <Icon name="eye" size={16} /> Aperçu : c’est ce que verront les répondants. Rien n’est envoyé.
+          <Icon name="eye" size={16} /> {tr('Aperçu : c’est ce que verront les répondants. Rien n’est envoyé.', 'Preview: this is what respondents will see. Nothing is sent.')}
         </p>
       )}
       <article className="form-sheet" aria-label={form.title}>
@@ -409,7 +410,7 @@ export function FormFiller({ backend, slug, published, preview, editing, compact
           {overline && (
             <div className="form-progress">
               <p className="emb-t-overline">{overline}</p>
-              {form.appearance.showProgress && <ProgressBar aria-label="Progression" value={(progress / total) * 100} />}
+              {form.appearance.showProgress && <ProgressBar aria-label={tr('Progression', 'Progress')} value={(progress / total) * 100} />}
             </div>
           )}
           {body}
@@ -427,7 +428,7 @@ function ErrorSummary({ errors, refEl, onGo }: { errors: FieldError[]; refEl: Re
     <div className="form-errors" role="alert" tabIndex={-1} ref={refEl} aria-labelledby="form-errors-title">
       <p id="form-errors-title" className="form-errors__title">
         <Icon name="alert" size={18} />
-        {errors.length} réponse{errors.length > 1 ? 's' : ''} à corriger avant de continuer
+        {tr(`${errors.length} réponse${errors.length > 1 ? 's' : ''} à corriger avant de continuer`, `${errors.length} answer${errors.length > 1 ? 's' : ''} to fix before continuing`)}
       </p>
       <ul>
         {errors.map((e) => (
@@ -477,7 +478,7 @@ function EmailGate({
 
   const request = async () => {
     const p = emailProblem(email);
-    if (!email.trim() || p) return setError(p ?? 'Entrez votre courriel. Exemple : nom@exemple.ca');
+    if (!email.trim() || p) return setError(p ?? tr('Entrez votre courriel. Exemple : nom@exemple.ca', 'Enter your email. Example: name@example.ca'));
     if (!backend) return;
     setBusy(true);
     setError(null);
@@ -499,7 +500,7 @@ function EmailGate({
     try {
       onVerified(await backend.verifyEmailCode(slug, email, v));
     } catch (e) {
-      setError(e instanceof FormsError ? e.message : 'La vérification a échoué. Réessayez.');
+      setError(e instanceof FormsError ? e.message : tr('La vérification a échoué. Réessayez.', 'Verification failed. Try again.'));
     } finally {
       setBusy(false);
     }
@@ -517,11 +518,14 @@ function EmailGate({
         aria-labelledby="form-screen-title"
       >
         <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="form-screen__title">
-          Ce formulaire demande votre courriel
+          {tr('Ce formulaire demande votre courriel', 'This form asks for your email')}
         </h2>
-        <p>{organiser || 'L’organisateur'} l’utilise pour vous identifier. Un code de 6 chiffres vous sera envoyé ; pas de compte à créer.</p>
+        <p>
+          {organiser || tr('L’organisateur', 'The organizer')}{' '}
+          {tr('l’utilise pour vous identifier. Un code de 6 chiffres vous sera envoyé ; pas de compte à créer.', 'uses it to identify you. A 6-digit code will be sent to you; no account to create.')}
+        </p>
         <TextField
-          label="Courriel"
+          label={tr('Courriel', 'Email')}
           type="email"
           inputMode="email"
           autoComplete="email"
@@ -535,11 +539,11 @@ function EmailGate({
         />
         <div className="form-nav">
           <Button variant="ghost" leadingIcon="chevron-left" onPress={onBack}>
-            Précédent
+            {tr('Précédent', 'Previous')}
           </Button>
           <span />
           <Button variant="primary" type="submit" isDisabled={busy}>
-            Recevoir le code
+            {tr('Recevoir le code', 'Get the code')}
           </Button>
         </div>
       </form>
@@ -556,12 +560,12 @@ function EmailGate({
       aria-labelledby="form-screen-title"
     >
       <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="form-screen__title">
-        Entrez le code reçu
+        {tr('Entrez le code reçu', 'Enter the code you received')}
       </h2>
-      <p id="code-help">Envoyé à {email}. Collez le code ou tapez-le : le curseur passe seul à la case suivante.</p>
+      <p id="code-help">{tr(`Envoyé à ${email}. Collez le code ou tapez-le : le curseur passe seul à la case suivante.`, `Sent to ${email}. Paste the code or type it: the cursor moves to the next box on its own.`)}</p>
       {sent.devCode && (
         // TODO(backend): remove — the local stub shows the code the email would contain.
-        <p className="form-dev-note">Mode local : le code envoyé serait {sent.devCode}.</p>
+        <p className="form-dev-note">{tr(`Mode local : le code envoyé serait ${sent.devCode}.`, `Local mode: the code sent would be ${sent.devCode}.`)}</p>
       )}
       <CodeInput value={code} onChange={setCode} onComplete={(v) => void verify(v)} invalid={!!error} describedBy={`code-help${error ? ' code-err' : ''}`} />
       {error && (
@@ -571,13 +575,13 @@ function EmailGate({
       )}
       <div className="form-nav">
         <Button variant="ghost" onPress={() => setSent(null)}>
-          Changer d’adresse
+          {tr('Changer d’adresse', 'Change the address')}
         </Button>
         <Button variant="ghost" isDisabled={now < sent.resendAt || busy} onPress={() => void request()}>
-          {now < sent.resendAt ? `Renvoyer le code (${fmtClock(sent.resendAt - now)})` : 'Renvoyer le code'}
+          {now < sent.resendAt ? tr(`Renvoyer le code (${fmtClock(sent.resendAt - now)})`, `Send the code again (${fmtClock(sent.resendAt - now)})`) : tr('Renvoyer le code', 'Send the code again')}
         </Button>
         <Button variant="primary" type="submit" isDisabled={busy || code.replace(/\D/g, '').length < 6}>
-          Continuer
+          {tr('Continuer', 'Continue')}
         </Button>
       </div>
     </form>
@@ -647,14 +651,14 @@ function Review({
       onDone(await submit(token));
     } catch (e) {
       if (e instanceof FormsError && e.code === 'rate-limited' && e.retryAt) return setState({ kind: 'limited', retryAt: e.retryAt });
-      setState({ kind: 'error', message: e instanceof FormsError ? e.message : 'L’envoi a échoué. Vos réponses restent enregistrées sur cet appareil ; réessayez.' });
+      setState({ kind: 'error', message: e instanceof FormsError ? e.message : tr('L’envoi a échoué. Vos réponses restent enregistrées sur cet appareil ; réessayez.', 'Sending failed. Your answers stay saved on this device; try again.') });
     }
   };
 
   return (
     <section className="form-screen" aria-labelledby="form-screen-title">
       <h2 id="form-screen-title" ref={headingRef} tabIndex={-1} className="form-step__heading">
-        {editing ? 'Modifier votre réponse' : 'Vérifiez vos réponses'}
+        {editing ? tr('Modifier votre réponse', 'Edit your response') : tr('Vérifiez vos réponses', 'Check your answers')}
       </h2>
       <dl className="form-review">
         {questions.map((q) => {
@@ -662,10 +666,10 @@ function Review({
           const files = Array.isArray(answers[q.id]) && typeof (answers[q.id] as unknown[])[0] === 'object' ? (answers[q.id] as UploadedFile[]) : null;
           return (
             <div key={q.id} className="form-review__row">
-              <dt>{q.title || 'Question sans titre'}</dt>
+              <dt>{q.title || tr('Question sans titre', 'Untitled question')}</dt>
               <dd>{files ? files.map((f) => f.name).join(', ') : q.type === 'date' && v ? formatDate(v) : v || '—'}</dd>
-              <Button variant="ghost" size="sm" onPress={() => onEdit(q.id)} aria-label={`Modifier : ${q.title}`}>
-                Modifier
+              <Button variant="ghost" size="sm" onPress={() => onEdit(q.id)} aria-label={tr(`Modifier : ${q.title}`, `Edit: ${q.title}`)}>
+                {tr('Modifier', 'Edit')}
               </Button>
             </div>
           );
@@ -674,29 +678,29 @@ function Review({
 
       {canCopy && (
         <Checkbox isSelected={sendCopy} onChange={onSendCopy}>
-          Recevoir une copie de mes réponses par courriel ({contactEmail})
+          {tr(`Recevoir une copie de mes réponses par courriel (${contactEmail})`, `Get a copy of my answers by email (${contactEmail})`)}
         </Checkbox>
       )}
 
       {state.kind === 'challenge' && (
         <div className="form-panel" role="region" aria-labelledby="challenge-title">
           <p id="challenge-title" className="form-panel__title">
-            <Icon name="shield" size={18} /> Une vérification de plus
+            <Icon name="shield" size={18} /> {tr('Une vérification de plus', 'One more check')}
           </p>
-          <p>Notre système a besoin de confirmer que l’envoi vient d’une personne.</p>
+          <p>{tr('Notre système a besoin de confirmer que l’envoi vient d’une personne.', 'Our system needs to confirm the submission comes from a person.')}</p>
           {/* TODO(anti-abuse): mount the interactive challenge widget (Turnstile) here; on success call send(token). */}
-          <div className="form-panel__slot emb-well">Zone de vérification (service anti-robot) · à brancher</div>
+          <div className="form-panel__slot emb-well">{tr('Zone de vérification (service anti-robot) · à brancher', 'Verification area (anti-bot service) · to be connected')}</div>
           {!fallback.sent ? (
             <div className="form-panel__row">
-              <TextField aria-label="Courriel pour recevoir un code" type="email" placeholder="nom@exemple.ca" value={fallback.email} onChange={(v) => setFallback((f) => ({ ...f, email: v }))} />
+              <TextField aria-label={tr('Courriel pour recevoir un code', 'Email to receive a code')} type="email" placeholder="nom@exemple.ca" value={fallback.email} onChange={(v) => setFallback((f) => ({ ...f, email: v }))} />
               <Button
                 onPress={async () => {
-                  if (!backend || emailProblem(fallback.email) || !fallback.email) return setFallback((f) => ({ ...f, error: 'Entrez un courriel complet. Exemple : nom@exemple.ca' }));
+                  if (!backend || emailProblem(fallback.email) || !fallback.email) return setFallback((f) => ({ ...f, error: tr('Entrez un courriel complet. Exemple : nom@exemple.ca', 'Enter a complete email. Example: name@example.ca') }));
                   await backend.requestEmailCode(slug, fallback.email);
                   setFallback((f) => ({ ...f, sent: true, error: null }));
                 }}
               >
-                Recevoir plutôt un code par courriel
+                {tr('Recevoir plutôt un code par courriel', 'Get a code by email instead')}
               </Button>
             </div>
           ) : (
@@ -723,9 +727,9 @@ function Review({
       {limited && state.kind === 'limited' && (
         <div className="form-panel form-panel--warning" role="status">
           <p className="form-panel__title">
-            <Icon name="clock" size={18} /> Trop d’envois depuis cet appareil
+            <Icon name="clock" size={18} /> {tr('Trop d’envois depuis cet appareil', 'Too many submissions from this device')}
           </p>
-          <p>Réessayez dans {fmtWait(state.retryAt - now)}. Vos réponses restent enregistrées sur cet appareil ; rien n’est perdu.</p>
+          <p>{tr(`Réessayez dans ${fmtWait(state.retryAt - now)}. Vos réponses restent enregistrées sur cet appareil ; rien n’est perdu.`, `Try again in ${fmtWait(state.retryAt - now)}. Your answers stay saved on this device; nothing is lost.`)}</p>
         </div>
       )}
 
@@ -738,17 +742,17 @@ function Review({
       <div className="form-nav">
         {onBack ? (
           <Button variant="ghost" leadingIcon="chevron-left" onPress={onBack}>
-            Précédent
+            {tr('Précédent', 'Previous')}
           </Button>
         ) : (
           <span />
         )}
         <span className="form-nav__saved" role="status">
           {sending > 0
-            ? `Envoi de ${sending} fichier${sending > 1 ? 's' : ''} en cours…`
+            ? tr(`Envoi de ${sending} fichier${sending > 1 ? 's' : ''} en cours…`, `Sending ${sending} file${sending > 1 ? 's' : ''}…`)
             : !preview && !editing && state.kind !== 'challenge' && (
                 <>
-                  <Icon name="shield" size={14} /> Vérification automatique : rien à faire.
+                  <Icon name="shield" size={14} /> {tr('Vérification automatique : rien à faire.', 'Automatic check: nothing to do.')}
                 </>
               )}
         </span>
@@ -758,7 +762,7 @@ function Review({
           isDisabled={sending > 0 || limited || state.kind === 'checking' || state.kind === 'sending' || state.kind === 'challenge'}
           onPress={() => void send()}
         >
-          {limited && state.kind === 'limited' ? `Possible dans ${fmtClock(state.retryAt - now)}` : state.kind === 'sending' || state.kind === 'checking' ? 'Envoi…' : editing ? 'Enregistrer' : 'Envoyer'}
+          {limited && state.kind === 'limited' ? tr(`Possible dans ${fmtClock(state.retryAt - now)}`, `Possible in ${fmtClock(state.retryAt - now)}`) : state.kind === 'sending' || state.kind === 'checking' ? tr('Envoi…', 'Sending…') : editing ? tr('Enregistrer', 'Save') : tr('Envoyer', 'Send')}
         </Button>
       </div>
     </section>

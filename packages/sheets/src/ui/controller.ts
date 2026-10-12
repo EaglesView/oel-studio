@@ -17,6 +17,7 @@ import { Axis, colWidthPx, rowHeightPx } from '../grid/geometry';
 import type { IdRange } from '../model/ydoc';
 import { linkHost, setLinkClip } from '@oel/links';
 import { clampPos, current, cycleInside, extendTo, jump, movingCorner, single, type Pos, type Selection } from '../grid/selection';
+import { tr } from '@oel/i18n';
 
 export interface EditState {
   text: string;
@@ -50,19 +51,19 @@ const COLOR = (css: string): Color => ({ css, rgb: `FF${css.replace('#', '').toU
 
 /** Number formats offered in the toolbar and the Format menu (Excel codes; display follows them). */
 export const NUMBER_FORMATS: Array<{ id: string; label: string; code: string; example: string }> = [
-  { id: 'general', label: 'Automatique', code: 'General', example: '1234.5' },
-  { id: 'number', label: 'Nombre', code: '#,##0.00', example: '1,234.50' },
-  { id: 'integer', label: 'Nombre entier', code: '#,##0', example: '1,235' },
-  { id: 'percent', label: 'Pourcentage', code: '0.00%', example: '12.34%' },
-  { id: 'currency', label: 'Monétaire ($ CA)', code: '#,##0.00 "$"', example: '1,234.50 $' },
-  { id: 'currency-us', label: 'Monétaire ($ devant)', code: '"$"#,##0.00', example: '$1,234.50' },
-  { id: 'accounting', label: 'Comptabilité', code: '_-* #,##0.00 "$"_-;-* #,##0.00 "$"_-;_-* "-"?? "$"_-;_-@_-', example: '1,234.50 $' },
+  { id: 'general', label: tr('Automatique', 'Automatic'), code: 'General', example: '1234.5' },
+  { id: 'number', label: tr('Nombre', 'Number'), code: '#,##0.00', example: '1,234.50' },
+  { id: 'integer', label: tr('Nombre entier', 'Whole number'), code: '#,##0', example: '1,235' },
+  { id: 'percent', label: tr('Pourcentage', 'Percent'), code: '0.00%', example: '12.34%' },
+  { id: 'currency', label: tr('Monétaire ($ CA)', 'Currency (CA $)'), code: '#,##0.00 "$"', example: '1,234.50 $' },
+  { id: 'currency-us', label: tr('Monétaire ($ devant)', 'Currency ($ first)'), code: '"$"#,##0.00', example: '$1,234.50' },
+  { id: 'accounting', label: tr('Comptabilité', 'Accounting'), code: '_-* #,##0.00 "$"_-;-* #,##0.00 "$"_-;_-* "-"?? "$"_-;_-@_-', example: '1,234.50 $' },
   { id: 'date', label: 'Date', code: 'yyyy-mm-dd', example: '2026-10-03' },
-  { id: 'date-long', label: 'Date longue', code: 'd mmmm yyyy', example: '3 October 2026' },
-  { id: 'time', label: 'Heure', code: 'h:mm', example: '14:30' },
-  { id: 'datetime', label: 'Date et heure', code: 'yyyy-mm-dd h:mm', example: '2026-10-03 14:30' },
-  { id: 'scientific', label: 'Scientifique', code: '0.00E+00', example: '1.23E+03' },
-  { id: 'text', label: 'Texte', code: '@', example: 'texte' },
+  { id: 'date-long', label: tr('Date longue', 'Long date'), code: 'd mmmm yyyy', example: '3 October 2026' },
+  { id: 'time', label: tr('Heure', 'Time'), code: 'h:mm', example: '14:30' },
+  { id: 'datetime', label: tr('Date et heure', 'Date and time'), code: 'yyyy-mm-dd h:mm', example: '2026-10-03 14:30' },
+  { id: 'scientific', label: tr('Scientifique', 'Scientific'), code: '0.00E+00', example: '1.23E+03' },
+  { id: 'text', label: tr('Texte', 'Text'), code: '@', example: 'texte' },
 ];
 
 /** Excel's 1900 date system: serial for a JS date (local day). */
@@ -408,7 +409,7 @@ export class SheetController {
     const refused = !e.text.startsWith('=') ? this.validator?.(r, c, e.text) : null;
     if (refused) {
       // Excel's « Arrêt »: the value is refused and the edit stays open.
-      this.onNotice?.('Valeur refusée', refused);
+      this.onNotice?.(tr('Valeur refusée', 'Value refused'), refused);
       this.bump();
       return;
     }
@@ -751,7 +752,7 @@ export class SheetController {
           docId: this.docId,
           kind: 'spreadsheet',
           ref: { kind: 'cell', sheetId: this.sheetId, ids: { r: this.doc.rowKey(this.sheetId, rg.r0), c: this.doc.colKey(this.sheetId, rg.c0) } },
-          title: linkHost().fileTitle(this.docId) ?? 'Classeur',
+          title: linkHost().fileTitle(this.docId) ?? tr('Classeur', 'Workbook'),
           label: `${this.doc.sheetName(this.sheetId) ?? ''}!${rangeA1({ r0: rg.r0, c0: rg.c0, r1: rg.r0, c1: rg.c0 })}`,
         },
         value: { kind: 'value', text: texts[0]![0]!, ...(out?.t === 'n' && typeof out.v === 'number' ? { num: out.v } : {}) },

@@ -8,6 +8,7 @@
  * is recomputed for any size (resizing keeps corners round, arrows sharp).
  */
 import type { CustomGeometry, Geometry, GeomPath, Guide, PathCmd } from './types';
+import { tr } from '@oel/i18n';
 
 /** Angles are in 60 000ths of a degree. */
 const ANGLE = 60000;
@@ -247,16 +248,16 @@ const PRESETS: Record<string, PresetDef> = {
 /** Shapes the « Formes » menu offers (fr-CA labels). */
 export const SHAPE_CHOICES: Array<{ prst: string; label: string }> = [
   { prst: 'rect', label: 'Rectangle' },
-  { prst: 'roundRect', label: 'Rectangle arrondi' },
+  { prst: 'roundRect', label: tr('Rectangle arrondi', 'Rounded rectangle') },
   { prst: 'ellipse', label: 'Ellipse' },
   { prst: 'triangle', label: 'Triangle' },
-  { prst: 'diamond', label: 'Losange' },
-  { prst: 'hexagon', label: 'Hexagone' },
-  { prst: 'star5', label: 'Étoile' },
-  { prst: 'rightArrow', label: 'Flèche' },
+  { prst: 'diamond', label: tr('Losange', 'Diamond') },
+  { prst: 'hexagon', label: tr('Hexagone', 'Hexagon') },
+  { prst: 'star5', label: tr('Étoile', 'Star') },
+  { prst: 'rightArrow', label: tr('Flèche', 'Arrow') },
   { prst: 'chevron', label: 'Chevron' },
-  { prst: 'wedgeRoundRectCallout', label: 'Bulle' },
-  { prst: 'line', label: 'Ligne' },
+  { prst: 'wedgeRoundRectCallout', label: tr('Bulle', 'Callout') },
+  { prst: 'line', label: tr('Ligne', 'Line') },
 ];
 
 export const hasPreset = (prst: string) => prst in PRESETS;

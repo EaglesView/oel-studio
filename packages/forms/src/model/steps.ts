@@ -1,6 +1,7 @@
 import { isQuestion, questionsOf } from './create';
 import { cellText } from './sheet';
 import type { FormDef, FormItem, FormResponse, Question } from './types';
+import { locale, tr } from '@oel/i18n';
 
 export interface Step {
   title: string;
@@ -77,7 +78,7 @@ export function summarize(form: FormDef, responses: FormResponse[]): QuestionSum
 
 export function formatDate(iso: string): string {
   const d = new Date(`${iso}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' });
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 export function responsesToday(responses: FormResponse[], now = Date.now()): number {
@@ -89,9 +90,9 @@ export function responsesToday(responses: FormResponse[], now = Date.now()): num
 /** Is the form taking answers right now? Returns the reason when it is not. */
 export function closedReason(form: Pick<FormDef, 'settings'>, acceptedCount: number, now = Date.now()): string | null {
   const s = form.settings;
-  if (!s.acceptResponses) return 'Ce formulaire n’accepte plus de réponses.';
-  if (s.closesOn && now > new Date(`${s.closesOn}T23:59:59`).getTime()) return `Ce formulaire a fermé le ${formatDate(s.closesOn)}.`;
-  if (s.maxResponses != null && acceptedCount >= s.maxResponses) return 'Ce formulaire a atteint le nombre de réponses prévu.';
+  if (!s.acceptResponses) return tr('Ce formulaire n’accepte plus de réponses.', 'This form no longer accepts responses.');
+  if (s.closesOn && now > new Date(`${s.closesOn}T23:59:59`).getTime()) return tr(`Ce formulaire a fermé le ${formatDate(s.closesOn)}.`, `This form closed on ${formatDate(s.closesOn)}.`);
+  if (s.maxResponses != null && acceptedCount >= s.maxResponses) return tr('Ce formulaire a atteint le nombre de réponses prévu.', 'This form has reached its planned number of responses.');
   return null;
 }
 

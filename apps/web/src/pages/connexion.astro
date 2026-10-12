@@ -7,5 +7,5 @@ if (!features.forms) return Astro.redirect('/');
 ---
 <Base title="Connexion · OutilsEnLigne">
   <ConnexionPage client:only="react" />
-  <noscript><p class="page">La connexion a besoin de JavaScript.</p></noscript>
+  <noscript><p class="page"><span data-lang="fr">La connexion a besoin de JavaScript.</span><span data-lang="en">Signing in needs JavaScript.</span></p></noscript>
 </Base>

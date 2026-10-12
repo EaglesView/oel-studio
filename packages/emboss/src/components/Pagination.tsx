@@ -1,6 +1,7 @@
 import { Button as RACButton } from 'react-aria-components';
 import { Icon } from '../icons/Icon';
 import { cx } from '../utils';
+import { tr } from '@oel/i18n';
 
 export interface PaginationProps {
   page: number;
@@ -30,7 +31,7 @@ export function Pagination({ page, pageCount, onChange, label = 'Pagination' }: 
         <li>
           <RACButton
             className="emb-button emb-button--ghost emb-button--icon"
-            aria-label="Page précédente"
+            aria-label={tr('Page précédente', 'Previous page')}
             isDisabled={page <= 1}
             onPress={() => onChange(page - 1)}
           >
@@ -58,7 +59,7 @@ export function Pagination({ page, pageCount, onChange, label = 'Pagination' }: 
         <li>
           <RACButton
             className="emb-button emb-button--ghost emb-button--icon"
-            aria-label="Page suivante"
+            aria-label={tr('Page suivante', 'Next page')}
             isDisabled={page >= pageCount}
             onPress={() => onChange(page + 1)}
           >

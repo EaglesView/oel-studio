@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { tr } from '@oel/i18n';
 
 /** Shows what went wrong instead of a blank page. */
 export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -11,10 +12,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
     if (!error) return this.props.children;
     return (
       <div className="docpage__center" role="alert">
-        <h1>L’éditeur a rencontré une erreur</h1>
+        <h1>{tr('L’éditeur a rencontré une erreur', 'The editor ran into an error')}</h1>
         <p>{error.message}</p>
         <pre className="docpage__stack">{error.stack}</pre>
-        <button type="button" onClick={() => location.reload()}>Recharger</button>
+        <button type="button" onClick={() => location.reload()}>{tr('Recharger', 'Reload')}</button>
       </div>
     );
   }

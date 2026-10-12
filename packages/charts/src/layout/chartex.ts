@@ -9,6 +9,7 @@ import { quartiles } from '../stats';
 import { Ctx, GRID_GREY, PT, shade } from '../style';
 import type { Paint, ResolvedChart, SeriesData } from '../types';
 import type { Rect } from './frame';
+import { tr } from '@oel/i18n';
 
 const f2 = (n: number) => (Math.round(n * 100) / 100).toString();
 
@@ -64,7 +65,7 @@ export function chartEx(ctx: Ctx, data: ResolvedChart, area: Rect) {
         ctx.push({ t: 'image', id: 'plot', x: area.x, y: area.y, w: area.w, h: area.h, href: ctx.opts.media(ctx.spec.fallback)! });
       } else {
         ctx.push({ t: 'rect', id: 'plot', ...area, fill: '#F2F2F2', stroke: { color: GRID_GREY, width: 0.75 * PT, dash: [4, 3] } });
-        ctx.label('Carte : aperçu indisponible (données géographiques requises)', area.x + area.w / 2, area.y + area.h / 2, ts);
+        ctx.label(tr('Carte : aperçu indisponible (données géographiques requises)', 'Map: no preview (geographic data needed)'), area.x + area.w / 2, area.y + area.h / 2, ts);
       }
     }
   }

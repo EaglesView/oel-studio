@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, DialogOverlay, SheetDialog, TextField } from '@oel/emboss';
 import type { Account, FormsBackend, MagicLinkSent, Provider } from '../api/backend';
 import { emailProblem } from '../model/validate';
+import { tr } from '@oel/i18n';
 
 /**
  * E6 · 1–2 « Publier demande un compte ». Opens over the builder: nothing is
@@ -44,7 +45,7 @@ export function SignInDialog({
 
   const send = async () => {
     const p = emailProblem(email);
-    if (!email.trim() || p) return setError(p ?? 'Entrez votre courriel. Exemple : nom@exemple.ca');
+    if (!email.trim() || p) return setError(p ?? tr('Entrez votre courriel. Exemple : nom@exemple.ca', 'Enter your email. Example: name@example.ca'));
     setBusy(true);
     setError(null);
     try {
@@ -69,24 +70,25 @@ export function SignInDialog({
 
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
-      <SheetDialog title={sent ? 'Vérifiez votre boîte de réception' : 'Connectez-vous pour publier'} width={460}>
+      <SheetDialog title={sent ? tr('Vérifiez votre boîte de réception', 'Check your inbox') : tr('Connectez-vous pour publier', 'Sign in to publish')} width={460}>
         {sent ? (
           <div className="forms-dialog">
             <p>
-              Lien envoyé à <strong>{sent.email}</strong>. Il expire dans 15 minutes. Gardez cet onglet ouvert : la publication reprend toute seule après la connexion.
+              {tr('Lien envoyé à', 'Link sent to')} <strong>{sent.email}</strong>.{' '}
+              {tr('Il expire dans 15 minutes. Gardez cet onglet ouvert : la publication reprend toute seule après la connexion.', 'It expires in 15 minutes. Keep this tab open: publishing resumes on its own after signing in.')}
             </p>
             {sent.devLink && (
               // TODO(backend): remove — the local stub has no mail server, so it shows the link.
               <p className="form-dev-note">
-                Mode local : <a href={sent.devLink} target="_blank" rel="noopener">ouvrir le lien de connexion</a> (nouvel onglet).
+                Mode local : <a href={sent.devLink} target="_blank" rel="noopener">{tr('ouvrir le lien de connexion', 'open the sign-in link')}</a> (nouvel onglet).
               </p>
             )}
             <div className="forms-dialog__row">
               <Button variant="ghost" isDisabled={wait > 0 || busy} onPress={() => void send()}>
-                {wait > 0 ? `Renvoyer (${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')})` : 'Renvoyer'}
+                {wait > 0 ? tr(`Renvoyer (${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')})`, `Send again (${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')})`) : tr('Renvoyer', 'Send again')}
               </Button>
               <Button variant="ghost" onPress={() => setSent(null)}>
-                Changer d’adresse
+                {tr('Changer d’adresse', 'Change the address')}
               </Button>
             </div>
           </div>
@@ -99,14 +101,14 @@ export function SignInDialog({
               void send();
             }}
           >
-            <p>Vous pouvez créer et modifier sans compte. Publier un lien en demande un : les réponses ont ainsi un propriétaire.</p>
+            <p>{tr('Vous pouvez créer et modifier sans compte. Publier un lien en demande un : les réponses ont ainsi un propriétaire.', 'You can create and edit without an account. Publishing a link needs one: that way the responses have an owner.')}</p>
             <TextField
-              label="Courriel"
+              label={tr('Courriel', 'Email')}
               type="email"
               inputMode="email"
               autoComplete="email"
               placeholder="nom@exemple.ca"
-              description="Pas de mot de passe : un lien de connexion vous est envoyé."
+              description={tr('Pas de mot de passe : un lien de connexion vous est envoyé.', 'No password: a sign-in link is sent to you.')}
               value={email}
               onChange={setEmail}
               isInvalid={!!error}
@@ -115,16 +117,16 @@ export function SignInDialog({
               autoFocus
             />
             <Button variant="primary" type="submit" isDisabled={busy} leadingIcon="mail">
-              Recevoir un lien de connexion
+              {tr('Recevoir un lien de connexion', 'Get a sign-in link')}
             </Button>
             <p className="forms-dialog__or">
-              <span>ou</span>
+              <span>{tr('ou', 'or')}</span>
             </p>
             <Button leadingIcon="user" onPress={() => void provider('google')}>
-              Continuer avec Google
+              {tr('Continuer avec Google', 'Continue with Google')}
             </Button>
             <Button leadingIcon="user" onPress={() => void provider('microsoft')}>
-              Continuer avec Microsoft
+              {tr('Continuer avec Microsoft', 'Continue with Microsoft')}
             </Button>
           </form>
         )}

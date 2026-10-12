@@ -3,7 +3,7 @@ import { SlideSession, slideFromLayout, type Deck, type Element, type ExportRequ
 import { asDeckPayload, type Preview } from '@oel/engine';
 import { collabApi, identity } from './docs';
 import { engineHost } from './importFiles';
-import type { Paper } from './model';
+import { blankTitle, type Paper } from './model';
 
 const sessions = new Map<string, Promise<SlideSession>>();
 
@@ -20,7 +20,7 @@ const withText = (el: Element, text: string | undefined): Element =>
 
 /** A new deck (the codec's template) holding the titles of a desk preview, one slide each. */
 async function deckFromPreview(preview: Paper['data']['preview']): Promise<{ deck: Deck; media: Array<{ path: string; mime: string; bytes: Uint8Array }> }> {
-  const r = await engineHost().create('slides', 'Présentation sans titre');
+  const r = await engineHost().create('slides', blankTitle('slides'));
   const p = asDeckPayload(r.payload);
   const deck = JSON.parse(p.json) as Deck;
   const slides = preview.kind === 'slides' ? (preview as Extract<Preview, { kind: 'slides' }>).slides : [];

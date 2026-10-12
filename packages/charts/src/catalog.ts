@@ -4,6 +4,7 @@
  * series, and build a new chart from a block of cells.
  */
 import type { Axis, ChartSpec, Group, Series } from './types';
+import { lang, tr } from '@oel/i18n';
 
 export interface ChartTypeInfo {
   id: string;
@@ -21,7 +22,77 @@ export interface ChartTypeInfo {
   ex?: boolean;
 }
 
-const t = (id: string, family: string, label: string, group: ChartTypeInfo['group'], extra: Partial<ChartTypeInfo> = {}): ChartTypeInfo => ({ id, family, label, group, ...extra });
+/** A chart's name when it has no title and several series (« Graphique », « Chart »). */
+export const CHART_FALLBACK_NAME = tr('Graphique', 'Chart');
+/** The title a new chart gets, like Office's placeholder. */
+export const CHART_TITLE = tr('Titre du graphique', 'Chart Title');
+/** « Série1 », « Series1 »: an unnamed series, as Office names it. */
+export const seriesName = (n: number) => `${tr('Série', 'Series')}${n}`;
+
+/** English family and label of each type, by id (Excel's names); French is written in `CHART_TYPES`. */
+const EN: Record<string, [family: string, label: string]> = {
+  'col-clustered': ['Column', 'Clustered Column'],
+  'col-stacked': ['Column', 'Stacked Column'],
+  'col-percent': ['Column', '100% Stacked Column'],
+  'col3d-clustered': ['Column', '3-D Clustered Column'],
+  'col3d-stacked': ['Column', '3-D Stacked Column'],
+  'col3d-percent': ['Column', '3-D 100% Stacked Column'],
+  col3d: ['Column', '3-D Column'],
+  'bar-clustered': ['Bar', 'Clustered Bar'],
+  'bar-stacked': ['Bar', 'Stacked Bar'],
+  'bar-percent': ['Bar', '100% Stacked Bar'],
+  'bar3d-clustered': ['Bar', '3-D Clustered Bar'],
+  'bar3d-stacked': ['Bar', '3-D Stacked Bar'],
+  'bar3d-percent': ['Bar', '3-D 100% Stacked Bar'],
+  line: ['Line', 'Line'],
+  'line-stacked': ['Line', 'Stacked Line'],
+  'line-percent': ['Line', '100% Stacked Line'],
+  'line-markers': ['Line', 'Line with Markers'],
+  'line-markers-stacked': ['Line', 'Stacked Line with Markers'],
+  'line-markers-percent': ['Line', '100% Stacked Line with Markers'],
+  line3d: ['Line', '3-D Line'],
+  pie: ['Pie', 'Pie'],
+  pie3d: ['Pie', '3-D Pie'],
+  'pie-of-pie': ['Pie', 'Pie of Pie'],
+  'bar-of-pie': ['Pie', 'Bar of Pie'],
+  doughnut: ['Pie', 'Doughnut'],
+  area: ['Area', 'Area'],
+  'area-stacked': ['Area', 'Stacked Area'],
+  'area-percent': ['Area', '100% Stacked Area'],
+  area3d: ['Area', '3-D Area'],
+  'area3d-stacked': ['Area', '3-D Stacked Area'],
+  'area3d-percent': ['Area', '3-D 100% Stacked Area'],
+  scatter: ['X Y (Scatter)', 'Scatter'],
+  'scatter-smooth-markers': ['X Y (Scatter)', 'Scatter with Smooth Lines and Markers'],
+  'scatter-smooth': ['X Y (Scatter)', 'Scatter with Smooth Lines'],
+  'scatter-lines-markers': ['X Y (Scatter)', 'Scatter with Straight Lines and Markers'],
+  'scatter-lines': ['X Y (Scatter)', 'Scatter with Straight Lines'],
+  bubble: ['Bubble', 'Bubble'],
+  bubble3d: ['Bubble', '3-D Bubble'],
+  'stock-hlc': ['Stock', 'High-Low-Close'],
+  'stock-ohlc': ['Stock', 'Open-High-Low-Close'],
+  surface3d: ['Surface', '3-D Surface'],
+  'surface3d-wire': ['Surface', 'Wireframe 3-D Surface'],
+  contour: ['Surface', 'Contour'],
+  'contour-wire': ['Surface', 'Wireframe Contour'],
+  radar: ['Radar', 'Radar'],
+  'radar-markers': ['Radar', 'Radar with Markers'],
+  'radar-filled': ['Radar', 'Filled Radar'],
+  treemap: ['Treemap', 'Treemap'],
+  sunburst: ['Sunburst', 'Sunburst'],
+  histogram: ['Histogram', 'Histogram'],
+  pareto: ['Histogram', 'Pareto'],
+  'box-whisker': ['Box and Whisker', 'Box and Whisker'],
+  waterfall: ['Waterfall', 'Waterfall'],
+  funnel: ['Funnel', 'Funnel'],
+  combo: ['Combo', 'Clustered Column + Line'],
+  'combo-secondary': ['Combo', 'Column + Line on Secondary Axis'],
+};
+
+const t = (id: string, family: string, label: string, group: ChartTypeInfo['group'], extra: Partial<ChartTypeInfo> = {}): ChartTypeInfo => {
+  const [f, l] = lang() === 'en' && EN[id] ? EN[id] : [family, label];
+  return { id, family: f, label: l, group, ...extra };
+};
 
 export const CHART_TYPES: ChartTypeInfo[] = [
   t('col-clustered', 'Colonnes', 'Colonnes groupées', { kind: 'bar', barDir: 'col', grouping: 'clustered' }),
@@ -207,13 +278,13 @@ export function newChart(block: CellBlock, typeId = 'col-clustered', seriesInRow
     series.push({
       idx: k,
       order: k,
-      name: nameAt ? block.text(nameAt[0]!, nameAt[1]!) : `Série${k + 1}`,
+      name: nameAt ? block.text(nameAt[0]!, nameAt[1]!) : seriesName(k + 1),
       nameRef: nameAt ? abs(block.sheet, nameAt[0]!, nameAt[1]!) : undefined,
       cat: catR ? { f: abs(block.sheet, catR[0]!, catR[1]!, catR[2]!, catR[3]!), str: cats, count: cats.length } : undefined,
       val: { f: abs(block.sheet, vr0, vc0, vr1, vc1), num: nums, count: nums.length, format: 'General' },
     });
   }
-  const base: ChartSpec = { groups: [{ kind: 'bar', series }], axes: [], legend: series.length > 1 ? { pos: 'b' } : undefined, title: series.length === 1 ? undefined : { text: 'Titre du graphique' }, autoTitleDeleted: false };
+  const base: ChartSpec = { groups: [{ kind: 'bar', series }], axes: [], legend: series.length > 1 ? { pos: 'b' } : undefined, title: series.length === 1 ? undefined : { text: CHART_TITLE }, autoTitleDeleted: false };
   return applyType(base, typeId);
 }
 
@@ -223,14 +294,14 @@ export function recommend(spec: ChartSpec): { id: string; reason: string }[] {
   const cats = series[0]?.cat?.str ?? [];
   const values = series.flatMap((s) => s.val?.num ?? []).filter((v): v is number => v != null);
   const out: { id: string; reason: string }[] = [];
-  const dateLike = cats.length > 2 && cats.every((c) => !!c && (/^\d{4}([-/]\d{1,2})?$/.test(c) || /^(janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc|jan|fév)/i.test(c)));
-  if (dateLike) out.push({ id: 'line-markers', reason: 'Vos catégories suivent le temps' });
-  out.push({ id: 'col-clustered', reason: 'Comparer des valeurs entre catégories' });
-  if (series.length === 1 && values.length > 1 && values.length <= 8 && values.every((v) => v >= 0)) out.push({ id: 'pie', reason: 'Une seule série de parts d’un tout' });
-  if (series.length > 1) out.push({ id: 'col-stacked', reason: 'Voir le total et la part de chaque série' });
-  if (cats.some((c) => (c ?? '').length > 12)) out.push({ id: 'bar-clustered', reason: 'Vos catégories ont des noms longs' });
-  if (series.length >= 2 && cats.length === 0) out.push({ id: 'scatter', reason: 'Deux colonnes de nombres' });
-  if (!dateLike) out.push({ id: 'line', reason: 'Montrer une tendance' });
+  const dateLike = cats.length > 2 && cats.every((c) => !!c && (/^\d{4}([-/]\d{1,2})?$/.test(c) || /^(janv|févr|mars|avr|mai|juin|juil|août|sept|oct|nov|déc|jan|fév|feb|apr|may|jun|jul|aug|sep|dec)/i.test(c)));
+  if (dateLike) out.push({ id: 'line-markers', reason: tr('Vos catégories suivent le temps', 'Your categories follow time') });
+  out.push({ id: 'col-clustered', reason: tr('Comparer des valeurs entre catégories', 'Compare values across categories') });
+  if (series.length === 1 && values.length > 1 && values.length <= 8 && values.every((v) => v >= 0)) out.push({ id: 'pie', reason: tr('Une seule série de parts d’un tout', 'A single series of parts of a whole') });
+  if (series.length > 1) out.push({ id: 'col-stacked', reason: tr('Voir le total et la part de chaque série', 'See the total and each series’ share') });
+  if (cats.some((c) => (c ?? '').length > 12)) out.push({ id: 'bar-clustered', reason: tr('Vos catégories ont des noms longs', 'Your categories have long names') });
+  if (series.length >= 2 && cats.length === 0) out.push({ id: 'scatter', reason: tr('Deux colonnes de nombres', 'Two columns of numbers') });
+  if (!dateLike) out.push({ id: 'line', reason: tr('Montrer une tendance', 'Show a trend') });
   const seen = new Set<string>();
   return out.filter((r) => !seen.has(r.id) && seen.add(r.id)).slice(0, 6);
 }

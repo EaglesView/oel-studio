@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { Tab, TabList, Tabs } from '@oel/emboss';
+import { tr } from '@oel/i18n';
 
 type Pt = [number, number];
 const CHANNELS = [
-  { id: 'rgb', label: 'RVB', color: 'var(--emboss-text)' },
+  { id: 'rgb', label: tr('RVB', 'RGB'), color: 'var(--emboss-text)' },
   { id: 'r', label: 'R', color: '#d6483f' },
-  { id: 'g', label: 'V', color: '#4ca050' },
+  { id: 'g', label: tr('V', 'G'), color: '#4ca050' },
   { id: 'b', label: 'B', color: '#406ed2' },
 ] as const;
 
@@ -63,7 +64,7 @@ export function CurveEditor({ curves, onChange, onStart, onEnd }: { curves: Reco
   return (
     <div className="atelier-curve">
       <Tabs selectedKey={channel} onSelectionChange={(k) => setChannel(k as typeof channel)}>
-        <TabList aria-label="Canal de la courbe" className="atelier-curve__channels">
+        <TabList aria-label={tr('Canal de la courbe', 'Curve channel')} className="atelier-curve__channels">
           {CHANNELS.map((c) => (
             <Tab key={c.id} id={c.id}>
               {c.label}
@@ -76,7 +77,7 @@ export function CurveEditor({ curves, onChange, onStart, onEnd }: { curves: Reco
         viewBox={`0 0 ${S} ${S}`}
         className="atelier-curve__plot"
         role="group"
-        aria-label="Courbe des tonalités : cliquer pour ajouter un point, double-cliquer un point pour le retirer"
+        aria-label={tr('Courbe des tonalités : cliquer pour ajouter un point, double-cliquer un point pour le retirer', 'Tone curve: click to add a point, double-click a point to remove it')}
         onPointerDown={(e) => {
           if ((e.target as Element).closest('circle')) return;
           const p = at(e);
@@ -109,7 +110,7 @@ export function CurveEditor({ curves, onChange, onStart, onEnd }: { curves: Reco
             r={focus === i ? 6 : 5}
             tabIndex={0}
             role="slider"
-            aria-label={`Point ${i + 1} : entrée ${Math.round(x * 100)} %, sortie ${Math.round(y * 100)} %`}
+            aria-label={tr(`Point ${i + 1} : entrée ${Math.round(x * 100)} %, sortie ${Math.round(y * 100)} %`, `Point ${i + 1}: input ${Math.round(x * 100)} %, output ${Math.round(y * 100)} %`)}
             aria-valuenow={Math.round(y * 100)}
             className="atelier-curve__point"
             onFocus={() => setFocus(i)}
@@ -137,7 +138,7 @@ export function CurveEditor({ curves, onChange, onStart, onEnd }: { curves: Reco
           />
         ))}
       </svg>
-      <p className="atelier-hint">Cliquer pour ajouter un point · double-cliquer un point pour le retirer</p>
+      <p className="atelier-hint">{tr('Cliquer pour ajouter un point · double-cliquer un point pour le retirer', 'Click to add a point · double-click a point to remove it')}</p>
     </div>
   );
 }

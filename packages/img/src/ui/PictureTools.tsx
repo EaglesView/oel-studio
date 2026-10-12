@@ -6,6 +6,9 @@
 import { useState } from 'react';
 import { Dialog, DialogTrigger } from 'react-aria-components';
 import { Button, Popover, TextField, ToolButton } from '@oel/emboss';
+import { tr } from '@oel/i18n';
+
+const ALT = tr('Texte alternatif', 'Alt text');
 
 export interface PictureToolsProps {
   /** Why nothing can be changed (« Lecture seule »). */
@@ -23,13 +26,13 @@ export function PictureTools(p: PictureToolsProps) {
   const retouch = p.readOnly ?? p.noRetouch;
   return (
     <>
-      <ToolButton icon="palette" label="Retoucher" showLabel unavailableReason={retouch} onPress={() => p.onRetouch(false)} />
-      <ToolButton icon="crop" label="Recadrer" unavailableReason={retouch} onPress={() => p.onRetouch(true)} />
-      {p.onReplace && <ToolButton icon="refresh" label="Remplacer" unavailableReason={p.readOnly} onPress={p.onReplace} />}
+      <ToolButton icon="palette" label={tr('Retoucher', 'Retouch')} showLabel unavailableReason={retouch} onPress={() => p.onRetouch(false)} />
+      <ToolButton icon="crop" label={tr('Recadrer', 'Crop')} unavailableReason={retouch} onPress={() => p.onRetouch(true)} />
+      {p.onReplace && <ToolButton icon="refresh" label={tr('Remplacer', 'Replace')} unavailableReason={p.readOnly} onPress={p.onReplace} />}
       <DialogTrigger>
-        <ToolButton icon="text-block" label="Texte alternatif" unavailableReason={p.readOnly} />
+        <ToolButton icon="text-block" label={ALT} unavailableReason={p.readOnly} />
         <Popover placement="bottom">
-          <Dialog className="oel-popover-dialog oel-alt-dialog" aria-label="Texte alternatif">{({ close }) => <AltForm alt={p.alt} onSave={(t) => (p.onAlt(t), close())} />}</Dialog>
+          <Dialog className="oel-popover-dialog oel-alt-dialog" aria-label={ALT}>{({ close }) => <AltForm alt={p.alt} onSave={(t) => (p.onAlt(t), close())} />}</Dialog>
         </Popover>
       </DialogTrigger>
     </>
@@ -49,9 +52,9 @@ function AltForm({ alt, onSave }: { alt: string; onSave: (alt: string) => void }
         onSave(text.trim());
       }}
     >
-      <TextField label="Texte alternatif" multiline rows={3} value={text} onChange={setText} autoFocus description="Décrit l’image pour les lecteurs d’écran." />
+      <TextField label={ALT} multiline rows={3} value={text} onChange={setText} autoFocus description={tr('Décrit l’image pour les lecteurs d’écran.', 'Describes the image for screen readers.')} />
       <Button type="submit" size="sm">
-        Enregistrer
+        {tr('Enregistrer', 'Save')}
       </Button>
     </form>
   );

@@ -20,6 +20,124 @@ import { Histogram } from './Histogram';
 import { Section } from './Section';
 import { SliderRow } from './SliderRow';
 import { fitBox, useBox, useDraw, useImageEngine } from './useEngine';
+import { messages, plural } from '@oel/i18n';
+
+const t = messages(
+  {
+    copied: 'Réglages copiés',
+    copiedBody: 'Collez-les sur une autre image avec « Coller les réglages ».',
+    image: 'image',
+    exportFailed: 'Exportation impossible',
+    openFailed: 'Impossible d’ouvrir l’image :',
+    opening: 'Ouverture de l’image…',
+    before: 'Avant',
+    straighten: 'Redresser',
+    cancel: 'Annuler',
+    done: 'Terminer',
+    mode: 'Mode de retouche',
+    simple: 'Simple',
+    advanced: 'Avancé',
+    scope: 'Où vont les réglages',
+    galleryStyle: 'Style de la galerie',
+    theseImages: (n: number) => `Ces images (${n})`,
+    thisImage: 'Cette image',
+    toStyle: (n: number) => `Ce que vous réglez ici s’applique aux ${n} images.`,
+    ownMany: (n: number) => `Réglages propres à ces ${n} images, par-dessus le style.`,
+    ownOne: 'Réglages propres à cette image, par-dessus le style.',
+    backToStyle: 'Revenir au style de la galerie',
+    auto: 'Auto',
+    frame: 'Cadrer',
+    crop: 'Recadrer',
+    rotate: 'Pivoter',
+    soon: 'Bientôt',
+    rotateLeft: 'Pivoter à gauche',
+    rotateRight: 'Pivoter à droite',
+    flipH: 'Miroir horizontal',
+    flipV: 'Miroir vertical',
+    lensLater: 'Profils d’objectif et correction de perspective : plus tard.',
+    retouch: 'Retoucher l’image',
+    undo: 'Annuler',
+    redo: 'Rétablir',
+    beforeAfter: 'Avant / après',
+    close: 'Fermer',
+    bureau: 'Bureau',
+    gallery: (n: number) => `Galerie · ${n} ${plural(n, 'image', 'images')}`,
+    copySettings: 'Copier les réglages',
+    pasteSettings: 'Coller les réglages',
+    exportAll: (n: number) => `Exporter les ${n}`,
+    settings: 'Réglages de l’image',
+    format: 'Format',
+    formatOf: (label: string) => `Format : ${label}`,
+    cropFormat: 'Format du recadrage',
+    mixer: 'Réglage du mélangeur',
+    hue: 'Teinte',
+    saturation: 'Saturation',
+    luminance: 'Luminance',
+    blending: 'Fusion',
+    balance: 'Équilibre',
+    styles: 'Styles',
+    galleryImages: 'Images de la galerie',
+    ownSettings: 'Réglages propres',
+    filmHint: '← → image suivante · Ctrl + clic pour en régler plusieurs',
+  },
+  {
+    copied: 'Settings copied',
+    copiedBody: 'Paste them on another image with “Paste settings”.',
+    image: 'image',
+    exportFailed: 'Export failed',
+    openFailed: 'The image could not be opened:',
+    opening: 'Opening the image…',
+    before: 'Before',
+    straighten: 'Straighten',
+    cancel: 'Cancel',
+    done: 'Done',
+    mode: 'Editing mode',
+    simple: 'Simple',
+    advanced: 'Advanced',
+    scope: 'Where the settings go',
+    galleryStyle: 'Gallery style',
+    theseImages: (n) => `These images (${n})`,
+    thisImage: 'This image',
+    toStyle: (n) => `What you set here applies to the ${n} images.`,
+    ownMany: (n) => `Settings of these ${n} images only, over the style.`,
+    ownOne: 'Settings of this image only, over the style.',
+    backToStyle: 'Back to the gallery style',
+    auto: 'Auto',
+    frame: 'Crop',
+    crop: 'Crop',
+    rotate: 'Rotate',
+    soon: 'Coming soon',
+    rotateLeft: 'Rotate left',
+    rotateRight: 'Rotate right',
+    flipH: 'Flip horizontally',
+    flipV: 'Flip vertically',
+    lensLater: 'Lens profiles and perspective correction: later.',
+    retouch: 'Retouch the image',
+    undo: 'Undo',
+    redo: 'Redo',
+    beforeAfter: 'Before / after',
+    close: 'Close',
+    bureau: 'Bureau',
+    gallery: (n) => `Gallery · ${n} ${plural(n, 'image', 'images')}`,
+    copySettings: 'Copy settings',
+    pasteSettings: 'Paste settings',
+    exportAll: (n) => `Export the ${n}`,
+    settings: 'Image settings',
+    format: 'Format',
+    formatOf: (label) => `Format: ${label}`,
+    cropFormat: 'Crop format',
+    mixer: 'Mixer setting',
+    hue: 'Hue',
+    saturation: 'Saturation',
+    luminance: 'Luminance',
+    blending: 'Blending',
+    balance: 'Balance',
+    styles: 'Styles',
+    galleryImages: 'Gallery images',
+    ownSettings: 'Its own settings',
+    filmHint: '← → next image · Ctrl + click to set several',
+  },
+);
 
 /** One picture of a gallery's filmstrip. */
 export interface AtelierImage {
@@ -258,7 +376,7 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     copied = unflattenRecipe(Object.entries(lookOf(recipe)));
     copiedListeners.forEach((l) => l());
     void navigator.clipboard?.writeText(JSON.stringify({ format: 'oel-img-recipe@1', ...copied })).catch(() => {});
-    toast({ title: 'Réglages copiés', description: 'Collez-les sur une autre image avec « Coller les réglages ».', tone: 'success' });
+    toast({ title: t.copied, description: t.copiedBody, tone: 'success' });
   };
   const paste = () => {
     if (copied) replaceLook(copied);
@@ -268,9 +386,9 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     if (!engine) return;
     try {
       const blob = await engine.export(o);
-      onExport(blob, `${title.replace(/\.[^.]+$/, '') || 'image'}.${ext}`);
+      onExport(blob, `${title.replace(/\.[^.]+$/, '') || t.image}.${ext}`);
     } catch (e) {
-      toast({ title: 'Exportation impossible', description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+      toast({ title: t.exportFailed, description: e instanceof Error ? e.message : String(e), tone: 'danger' });
     }
   };
 
@@ -319,20 +437,20 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
       {missing ? (
         <p className="atelier__message">{missing}</p>
       ) : engineState.error ? (
-        <p className="atelier__message">Impossible d’ouvrir l’image : {engineState.error}</p>
+        <p className="atelier__message">{t.openFailed} {engineState.error}</p>
       ) : (
         <div className="atelier__frame" style={css ? { width: css.width, height: css.height } : { visibility: 'hidden' }}>
           <div className="atelier__canvas-host" ref={host} />
           {crop && source && <CropOverlay rect={crop} ratio={aspect === 'libre' ? null : ratio} fw={frame.width} fh={frame.height} onChange={setCrop} />}
         </div>
       )}
-      {!missing && !engineState.error && !source && <p className="atelier__message">Ouverture de l’image…</p>}
-      {before && <span className="atelier__badge">Avant</span>}
+      {!missing && !engineState.error && !source && <p className="atelier__message">{t.opening}</p>}
+      {before && <span className="atelier__badge">{t.before}</span>}
       {crop && (
         <div className="atelier__cropbar chrome-pill">
           <Slider
             size="sm"
-            label="Redresser"
+            label={t.straighten}
             minValue={-45}
             maxValue={45}
             step={0.1}
@@ -347,10 +465,10 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
             onChangeEnd={endEdit}
           />
           <Button variant="ghost" size="sm" onPress={() => setCrop(null)}>
-            Annuler
+            {t.cancel}
           </Button>
           <Button variant="primary" size="sm" onPress={finishCrop}>
-            Terminer
+            {t.done}
           </Button>
         </div>
       )}
@@ -378,28 +496,28 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
 
   const controls = (
     <Tabs className="atelier__tabs" defaultSelectedKey="simple">
-      <TabList aria-label="Mode de retouche" className="atelier__tablist">
-        <Tab id="simple">Simple</Tab>
-        <Tab id="avance">Avancé</Tab>
+      <TabList aria-label={t.mode} className="atelier__tablist">
+        <Tab id="simple">{t.simple}</Tab>
+        <Tab id="avance">{t.advanced}</Tab>
       </TabList>
       {gallery && (
         <div className="atelier__scope">
           <Tabs selectedKey={scope} onSelectionChange={(k) => setScope(k as 'gallery' | 'image')}>
-            <TabList aria-label="Où vont les réglages" className="atelier__tablist atelier__tablist--scope">
-              <Tab id="gallery">Style de la galerie</Tab>
-              <Tab id="image">{chosen.length > 1 ? `Ces images (${chosen.length})` : 'Cette image'}</Tab>
+            <TabList aria-label={t.scope} className="atelier__tablist atelier__tablist--scope">
+              <Tab id="gallery">{t.galleryStyle}</Tab>
+              <Tab id="image">{chosen.length > 1 ? t.theseImages(chosen.length) : t.thisImage}</Tab>
             </TabList>
           </Tabs>
           <p className="atelier-hint">
             {toStyle
-              ? `Ce que vous réglez ici s’applique aux ${gallery.images.length} images.`
+              ? t.toStyle(gallery.images.length)
               : chosen.length > 1
-                ? `Réglages propres à ces ${chosen.length} images, par-dessus le style.`
-                : 'Réglages propres à cette image, par-dessus le style.'}
+                ? t.ownMany(chosen.length)
+                : t.ownOne}
           </p>
           {!toStyle && Object.keys(lookOf(own)).length > 0 && (
             <Button variant="ghost" size="sm" onPress={() => replaceLook({})}>
-              Revenir au style de la galerie
+              {t.backToStyle}
             </Button>
           )}
         </div>
@@ -407,7 +525,7 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
       <TabPanel id="simple" className="atelier__tabpanel">
         <Styles engine={engine} recipe={values} geometry={recipe} source={source} onHover={setHoverStyle} onPick={replaceLook} />
         <Button variant="secondary" size="sm" leadingIcon="magic-wand" className="atelier__auto" isDisabled={!engine} onPress={auto}>
-          Auto
+          {t.auto}
         </Button>
         {SIMPLE_GROUPS.map((g) => (
           <Section key={g.id} title={g.label}>
@@ -424,13 +542,13 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
             ))}
           </Section>
         ))}
-        <Section title="Cadrer">
+        <Section title={t.frame}>
           <div className="atelier__row">
             <Button variant="ghost" size="sm" leadingIcon="crop" isDisabled={!source} onPress={() => setCrop(leafValue(recipe, 'geometry.crop') as Rect)}>
-              Recadrer
+              {t.crop}
             </Button>
             <Button variant="ghost" size="sm" leadingIcon="rotate-3d" onPress={() => apply(turnLeaves(recipe, 1))}>
-              Pivoter
+              {t.rotate}
             </Button>
             <AspectMenu value={aspect} onChange={setAspect} />
           </div>
@@ -438,7 +556,7 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
       </TabPanel>
       <TabPanel id="avance" className="atelier__tabpanel">
         {ADVANCED_PANELS.map((p) => (
-          <Section key={p.id} title={p.label} defaultOpen={p.open} disabled={p.body.kind === 'soon' ? 'Bientôt' : undefined}>
+          <Section key={p.id} title={p.label} defaultOpen={p.open} disabled={p.body.kind === 'soon' ? t.soon : undefined}>
             {p.body.kind === 'sliders' &&
               p.body.groups.map((g, i) => (
                 <div key={i} className="atelier__group">
@@ -460,30 +578,30 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
             {p.body.kind === 'grading' && <Grading recipe={values} below={below} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />}
             {p.body.kind === 'geometry' && (
               <div className="atelier__group">
-                <LeafRow control={leafSlider('geometry.angle', 'Redresser', { signed: true, digits: 1, unit: '°' })} recipe={recipe} below={{}} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />
+                <LeafRow control={leafSlider('geometry.angle', t.straighten, { signed: true, digits: 1, unit: '°' })} recipe={recipe} below={{}} onChange={setLeaf} onStart={startEdit} onEnd={endEdit} />
                 <div className="atelier__row">
                   <Button variant="ghost" size="sm" onPress={() => apply(turnLeaves(recipe, -1))}>
-                    Pivoter à gauche
+                    {t.rotateLeft}
                   </Button>
                   <Button variant="ghost" size="sm" leadingIcon="rotate-3d" onPress={() => apply(turnLeaves(recipe, 1))}>
-                    Pivoter à droite
+                    {t.rotateRight}
                   </Button>
                 </div>
                 <div className="atelier__row">
                   <Button variant="ghost" size="sm" onPress={() => apply(flipLeaves(recipe, 'h'))}>
-                    Miroir horizontal
+                    {t.flipH}
                   </Button>
                   <Button variant="ghost" size="sm" onPress={() => apply(flipLeaves(recipe, 'v'))}>
-                    Miroir vertical
+                    {t.flipV}
                   </Button>
                 </div>
                 <div className="atelier__row">
                   <Button variant="ghost" size="sm" leadingIcon="crop" isDisabled={!source} onPress={() => setCrop(leafValue(recipe, 'geometry.crop') as Rect)}>
-                    Recadrer
+                    {t.crop}
                   </Button>
                   <AspectMenu value={aspect} onChange={setAspect} />
                 </div>
-                <p className="atelier-hint">Profils d’objectif et correction de perspective : plus tard.</p>
+                <p className="atelier-hint">{t.lensLater}</p>
               </div>
             )}
             {p.body.kind === 'soon' && <p className="atelier-hint">{p.body.text}</p>}
@@ -498,11 +616,11 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     return (
       <div className="atelier atelier--panel" {...keys}>
         <header className="atelier-panel__head">
-          <h2 className="atelier-panel__title">Retoucher l’image</h2>
-          <Button variant="ghost" size="icon-sm" leadingIcon="undo" aria-label="Annuler" aria-keyshortcuts="Control+Z" isDisabled={!canUndo} onPress={() => undo.undo()} />
-          <Button variant="ghost" size="icon-sm" leadingIcon="redo" aria-label="Rétablir" aria-keyshortcuts="Control+Shift+Z" isDisabled={!canRedo} onPress={() => undo.redo()} />
-          <Button variant="ghost" size="icon-sm" leadingIcon="eye" aria-label="Avant / après" aria-pressed={before} aria-keyshortcuts="\" onPress={() => setBefore(!before)} />
-          <Button variant="ghost" size="icon-sm" leadingIcon="close" aria-label="Fermer" onPress={close} />
+          <h2 className="atelier-panel__title">{t.retouch}</h2>
+          <Button variant="ghost" size="icon-sm" leadingIcon="undo" aria-label={t.undo} aria-keyshortcuts="Control+Z" isDisabled={!canUndo} onPress={() => undo.undo()} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="redo" aria-label={t.redo} aria-keyshortcuts="Control+Shift+Z" isDisabled={!canRedo} onPress={() => undo.redo()} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="eye" aria-label={t.beforeAfter} aria-pressed={before} aria-keyshortcuts="\" onPress={() => setBefore(!before)} />
+          <Button variant="ghost" size="icon-sm" leadingIcon="close" aria-label={t.close} onPress={close} />
         </header>
         {stageEl}
         {controls}
@@ -515,27 +633,27 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
     <div className="atelier" {...keys}>
       <header className="atelier__bar">
         <Button variant="ghost" size="sm" leadingIcon="chevron-left" onPress={onBureau}>
-          Bureau
+          {t.bureau}
         </Button>
         <h2 className="atelier__title">{gallery ? gallery.title : title}</h2>
-        {gallery && <span className="atelier__chip">Galerie · {gallery.images.length} image{gallery.images.length > 1 ? 's' : ''}</span>}
+        {gallery && <span className="atelier__chip">{t.gallery(gallery.images.length)}</span>}
         <span className="atelier__spacer" />
-        <Button variant="ghost" size="icon-sm" leadingIcon="undo" aria-label="Annuler" aria-keyshortcuts="Control+Z" isDisabled={!canUndo} onPress={() => undo.undo()} />
-        <Button variant="ghost" size="icon-sm" leadingIcon="redo" aria-label="Rétablir" aria-keyshortcuts="Control+Shift+Z" isDisabled={!canRedo} onPress={() => undo.redo()} />
+        <Button variant="ghost" size="icon-sm" leadingIcon="undo" aria-label={t.undo} aria-keyshortcuts="Control+Z" isDisabled={!canUndo} onPress={() => undo.undo()} />
+        <Button variant="ghost" size="icon-sm" leadingIcon="redo" aria-label={t.redo} aria-keyshortcuts="Control+Shift+Z" isDisabled={!canRedo} onPress={() => undo.redo()} />
         <Button variant="ghost" size="sm" leadingIcon="eye" aria-pressed={before} aria-keyshortcuts="\" onPress={() => setBefore(!before)}>
-          Avant / après
+          {t.beforeAfter}
         </Button>
         <Button variant="ghost" size="sm" leadingIcon="copy" onPress={copy}>
-          Copier les réglages
+          {t.copySettings}
         </Button>
         {hasCopied && (
           <Button variant="ghost" size="sm" leadingIcon="paste" onPress={paste}>
-            Coller les réglages
+            {t.pasteSettings}
           </Button>
         )}
         {source && engine && !gallery && <ExportPopover size={outputSize(recipe, source.width, source.height)} onExport={exportFile} />}
         {source && engine && gallery && (
-          <ExportPopover size={outputSize(recipe, source.width, source.height)} label={`Exporter les ${gallery.images.length}`} sizeIsSample onExport={gallery.onExportAll} />
+          <ExportPopover size={outputSize(recipe, source.width, source.height)} label={t.exportAll(gallery.images.length)} sizeIsSample onExport={gallery.onExportAll} />
         )}
       </header>
 
@@ -543,7 +661,7 @@ export function Atelier({ title, original, missing, doc, createWorker, onBureau,
       <div className="atelier__body">
         {stageEl}
 
-        <aside className="atelier__panel" aria-label="Réglages de l’image">
+        <aside className="atelier__panel" aria-label={t.settings}>
           <Histogram bins={bins} />
           {controls}
         </aside>
@@ -574,11 +692,11 @@ function AspectMenu({ value, onChange }: { value: string; onChange: (id: string)
   const label = ASPECTS.find((a) => a.id === value)?.label ?? value;
   return (
     <MenuTrigger>
-      <Button variant="ghost" size="sm" trailingIcon="chevron-down" aria-label={`Format : ${label}`}>
-        Format
+      <Button variant="ghost" size="sm" trailingIcon="chevron-down" aria-label={t.formatOf(label)}>
+        {t.format}
       </Button>
       <Popover placement="bottom start" showArrow={false}>
-        <Menu aria-label="Format du recadrage" selectionMode="single" selectedKeys={[value]} onAction={(k) => onChange(String(k))}>
+        <Menu aria-label={t.cropFormat} selectionMode="single" selectedKeys={[value]} onAction={(k) => onChange(String(k))}>
           {ASPECTS.map((a) => (
             <MenuItem key={a.id} id={a.id}>
               {a.label}
@@ -593,7 +711,7 @@ function AspectMenu({ value, onChange }: { value: string; onChange: (id: string)
 function HslMixer(row: RowProps) {
   return (
     <Tabs className="atelier__subtabs" defaultSelectedKey="hue">
-      <TabList aria-label="Réglage du mélangeur" className="atelier__tablist atelier__tablist--small">
+      <TabList aria-label={t.mixer} className="atelier__tablist atelier__tablist--small">
         {HSL_ASPECTS.map((a) => (
           <Tab key={a.id} id={a.id}>
             {a.label}
@@ -623,15 +741,15 @@ function Grading(row: RowProps) {
               <span className="atelier__swatch" style={{ background: `hsl(${hue} 70% 55% / ${Math.min(1, (Number(leafValue(recipe, `grading.${w.id}.sat`)) || 0) / 60 + 0.15)})` }} aria-hidden />
               {w.label}
             </h4>
-            <LeafRow control={leafSlider(`grading.${w.id}.hue`, 'Teinte', { unit: '°' }, 'hue')} {...row} />
-            <LeafRow control={leafSlider(`grading.${w.id}.sat`, 'Saturation', {})} {...row} />
-            <LeafRow control={leafSlider(`grading.${w.id}.lum`, 'Luminance')} {...row} />
+            <LeafRow control={leafSlider(`grading.${w.id}.hue`, t.hue, { unit: '°' }, 'hue')} {...row} />
+            <LeafRow control={leafSlider(`grading.${w.id}.sat`, t.saturation, {})} {...row} />
+            <LeafRow control={leafSlider(`grading.${w.id}.lum`, t.luminance)} {...row} />
           </div>
         );
       })}
       <div className="atelier__group">
-        <LeafRow control={leafSlider('grading.blending', 'Fusion', {})} {...row} />
-        <LeafRow control={leafSlider('grading.balance', 'Équilibre')} {...row} />
+        <LeafRow control={leafSlider('grading.blending', t.blending, {})} {...row} />
+        <LeafRow control={leafSlider('grading.balance', t.balance)} {...row} />
       </div>
     </>
   );
@@ -678,8 +796,8 @@ function Styles({
   }, [engine, source, geometry]);
   const current = currentStyle(recipe)?.id;
   return (
-    <div className="atelier__styles" role="radiogroup" aria-label="Styles">
-      <h3 className="atelier__heading">Styles</h3>
+    <div className="atelier__styles" role="radiogroup" aria-label={t.styles}>
+      <h3 className="atelier__heading">{t.styles}</h3>
       <div className="atelier__style-row">
         {BUILTIN_STYLES.map((s) => (
           <button
@@ -709,7 +827,7 @@ function Styles({
 /** Figma L2: the gallery's pictures under the stage; the current one is ringed, an amber dot marks own settings. */
 function Filmstrip({ gallery, chosen, onPick }: { gallery: AtelierGallery; chosen: string[]; onPick: (id: string, add: boolean) => void }) {
   return (
-    <div className="atelier__filmstrip" role="listbox" aria-label="Images de la galerie" aria-multiselectable="true">
+    <div className="atelier__filmstrip" role="listbox" aria-label={t.galleryImages} aria-multiselectable="true">
       {gallery.images.map((img) => {
         const current = img.id === gallery.current;
         const picked = current || chosen.includes(img.id);
@@ -725,11 +843,11 @@ function Filmstrip({ gallery, chosen, onPick }: { gallery: AtelierGallery; chose
             onClick={(e) => onPick(img.id, e.ctrlKey || e.metaKey)}
           >
             {img.thumbnail ? <img src={img.thumbnail} alt={img.title} /> : <span className="atelier__film-empty">{img.title}</span>}
-            {Object.keys(lookOf(img.doc.recipe())).length > 0 && <span className="atelier__film-dot" aria-label="Réglages propres" />}
+            {Object.keys(lookOf(img.doc.recipe())).length > 0 && <span className="atelier__film-dot" aria-label={t.ownSettings} />}
           </button>
         );
       })}
-      <p className="atelier-hint">← → image suivante · Ctrl + clic pour en régler plusieurs</p>
+      <p className="atelier-hint">{t.filmHint}</p>
     </div>
   );
 }

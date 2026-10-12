@@ -5,6 +5,7 @@
  */
 import type { Capability, Raster } from '../protocol';
 import { outputSize, type Recipe } from '../recipe';
+import { tr } from '@oel/i18n';
 
 export interface Backend {
   readonly capability: Capability;
@@ -126,7 +127,7 @@ export class CpuBackend implements Backend {
   async render(): Promise<Raster> {
     if (this.cached) return this.cached;
     const s = this.sources[this.slot];
-    if (!s) throw new Error('Aucune image chargée');
+    if (!s) throw new Error(tr('Aucune image chargée', 'No image loaded'));
     const r = this.wasm.render_rgba(s.data, s.width, s.height, this.recipe, this.scale, false);
     this.cached = { width: r.width, height: r.height, data: r.pixels };
     r.free();

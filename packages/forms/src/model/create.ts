@@ -1,4 +1,5 @@
 import type { Appearance, Choice, FormDef, FormItem, FormSettings, Question, QuestionType } from './types';
+import { tr } from '@oel/i18n';
 
 let counter = 0;
 export const fid = (prefix = 'q') => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -14,7 +15,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   showProgress: true,
   onePerScreen: false,
   welcome: '',
-  thanks: 'Merci ! Votre réponse a bien été envoyée.',
+  thanks: tr('Merci ! Votre réponse a bien été envoyée.', 'Thank you! Your response was sent.'),
   redirectUrl: null,
   signature: '',
 };
@@ -66,13 +67,13 @@ export function duplicateItem(item: FormItem): FormItem {
   return copy;
 }
 
-export function blankForm(title = 'Formulaire sans titre', organiser = ''): FormDef {
+export function blankForm(title = tr('Formulaire sans titre', 'Untitled form'), organiser = ''): FormDef {
   return {
     id: fid('f'),
     title,
     description: '',
     organiser,
-    items: [newQuestion('short', 'Question sans titre')],
+    items: [newQuestion('short', tr('Question sans titre', 'Untitled question'))],
     appearance: { ...DEFAULT_APPEARANCE },
     settings: { ...DEFAULT_SETTINGS },
     link: null,
@@ -83,26 +84,26 @@ export function blankForm(title = 'Formulaire sans titre', organiser = ''): Form
 
 /** « Modèle · Inscription » — Nom, courriel, choix, date. */
 export function registrationTemplate(organiser = ''): FormDef {
-  const f = blankForm('Inscription', organiser);
-  f.description = 'Comptez 3 minutes ; les places sont confirmées par courriel.';
-  const name = newQuestion('short', 'Nom complet');
+  const f = blankForm(tr('Inscription', 'Registration'), organiser);
+  f.description = tr('Comptez 3 minutes ; les places sont confirmées par courriel.', 'Allow 3 minutes; places are confirmed by email.');
+  const name = newQuestion('short', tr('Nom complet', 'Full name'));
   name.required = true;
   name.placeholder = 'Ex. Marie Tremblay';
-  const email = newQuestion('email', 'Courriel');
+  const email = newQuestion('email', tr('Courriel', 'Email'));
   email.required = true;
-  email.help = 'Pour la confirmation de votre place.';
-  const pick = newQuestion('single', 'Atelier choisi');
+  email.help = tr('Pour la confirmation de votre place.', 'To confirm your place.');
+  const pick = newQuestion('single', tr('Atelier choisi', 'Chosen workshop'));
   pick.required = true;
-  pick.help = 'Une place par personne.';
+  pick.help = tr('Une place par personne.', 'One place per person.');
   pick.choices = [choice('Atelier A'), choice('Atelier B'), choice('Atelier C')];
-  const date = newQuestion('date', 'Date d’arrivée');
+  const date = newQuestion('date', tr('Date d’arrivée', 'Arrival date'));
   date.required = true;
-  const needs = newQuestion('paragraph', 'Besoins particuliers');
+  const needs = newQuestion('paragraph', tr('Besoins particuliers', 'Special needs'));
   f.items = [
-    { id: fid(), kind: 'section', title: 'Vos coordonnées' },
+    { id: fid(), kind: 'section', title: tr('Vos coordonnées', 'Your details') },
     name,
     email,
-    { id: fid(), kind: 'section', title: 'Votre inscription' },
+    { id: fid(), kind: 'section', title: tr('Votre inscription', 'Your registration') },
     pick,
     date,
     needs,
@@ -115,8 +116,8 @@ export function guessType(header: string, samples: string[]): QuestionType {
   const h = header.toLowerCase();
   const vals = samples.map((s) => s.trim()).filter(Boolean);
   if (/courriel|e-?mail|adresse électronique/.test(h) || (vals.length && vals.every((v) => /^\S+@\S+\.\S+$/.test(v)))) return 'email';
-  if (/date|jour|naissance|arrivée|départ/.test(h) || (vals.length && vals.every((v) => /^\d{4}-\d{2}-\d{2}$|^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(v)))) return 'date';
-  if (/fichier|pièce|portfolio|cv\b|document joint/.test(h)) return 'file';
+  if (/date|jour|naissance|arrivée|départ|day|birth|arrival|departure/.test(h) || (vals.length && vals.every((v) => /^\d{4}-\d{2}-\d{2}$|^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(v)))) return 'date';
+  if (/fichier|pièce|portfolio|cv\b|document joint|file|attachment|resume/.test(h)) return 'file';
   if (/commentaire|remarque|besoin|message|description|note/.test(h)) return 'paragraph';
   if (vals.length >= 2 && vals.every((v) => Number.isFinite(Number(v.replace(/\s/g, '').replace(',', '.'))))) return 'number';
   const distinct = new Set(vals);
@@ -134,7 +135,7 @@ export function formFromColumns(rows: string[][], title: string, organiser = '')
   const body = rows.slice(1);
   f.items = header
     .map((h, col) => ({ h: h.trim(), col }))
-    .filter(({ h }) => h && !/^reçu le$/i.test(h))
+    .filter(({ h }) => h && !/^(reçu le|received on)$/i.test(h))
     .map(({ h, col }) => {
       const samples = body.map((r) => r[col] ?? '');
       const q = newQuestion(guessType(h, samples), h);
@@ -144,7 +145,7 @@ export function formFromColumns(rows: string[][], title: string, organiser = '')
       }
       return q;
     });
-  if (!f.items.length) f.items = [newQuestion('short', 'Question sans titre')];
+  if (!f.items.length) f.items = [newQuestion('short', tr('Question sans titre', 'Untitled question'))];
   return f;
 }
 

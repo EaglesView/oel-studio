@@ -1,6 +1,7 @@
 import { questionsOf } from './create';
 import { parseNumber } from './validate';
 import type { AnswerValue, ChoiceSource, ColumnMap, FormDef, FormResponse, Question, SheetLink } from './types';
+import { locale, tr } from '@oel/i18n';
 
 /**
  * E5 · Données liées au tableur: the linked spreadsheet *is* the form's
@@ -12,8 +13,8 @@ import type { AnswerValue, ChoiceSource, ColumnMap, FormDef, FormResponse, Quest
  * spreadsheet (and the WASM spreadsheet engine) instead of the desk preview.
  */
 
-export const RECEIVED_HEADER = 'Reçu le';
-export const FILES_HEADER = 'Pièces jointes';
+export const RECEIVED_HEADER = tr('Reçu le', 'Received on');
+export const FILES_HEADER = tr('Pièces jointes', 'Attachments');
 
 export const colLetter = (i: number): string => {
   let s = '';
@@ -25,7 +26,7 @@ export const colLetter = (i: number): string => {
   return s;
 };
 
-const headerFor = (q: Question) => q.title.trim() || 'Question sans titre';
+const headerFor = (q: Question) => q.title.trim() || tr('Question sans titre', 'Untitled question');
 
 /**
  * Proposed mapping for « Lier à un tableur » (E2 · 3). With an existing sheet,
@@ -61,7 +62,7 @@ export function createLink(form: FormDef, sheet: { id: string; title: string; ta
     columns: p.columns,
     receivedColumn: p.receivedColumn,
     filesColumn: p.filesColumn,
-    filesFolder: p.filesColumn != null ? `Pièces jointes · ${form.title}` : null,
+    filesFolder: p.filesColumn != null ? tr(`Pièces jointes · ${form.title}`, `Attachments · ${form.title}`) : null,
     rows: {},
   };
 }
@@ -86,14 +87,14 @@ export function syncLink(form: FormDef, link: SheetLink): SheetLink {
     ...link,
     columns,
     filesColumn,
-    filesFolder: filesColumn != null ? (link.filesFolder ?? `Pièces jointes · ${form.title}`) : null,
+    filesFolder: filesColumn != null ? (link.filesFolder ?? tr(`Pièces jointes · ${form.title}`, `Attachments · ${form.title}`)) : null,
   };
 }
 
 export function headerRow(link: SheetLink): string[] {
   const width = 1 + Math.max(link.receivedColumn, link.filesColumn ?? -1, ...link.columns.map((c) => c.column));
   const row = Array<string>(width).fill('');
-  for (const c of link.columns) row[c.column] = c.archived ? `${c.header} (archivée)` : c.header;
+  for (const c of link.columns) row[c.column] = c.archived ? tr(`${c.header} (archivée)`, `${c.header} (archived)`) : c.header;
   row[link.receivedColumn] = RECEIVED_HEADER;
   if (link.filesColumn != null) row[link.filesColumn] = FILES_HEADER;
   return row;
@@ -111,7 +112,7 @@ export function cellText(q: Question | undefined, v: AnswerValue | undefined): s
 }
 
 const received = (ts: number) =>
-  new Date(ts).toLocaleString('fr-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  new Date(ts).toLocaleString(locale(), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function responseRow(form: FormDef, link: SheetLink, r: FormResponse, width: number): string[] {
   const qs = new Map(questionsOf(form).map((q) => [q.id, q]));
@@ -216,14 +217,14 @@ export function rangeLabel(source: ChoiceSource, rows: string[][]): string {
   const first = Math.max(1, source.fromRow) + 1;
   const labels = `${colLetter(source.labelColumn)}${first}:${colLetter(source.labelColumn)}${last}`;
   const quota = source.quotaColumn != null ? `, places ← ${colLetter(source.quotaColumn)}${first}:${colLetter(source.quotaColumn)}${last}` : '';
-  return `Choix ← ${source.sheetTitle}!${labels}${quota}`;
+  return tr(`Choix ← ${source.sheetTitle}!${labels}${quota}`, `Choices ← ${source.sheetTitle}!${labels}${quota}`);
 }
 
 /** CSV export of the responses (onglet Réponses). */
 export function toCsv(form: FormDef, responses: FormResponse[]): string {
   const qs = questionsOf(form);
   const esc = (s: string) => (/[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  const lines = [[...qs.map(headerFor), 'Courriel du répondant', RECEIVED_HEADER].map(esc).join(',')];
+  const lines = [[...qs.map(headerFor), tr('Courriel du répondant', 'Respondent’s email'), RECEIVED_HEADER].map(esc).join(',')];
   for (const r of responses) {
     if (r.status !== 'accepted') continue;
     lines.push([...qs.map((q) => cellText(q, r.answers[q.id])), r.email ?? '', received(r.submittedAt)].map(esc).join(','));

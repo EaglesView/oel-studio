@@ -7,6 +7,7 @@
 import * as Y from 'yjs';
 import type { ChartSpec } from '@oel/engine/generated/oelchart';
 import { BODY } from './ydoc';
+import { tr } from '@oel/i18n';
 
 /** Default size of a chart in a document: 15 × 9 cm. */
 export const DOC_CHART_SIZE = { cx: 5_400_000, cy: 3_240_000 };
@@ -14,7 +15,7 @@ export const DOC_CHART_SIZE = { cx: 5_400_000, cy: 3_240_000 };
 function chartNode(oid: string, chart: ChartSpec, size: { cx: number; cy: number }): Y.XmlElement {
   const el = new Y.XmlElement('ooxmlInline');
   el.setAttribute('xml', '');
-  el.setAttribute('label', 'Graphique');
+  el.setAttribute('label', tr('Graphique', 'Chart'));
   el.setAttribute('hidden', false as unknown as string);
   el.setAttribute('chart', chart as unknown as string);
   el.setAttribute('cx', size.cx as unknown as string);

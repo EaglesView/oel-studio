@@ -1,4 +1,5 @@
 import { useRef, type ClipboardEvent, type KeyboardEvent } from 'react';
+import { tr } from '@oel/i18n';
 
 /**
  * E6 · 5 Code à 6 chiffres: the code pastes in one go, boxes advance on their
@@ -9,7 +10,7 @@ export function CodeInput({
   value,
   onChange,
   onComplete,
-  label = 'Code de vérification',
+  label = tr('Code de vérification', 'Verification code'),
   invalid,
   describedBy,
   length = 6,
@@ -70,7 +71,7 @@ export function CodeInput({
           inputMode="numeric"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
           maxLength={1}
-          aria-label={`Chiffre ${i + 1} sur ${length}`}
+          aria-label={tr(`Chiffre ${i + 1} sur ${length}`, `Digit ${i + 1} of ${length}`)}
           aria-invalid={invalid || undefined}
           value={d}
           onPaste={onPaste}

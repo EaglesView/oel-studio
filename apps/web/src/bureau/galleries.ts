@@ -2,7 +2,8 @@
  * L2 · galleries on the desk: a planche (desk container) around images. Pure desk logic, so it
  * is tested without the image engine; recipes and rendering live in `images.ts`.
  */
-import { uid, type Bureau, type Paper } from './model';
+import { tr } from '@oel/i18n';
+import { blankTitle, uid, type Bureau, type Paper } from './model';
 
 /** Room around the pictures inside a planche: header (title, style), sides, footer. */
 export const GALLERY_PAD = { top: 64, side: 28, bottom: 44 };
@@ -17,7 +18,7 @@ export function createGallery(store: Bureau, imageIds: string[]): string | null 
   const g: Paper = {
     id,
     kind: 'gallery',
-    title: 'Galerie sans titre',
+    title: blankTitle('gallery'),
     x: b.x - GALLERY_PAD.side,
     y: b.y - GALLERY_PAD.top,
     w: b.w + GALLERY_PAD.side * 2,
@@ -26,7 +27,7 @@ export function createGallery(store: Bureau, imageIds: string[]): string | null 
     container: true,
     data: { preview: { kind: 'unsupported' }, status: { state: 'ready' }, editor: 'JB', updatedAt: now, gallery: {} },
   };
-  store.begin(`Galerie de ${ids.length} images`);
+  store.begin(tr(`Galerie de ${ids.length} images`, `Gallery of ${ids.length} images`));
   store.add([g], { select: false });
   store.setParent(ids, id);
   store.end();
@@ -43,7 +44,7 @@ export function layoutGallery(store: Bureau, galleryId: string) {
   const gap = 24;
   const cellW = Math.max(...kids.map((k) => k.w));
   const cellH = Math.max(...kids.map((k) => k.h));
-  store.begin('Images étalées');
+  store.begin(tr('Images étalées', 'Images spread out'));
   kids.forEach((k, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);

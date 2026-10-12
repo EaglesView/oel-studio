@@ -11,6 +11,8 @@ import { Icon, type IconName } from '../icons/Icon';
 import { Logo } from '../icons/Logo';
 import { WithTooltip } from './Tooltip';
 import { cx } from '../utils';
+import { keyLabel } from '../keys';
+import { tr } from '@oel/i18n';
 
 /* ── Badge (kit 68:864) ────────────────────────────────────────────── */
 
@@ -107,7 +109,7 @@ export function Avatar({ person, size = 32 }: { person: Person; size?: number })
 
 export function AvatarStack({ people, label }: { people: Person[]; label?: string }) {
   return (
-    <span className="emb-avatar-stack" role="group" aria-label={label ?? `${people.length} personnes présentes`}>
+    <span className="emb-avatar-stack" role="group" aria-label={label ?? tr(`${people.length} personnes présentes`, `${people.length} people here`)}>
       {people.map((p) => (
         <Avatar key={p.id} person={p} />
       ))}
@@ -127,7 +129,7 @@ export interface SidebarProps {
 }
 
 /** Navigation on a paper rail; Expanded / Collapsed like the Figma set. */
-export function Sidebar({ collapsed, onToggle, brand = 'OutilsEnLigne', children, footer, label = 'Navigation principale' }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, brand = 'OutilsEnLigne', children, footer, label = tr('Navigation principale', 'Main navigation') }: SidebarProps) {
   return (
     <nav className={cx('emb-sidebar', collapsed && 'is-collapsed')} aria-label={label}>
       <div className="emb-sidebar__brand">
@@ -139,7 +141,7 @@ export function Sidebar({ collapsed, onToggle, brand = 'OutilsEnLigne', children
           <RACButton
             className="emb-button emb-button--secondary emb-button--icon-sm"
             onPress={onToggle}
-            aria-label={collapsed ? 'Déplier la navigation' : 'Replier la navigation'}
+            aria-label={collapsed ? tr('Déplier la navigation', 'Expand the navigation') : tr('Replier la navigation', 'Collapse the navigation')}
             aria-expanded={!collapsed}
           >
             <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={18} />
@@ -252,7 +254,7 @@ export function RailItem({ icon, label, shortcut, current, dot, onPress, autoFoc
             <span className="emb-visually-hidden">{dot}</span>
           </span>
         )}
-        {shortcut && <kbd className="emb-rail-item__shortcut">{shortcut}</kbd>}
+        {shortcut && <kbd className="emb-rail-item__shortcut">{keyLabel(shortcut)}</kbd>}
       </RACButton>
     </li>
   );
@@ -342,5 +344,5 @@ export function ProgressBar({ label, className, ...props }: RACProgressBarProps 
 /* ── Kbd ──────────────────────────────────────────────────────────── */
 
 export function Kbd({ children }: { children: ReactNode }) {
-  return <kbd className="emb-kbd">{children}</kbd>;
+  return <kbd className="emb-kbd">{typeof children === 'string' ? keyLabel(children) : children}</kbd>;
 }

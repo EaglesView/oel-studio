@@ -2,9 +2,17 @@
  * Chart area, title and legend; what remains is the plot rectangle the
  * family layouts (cartesian, pie, radar, 3-D, chartEx) draw into.
  */
+import { CHART_TITLE } from '../catalog';
 import { readText } from '../data';
 import { Ctx, PT } from '../style';
 import type { Paint, ResolvedChart, SeriesData, Stroke } from '../types';
+import { lang } from '@oel/i18n';
+
+/** Trendline names in the legend, as Office writes them. */
+const TREND_KINDS: Record<string, string> =
+  lang() === 'en'
+    ? { linear: 'Linear', exp: 'Expon.', log: 'Log.', poly: 'Poly.', power: 'Power', movingAvg: 'Mov. Avg.' }
+    : { linear: 'Linéaire', exp: 'Expon.', log: 'Logarithmique', poly: 'Polynomial', power: 'Puissance', movingAvg: 'Moy. mobile' };
 
 export interface Rect {
   x: number;
@@ -40,7 +48,7 @@ export function titleText(data: ResolvedChart, resolve = undefined as Parameters
     const txt = readText(t.f, t.text, resolve);
     if (txt) return txt;
     if (visible.length === 1) return visible[0]!.name;
-    return 'Titre du graphique';
+    return CHART_TITLE;
   }
   // No title element: Excel shows the series name of a single-series chart unless the title was deleted.
   if (!data.spec.autoTitleDeleted && visible.length === 1 && !data.spec.ex && data.spec.groups.length === 1) return visible[0]!.name;
@@ -87,7 +95,7 @@ export function legendEntries(ctx: Ctx, data: ResolvedChart): LegendEntry[] {
       const ml = markerOn ? ctx.seriesLook(s, null, 'marker') : null;
       out.push({ label: s.name, fill: look.fill, line: look.line, lineKey, marker: ml ? { ...ml, symbol: markerSymbol(s) } : null, id: `series:${s.index}` });
       for (const [ti, t] of (s.series.trendlines ?? []).entries()) {
-        const kinds: Record<string, string> = { linear: 'Linéaire', exp: 'Expon.', log: 'Logarithmique', poly: 'Polynomial', power: 'Puissance', movingAvg: 'Moy. mobile' };
+        const kinds: Record<string, string> = TREND_KINDS;
         const tl = ctx.stroke(t.line, { color: look.line?.color ?? (typeof look.fill === 'string' ? look.fill : '#595959'), width: 1.5 * PT });
         out.push({ label: t.name ?? `${kinds[t.kind] ?? t.kind} (${s.name})`, fill: null, line: tl ? { ...tl, dash: tl.dash ?? [2, 2] } : null, lineKey: true, id: `trendline:${s.index}:${ti}` });
       }

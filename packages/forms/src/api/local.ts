@@ -14,6 +14,7 @@ import {
   type SubmitResult,
   type UploadOptions,
 } from './backend';
+import { tr } from '@oel/i18n';
 
 /**
  * In-browser stand-in for the forms server. Data lives in localStorage and
@@ -137,9 +138,9 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
       // TODO(backend): GET /auth/magic-link/:token — verify signature + expiry, burn the
       // token, set an httpOnly session cookie, then notify the waiting tab (here: BroadcastChannel).
       const m = get<{ email: string; expiresAt: number }>(`magic:${token}`);
-      if (!m) throw new FormsError('not-found', 'Ce lien de connexion a déjà servi ou n’existe pas.');
+      if (!m) throw new FormsError('not-found', tr('Ce lien de connexion a déjà servi ou n’existe pas.', 'This sign-in link was already used or doesn’t exist.'));
       del(`magic:${token}`);
-      if (now() > m.expiresAt) throw new FormsError('expired', 'Ce lien a expiré. Demandez-en un nouveau.');
+      if (now() > m.expiresAt) throw new FormsError('expired', tr('Ce lien a expiré. Demandez-en un nouveau.', 'This link has expired. Ask for a new one.'));
       const account = { email: m.email };
       set('account', account);
       emit({ type: 'account' });
@@ -149,7 +150,7 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
     async signInWithProvider(provider) {
       // TODO(backend): OAuth (Google / Microsoft) — redirect to the provider, then back to
       // /connexion with the session; same "publish resumes" behaviour as the magic link.
-      throw new FormsError('not-implemented', `La connexion avec ${provider === 'google' ? 'Google' : 'Microsoft'} n’est pas encore branchée. Utilisez le lien par courriel.`);
+      throw new FormsError('not-implemented', tr(`La connexion avec ${provider === 'google' ? 'Google' : 'Microsoft'} n’est pas encore branchée. Utilisez le lien par courriel.`, `Signing in with ${provider === 'google' ? 'Google' : 'Microsoft'} isn’t connected yet. Use the email link.`));
     },
 
     async signOut() {
@@ -160,8 +161,8 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
 
     async publish(form): Promise<Publication> {
       const account = get<Account>('account');
-      if (!account) throw new FormsError('not-signed-in', 'Connectez-vous pour publier.');
-      if (!form.link) throw new FormsError('no-sheet', 'Liez le formulaire à un tableur avant de publier : c’est là que les réponses sont rangées.');
+      if (!account) throw new FormsError('not-signed-in', tr('Connectez-vous pour publier.', 'Sign in to publish.'));
+      if (!form.link) throw new FormsError('no-sheet', tr('Liez le formulaire à un tableur avant de publier : c’est là que les réponses sont rangées.', 'Link the form to a spreadsheet before publishing: that is where the responses go.'));
       // TODO(backend): PUT /forms/:id — store the definition server-side, owner = session
       // account; slug uniqueness checked by the server. Republishing keeps the slug.
       let slug = get<string>(`slug:${form.id}`);
@@ -227,7 +228,7 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
     async load(slug) {
       // TODO(backend): GET /f/:slug (public, cacheable; strips owner-only fields).
       const s = stored(slug);
-      if (!s) throw new FormsError('not-found', 'Ce formulaire n’existe pas ou n’est plus publié.');
+      if (!s) throw new FormsError('not-found', tr('Ce formulaire n’existe pas ou n’est plus publié.', 'This form doesn’t exist or is no longer published.'));
       const list = responsesOf(s.form.id);
       return wait({
         form: s.form,
@@ -250,8 +251,8 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
       // TODO(backend): POST /f/:slug/email-code/verify → signed short-lived email token.
       const key = `code:${slug}:${email.trim().toLowerCase()}`;
       const c = get<{ code: string; expiresAt: number }>(key);
-      if (!c || now() > c.expiresAt) throw new FormsError('expired', 'Ce code a expiré. Demandez-en un nouveau.');
-      if (c.code !== code.replace(/\D/g, '')) throw new FormsError('bad-code', 'Ce code ne correspond pas. Vérifiez les 6 chiffres reçus.');
+      if (!c || now() > c.expiresAt) throw new FormsError('expired', tr('Ce code a expiré. Demandez-en un nouveau.', 'This code has expired. Ask for a new one.'));
+      if (c.code !== code.replace(/\D/g, '')) throw new FormsError('bad-code', tr('Ce code ne correspond pas. Vérifiez les 6 chiffres reçus.', 'This code doesn’t match. Check the 6 digits you received.'));
       del(key);
       return wait(`email:${email.trim().toLowerCase()}:${rand(8)}`);
     },
@@ -275,7 +276,7 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
         }, 180);
         signal.addEventListener('abort', () => {
           clearInterval(timer);
-          reject(new FormsError('aborted', 'Envoi annulé.'));
+          reject(new FormsError('aborted', tr('Envoi annulé.', 'Sending cancelled.')));
         });
       });
     },
@@ -304,13 +305,13 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
       // quotas atomically, append the row to the linked spreadsheet, send the copy email
       // when asked (`sendCopy`), and return the personal edit link secret.
       const s = stored(slug);
-      if (!s) throw new FormsError('not-found', 'Ce formulaire n’existe plus.');
+      if (!s) throw new FormsError('not-found', tr('Ce formulaire n’existe plus.', 'This form no longer exists.'));
       const list = responsesOf(s.form.id);
       const t = now();
 
       if (input.edit) {
         const keys = get<Record<string, string>>(`keys:${s.form.id}`) ?? {};
-        if (keys[input.edit.responseId] !== input.edit.editKey) throw new FormsError('not-found', 'Ce lien de modification n’est plus valide.');
+        if (keys[input.edit.responseId] !== input.edit.editKey) throw new FormsError('not-found', tr('Ce lien de modification n’est plus valide.', 'This edit link is no longer valid.'));
         saveResponses(
           s.form.id,
           list.map((r) => (r.id === input.edit!.responseId ? { ...r, answers: input.answers, updatedAt: t } : r)),
@@ -322,22 +323,22 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
       if (reason) throw new FormsError('closed', reason);
       const email = input.email?.trim().toLowerCase() || null;
       if (s.form.settings.identity === 'verified-email' && !input.emailToken?.startsWith(`email:${email}:`)) {
-        throw new FormsError('bad-code', 'Votre courriel doit être vérifié avant l’envoi.');
+        throw new FormsError('bad-code', tr('Votre courriel doit être vérifié avant l’envoi.', 'Your email must be verified before sending.'));
       }
       if (s.form.settings.onePerEmail && email && list.some((r) => r.email === email)) {
-        throw new FormsError('duplicate-email', 'Une réponse a déjà été envoyée avec ce courriel. Utilisez votre lien « Modifier ma réponse ».');
+        throw new FormsError('duplicate-email', tr('Une réponse a déjà été envoyée avec ce courriel. Utilisez votre lien « Modifier ma réponse ».', 'A response was already sent with this email. Use your “Edit my response” link.'));
       }
       const sends = (get<number[]>(`sends:${slug}`) ?? []).filter((x) => t - x < RATE_WINDOW);
-      if (sends.length >= RATE_MAX) throw new FormsError('rate-limited', 'Trop d’envois depuis cet appareil.', sends[0]! + RATE_WINDOW);
+      if (sends.length >= RATE_MAX) throw new FormsError('rate-limited', tr('Trop d’envois depuis cet appareil.', 'Too many submissions from this device.'), sends[0]! + RATE_WINDOW);
       set(`sends:${slug}`, [...sends, t]);
 
       // E8 · 4: doubtful responses are set aside with the reason, never silently dropped.
       // TODO(anti-abuse): real scoring server-side (Turnstile verdict, IP reputation…).
       let heldReason: string | undefined;
       const secs = Math.round((t - input.openedAt) / 1000);
-      if (secs < 4) heldReason = `Envoyée ${secs} seconde${secs > 1 ? 's' : ''} après l’ouverture`;
-      else if (sends.length >= RATE_MAX - 1) heldReason = `Même appareil : ${sends.length + 1} envois en 10 minutes`;
-      else if (email && /@(test\.test|example\.(com|org)|mailinator\.com)$/.test(email)) heldReason = 'Courriel non vérifiable';
+      if (secs < 4) heldReason = tr(`Envoyée ${secs} seconde${secs > 1 ? 's' : ''} après l’ouverture`, `Sent ${secs} second${secs > 1 ? 's' : ''} after opening`);
+      else if (sends.length >= RATE_MAX - 1) heldReason = tr(`Même appareil : ${sends.length + 1} envois en 10 minutes`, `Same device: ${sends.length + 1} submissions in 10 minutes`);
+      else if (email && /@(test\.test|example\.(com|org)|mailinator\.com)$/.test(email)) heldReason = tr('Courriel non vérifiable', 'Email can’t be verified');
 
       const response: FormResponse = {
         id: rand(12),
@@ -360,7 +361,7 @@ export function createLocalBackend(opts: LocalBackendOptions): FormsBackend {
       const s = stored(slug);
       const keys = s ? (get<Record<string, string>>(`keys:${s.form.id}`) ?? {}) : {};
       const r = s && keys[responseId] === editKey ? responsesOf(s.form.id).find((x) => x.id === responseId) : undefined;
-      if (!r) throw new FormsError('not-found', 'Ce lien de modification n’est plus valide.');
+      if (!r) throw new FormsError('not-found', tr('Ce lien de modification n’est plus valide.', 'This edit link is no longer valid.'));
       return wait(r);
     },
   };

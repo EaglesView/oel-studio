@@ -42,6 +42,7 @@ import {
   printDocument,
   safeFileName,
 } from './actions';
+import { locale, plural, tr } from '@oel/i18n';
 
 export type ExportInput = Awaited<ReturnType<DocSession['exportInput']>>;
 
@@ -87,14 +88,14 @@ type DialogName = 'link' | 'page' | 'words' | 'chars' | 'image' | 'share' | 'ide
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 const LANGS: Record<string, string> = {
-  'fr-CA': 'Français (Canada)',
-  'fr-FR': 'Français (France)',
-  fr: 'Français',
-  'en-US': 'Anglais (États-Unis)',
+  'fr-CA': tr('Français (Canada)', 'French (Canada)'),
+  'fr-FR': tr('Français (France)', 'French (France)'),
+  fr: tr('Français', 'French'),
+  'en-US': tr('Anglais (États-Unis)', 'English (United States)'),
   'en-CA': 'Anglais (Canada)',
   'en-GB': 'Anglais (Royaume-Uni)',
-  en: 'Anglais',
-  es: 'Espagnol',
+  en: tr('Anglais', 'English'),
+  es: tr('Espagnol', 'Spanish'),
 };
 
 /** Caret and scroll position per document, restored on reopen (C1 · « Le curseur où on l’avait laissé »). */
@@ -114,7 +115,7 @@ export function DocsEditor(props: DocsEditorProps) {
     () =>
       fontNoticeOnFirstOpen(session.status.docId, docMeta.fonts, session.mediaUrl, (n, report) => {
         setFontReport(report);
-        toast({ ...n, tone: 'warning', action: { label: 'Voir plus', onAction: () => setFontsOpen(true) } });
+        toast({ ...n, tone: 'warning', action: { label: tr('Voir plus', 'See more'), onAction: () => setFontsOpen(true) } });
       }),
     [session, docMeta.fonts],
   );
@@ -194,11 +195,11 @@ export function DocsEditor(props: DocsEditorProps) {
     revealTimer.current = setTimeout(() => setRevealed(false), 1800);
   };
 
-  const title = (docMeta.title ?? props.title) || 'Document sans titre';
+  const title = (docMeta.title ?? props.title) || tr('Document sans titre', 'Untitled document');
   const [titleDraft, setTitleDraft] = useState(title);
   useEffect(() => setTitleDraft(title), [title]);
   const commitTitle = () => {
-    const t = titleDraft.trim() || 'Document sans titre';
+    const t = titleDraft.trim() || tr('Document sans titre', 'Untitled document');
     if (t !== title && !status.readOnly) {
       meta(session.ydoc).set('title', t);
       props.onTitleChange?.(t);
@@ -260,7 +261,7 @@ export function DocsEditor(props: DocsEditorProps) {
   const addImage = useCallback(
     (file: Blob, at?: number) => {
       if (!editor) return;
-      insertImageFile(editor, session, file, contentWidth, at).catch(() => toast({ title: 'Image non insérée', tone: 'danger' }));
+      insertImageFile(editor, session, file, contentWidth, at).catch(() => toast({ title: tr('Image non insérée', 'Image not inserted'), tone: 'danger' }));
     },
     [editor, session, contentWidth],
   );
@@ -363,10 +364,10 @@ export function DocsEditor(props: DocsEditorProps) {
         const r = await fetch(`${session.api.baseUrl}/docs/${status.docId}/export.docx`, { headers: { Authorization: `Bearer ${status.token}` } });
         if (!r.ok) throw new Error();
         bytes = new Uint8Array(await r.arrayBuffer());
-      } else throw new Error('Aucun moteur d’export disponible');
+      } else throw new Error(tr('Aucun moteur d’export disponible', 'No export engine available'));
       download(`${safeFileName(title)}.docx`, bytes as Uint8Array<ArrayBuffer>, DOCX_MIME);
     } catch (e) {
-      toast({ title: 'Export impossible', description: (e as Error).message || 'Le fichier .docx n’a pas pu être créé.', tone: 'danger' });
+      toast({ title: tr('Export impossible', 'Export failed'), description: (e as Error).message || tr('Le fichier .docx n’a pas pu être créé.', 'The .docx file could not be created.'), tone: 'danger' });
     }
   };
 
@@ -405,9 +406,9 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'share': return setDialog('share');
       case 'history': return setShowVersions(true);
       case 'name-version':
-        return void session.createVersion(window.prompt('Nom de la version :', '')?.trim() || null).then(
-          () => toast({ title: 'Version enregistrée', tone: 'success' }),
-          (err: Error) => toast({ title: 'Impossible d’enregistrer la version', description: err.message, tone: 'warning' }),
+        return void session.createVersion(window.prompt(tr('Nom de la version :', 'Version name:'), '')?.trim() || null).then(
+          () => toast({ title: tr('Version enregistrée', 'Version saved'), tone: 'success' }),
+          (err: Error) => toast({ title: tr('Impossible d’enregistrer la version', 'The version could not be saved'), description: err.message, tone: 'warning' }),
         );
       case 'dl-docx': return void exportDocx();
       case 'dl-pdf':
@@ -423,7 +424,7 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'paste':
       case 'paste-plain':
         return void pasteFromClipboard(e, id === 'paste-plain').catch(() =>
-          toast({ title: 'Collez avec le clavier', description: id === 'paste' ? 'Ctrl+V colle avec la mise en forme.' : 'Ctrl+Maj+V colle sans mise en forme.', tone: 'info' }),
+          toast({ title: tr('Collez avec le clavier', 'Paste with the keyboard'), description: id === 'paste' ? tr('Ctrl+V colle avec la mise en forme.', 'Ctrl+V pastes with formatting.') : tr('Ctrl+Maj+V colle sans mise en forme.', 'Ctrl+Shift+V pastes without formatting.'), tone: 'info' }),
         );
       case 'select-all': return void chain().selectAll().run();
       case 'delete': return void chain().deleteSelection().run();
@@ -443,12 +444,12 @@ export function DocsEditor(props: DocsEditorProps) {
       case 'ins-link': return setDialog('link');
       case 'ins-hr': return void chain().insertHorizontalLine().run();
       case 'ins-pagebreak': return void chain().insertPageBreak().run();
-      case 'ins-section-next': return void (insertSectionBreak(editor, session, 'nextPage') || toast({ title: 'Placez le curseur dans un paragraphe du corps du texte.', tone: 'warning' }));
-      case 'ins-section-cont': return void (insertSectionBreak(editor, session, 'continuous') || toast({ title: 'Placez le curseur dans un paragraphe du corps du texte.', tone: 'warning' }));
+      case 'ins-section-next': return void (insertSectionBreak(editor, session, 'nextPage') || toast({ title: tr('Placez le curseur dans un paragraphe du corps du texte.', 'Put the cursor in a paragraph of the body text.'), tone: 'warning' }));
+      case 'ins-section-cont': return void (insertSectionBreak(editor, session, 'continuous') || toast({ title: tr('Placez le curseur dans un paragraphe du corps du texte.', 'Put the cursor in a paragraph of the body text.'), tone: 'warning' }));
       case 'ins-footnote': return void insertFootnote(editor, session, 'footnote');
       case 'ins-endnote': return void insertFootnote(editor, session, 'endnote');
       case 'ins-chars': return setDialog('chars');
-      case 'ins-date': return void chain().insertContent(new Date().toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' })).run();
+      case 'ins-date': return void chain().insertContent(new Date().toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' })).run();
       case 'ins-toc': return insertOrUpdateToc(editor, pageOf);
       case 'ins-header': return openStory('header');
       case 'ins-footer': return openStory('footer');
@@ -514,95 +515,95 @@ export function DocsEditor(props: DocsEditorProps) {
   const spec: MenuSpec = useMemo(
     () => [
       {
-        label: 'Fichier',
+        label: tr('Fichier', 'File'),
         items: [
-          { id: 'new', label: 'Nouveau document', icon: 'new-page', disabled: !props.onNewDocument },
-          { id: 'open', label: 'Ouvrir un fichier .docx…', icon: 'upload', disabled: !props.onOpenFile },
+          { id: 'new', label: tr('Nouveau document', 'New document'), icon: 'new-page', disabled: !props.onNewDocument },
+          { id: 'open', label: tr('Ouvrir un fichier .docx…', 'Open a .docx file…'), icon: 'upload', disabled: !props.onOpenFile },
           '-',
-          { id: 'share', label: 'Partager…', icon: 'share', hidden: !collab },
+          { id: 'share', label: tr('Partager…', 'Share…'), icon: 'share', hidden: !collab },
           {
             id: 'download',
-            label: 'Télécharger',
+            label: tr('Télécharger', 'Download'),
             icon: 'download',
             children: [
               { id: 'dl-docx', label: 'Microsoft Word (.docx)' },
-              { id: 'dl-pdf', label: 'Document PDF (.pdf)' },
-              { id: 'dl-html', label: 'Page Web (.html)' },
+              { id: 'dl-pdf', label: tr('Document PDF (.pdf)', 'PDF document (.pdf)') },
+              { id: 'dl-html', label: tr('Page Web (.html)', 'Web page (.html)') },
               { id: 'dl-md', label: 'Markdown (.md)' },
-              { id: 'dl-txt', label: 'Texte brut (.txt)' },
+              { id: 'dl-txt', label: tr('Texte brut (.txt)', 'Plain text (.txt)') },
             ],
           },
           '-',
-          { id: 'history', label: 'Historique des versions', icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
-          { id: 'name-version', label: 'Nommer la version actuelle', disabled: local || ro, hidden: !collab },
+          { id: 'history', label: tr('Historique des versions', 'Version history'), icon: 'history', shortcut: 'Ctrl+Alt+Maj+H', disabled: local || status.role === 'viewer', hidden: !collab },
+          { id: 'name-version', label: tr('Nommer la version actuelle', 'Name the current version'), disabled: local || ro, hidden: !collab },
           '-',
-          { id: 'page-setup', label: 'Configuration de la page…', icon: 'page', disabled: ro },
-          { id: 'print', label: 'Imprimer', icon: 'print', shortcut: 'Ctrl+P' },
+          { id: 'page-setup', label: tr('Configuration de la page…', 'Page setup…'), icon: 'page', disabled: ro },
+          { id: 'print', label: tr('Imprimer', 'Print'), icon: 'print', shortcut: 'Ctrl+P' },
         ],
       },
       {
-        label: 'Édition',
+        label: tr('Édition', 'Edit'),
         items: [
-          { id: 'undo', label: 'Annuler', icon: 'undo', shortcut: 'Ctrl+Z', disabled: ro },
-          { id: 'redo', label: 'Rétablir', icon: 'redo', shortcut: 'Ctrl+Maj+Z', disabled: ro },
+          { id: 'undo', label: tr('Annuler', 'Undo'), icon: 'undo', shortcut: 'Ctrl+Z', disabled: ro },
+          { id: 'redo', label: tr('Rétablir', 'Redo'), icon: 'redo', shortcut: 'Ctrl+Maj+Z', disabled: ro },
           '-',
-          { id: 'cut', label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', disabled: ro },
-          { id: 'copy', label: 'Copier', icon: 'copy', shortcut: 'Ctrl+C' },
-          { id: 'paste', label: 'Coller', icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
-          { id: 'paste-plain', label: 'Coller sans la mise en forme', shortcut: 'Ctrl+Maj+V', disabled: ro },
+          { id: 'cut', label: tr('Couper', 'Cut'), icon: 'cut', shortcut: 'Ctrl+X', disabled: ro },
+          { id: 'copy', label: tr('Copier', 'Copy'), icon: 'copy', shortcut: 'Ctrl+C' },
+          { id: 'paste', label: tr('Coller', 'Paste'), icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
+          { id: 'paste-plain', label: tr('Coller sans la mise en forme', 'Paste without formatting'), shortcut: 'Ctrl+Maj+V', disabled: ro },
           '-',
-          { id: 'select-all', label: 'Tout sélectionner', shortcut: 'Ctrl+A' },
-          { id: 'delete', label: 'Supprimer', disabled: ro },
+          { id: 'select-all', label: tr('Tout sélectionner', 'Select all'), shortcut: 'Ctrl+A' },
+          { id: 'delete', label: tr('Supprimer', 'Delete'), disabled: ro },
           '-',
-          { id: 'find', label: 'Rechercher', icon: 'search', shortcut: 'Ctrl+F' },
-          { id: 'replace', label: 'Rechercher et remplacer', shortcut: 'Ctrl+H', disabled: ro },
+          { id: 'find', label: tr('Rechercher', 'Find'), icon: 'search', shortcut: 'Ctrl+F' },
+          { id: 'replace', label: tr('Rechercher et remplacer', 'Find and replace'), shortcut: 'Ctrl+H', disabled: ro },
         ],
       },
       {
-        label: 'Affichage',
+        label: tr('Affichage', 'View'),
         items: [
-          { id: 'mode-edit', label: 'Mode édition', icon: 'pen', checked: mode === 'edit', disabled: status.readOnly },
-          { id: 'mode-view', label: 'Mode lecture', icon: 'eye', checked: mode === 'view' },
+          { id: 'mode-edit', label: tr('Mode édition', 'Editing mode'), icon: 'pen', checked: mode === 'edit', disabled: status.readOnly },
+          { id: 'mode-view', label: tr('Mode lecture', 'Reading mode'), icon: 'eye', checked: mode === 'view' },
           '-',
-          { id: 'paginated', label: 'Mise en page imprimable', checked: paginated },
-          { id: 'outline', label: 'Plan du document', icon: 'outline', shortcut: 'Ctrl+Maj+P', checked: showOutline },
-          { id: 'marks', label: 'Afficher les caractères non imprimables', checked: showMarks },
-          { id: 'table-grid', label: 'Quadrillage des tableaux', checked: tableGrid },
-          { id: 'anchors', label: 'Afficher les ancres', checked: showAnchors },
+          { id: 'paginated', label: tr('Mise en page imprimable', 'Print layout'), checked: paginated },
+          { id: 'outline', label: tr('Plan du document', 'Document outline'), icon: 'outline', shortcut: 'Ctrl+Maj+P', checked: showOutline },
+          { id: 'marks', label: tr('Afficher les caractères non imprimables', 'Show non-printing characters'), checked: showMarks },
+          { id: 'table-grid', label: tr('Quadrillage des tableaux', 'Table gridlines'), checked: tableGrid },
+          { id: 'anchors', label: tr('Afficher les ancres', 'Show anchors'), checked: showAnchors },
           { id: 'zoom', label: 'Zoom', icon: 'zoom', children: ZOOMS.map((z) => ({ id: `zoom:${z}`, label: `${Math.round(z * 100)} %`, checked: z === zoom })) },
-          { id: 'focus', label: 'Mode concentration', icon: 'focus-mode', shortcut: 'Ctrl+Maj+F', checked: focusMode },
-          ...(sheet && props.onExpand ? ([{ id: 'fullscreen', label: 'Agrandir en plein écran', icon: 'expand', shortcut: 'Ctrl+Maj+Entrée' }] as const) : []),
-          ...(!sheet && props.onReduce ? ([{ id: 'fullscreen', label: 'Réduire (ouvert sur place)', icon: 'collapse', shortcut: 'Ctrl+Maj+Entrée' }] as const) : []),
+          { id: 'focus', label: tr('Mode concentration', 'Focus mode'), icon: 'focus-mode', shortcut: 'Ctrl+Maj+F', checked: focusMode },
+          ...(sheet && props.onExpand ? ([{ id: 'fullscreen', label: tr('Agrandir en plein écran', 'Expand to full screen'), icon: 'expand', shortcut: 'Ctrl+Maj+Entrée' }] as const) : []),
+          ...(!sheet && props.onReduce ? ([{ id: 'fullscreen', label: tr('Réduire (ouvert sur place)', 'Reduce (open in place)'), icon: 'collapse', shortcut: 'Ctrl+Maj+Entrée' }] as const) : []),
         ],
       },
       {
-        label: 'Insertion',
+        label: tr('Insertion', 'Insert'),
         items: [
-          { id: 'ins-image', label: 'Image…', icon: 'image', disabled: ro },
-          { id: 'ins-table', label: 'Tableau', icon: 'table', disabled: ro },
-          { id: 'ins-link', label: 'Lien…', icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
+          { id: 'ins-image', label: tr('Image…', 'Image…'), icon: 'image', disabled: ro },
+          { id: 'ins-table', label: tr('Tableau', 'Table'), icon: 'table', disabled: ro },
+          { id: 'ins-link', label: tr('Lien…', 'Link…'), icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
           '-',
-          { id: 'ins-hr', label: 'Ligne horizontale', icon: 'minus', disabled: ro },
-          { id: 'ins-pagebreak', label: 'Saut de page', icon: 'page-break', shortcut: 'Ctrl+Entrée', disabled: ro },
+          { id: 'ins-hr', label: tr('Ligne horizontale', 'Horizontal line'), icon: 'minus', disabled: ro },
+          { id: 'ins-pagebreak', label: tr('Saut de page', 'Page break'), icon: 'page-break', shortcut: 'Ctrl+Entrée', disabled: ro },
           {
             id: 'ins-section',
-            label: 'Saut de section',
+            label: tr('Saut de section', 'Section break'),
             disabled: ro,
             children: [
-              { id: 'ins-section-next', label: 'Page suivante' },
-              { id: 'ins-section-cont', label: 'Continu' },
+              { id: 'ins-section-next', label: tr('Page suivante', 'Next page') },
+              { id: 'ins-section-cont', label: tr('Continu', 'Continuous') },
             ],
           },
-          { id: 'ins-footnote', label: 'Note de bas de page', icon: 'footnote', shortcut: 'Ctrl+Alt+F', disabled: ro },
-          { id: 'ins-endnote', label: 'Note de fin', disabled: ro },
+          { id: 'ins-footnote', label: tr('Note de bas de page', 'Footnote'), icon: 'footnote', shortcut: 'Ctrl+Alt+F', disabled: ro },
+          { id: 'ins-endnote', label: tr('Note de fin', 'Endnote'), disabled: ro },
           '-',
-          { id: 'ins-chars', label: 'Caractères spéciaux…', icon: 'special-chars', disabled: ro },
-          { id: 'ins-date', label: 'Date du jour', icon: 'calendar', disabled: ro },
-          { id: 'ins-toc', label: 'Table des matières', icon: 'toc', disabled: ro },
+          { id: 'ins-chars', label: tr('Caractères spéciaux…', 'Special characters…'), icon: 'special-chars', disabled: ro },
+          { id: 'ins-date', label: tr('Date du jour', 'Today’s date'), icon: 'calendar', disabled: ro },
+          { id: 'ins-toc', label: tr('Table des matières', 'Table of contents'), icon: 'toc', disabled: ro },
           '-',
-          { id: 'ins-header', label: 'En-tête', icon: 'header-footer', disabled: ro },
-          { id: 'ins-footer', label: 'Pied de page', disabled: ro },
-          { id: 'ins-pagenum', label: 'Numéros de page', disabled: ro },
+          { id: 'ins-header', label: tr('En-tête', 'Header'), icon: 'header-footer', disabled: ro },
+          { id: 'ins-footer', label: tr('Pied de page', 'Footer'), disabled: ro },
+          { id: 'ins-pagenum', label: tr('Numéros de page', 'Page numbers'), disabled: ro },
         ],
       },
       {
@@ -610,91 +611,91 @@ export function DocsEditor(props: DocsEditorProps) {
         items: [
           {
             id: 'text',
-            label: 'Texte',
+            label: tr('Texte', 'Text'),
             icon: 'bold',
             disabled: ro,
             children: [
-              { id: 'bold', label: 'Gras', shortcut: 'Ctrl+B' },
-              { id: 'italic', label: 'Italique', shortcut: 'Ctrl+I' },
-              { id: 'underline', label: 'Souligné', shortcut: 'Ctrl+U' },
-              { id: 'strike', label: 'Barré', shortcut: 'Alt+Maj+5' },
-              { id: 'sup', label: 'Exposant', shortcut: 'Ctrl+.' },
-              { id: 'sub', label: 'Indice', shortcut: 'Ctrl+,' },
+              { id: 'bold', label: tr('Gras', 'Bold'), shortcut: 'Ctrl+B' },
+              { id: 'italic', label: tr('Italique', 'Italic'), shortcut: 'Ctrl+I' },
+              { id: 'underline', label: tr('Souligné', 'Underline'), shortcut: 'Ctrl+U' },
+              { id: 'strike', label: tr('Barré', 'Strikethrough'), shortcut: 'Alt+Maj+5' },
+              { id: 'sup', label: tr('Exposant', 'Superscript'), shortcut: 'Ctrl+.' },
+              { id: 'sub', label: tr('Indice', 'Subscript'), shortcut: 'Ctrl+,' },
               { id: 'upper', label: 'MAJUSCULES' },
               { id: 'lower', label: 'minuscules' },
-              { id: 'capital', label: 'Majuscule À Chaque Mot' },
+              { id: 'capital', label: tr('Majuscule À Chaque Mot', 'Capitalize Each Word') },
             ],
           },
-          { id: 'styles', label: 'Styles de paragraphe', disabled: ro, children: ROLE_LABELS.map(([r, l]) => ({ id: `role:${r}`, label: l, shortcut: r.startsWith('heading') ? `Ctrl+Alt+${r.slice(7)}` : r === 'normal' ? 'Ctrl+Alt+0' : undefined })) },
+          { id: 'styles', label: tr('Styles de paragraphe', 'Paragraph styles'), disabled: ro, children: ROLE_LABELS.map(([r, l]) => ({ id: `role:${r}`, label: l, shortcut: r.startsWith('heading') ? `Ctrl+Alt+${r.slice(7)}` : r === 'normal' ? 'Ctrl+Alt+0' : undefined })) },
           {
             id: 'align',
-            label: 'Aligner et mettre en retrait',
+            label: tr('Aligner et mettre en retrait', 'Align and indent'),
             icon: 'align-left',
             disabled: ro,
             children: [
-              { id: 'align-left', label: 'Gauche', shortcut: 'Ctrl+Maj+L' },
-              { id: 'align-center', label: 'Centrer', shortcut: 'Ctrl+Maj+E' },
-              { id: 'align-right', label: 'Droite', shortcut: 'Ctrl+Maj+R' },
-              { id: 'align-justify', label: 'Justifier', shortcut: 'Ctrl+Maj+J' },
-              { id: 'indent-more', label: 'Augmenter le retrait', shortcut: 'Ctrl+]' },
-              { id: 'indent-less', label: 'Diminuer le retrait', shortcut: 'Ctrl+[' },
+              { id: 'align-left', label: tr('Gauche', 'Left'), shortcut: 'Ctrl+Maj+L' },
+              { id: 'align-center', label: tr('Centrer', 'Centre'), shortcut: 'Ctrl+Maj+E' },
+              { id: 'align-right', label: tr('Droite', 'Right'), shortcut: 'Ctrl+Maj+R' },
+              { id: 'align-justify', label: tr('Justifier', 'Justify'), shortcut: 'Ctrl+Maj+J' },
+              { id: 'indent-more', label: tr('Augmenter le retrait', 'Increase indent'), shortcut: 'Ctrl+]' },
+              { id: 'indent-less', label: tr('Diminuer le retrait', 'Decrease indent'), shortcut: 'Ctrl+[' },
             ],
           },
           {
             id: 'spacing',
-            label: 'Interligne et espacement',
+            label: tr('Interligne et espacement', 'Line and paragraph spacing'),
             icon: 'line-spacing',
             disabled: ro,
             children: [
-              { id: 'line:240', label: 'Simple' },
+              { id: 'line:240', label: tr('Simple', 'Single') },
               { id: 'line:276', label: '1,15' },
               { id: 'line:360', label: '1,5' },
               { id: 'line:480', label: 'Double' },
-              { id: 'space-before', label: 'Ajouter un espace avant' },
-              { id: 'space-after', label: 'Ajouter un espace après' },
+              { id: 'space-before', label: tr('Ajouter un espace avant', 'Add space before') },
+              { id: 'space-after', label: tr('Ajouter un espace après', 'Add space after') },
             ],
           },
           {
             id: 'lists',
-            label: 'Puces et numéros',
+            label: tr('Puces et numéros', 'Bullets and numbering'),
             icon: 'list',
             disabled: ro,
             children: [
-              { id: 'list-bullet', label: 'Liste à puces', shortcut: 'Ctrl+Maj+8' },
-              { id: 'list-numbered', label: 'Liste numérotée', shortcut: 'Ctrl+Maj+7' },
-              { id: 'list-check', label: 'Liste de contrôle', shortcut: 'Ctrl+Maj+9' },
+              { id: 'list-bullet', label: tr('Liste à puces', 'Bulleted list'), shortcut: 'Ctrl+Maj+8' },
+              { id: 'list-numbered', label: tr('Liste numérotée', 'Numbered list'), shortcut: 'Ctrl+Maj+7' },
+              { id: 'list-check', label: tr('Liste de contrôle', 'Checklist'), shortcut: 'Ctrl+Maj+9' },
             ],
           },
           '-',
           {
             id: 'table',
-            label: 'Tableau',
+            label: tr('Tableau', 'Table'),
             icon: 'table',
             disabled: ro || !inTable,
             children: [
-              { id: 'tbl-row-before', label: 'Insérer une ligne au-dessus' },
-              { id: 'tbl-row-after', label: 'Insérer une ligne en dessous' },
-              { id: 'tbl-col-before', label: 'Insérer une colonne à gauche' },
-              { id: 'tbl-col-after', label: 'Insérer une colonne à droite' },
-              { id: 'tbl-merge', label: 'Fusionner ou scinder les cellules' },
-              { id: 'tbl-header', label: 'Ligne d’en-tête' },
-              { id: 'tbl-send', label: 'Envoyer vers un tableur…', icon: 'table', disabled: ro || !inTable },
-              { id: 'tbl-del-row', label: 'Supprimer la ligne' },
-              { id: 'tbl-del-col', label: 'Supprimer la colonne' },
-              { id: 'tbl-del', label: 'Supprimer le tableau' },
+              { id: 'tbl-row-before', label: tr('Insérer une ligne au-dessus', 'Insert row above') },
+              { id: 'tbl-row-after', label: tr('Insérer une ligne en dessous', 'Insert row below') },
+              { id: 'tbl-col-before', label: tr('Insérer une colonne à gauche', 'Insert column left') },
+              { id: 'tbl-col-after', label: tr('Insérer une colonne à droite', 'Insert column right') },
+              { id: 'tbl-merge', label: tr('Fusionner ou scinder les cellules', 'Merge or split cells') },
+              { id: 'tbl-header', label: tr('Ligne d’en-tête', 'Header row') },
+              { id: 'tbl-send', label: tr('Envoyer vers un tableur…', 'Send to a spreadsheet…'), icon: 'table', disabled: ro || !inTable },
+              { id: 'tbl-del-row', label: tr('Supprimer la ligne', 'Delete row') },
+              { id: 'tbl-del-col', label: tr('Supprimer la colonne', 'Delete column') },
+              { id: 'tbl-del', label: tr('Supprimer le tableau', 'Delete table') },
             ],
           },
-          { id: 'img-options', label: 'Options de l’image…', icon: 'image', disabled: ro || !imageSelected },
+          { id: 'img-options', label: tr('Options de l’image…', 'Image options…'), icon: 'image', disabled: ro || !imageSelected },
           '-',
-          { id: 'clear', label: 'Effacer la mise en forme', icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro },
+          { id: 'clear', label: tr('Effacer la mise en forme', 'Clear formatting'), icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro },
         ],
       },
       {
-        label: 'Outils',
+        label: tr('Outils', 'Tools'),
         items: [
-          { id: 'words', label: 'Nombre de mots', icon: 'word-count', shortcut: 'Ctrl+Maj+C' },
-          { id: 'french', label: 'Typographie française automatique', icon: 'translate', checked: french },
-          { id: 'identity', label: 'Votre nom…', icon: 'user', hidden: !collab },
+          { id: 'words', label: tr('Nombre de mots', 'Word count'), icon: 'word-count', shortcut: 'Ctrl+Maj+C' },
+          { id: 'french', label: tr('Typographie française automatique', 'Automatic French typography'), icon: 'translate', checked: french },
+          { id: 'identity', label: tr('Votre nom…', 'Your name…'), icon: 'user', hidden: !collab },
         ],
       },
     ],
@@ -742,7 +743,7 @@ export function DocsEditor(props: DocsEditorProps) {
     if (k === 'p' && !e.shiftKey) return run('print');
     if (k === 's') {
       e.preventDefault();
-      return toast({ title: 'Enregistrement automatique', description: 'Chaque modification est enregistrée dès qu’elle est faite.', tone: 'info' });
+      return toast({ title: tr('Enregistrement automatique', 'Autosave'), description: tr('Chaque modification est enregistrée dès qu’elle est faite.', 'Every change is saved as soon as it is made.'), tone: 'info' });
     }
     if (e.altKey && k === 'f' && editable) return run('ins-footnote');
     if (e.shiftKey && k === 'c') return run('words');
@@ -754,7 +755,7 @@ export function DocsEditor(props: DocsEditorProps) {
   if (!editor || !toolbar) {
     return (
       <div className="oel-docs oel-docs--loading" aria-busy>
-        <p>Ouverture du document…</p>
+        <p>{tr('Ouverture du document…', 'Opening the document…')}</p>
       </div>
     );
   }
@@ -762,22 +763,22 @@ export function DocsEditor(props: DocsEditorProps) {
   const exportMenu = (
     <MenuTrigger>
       <Button size="sm" variant="secondary" leadingIcon="download">
-        Exporter
+        {tr('Exporter', 'Export')}
       </Button>
       <MenuPopover placement="bottom end">
-        <Menu aria-label="Exporter" onAction={(k) => act(String(k))}>
+        <Menu aria-label={tr('Exporter', 'Export')} onAction={(k) => act(String(k))}>
           <MenuItem id="dl-docx" icon="file">Word (.docx)</MenuItem>
           <MenuItem id="dl-pdf" icon="print">PDF (.pdf)</MenuItem>
-          <MenuItem id="dl-html">Page Web (.html)</MenuItem>
+          <MenuItem id="dl-html">{tr('Page Web (.html)', 'Web page (.html)')}</MenuItem>
           <MenuItem id="dl-md">Markdown (.md)</MenuItem>
-          <MenuItem id="dl-txt">Texte brut (.txt)</MenuItem>
+          <MenuItem id="dl-txt">{tr('Texte brut (.txt)', 'Plain text (.txt)')}</MenuItem>
         </Menu>
       </MenuPopover>
     </MenuTrigger>
   );
   const shareButton = collab && (
     <Button size="sm" variant="primary" leadingIcon="share" onPress={() => setDialog('share')}>
-      Partager
+      {tr('Partager', 'Share')}
     </Button>
   );
   const keepFocus = (e: ReactMouseEvent) => (e.target as HTMLElement).closest('input,select,textarea') || e.preventDefault();
@@ -803,7 +804,7 @@ export function DocsEditor(props: DocsEditorProps) {
       <style>{sanitizeStylesheet(docMeta.stylesCss)}</style>
       {!sheet && (
         <header className="oel-docs__top">
-          <nav className="oel-docs__crumbs" aria-label="Fil d’Ariane">
+          <nav className="oel-docs__crumbs" aria-label={tr('Fil d’Ariane', 'Breadcrumb')}>
             {props.onBureau && (
               <Button variant="ghost" size="sm" leadingIcon="chevron-left" onPress={props.onBureau} aria-keyshortcuts={props.onReduce ? undefined : 'Escape'}>
                 Bureau
@@ -818,14 +819,14 @@ export function DocsEditor(props: DocsEditorProps) {
             <div className="oel-docs__titlerow">
               <input
                 className="oel-docs__title"
-                aria-label="Titre du document"
+                aria-label={tr('Titre du document', 'Document title')}
                 value={titleDraft}
                 readOnly={status.readOnly}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 onBlur={commitTitle}
                 onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur(), editor.commands.focus())}
               />
-              {status.readOnly && <Badge appearance="stamp" tone="neutral" dot={false}>Lecture seule</Badge>}
+              {status.readOnly && <Badge appearance="stamp" tone="neutral" dot={false}>{tr('Lecture seule', 'Read-only')}</Badge>}
               <SyncStatus status={status} collab={collab} />
             </div>
             <MenuBar spec={spec} onAction={act} />
@@ -833,11 +834,11 @@ export function DocsEditor(props: DocsEditorProps) {
           <div className="oel-docs__right">
             {props.onReduce && (
               <Button size="sm" variant="ghost" leadingIcon="collapse" aria-keyshortcuts="Control+Shift+Enter" onPress={props.onReduce}>
-                Réduire
+                {tr('Réduire', 'Reduce')}
               </Button>
             )}
             {collab && <Peers status={status} />}
-            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label="Historique des versions" isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
+            {collab && <Button size="sm" variant="ghost" leadingIcon="history" aria-label={tr('Historique des versions', 'Version history')} isDisabled={local || status.role === 'viewer'} onPress={() => setShowVersions((v) => !v)} />}
             {exportMenu}
             {shareButton}
           </div>
@@ -850,8 +851,8 @@ export function DocsEditor(props: DocsEditorProps) {
           {status.readOnly ? (
             <span className="oel-docs__mode-label"><Icon name="eye" size={16} /> Lecture seule</span>
           ) : (
-            <Button size="sm" variant="ghost" leadingIcon={mode === 'edit' ? 'pen' : 'eye'} onPress={() => setMode((m) => (m === 'edit' ? 'view' : 'edit'))} aria-label={mode === 'edit' ? 'Passer en mode lecture' : 'Passer en mode édition'}>
-              {mode === 'edit' ? 'Édition' : 'Lecture'}
+            <Button size="sm" variant="ghost" leadingIcon={mode === 'edit' ? 'pen' : 'eye'} onPress={() => setMode((m) => (m === 'edit' ? 'view' : 'edit'))} aria-label={mode === 'edit' ? tr('Passer en mode lecture', 'Switch to reading mode') : tr('Passer en mode édition', 'Switch to editing mode')}>
+              {mode === 'edit' ? tr('Édition', 'Edit') : tr('Lecture', 'Reading')}
             </Button>
           )}
         </div>
@@ -883,7 +884,7 @@ export function DocsEditor(props: DocsEditorProps) {
       {ctxMenu && (
         <ContextMenu
           at={ctxMenu}
-          label="Actions sur la sélection"
+          label={tr('Actions sur la sélection', 'Selection actions')}
           items={contextItems(ctxMenu.editor, ro)}
           onAction={act}
           onClose={() => {
@@ -930,7 +931,7 @@ export function DocsEditor(props: DocsEditorProps) {
           </PageView>
           {painter && (
             <p className="oel-docs__hint" role="status">
-              Sélectionnez le texte qui recevra la mise en forme · <Kbd>Échap</Kbd> pour annuler
+              {tr('Sélectionnez le texte qui recevra la mise en forme ·', 'Select the text that will get the formatting ·')} <Kbd>Échap</Kbd> {tr('pour annuler', 'to cancel')}
             </p>
           )}
         </div>
@@ -1012,16 +1013,16 @@ function StatusBar({
     setZoom(ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, (i < 0 ? ZOOMS.length - 1 : i) + dir))]!);
   };
   return (
-    <footer className="oel-statusbar" aria-label="Barre d’état">
+    <footer className="oel-statusbar" aria-label={tr('Barre d’état', 'Status bar')}>
       <span>
-        {info?.sheet != null ? `Page ${info.sheet + 1} sur ${pages}` : `${pages} page${pages > 1 ? 's' : ''}`}
-        {sectionCount > 1 && info ? ` · Section ${info.section + 1}` : ''} · {(info?.words ?? 0).toLocaleString('fr-CA')} mot{(info?.words ?? 0) > 1 ? 's' : ''} ·{' '}
+        {info?.sheet != null ? tr(`Page ${info.sheet + 1} sur ${pages}`, `Page ${info.sheet + 1} of ${pages}`) : tr(`${pages} page${pages > 1 ? 's' : ''}`, `${pages} page${pages > 1 ? 's' : ''}`)}
+        {sectionCount > 1 && info ? ` · Section ${info.section + 1}` : ''} · {(info?.words ?? 0).toLocaleString(locale())} {plural(info?.words ?? 0, tr('mot', 'word'), tr('mots', 'words'))} ·{' '}
         {LANGS[info?.lang ?? 'fr-CA'] ?? LANGS[(info?.lang ?? 'fr').split('-')[0]!] ?? info?.lang}
       </span>
-      <span className="oel-statusbar__zoom" role="group" aria-label="Zoom de la page">
-        <Button size="icon-sm" variant="ghost" leadingIcon="minus" aria-label="Zoom arrière" onPress={() => step(-1)} />
+      <span className="oel-statusbar__zoom" role="group" aria-label={tr('Zoom de la page', 'Page zoom')}>
+        <Button size="icon-sm" variant="ghost" leadingIcon="minus" aria-label={tr('Zoom arrière', 'Zoom out')} onPress={() => step(-1)} />
         <span aria-live="polite">{Math.round(zoom * 100)} %</span>
-        <Button size="icon-sm" variant="ghost" leadingIcon="plus" aria-label="Zoom avant" onPress={() => step(1)} />
+        <Button size="icon-sm" variant="ghost" leadingIcon="plus" aria-label={tr('Zoom avant', 'Zoom in')} onPress={() => step(1)} />
       </span>
     </footer>
   );
@@ -1047,33 +1048,33 @@ function caretToClick(ed: Editor, x: number, y: number) {
 function contextItems(ed: Editor, ro: boolean): Array<MenuEntry | '-'> {
   const empty = ed.state.selection.empty;
   const items: Array<MenuEntry | '-'> = [
-    { id: 'cut', label: 'Couper', icon: 'cut', shortcut: 'Ctrl+X', disabled: ro || empty },
-    { id: 'copy', label: 'Copier', icon: 'copy', shortcut: 'Ctrl+C', disabled: empty },
-    { id: 'paste', label: 'Coller', icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
-    { id: 'paste-plain', label: 'Coller sans mise en forme', shortcut: 'Ctrl+Maj+V', disabled: ro },
+    { id: 'cut', label: tr('Couper', 'Cut'), icon: 'cut', shortcut: 'Ctrl+X', disabled: ro || empty },
+    { id: 'copy', label: tr('Copier', 'Copy'), icon: 'copy', shortcut: 'Ctrl+C', disabled: empty },
+    { id: 'paste', label: tr('Coller', 'Paste'), icon: 'paste', shortcut: 'Ctrl+V', disabled: ro },
+    { id: 'paste-plain', label: tr('Coller sans mise en forme', 'Paste without formatting'), shortcut: 'Ctrl+Maj+V', disabled: ro },
     '-',
-    { id: 'ins-link', label: ed.isActive('link') ? 'Modifier le lien…' : 'Lien…', icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
+    { id: 'ins-link', label: ed.isActive('link') ? tr('Modifier le lien…', 'Edit link…') : tr('Lien…', 'Link…'), icon: 'link', shortcut: 'Ctrl+K', disabled: ro },
   ];
-  if (ed.isActive('image')) items.push({ id: 'img-options', label: 'Options de l’image…', icon: 'image', disabled: ro });
-  items.push({ id: 'clear', label: 'Effacer la mise en forme', icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro || empty });
+  if (ed.isActive('image')) items.push({ id: 'img-options', label: tr('Options de l’image…', 'Image options…'), icon: 'image', disabled: ro });
+  items.push({ id: 'clear', label: tr('Effacer la mise en forme', 'Clear formatting'), icon: 'clear-format', shortcut: 'Ctrl+\\', disabled: ro || empty });
   if (ed.isActive('table') && !ro) {
     items.push(
       '-',
-      { id: 'tbl-row-before', label: 'Insérer une ligne au-dessus', icon: 'table-rows' },
-      { id: 'tbl-row-after', label: 'Insérer une ligne en dessous', icon: 'table-rows' },
-      { id: 'tbl-col-before', label: 'Insérer une colonne à gauche', icon: 'insert-col' },
-      { id: 'tbl-col-after', label: 'Insérer une colonne à droite', icon: 'insert-col' },
-      { id: 'tbl-merge', label: 'Fusionner / scinder les cellules', icon: 'merge' },
-      { id: 'tbl-header', label: 'Ligne d’en-tête' },
-      { id: 'tbl-send', label: 'Envoyer vers un tableur…', icon: 'table' },
+      { id: 'tbl-row-before', label: tr('Insérer une ligne au-dessus', 'Insert row above'), icon: 'table-rows' },
+      { id: 'tbl-row-after', label: tr('Insérer une ligne en dessous', 'Insert row below'), icon: 'table-rows' },
+      { id: 'tbl-col-before', label: tr('Insérer une colonne à gauche', 'Insert column left'), icon: 'insert-col' },
+      { id: 'tbl-col-after', label: tr('Insérer une colonne à droite', 'Insert column right'), icon: 'insert-col' },
+      { id: 'tbl-merge', label: tr('Fusionner / scinder les cellules', 'Merge / split cells'), icon: 'merge' },
+      { id: 'tbl-header', label: tr('Ligne d’en-tête', 'Header row') },
+      { id: 'tbl-send', label: tr('Envoyer vers un tableur…', 'Send to a spreadsheet…'), icon: 'table' },
       {
         id: 'tbl-delete',
-        label: 'Supprimer',
+        label: tr('Supprimer', 'Delete'),
         icon: 'trash',
         children: [
-          { id: 'tbl-del-row', label: 'La ligne' },
-          { id: 'tbl-del-col', label: 'La colonne' },
-          { id: 'tbl-del', label: 'Le tableau' },
+          { id: 'tbl-del-row', label: tr('La ligne', 'The row') },
+          { id: 'tbl-del-col', label: tr('La colonne', 'The column') },
+          { id: 'tbl-del', label: tr('Le tableau', 'The table') },
         ],
       },
     );
@@ -1137,14 +1138,14 @@ async function pasteLinkedPicture(editor: Editor, session: DocSession, clip: Lin
   const linkId = newLinkId();
   editor.chain().focus().insertContent({ type: 'image', attrs: { src: `media:${path}`, path, cx: Math.round(width * scale * EMU_PER_PX), cy: Math.round(height * scale * EMU_PER_PX), alt: clip.source.label, oid } }).run();
   linksOf(session.ydoc).put(
-    { id: linkId, source: clip.source, target: { objectId: oid, label: 'au curseur' }, carries: 'picture', mode: 'live', snapshot: { rev: revOf(clip.value), at: Date.now(), by: session.author } },
+    { id: linkId, source: clip.source, target: { objectId: oid, label: tr('au curseur', 'at the cursor') }, carries: 'picture', mode: 'live', snapshot: { rev: revOf(clip.value), at: Date.now(), by: session.author } },
     'person',
   );
   toast({
-    title: `Image liée à « ${clip.source.title} »`,
-    description: 'Elle suivra l’image d’origine. Vous pouvez la garder comme simple copie.',
+    title: tr(`Image liée à « ${clip.source.title} »`, `Image linked to “${clip.source.title}”`),
+    description: tr('Elle suivra l’image d’origine. Vous pouvez la garder comme simple copie.', 'It will follow the original image. You can keep it as a plain copy.'),
     tone: 'success',
-    action: { label: 'Incorporer (sans lien)', onAction: () => linksOf(session.ydoc).remove(linkId, 'person') },
+    action: { label: tr('Incorporer (sans lien)', 'Embed (no link)'), onAction: () => linksOf(session.ydoc).remove(linkId, 'person') },
   });
 }
 
@@ -1160,16 +1161,16 @@ export function sendTableToSheet(editor: Editor, session: DocSession) {
   if (depth < 0) return;
   const node = $from.node(depth);
   const pos = $from.before(depth);
-  if (node.attrs.oid && linkHost().copyOf(node.attrs.oid as string)) return void toast({ title: 'Ce tableau est déjà lié', description: 'Ses valeurs viennent déjà d’un tableur.', tone: 'info' });
+  if (node.attrs.oid && linkHost().copyOf(node.attrs.oid as string)) return void toast({ title: tr('Ce tableau est déjà lié', 'This table is already linked'), description: tr('Ses valeurs viennent déjà d’un tableur.', 'Its values already come from a spreadsheet.'), tone: 'info' });
   const { table, lossy, nested } = tableAsLinked(node);
-  if (nested) return void toast({ title: 'Tableau imbriqué', description: 'Ce tableau contient un autre tableau : aplatissez-le d’abord.', tone: 'warning' });
+  if (nested) return void toast({ title: tr('Tableau imbriqué', 'Nested table'), description: tr('Ce tableau contient un autre tableau : aplatissez-le d’abord.', 'This table holds another table: flatten it first.'), tone: 'warning' });
   let oid = node.attrs.oid as string | null;
   if (!oid) {
     oid = `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
     editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, oid }).setMeta('addToHistory', false));
   }
   if (!linkHost().sendTableToSheet({ docId: session.status.docId, kind: 'document', objectId: oid, table, lossy }))
-    toast({ title: 'Ouvrez ce document depuis le bureau', description: 'Le tableau peut alors partir vers un tableur du bureau.', tone: 'info' });
+    toast({ title: tr('Ouvrez ce document depuis le bureau', 'Open this document from the desk'), description: tr('Le tableau peut alors partir vers un tableur du bureau.', 'The table can then go to a spreadsheet on the desk.'), tone: 'info' });
 }
 
 /**
@@ -1184,15 +1185,15 @@ function pasteLinkedValue(editor: Editor, session: DocSession, clip: LinkClip) {
   const text = clip.value.text;
   editor.chain().focus().insertContent({ type: 'ooxmlInline', attrs: { xml: '', label: text, hidden: false, oid } }).run();
   linksOf(session.ydoc).put(
-    { id: linkId, source: clip.source, target: { objectId: oid, label: 'dans le texte' }, carries: 'value', mode: 'live', snapshot: { rev: revOf(clip.value), at: Date.now(), by: session.author } },
+    { id: linkId, source: clip.source, target: { objectId: oid, label: tr('dans le texte', 'in the text') }, carries: 'value', mode: 'live', snapshot: { rev: revOf(clip.value), at: Date.now(), by: session.author } },
     'person',
   );
   toast({
-    title: `Valeur liée à ${clip.source.label}`,
-    description: `Elle suivra la cellule de « ${clip.source.title} ».`,
+    title: tr(`Valeur liée à ${clip.source.label}`, `Value linked to ${clip.source.label}`),
+    description: tr(`Elle suivra la cellule de « ${clip.source.title} ».`, `It will follow the cell of “${clip.source.title}”.`),
     tone: 'success',
     action: {
-      label: 'Coller comme texte simple',
+      label: tr('Coller comme texte simple', 'Paste as plain text'),
       onAction: () => {
         linksOf(session.ydoc).remove(linkId, 'person');
         // Replace the value by the same plain text.
@@ -1224,7 +1225,7 @@ function replacePicture(editor: Editor, session: DocSession, pos: number) {
         editor.state.tr.setNodeMarkup(pos, undefined, { ...n.attrs, src: `media:${path}`, path, rid: null, recipe: null, orig: null, cy: cx ? Math.round(cx * ratio) : n.attrs.cy }),
       );
     } catch {
-      toast({ title: 'Image non remplacée', tone: 'danger' });
+      toast({ title: tr('Image non remplacée', 'Image not replaced'), tone: 'danger' });
     }
   };
   input.click();

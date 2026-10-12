@@ -4,7 +4,7 @@ import '@oel/forms/styles.css';
 import type { WorkspaceProps } from '../OpenSheet';
 import { formsBackend } from '../../forms/backend';
 import { createResponseSheet, ensureFormThread, sheetRefs, writeHeaders } from '../forms';
-import type { Paper } from '../model';
+import { blankTitle, type Paper } from '../model';
 
 /**
  * E1 · Constructeur inside the open sheet. Level 2 (ouvert sur place) hides
@@ -30,7 +30,7 @@ export function FormWorkspace({ paper, level, store, onOpenPaper }: WorkspacePro
     // The desk sync owns the response → row map; never overwrite it with an older copy.
     const link = next.link && prev?.link && prev.link.sheetId === next.link.sheetId ? { ...next.link, rows: prev.link.rows } : next.link;
     const merged = { ...next, link };
-    store!.update(paper.id, { title: merged.title.trim() || 'Formulaire sans titre', data: { ...cur.data, form: merged } }, { history: false });
+    store!.update(paper.id, { title: merged.title.trim() || blankTitle('form'), data: { ...cur.data, form: merged } }, { history: false });
     if (link?.sheetId !== prev?.link?.sheetId || link?.tab !== prev?.link?.tab) ensureFormThread(store!, paper.id, link);
     if (link && JSON.stringify(link.columns) !== JSON.stringify(prev?.link?.columns)) writeHeaders(store!, link);
   };

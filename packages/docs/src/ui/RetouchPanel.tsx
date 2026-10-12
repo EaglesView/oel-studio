@@ -12,8 +12,9 @@ import { RecipeDoc, isEmptyRecipe, outputSize, type ImageEngine, type Recipe } f
 import { Atelier } from '@oel/img/ui';
 import type { DocSession } from '../collab/session';
 import { EMU_PER_PX } from '../model/types';
+import { tr } from '@oel/i18n';
 
-const NOTE = 'Le fichier Word garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.';
+const NOTE = tr('Le fichier Word garde l’image retouchée et, à part, l’original et la recette : rouvert dans OEL, tout reste modifiable.', 'The Word file keeps the retouched image and, separately, the original and the recipe: reopened in OEL, everything stays editable.');
 
 export function RetouchPanel({ editor, session, pos, crop, createWorker, onClose }: { editor: Editor; session: DocSession; pos: number; crop: boolean; createWorker: () => Worker; onClose: () => void }) {
   // The picture's position follows edits made around it while the panel is open.
@@ -36,14 +37,14 @@ export function RetouchPanel({ editor, session, pos, crop, createWorker, onClose
   useEffect(() => {
     const url = originalPath ? session.mediaUrl(originalPath) : null;
     if (!url) {
-      setMissing('Image introuvable : elle n’est pas encore sur cet appareil.');
+      setMissing(tr('Image introuvable : elle n’est pas encore sur cet appareil.', 'Image not found: it is not on this device yet.'));
       return;
     }
     let alive = true;
     void fetch(url)
       .then((r) => r.blob())
       .then((b) => alive && setOriginal(b))
-      .catch(() => alive && setMissing('Image introuvable.'));
+      .catch(() => alive && setMissing(tr('Image introuvable.', 'Image not found.')));
     return () => void (alive = false);
   }, [originalPath, session]);
 
@@ -130,7 +131,7 @@ export function RetouchPanel({ editor, session, pos, crop, createWorker, onClose
         try {
           await commit(engine);
         } catch (e) {
-          toast({ title: 'Retouche non enregistrée', description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+          toast({ title: tr('Retouche non enregistrée', 'Retouch not saved'), description: e instanceof Error ? e.message : String(e), tone: 'danger' });
         }
         setPreview(null);
         const n = node();

@@ -11,6 +11,7 @@ import { effectiveStory, newSectionId, type PageInfo } from '../model/sections';
 import { prosemirrorJSONToYXmlFragment } from '@tiptap/y-tiptap';
 import { EMU_PER_PX, type HeaderFooterKind, type PMDoc, type PMNode, type Section, type StorySide } from '../model/types';
 import { sanitizeStylesheet } from '../model/format';
+import { tr } from '@oel/i18n';
 
 const staticExtensions = docsExtensions({ bare: true });
 
@@ -234,14 +235,14 @@ export function tocNode(editor: Editor, pageOf: (pos: number) => number | string
     return n.type.name !== 'paragraph';
   });
   const tabs = '<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="9350"/></w:tabs>';
-  const paras: PMNode[] = [{ type: 'paragraph', attrs: { styleId: null, css: 'font-weight:700' }, content: [{ type: 'text', text: 'Table des matières' }] }];
+  const paras: PMNode[] = [{ type: 'paragraph', attrs: { styleId: null, css: 'font-weight:700' }, content: [{ type: 'text', text: tr('Table des matières', 'Table of contents') }] }];
   const begin = [
     fld('<w:r><w:fldChar w:fldCharType="begin"/></w:r>'),
     fld('<w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r>', 'TOC'),
     fld('<w:r><w:fldChar w:fldCharType="separate"/></w:r>'),
   ];
   const end = fld('<w:r><w:fldChar w:fldCharType="end"/></w:r>');
-  if (!entries.length) entries.push({ text: 'Ajoutez des titres (Titre 1 à 3) puis mettez la table à jour.', level: 0, page: null });
+  if (!entries.length) entries.push({ text: tr('Ajoutez des titres (Titre 1 à 3) puis mettez la table à jour.', 'Add headings (Heading 1 to 3), then update the table.'), level: 0, page: null });
   entries.forEach((e, i) => {
     const content: PMNode[] = [...(i === 0 ? begin : []), { type: 'text', text: e.text }];
     if (e.page != null) content.push({ type: 'tab' }, { type: 'text', text: String(e.page) });

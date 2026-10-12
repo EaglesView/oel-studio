@@ -24,6 +24,98 @@ import {
 import { useProject } from '../project/ProjectContext';
 import { type Bureau, type PaperKind } from './model';
 import { features } from '../edition';
+import { locale, messages, plural } from '@oel/i18n';
+
+const t = messages(
+  {
+    project: 'Projet',
+    files: (n: number) => `${n} ${plural(n, 'fichier', 'fichiers')}`,
+    listView: 'Vue liste',
+    deskView: 'Vue bureau',
+    hint: 'Double-cliquez sur un papier pour l’ouvrir (ou Entrée) ; Échap le repose.',
+    hintKeys: ': tous les raccourcis.',
+    closeHint: 'Fermer l’astuce',
+    you: 'vous',
+    onDesk: (n: number, names: string) => `${n} ${plural(n, 'personne', 'personnes')} sur le bureau : ${names}`,
+    linkCopied: 'Lien de partage copié',
+    linkCopiedBody: 'Les invités verront ce bureau en lecture.',
+    share: 'Partager',
+    document: 'Document',
+    slides: 'Présentation',
+    spreadsheet: 'Tableur',
+    form: 'Formulaire',
+    soon: 'Bientôt.',
+    late: (n: number) => `${n} ${plural(n, 'fil en retard', 'fils en retard')}`,
+    bureau: 'Bureau',
+    menu: 'Menu',
+    menuLate: (late: string) => `Accueil, nouveau, projets, paramètres… ${late}.`,
+    menuDesc: 'Accueil, nouveau, projets, paramètres, affichage, aide.',
+    note: 'Note',
+    noteDesc: 'Pense-bête posé au centre de la vue.',
+    import: 'Importer',
+    importDesc: 'PDF, Word, PowerPoint, Excel, images · 100 Mo max.',
+    sort: 'Ranger',
+    sortDesc: 'Poser les fichiers en rangées : par type, date, nom, personne ou fils.',
+    spread: 'Étaler',
+    spreadDesc: 'Voir tout le projet en grille, sans rien déplacer.',
+    new: 'Nouveau',
+    newDesc: (forms: boolean) => `Document, présentation, tableur${forms ? ' ou formulaire' : ''}, au centre de la vue.`,
+    empty: 'Ce bureau est vide',
+    emptyLead: 'Créez un premier fichier ou déposez-en ici.',
+    templates: 'Modèles',
+    fromTemplate: 'Ou partir d’un modèle →',
+    deskZoom: 'Zoom du bureau',
+    zoomOut: 'Zoom arrière',
+    zoomOutMax: 'Zoom arrière maximal atteint.',
+    zoomReset: 'Revenir à 100 %',
+    zoomIn: 'Zoom avant',
+    zoomInMax: 'Zoom avant maximal atteint.',
+  },
+  {
+    project: 'Project',
+    files: (n) => `${n} ${plural(n, 'file', 'files')}`,
+    listView: 'List view',
+    deskView: 'Desk view',
+    hint: 'Double-click a paper to open it (or Enter); Esc puts it back.',
+    hintKeys: ': every shortcut.',
+    closeHint: 'Close the tip',
+    you: 'you',
+    onDesk: (n, names) => `${n} ${plural(n, 'person', 'people')} on the desk: ${names}`,
+    linkCopied: 'Share link copied',
+    linkCopiedBody: 'Guests will see this desk read-only.',
+    share: 'Share',
+    document: 'Document',
+    slides: 'Presentation',
+    spreadsheet: 'Spreadsheet',
+    form: 'Form',
+    soon: 'Coming soon.',
+    late: (n) => `${n} ${plural(n, 'late thread', 'late threads')}`,
+    bureau: 'Bureau',
+    menu: 'Menu',
+    menuLate: (late) => `Home, new, projects, settings… ${late}.`,
+    menuDesc: 'Home, new, projects, settings, display, help.',
+    note: 'Note',
+    noteDesc: 'A sticky note in the middle of the view.',
+    import: 'Import',
+    importDesc: 'PDF, Word, PowerPoint, Excel, images · 100 MB max.',
+    sort: 'Sort',
+    sortDesc: 'Lay the files out in rows: by type, date, name, person or thread.',
+    spread: 'Spread out',
+    spreadDesc: 'See the whole project as a grid, without moving anything.',
+    new: 'New',
+    newDesc: (forms) => `Document, presentation, spreadsheet${forms ? ' or form' : ''}, in the middle of the view.`,
+    empty: 'This desk is empty',
+    emptyLead: 'Create a first file or drop some here.',
+    templates: 'Templates',
+    fromTemplate: 'Or start from a template →',
+    deskZoom: 'Desk zoom',
+    zoomOut: 'Zoom out',
+    zoomOutMax: 'Furthest zoom out reached.',
+    zoomReset: 'Back to 100 %',
+    zoomIn: 'Zoom in',
+    zoomInMax: 'Closest zoom in reached.',
+  },
+);
 
 /* ── B1 · 1 Projet ──────────────────────────────────────────────────── */
 
@@ -52,10 +144,8 @@ export function ProjectPill({
           {title}
         </RACButton>
       </h1>
-      {badge && <Badge tone="accent">Projet</Badge>}
-      <span className="project-pill__count">
-        {count} fichier{count > 1 ? 's' : ''}
-      </span>
+      {badge && <Badge tone="accent">{t.project}</Badge>}
+      <span className="project-pill__count">{t.files(count)}</span>
       <Button
         variant="ghost"
         size="sm"
@@ -63,7 +153,7 @@ export function ProjectPill({
         onPress={onToggleView}
         aria-pressed={view === 'list'}
       >
-        {view === 'desk' ? 'Vue liste' : 'Vue bureau'}
+        {view === 'desk' ? t.listView : t.deskView}
       </Button>
     </header>
   );
@@ -96,9 +186,9 @@ export function FirstRunHint({ onDismiss }: { onDismiss: () => void }) {
     <div className="chrome-pill first-run-hint" role="note" data-desk-ui>
       <Icon name="info" size={16} />
       <span>
-        Double-cliquez sur un papier pour l’ouvrir (ou Entrée) ; Échap le repose. <kbd>?</kbd> : tous les raccourcis.
+        {t.hint} <kbd>?</kbd> {t.hintKeys}
       </span>
-      <Button variant="ghost" size="sm" leadingIcon="close" aria-label="Fermer l’astuce" onPress={onDismiss} />
+      <Button variant="ghost" size="sm" leadingIcon="close" aria-label={t.closeHint} onPress={onDismiss} />
     </div>
   );
 }
@@ -108,17 +198,17 @@ export function FirstRunHint({ onDismiss }: { onDismiss: () => void }) {
 /** Theme and shortcuts moved to the menu (Affichage, Raccourcis clavier); `?` still opens the shortcuts. */
 export function SharePill() {
   const { me, members } = useProject();
-  const names = members.map((m) => (m.id === me.id ? 'vous' : m.name));
-  const label = `${members.length} personne${members.length > 1 ? 's' : ''} sur le bureau : ${new Intl.ListFormat('fr-CA').format(names)}`;
+  const names = members.map((m) => (m.id === me.id ? t.you : m.name));
+  const label = t.onDesk(members.length, new Intl.ListFormat(locale()).format(names));
   return (
     <div className="chrome-pill share-pill" data-desk-ui>
       <AvatarStack people={members} label={label} />
       <Button
         size="sm"
         leadingIcon="mail"
-        onPress={() => toast({ title: 'Lien de partage copié', description: 'Les invités verront ce bureau en lecture.', tone: 'success' })}
+        onPress={() => toast({ title: t.linkCopied, description: t.linkCopiedBody, tone: 'success' })}
       >
-        Partager
+        {t.share}
       </Button>
       <NotificationsButton />
     </div>
@@ -159,14 +249,14 @@ export interface ArrivalRules {
 
 /** Kinds offered by the round « + » (Figma M1): Note has its own button. */
 export const NEW_KINDS: { kind: PaperKind; label: string; icon: IconName }[] = [
-  { kind: 'document', label: 'Document', icon: 'file' },
-  { kind: 'slides', label: 'Présentation', icon: 'slide' },
-  { kind: 'spreadsheet', label: 'Tableur', icon: 'table' },
+  { kind: 'document', label: t.document, icon: 'file' },
+  { kind: 'slides', label: t.slides, icon: 'slide' },
+  { kind: 'spreadsheet', label: t.spreadsheet, icon: 'table' },
   // Single-user edition: no forms (plan solo MVP, S-6).
-  ...(features.forms ? [{ kind: 'form' as const, label: 'Formulaire', icon: 'form' as const }] : []),
+  ...(features.forms ? [{ kind: 'form' as const, label: t.form, icon: 'form' as const }] : []),
 ];
 
-export const SOON = 'Bientôt.';
+export const SOON = t.soon;
 
 /**
  * Figma M1: logo on the left opens the full-screen menu (M2), then Note ·
@@ -192,14 +282,14 @@ export function BottomBar({
   onMenu: (origin: { x: number; y: number }) => void;
   lateLinks: number;
 }) {
-  const late = lateLinks > 0 ? `${lateLinks} fil${lateLinks > 1 ? 's' : ''} en retard` : null;
+  const late = lateLinks > 0 ? t.late(lateLinks) : null;
   return (
     <div className="bottom-bar" data-desk-ui>
-      <Toolbar appearance="pill" aria-label="Bureau">
-        <WithTooltip label="Menu" description={late ? `Accueil, nouveau, projets, paramètres… ${late}.` : 'Accueil, nouveau, projets, paramètres, affichage, aide.'}>
+      <Toolbar appearance="pill" aria-label={t.bureau}>
+        <WithTooltip label={t.menu} description={late ? t.menuLate(late) : t.menuDesc}>
           <RACButton
             className="bottom-bar__logo"
-            aria-label={late ? `Menu, ${late}` : 'Menu'}
+            aria-label={late ? `${t.menu}, ${late}` : t.menu}
             aria-haspopup="dialog"
             aria-expanded={menuOpen}
             onPress={(e) => {
@@ -212,22 +302,22 @@ export function BottomBar({
           </RACButton>
         </WithTooltip>
         <ToolbarSeparator />
-        <ToolButton icon="note" label="Note" showLabel shortcut={['N']} description="Pense-bête posé au centre de la vue." onPress={() => onCreate('note')} />
+        <ToolButton icon="note" label={t.note} showLabel shortcut={['N']} description={t.noteDesc} onPress={() => onCreate('note')} />
         <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
-          <ToolButton icon="upload" label="Importer" showLabel shortcut={['Ctrl', 'O']} description="PDF, Word, PowerPoint, Excel, images · 100 Mo max." />
+          <ToolButton icon="upload" label={t.import} showLabel shortcut={['Ctrl', 'O']} description={t.importDesc} />
         </FileTrigger>
         <ToolbarSeparator />
-        <ToolButton icon="sort" label="Ranger" showLabel description="Poser les fichiers en rangées : par type, date, nom, personne ou fils." unavailableReason={SOON} />
-        <ToolButton icon="grid" label="Étaler" showLabel shortcut={['E']} description="Voir tout le projet en grille, sans rien déplacer." unavailableReason={SOON} />
+        <ToolButton icon="sort" label={t.sort} showLabel description={t.sortDesc} unavailableReason={SOON} />
+        <ToolButton icon="grid" label={t.spread} showLabel shortcut={['E']} description={t.spreadDesc} unavailableReason={SOON} />
         <ToolbarSeparator />
         <MenuTrigger isOpen={newMenuOpen} onOpenChange={onNewMenuOpenChange}>
-          <WithTooltip label="Nouveau" shortcut={['Alt', 'N']} description={`Document, présentation, tableur${features.forms ? ' ou formulaire' : ''}, au centre de la vue.`}>
-            <RACButton className="bottom-bar__new" aria-label="Nouveau" aria-keyshortcuts="Alt+N">
+          <WithTooltip label={t.new} shortcut={['Alt', 'N']} description={t.newDesc(features.forms)}>
+            <RACButton className="bottom-bar__new" aria-label={t.new} aria-keyshortcuts="Alt+N">
               <Icon name="plus" size={20} />
             </RACButton>
           </WithTooltip>
           <MenuPopover placement="top end">
-            <Menu aria-label="Nouveau" onAction={(key) => onCreate(key as PaperKind)}>
+            <Menu aria-label={t.new} onAction={(key) => onCreate(key as PaperKind)}>
               {NEW_KINDS.map((k) => (
                 <MenuItem key={k.kind} id={k.kind} icon={k.icon} className={`bottom-bar__kind bottom-bar__kind--${k.kind}`}>
                   {k.label}
@@ -251,20 +341,20 @@ export function BottomBar({
 export function EmptyDesk({ onCreate, onImport }: { onCreate: (kind: PaperKind) => void; onImport: (files: File[]) => void }) {
   return (
     <section className="empty-desk" aria-labelledby="empty-desk-title">
-      <h2 id="empty-desk-title" className="empty-desk__title">Ce bureau est vide</h2>
-      <p className="empty-desk__lead">Créez un premier fichier ou déposez-en ici.</p>
+      <h2 id="empty-desk-title" className="empty-desk__title">{t.empty}</h2>
+      <p className="empty-desk__lead">{t.emptyLead}</p>
       <div className="empty-desk__cards">
         {NEW_KINDS.map((k) => (
           <ChoiceCard key={k.kind} icon={k.icon} label={k.label} iconColor={`var(--kind-${k.kind})`} onPress={() => onCreate(k.kind)} />
         ))}
-        <ChoiceCard icon="note" label="Note" onPress={() => onCreate('note')} />
+        <ChoiceCard icon="note" label={t.note} onPress={() => onCreate('note')} />
         <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
-          <ChoiceCard icon="upload" label="Importer" />
+          <ChoiceCard icon="upload" label={t.import} />
         </FileTrigger>
       </div>
-      <WithTooltip label="Modèles" unavailableReason={SOON}>
+      <WithTooltip label={t.templates} unavailableReason={SOON}>
         <RACButton className="empty-desk__templates" aria-disabled="true">
-          Ou partir d’un modèle →
+          {t.fromTemplate}
         </RACButton>
       </WithTooltip>
     </section>
@@ -280,20 +370,20 @@ export function ZoomControl({ store }: { store: Bureau }) {
   const atMax = zoom >= store.zoomLimits.max - 1e-6;
   return (
     <div className="zoom-control" data-desk-ui>
-      <Toolbar appearance="pill" aria-label="Zoom du bureau">
+      <Toolbar appearance="pill" aria-label={t.deskZoom}>
         <ToolButton
           icon="minus"
-          label="Zoom arrière"
+          label={t.zoomOut}
           shortcut={['−']}
-          unavailableReason={atMin ? 'Zoom arrière maximal atteint.' : undefined}
+          unavailableReason={atMin ? t.zoomOutMax : undefined}
           onPress={() => store.zoomBy(1 / 1.2)}
         />
-        <ToolButton icon="search" label="Revenir à 100 %" shortcut={['0']} value={`${Math.round(zoom * 100)} %`} onPress={() => store.zoomReset()} />
+        <ToolButton icon="search" label={t.zoomReset} shortcut={['0']} value={`${Math.round(zoom * 100)} %`} onPress={() => store.zoomReset()} />
         <ToolButton
           icon="plus"
-          label="Zoom avant"
+          label={t.zoomIn}
           shortcut={['+']}
-          unavailableReason={atMax ? 'Zoom avant maximal atteint.' : undefined}
+          unavailableReason={atMax ? t.zoomInMax : undefined}
           onPress={() => store.zoomBy(1.2)}
         />
       </Toolbar>

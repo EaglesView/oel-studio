@@ -6,6 +6,7 @@ import { countWords } from '../model/ydoc';
 import { EMU_PER_PX, type PageSetup } from '../model/types';
 import { setBackground, setSectionPage } from './useDocEditor';
 import { SPECIAL_CHARS } from './actions';
+import { locale, tr } from '@oel/i18n';
 
 interface Controlled {
   isOpen: boolean;
@@ -42,23 +43,23 @@ export function LinkDialog({ editor, isOpen, onClose }: Controlled & { editor: E
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
       <SheetDialog
-        title="Lien"
+        title={tr('Lien', 'Link')}
         width={460}
         actions={() => (
           <>
             {editor.isActive('link') && (
               <Button variant="ghost" onPress={() => (editor.chain().focus().extendMarkRange('link').unsetLink().run(), onClose())}>
-                Supprimer le lien
+                {tr('Supprimer le lien', 'Remove the link')}
               </Button>
             )}
-            <Button variant="secondary" onPress={onClose}>Annuler</Button>
-            <Button onPress={apply} isDisabled={!href.trim()}>Appliquer</Button>
+            <Button variant="secondary" onPress={onClose}>{tr('Annuler', 'Cancel')}</Button>
+            <Button onPress={apply} isDisabled={!href.trim()}>{tr('Appliquer', 'Apply')}</Button>
           </>
         )}
       >
         <form className="oel-form" onSubmit={(e) => (e.preventDefault(), apply())}>
-          <TextField label="Texte" value={text} onChange={setText} />
-          <TextField label="Lien (adresse Web, courriel ou #signet)" value={href} onChange={setHref} autoFocus placeholder="https://" />
+          <TextField label={tr('Texte', 'Text')} value={text} onChange={setText} />
+          <TextField label={tr('Lien (adresse Web, courriel ou #signet)', 'Link (web address, email or #bookmark)')} value={href} onChange={setHref} autoFocus placeholder="https://" />
           <button type="submit" hidden />
         </form>
       </SheetDialog>
@@ -71,11 +72,11 @@ export function LinkDialog({ editor, isOpen, onClose }: Controlled & { editor: E
 // ---------------------------------------------------------------------------
 
 const PAPERS = [
-  { id: 'letter', label: 'Lettre (21,6 × 27,9 cm)', w: 12240, h: 15840 },
-  { id: 'legal', label: 'Légal (21,6 × 35,6 cm)', w: 12240, h: 20160 },
-  { id: 'a4', label: 'A4 (21 × 29,7 cm)', w: 11906, h: 16838 },
-  { id: 'a5', label: 'A5 (14,8 × 21 cm)', w: 8391, h: 11906 },
-  { id: 'tabloid', label: 'Tabloïd (27,9 × 43,2 cm)', w: 15840, h: 24480 },
+  { id: 'letter', label: tr('Lettre (21,6 × 27,9 cm)', 'Letter (21.6 × 27.9 cm)'), w: 12240, h: 15840 },
+  { id: 'legal', label: tr('Légal (21,6 × 35,6 cm)', 'Legal (21.6 × 35.6 cm)'), w: 12240, h: 20160 },
+  { id: 'a4', label: tr('A4 (21 × 29,7 cm)', 'A4 (21 × 29.7 cm)'), w: 11906, h: 16838 },
+  { id: 'a5', label: tr('A5 (14,8 × 21 cm)', 'A5 (14.8 × 21 cm)'), w: 8391, h: 11906 },
+  { id: 'tabloid', label: tr('Tabloïd (27,9 × 43,2 cm)', 'Tabloid (27.9 × 43.2 cm)'), w: 15840, h: 24480 },
 ];
 const PAGE_COLORS = ['#FFFFFF', '#FFF8E7', '#F3F3F3', '#FCE5CD', '#D9EAD3', '#CFE2F3', '#EAD1DC', '#FFF2CC'];
 const twToCm = (tw: number) => Math.round((tw / 1440) * 2.54 * 100) / 100;
@@ -113,20 +114,20 @@ export function PageSetupDialog({
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
       <SheetDialog
-        title="Configuration de la page"
+        title={tr('Configuration de la page', 'Page setup')}
         width={520}
         actions={() => (
           <>
-            <Button variant="secondary" onPress={onClose}>Annuler</Button>
+            <Button variant="secondary" onPress={onClose}>{tr('Annuler', 'Cancel')}</Button>
             <Button onPress={apply}>OK</Button>
           </>
         )}
       >
         <div className="oel-form">
           {sectionCount > 1 && (
-            <RadioGroup label="Appliquer à" orientation="horizontal" value={scope} onChange={(v) => setScope(v as 'section' | 'all')}>
+            <RadioGroup label={tr('Appliquer à', 'Apply to')} orientation="horizontal" value={scope} onChange={(v) => setScope(v as 'section' | 'all')}>
               <Radio value="section">Cette section (section {sectionIndex + 1})</Radio>
-              <Radio value="all">Tout le document</Radio>
+              <Radio value="all">{tr('Tout le document', 'Whole document')}</Radio>
             </RadioGroup>
           )}
           <RadioGroup
@@ -139,27 +140,27 @@ export function PageSetupDialog({
             }}
           >
             <Radio value="portrait">Portrait</Radio>
-            <Radio value="landscape">Paysage</Radio>
+            <Radio value="landscape">{tr('Paysage', 'Landscape')}</Radio>
           </RadioGroup>
           <Select
-            label="Format du papier"
+            label={tr('Format du papier', 'Paper size')}
             selectedKey={paper}
             onSelectionChange={(k) => {
               const p = PAPERS.find((x) => x.id === k);
               if (p) setDraft({ ...draft, width: landscape ? p.h : p.w, height: landscape ? p.w : p.h });
             }}
           >
-            {[...PAPERS.map((p) => <SelectItem key={p.id} id={p.id}>{p.label}</SelectItem>), ...(paper === 'custom' ? [<SelectItem key="custom" id="custom">Personnalisé</SelectItem>] : [])]}
+            {[...PAPERS.map((p) => <SelectItem key={p.id} id={p.id}>{p.label}</SelectItem>), ...(paper === 'custom' ? [<SelectItem key="custom" id="custom">{tr('Personnalisé', 'Custom')}</SelectItem>] : [])]}
           </Select>
           <fieldset className="oel-form__grid">
-            <legend>Marges (cm)</legend>
-            {margin('top', 'Haut')}
-            {margin('bottom', 'Bas')}
-            {margin('left', 'Gauche')}
-            {margin('right', 'Droite')}
+            <legend>{tr('Marges (cm)', 'Margins (cm)')}</legend>
+            {margin('top', tr('Haut', 'Top'))}
+            {margin('bottom', tr('Bas', 'Bottom'))}
+            {margin('left', tr('Gauche', 'Left'))}
+            {margin('right', tr('Droite', 'Right'))}
           </fieldset>
           <div>
-            <p className="emb-field__label">Couleur de la page</p>
+            <p className="emb-field__label">{tr('Couleur de la page', 'Page colour')}</p>
             <div className="oel-swatches__grid">
               {PAGE_COLORS.map((c) => (
                 <button key={c} type="button" className={`oel-swatch${(bg ?? '#FFFFFF').toUpperCase() === c ? ' is-on' : ''}`} style={{ background: c }} aria-label={c} onClick={() => setBg(c === '#FFFFFF' ? null : c)} />
@@ -185,34 +186,34 @@ export function WordCountDialog({ editor, pages, isOpen, onClose }: Controlled &
   }, [isOpen, editor]);
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Nombre de mots" width={380} actions={() => <Button onPress={onClose}>OK</Button>}>
+      <SheetDialog title={tr('Nombre de mots', 'Word count')} width={380} actions={() => <Button onPress={onClose}>OK</Button>}>
         {stats && (
           <table className="oel-stats">
             <tbody>
               {stats.selection && (
                 <tr>
                   <td colSpan={2}>
-                    <Badge tone="accent">Sélection</Badge>
+                    <Badge tone="accent">{tr('Sélection', 'Selection')}</Badge>
                   </td>
                 </tr>
               )}
               {!stats.selection && (
                 <tr>
                   <th scope="row">Pages</th>
-                  <td>{pages.toLocaleString('fr-CA')}</td>
+                  <td>{pages.toLocaleString(locale())}</td>
                 </tr>
               )}
               <tr>
-                <th scope="row">Mots</th>
-                <td>{stats.words.toLocaleString('fr-CA')}</td>
+                <th scope="row">{tr('Mots', 'Words')}</th>
+                <td>{stats.words.toLocaleString(locale())}</td>
               </tr>
               <tr>
-                <th scope="row">Caractères</th>
-                <td>{stats.chars.toLocaleString('fr-CA')}</td>
+                <th scope="row">{tr('Caractères', 'Characters')}</th>
+                <td>{stats.chars.toLocaleString(locale())}</td>
               </tr>
               <tr>
-                <th scope="row">Caractères sans espaces</th>
-                <td>{stats.charsNoSpace.toLocaleString('fr-CA')}</td>
+                <th scope="row">{tr('Caractères sans espaces', 'Characters without spaces')}</th>
+                <td>{stats.charsNoSpace.toLocaleString(locale())}</td>
               </tr>
             </tbody>
           </table>
@@ -229,10 +230,10 @@ export function WordCountDialog({ editor, pages, isOpen, onClose }: Controlled &
 export function SpecialCharsDialog({ editor, isOpen, onClose }: Controlled & { editor: Editor }) {
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <SheetDialog title="Caractères spéciaux" width={520} actions={() => <Button variant="secondary" onPress={onClose}>Fermer</Button>}>
-        <div className="oel-chars" role="group" aria-label="Caractères">
+      <SheetDialog title={tr('Caractères spéciaux', 'Special characters')} width={520} actions={() => <Button variant="secondary" onPress={onClose}>{tr('Fermer', 'Close')}</Button>}>
+        <div className="oel-chars" role="group" aria-label={tr('Caractères', 'Characters')}>
           {SPECIAL_CHARS.map((c) => (
-            <button key={c} type="button" className="oel-chars__key" onClick={() => editor.chain().focus().insertContent(c).run()} aria-label={`Insérer ${c}`}>
+            <button key={c} type="button" className="oel-chars__key" onClick={() => editor.chain().focus().insertContent(c).run()} aria-label={tr(`Insérer ${c}`, `Insert ${c}`)}>
               {c}
             </button>
           ))}
@@ -266,7 +267,7 @@ export function ImageDialog({ editor, isOpen, onClose, onFile }: Controlled & { 
       onFile(blob);
       onClose();
     } catch {
-      toast({ title: 'Image inaccessible', description: 'Le site ne permet pas de récupérer cette image. Téléchargez-la puis importez-la.', tone: 'warning' });
+      toast({ title: tr('Image inaccessible', 'Image unreachable'), description: tr('Le site ne permet pas de récupérer cette image. Téléchargez-la puis importez-la.', 'The site doesn’t allow fetching this image. Download it, then import it.'), tone: 'warning' });
     }
   };
   const pick = () => {
@@ -283,12 +284,12 @@ export function ImageDialog({ editor, isOpen, onClose, onFile }: Controlled & { 
   return (
     <DialogOverlay isOpen={isOpen} onOpenChange={(o) => !o && onClose()}>
       <SheetDialog
-        title={selected ? 'Options de l’image' : 'Insérer une image'}
+        title={selected ? tr('Options de l’image', 'Image options') : tr('Insérer une image', 'Insert an image')}
         width={460}
         actions={() =>
           selected ? (
             <>
-              <Button variant="secondary" onPress={onClose}>Annuler</Button>
+              <Button variant="secondary" onPress={onClose}>{tr('Annuler', 'Cancel')}</Button>
               <Button
                 onPress={() => {
                   const a = editor.getAttributes('image');
@@ -298,25 +299,25 @@ export function ImageDialog({ editor, isOpen, onClose, onFile }: Controlled & { 
                   onClose();
                 }}
               >
-                Appliquer
+                {tr('Appliquer', 'Apply')}
               </Button>
             </>
           ) : (
-            <Button variant="secondary" onPress={onClose}>Annuler</Button>
+            <Button variant="secondary" onPress={onClose}>{tr('Annuler', 'Cancel')}</Button>
           )
         }
       >
         {selected ? (
           <div className="oel-form">
-            <TextField label="Texte de remplacement (accessibilité)" value={alt} onChange={setAlt} multiline rows={3} description="Décrivez l’image pour les personnes qui ne la voient pas." />
+            <TextField label={tr('Texte de remplacement (accessibilité)', 'Alt text (accessibility)')} value={alt} onChange={setAlt} multiline rows={3} description={tr('Décrivez l’image pour les personnes qui ne la voient pas.', 'Describe the image for people who can’t see it.')} />
             <NumberField label="Largeur (px)" value={width} minValue={16} maxValue={2000} onChange={setWidth} />
           </div>
         ) : (
           <div className="oel-form">
-            <Button leadingIcon="upload" onPress={pick}>Importer depuis l’ordinateur</Button>
-            <p className="emb-field__helper">Vous pouvez aussi coller une image ou la déposer dans le document.</p>
+            <Button leadingIcon="upload" onPress={pick}>{tr('Importer depuis l’ordinateur', 'Import from the computer')}</Button>
+            <p className="emb-field__helper">{tr('Vous pouvez aussi coller une image ou la déposer dans le document.', 'You can also paste an image or drop it in the document.')}</p>
             <TextField label="Par adresse Web" value={url} onChange={setUrl} placeholder="https://…/image.png" />
-            <Button variant="secondary" onPress={fromUrl} isDisabled={!url.trim()}>Insérer depuis l’adresse</Button>
+            <Button variant="secondary" onPress={fromUrl} isDisabled={!url.trim()}>{tr('Insérer depuis l’adresse', 'Insert from the address')}</Button>
           </div>
         )}
       </SheetDialog>

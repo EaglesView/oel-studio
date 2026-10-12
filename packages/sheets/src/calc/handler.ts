@@ -4,6 +4,7 @@
  */
 import type { CellOut } from '../model/types';
 import type { FromCalc, ToCalc } from './protocol';
+import { tr } from '@oel/i18n';
 
 export interface WasmCalcLike {
   apply(inputs: string): string;
@@ -32,7 +33,7 @@ export function createCalcHandler(make: (json: string) => WasmCalcLike, ready: P
           return { op: 'loaded', seq: m.seq, ms: Math.round(performance.now() - t) };
         }
         case 'apply': {
-          if (!calc) throw new Error('moteur non chargé');
+          if (!calc) throw new Error(tr('moteur non chargé', 'engine not loaded'));
           const errors = JSON.parse(calc.apply(JSON.stringify(m.inputs))) as string[];
           const changed = JSON.parse(calc.evaluate()) as Array<[number, CellOut]>;
           const cells = m.inputs.map((i): [number, CellOut | { r: number; c: number; empty: true }] => {

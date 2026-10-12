@@ -4,8 +4,43 @@ import { currentStyle, isEmptyRecipe, lookOf } from '@oel/img';
 import { Badge, Icon, ProgressBar } from '@oel/emboss';
 import { contrastGuard, questionsOf } from '@oel/forms/model';
 import { KIND_ICON, KIND_TAB, type Paper as PaperNode } from './model';
+import { locale, messages, plural } from '@oel/i18n';
 
-const nf = new Intl.NumberFormat('fr-CA');
+const t = messages(
+  {
+    readonly: 'Lecture seule',
+    noteText: (title: string) => `Texte de la note « ${title} »`,
+    ownSettings: 'Réglages propres',
+    question: 'Question',
+    style: (name: string) => `Style « ${name} »`,
+    customStyle: 'Style personnalisé',
+    dragImages: 'Glissez des images ici',
+    responses: (n: number) => `${n} ${plural(n, 'réponse', 'réponses')}`,
+    draft: 'Brouillon',
+    toCheck: (n: number) => `${n} à vérifier`,
+    closed: 'Fermé',
+    slides: (n: number) => `${n} diapos`,
+    images: (n: number, own: number) =>
+      `${n} ${plural(n, 'image posée', 'images posées')} librement${own ? ` · ${own} avec ses propres réglages` : ''}`,
+  },
+  {
+    readonly: 'Read-only',
+    noteText: (title) => `Text of the note “${title}”`,
+    ownSettings: 'Its own settings',
+    question: 'Question',
+    style: (name) => `“${name}” style`,
+    customStyle: 'Custom style',
+    dragImages: 'Drag images here',
+    responses: (n) => `${n} ${plural(n, 'response', 'responses')}`,
+    draft: 'Draft',
+    toCheck: (n) => `${n} to check`,
+    closed: 'Closed',
+    slides: (n) => `${n} slides`,
+    images: (n, own) => `${n} ${plural(n, 'image', 'images')} laid out freely${own ? ` · ${own} with their own settings` : ''}`,
+  },
+);
+
+const nf = new Intl.NumberFormat(locale());
 
 /** How often a zoomed-out thumbnail catches up with live edits. */
 export const THUMBNAIL_REFRESH_MS = 15_000;
@@ -91,7 +126,7 @@ export const Paper = memo(
       {status.state === 'readonly' && !thumbnail && (
         <div className="paper__readonly">
           <Badge appearance="stamp" tone="neutral" dot={false}>
-            Lecture seule
+            {t.readonly}
           </Badge>
           <span>{status.reason}</span>
         </div>
@@ -134,7 +169,7 @@ function NoteEditor({ node, editing }: { node: PaperNode; editing: NoteEditing }
         ref={ref}
         className="paper__note-text"
         data-desk-ui
-        aria-label={`Texte de la note « ${node.title} »`}
+        aria-label={t.noteText(node.title)}
         value={text}
         rows={1}
         onChange={(e) => editing.onText(e.target.value)}
@@ -206,7 +241,7 @@ function Content({ node }: { node: PaperNode }) {
               ))}
             </div>
           )}
-          {deck && deck.slides.length > 1 && <span className="paper__slide-count">{deck.slides.length} diapos</span>}
+          {deck && deck.slides.length > 1 && <span className="paper__slide-count">{t.slides(deck.slides.length)}</span>}
         </div>
       );
     }
@@ -235,7 +270,7 @@ function Content({ node }: { node: PaperNode }) {
       return (
         <div className="paper__photo">
           {/* L2 · amber dot: a picture of a gallery with its own settings over the style. */}
-          {node.parent && Object.keys(lookOf(node.data.image?.recipe ?? {})).length > 0 && <span className="paper__own-dot" title="Réglages propres" />}
+          {node.parent && Object.keys(lookOf(node.data.image?.recipe ?? {})).length > 0 && <span className="paper__own-dot" title={t.ownSettings} />}
           <div className="paper__photo-frame">
             {data.image?.rendered || data.imageUrl ? <img src={data.image?.rendered ?? data.imageUrl} alt="" draggable={false} /> : <Icon name="image" size={40} />}
           </div>
@@ -275,7 +310,7 @@ function Content({ node }: { node: PaperNode }) {
             {(f ? questionsOf(f) : []).slice(0, 6).map((q) => (
               <div key={q.id} className="paper__form-q">
                 <span>
-                  {q.title || 'Question'}
+                  {q.title || t.question}
                   {q.required ? ' *' : ''}
                 </span>
                 <i />
@@ -285,17 +320,17 @@ function Content({ node }: { node: PaperNode }) {
           <div className="paper__form-foot">
             {f?.publication ? (
               <Badge tone="accent">
-                {stats?.accepted ?? 0} réponse{(stats?.accepted ?? 0) > 1 ? 's' : ''}
+                {t.responses(stats?.accepted ?? 0)}
               </Badge>
             ) : (
               <Badge tone="neutral" dot={false}>
-                Brouillon
+                {t.draft}
               </Badge>
             )}
-            {!!stats?.held && <Badge tone="warning">{stats.held} à vérifier</Badge>}
+            {!!stats?.held && <Badge tone="warning">{t.toCheck(stats.held)}</Badge>}
             {f?.publication && !f.settings.acceptResponses && (
               <Badge appearance="stamp" tone="neutral" dot={false}>
-                Fermé
+                {t.closed}
               </Badge>
             )}
           </div>
@@ -336,12 +371,10 @@ function GalleryPlanche({ node }: { node: PaperNode }) {
       <div className="paper__gallery-head">
         <Icon name="gallery" size={18} />
         <span className="paper__gallery-title">{node.title}</span>
-        {!isEmptyRecipe(style) && <span className="paper__gallery-style">{named ? `Style « ${named.label} »` : 'Style personnalisé'}</span>}
+        {!isEmptyRecipe(style) && <span className="paper__gallery-style">{named ? t.style(named.label) : t.customStyle}</span>}
       </div>
       <p className="paper__gallery-foot">
-        {kids.length === 0
-          ? 'Glissez des images ici'
-          : `${kids.length} image${kids.length > 1 ? 's' : ''} posée${kids.length > 1 ? 's' : ''} librement${own ? ` · ${own} avec ses propres réglages` : ''}`}
+        {kids.length === 0 ? t.dragImages : t.images(kids.length, own)}
       </p>
     </div>
   );

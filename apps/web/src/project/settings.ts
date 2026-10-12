@@ -1,7 +1,8 @@
+import { tr } from '@oel/i18n';
 /**
  * Project settings (Figma N3): one typed schema, resolved through the cascade
  * OEL defaults → account → project → file (N0). The settings screen (N-5)
- * renders from `SETTINGS` and `SECTIONS`, so labels live here, in fr-CA.
+ * renders from `SETTINGS` and `SECTIONS`, so labels live here, in French and English (`tr`).
  */
 
 export type Scope = 'account' | 'project' | 'file';
@@ -16,11 +17,11 @@ export interface SettingsLayers {
 export type SectionId = 'sharing' | 'collaboration' | 'appearance' | 'import' | 'forms' | 'notifications';
 
 export const SECTIONS: Record<SectionId, string> = {
-  sharing: 'Invitations et partage',
+  sharing: tr('Invitations et partage', 'Invitations and sharing'),
   collaboration: 'Collaboration',
-  appearance: 'Apparence et valeurs par défaut',
+  appearance: tr('Apparence et valeurs par défaut', 'Appearance and defaults'),
   import: 'Import',
-  forms: 'Formulaires',
+  forms: tr('Formulaires', 'Forms'),
   notifications: 'Notifications',
 };
 
@@ -60,110 +61,110 @@ const ACCOUNT_PROJECT = ['account', 'project'] as const;
 const ALL = ['account', 'project', 'file'] as const;
 
 export const ROLE_LABEL = {
-  owner: 'Propriétaire',
-  editor: 'Éditeur',
-  commenter: 'Commentateur',
-  viewer: 'Lecteur',
+  owner: tr('Propriétaire', 'Owner'),
+  editor: tr('Éditeur', 'Editor'),
+  commenter: tr('Commentateur', 'Commenter'),
+  viewer: tr('Lecteur', 'Viewer'),
 } as const;
 
 export const SETTINGS = {
   // Invitations et partage
   'sharing.whoCanInvite': choice({
     section: 'sharing',
-    label: 'Qui peut inviter',
+    label: tr('Qui peut inviter', 'Who can invite'),
     default: 'editors',
     scopes: PROJECT_ONLY,
-    options: { owners: 'Propriétaires seulement', editors: 'Propriétaires et éditeurs', everyone: 'Tous les membres' },
+    options: { owners: tr('Propriétaires seulement', 'Owners only'), editors: tr('Propriétaires et éditeurs', 'Owners and editors'), everyone: tr('Tous les membres', 'All members') },
   }),
   'sharing.defaultRole': choice({
     section: 'sharing',
-    label: 'Rôle par défaut des invités',
+    label: tr('Rôle par défaut des invités', 'Default role for guests'),
     default: 'editor',
     scopes: PROJECT_ONLY,
     options: { editor: ROLE_LABEL.editor, commenter: ROLE_LABEL.commenter, viewer: ROLE_LABEL.viewer },
   }),
   'sharing.link': choice({
     section: 'sharing',
-    label: 'Lien de partage',
+    label: tr('Lien de partage', 'Share link'),
     default: 'viewer',
     scopes: PROJECT_ONLY,
-    options: { off: 'Désactivé', viewer: 'Lecture', commenter: 'Commentaires', editor: 'Modification' },
+    options: { off: tr('Désactivé', 'Off'), viewer: tr('Lecture', 'View'), commenter: tr('Commentaires', 'Comments'), editor: tr('Modification', 'Edit') },
   }),
-  'sharing.linkExpiryDays': num({ section: 'sharing', label: 'Expiration du lien', default: 30, min: 0, max: 365, unit: 'jours (0 : jamais)', scopes: PROJECT_ONLY }),
-  'sharing.allowedDomains': list({ section: 'sharing', label: 'Domaines autorisés', default: [], placeholder: 'exemple.ca', scopes: PROJECT_ONLY }),
-  'sharing.accessRequests': bool({ section: 'sharing', label: 'Accepter les demandes d’accès', default: true, scopes: PROJECT_ONLY }),
-  'sharing.mentionOutsiders': bool({ section: 'sharing', label: 'Mentionner des personnes hors du projet', default: false, scopes: PROJECT_ONLY }),
+  'sharing.linkExpiryDays': num({ section: 'sharing', label: tr('Expiration du lien', 'Link expiry'), default: 30, min: 0, max: 365, unit: tr('jours (0 : jamais)', 'days (0: never)'), scopes: PROJECT_ONLY }),
+  'sharing.allowedDomains': list({ section: 'sharing', label: tr('Domaines autorisés', 'Allowed domains'), default: [], placeholder: tr('exemple.ca', 'example.ca'), scopes: PROJECT_ONLY }),
+  'sharing.accessRequests': bool({ section: 'sharing', label: tr('Accepter les demandes d’accès', 'Accept access requests'), default: true, scopes: PROJECT_ONLY }),
+  'sharing.mentionOutsiders': bool({ section: 'sharing', label: tr('Mentionner des personnes hors du projet', 'Mention people outside the project'), default: false, scopes: PROJECT_ONLY }),
   // Collaboration
-  'collab.presence': bool({ section: 'collaboration', label: 'Montrer qui est sur le bureau', default: true, scopes: ACCOUNT_PROJECT }),
-  'collab.historyDays': num({ section: 'collaboration', label: 'Conserver l’historique des versions', default: 90, min: 7, max: 3650, unit: 'jours', scopes: PROJECT_ONLY }),
+  'collab.presence': bool({ section: 'collaboration', label: tr('Montrer qui est sur le bureau', 'Show who is on the desk'), default: true, scopes: ACCOUNT_PROJECT }),
+  'collab.historyDays': num({ section: 'collaboration', label: tr('Conserver l’historique des versions', 'Keep version history'), default: 90, min: 7, max: 3650, unit: tr('jours', 'days'), scopes: PROJECT_ONLY }),
   // Apparence et valeurs par défaut
   'appearance.theme': choice({
     section: 'appearance',
-    label: 'Thème des fichiers',
+    label: tr('Thème des fichiers', 'File theme'),
     default: 'oel',
     scopes: ALL,
-    options: { oel: 'OutilsEnLigne', sobre: 'Sobre', contraste: 'Contrasté' },
+    options: { oel: 'OutilsEnLigne', sobre: tr('Sobre', 'Plain'), contraste: tr('Contrasté', 'High contrast') },
   }),
   'appearance.accent': choice({
     section: 'appearance',
-    label: 'Couleur d’accent',
+    label: tr('Couleur d’accent', 'Accent colour'),
     default: 'primary',
     scopes: ALL,
-    options: { primary: 'Bleu', success: 'Vert', warning: 'Ambre', danger: 'Rouge' },
+    options: { primary: tr('Bleu', 'Blue'), success: tr('Vert', 'Green'), warning: tr('Ambre', 'Amber'), danger: tr('Rouge', 'Red') },
   }),
   'appearance.headingFont': choice({
     section: 'appearance',
-    label: 'Police des titres',
+    label: tr('Police des titres', 'Heading font'),
     default: 'Montserrat',
     scopes: ALL,
     options: { Montserrat: 'Montserrat', Georgia: 'Georgia', Arial: 'Arial' },
   }),
   'appearance.language': choice({
     section: 'appearance',
-    label: 'Langue des fichiers',
+    label: tr('Langue des fichiers', 'File language'),
     default: 'fr-CA',
     scopes: ALL,
-    options: { 'fr-CA': 'Français (Canada)', 'en-CA': 'Anglais (Canada)' },
+    options: { 'fr-CA': tr('Français (Canada)', 'French (Canada)'), 'en-CA': tr('Anglais (Canada)', 'English (Canada)') },
   }),
   'appearance.numberFormat': choice({
     section: 'appearance',
-    label: 'Format des nombres',
+    label: tr('Format des nombres', 'Number format'),
     default: 'fr-CA',
     scopes: ALL,
     options: { 'fr-CA': '1 234,56', 'en-CA': '1,234.56' },
   }),
   'appearance.dateFormat': choice({
     section: 'appearance',
-    label: 'Format des dates',
+    label: tr('Format des dates', 'Date format'),
     default: 'iso',
     scopes: ALL,
-    options: { iso: '2026-10-05', long: '5 octobre 2026' },
+    options: { iso: '2026-10-05', long: tr('5 octobre 2026', 'October 5, 2026') },
   }),
   'appearance.pageSize': choice({
     section: 'appearance',
-    label: 'Format de page',
+    label: tr('Format de page', 'Page size'),
     default: 'letter',
     scopes: ALL,
-    options: { letter: 'Lettre (8,5 × 11 po)', legal: 'Légal (8,5 × 14 po)', a4: 'A4' },
+    options: { letter: tr('Lettre (8,5 × 11 po)', 'Letter (8.5 × 11 in)'), legal: tr('Légal (8,5 × 14 po)', 'Legal (8.5 × 14 in)'), a4: 'A4' },
   }),
   'appearance.slideRatio': choice({
     section: 'appearance',
-    label: 'Format des présentations',
+    label: tr('Format des présentations', 'Presentation format'),
     default: '16:9',
     scopes: ALL,
     options: { '16:9': '16:9', '4:3': '4:3' },
   }),
   // Import (the old « À l’arrivée » rules)
-  'import.sortByType': bool({ section: 'import', label: 'Ranger aussi les fichiers qui arrivent (par type)', default: false, scopes: ACCOUNT_PROJECT }),
-  'import.ocr': bool({ section: 'import', label: 'Convertir les PDF numérisés (OCR)', default: true, scopes: ACCOUNT_PROJECT }),
-  'import.linkTables': bool({ section: 'import', label: 'Lier les tableaux importés', default: true, scopes: ACCOUNT_PROJECT }),
+  'import.sortByType': bool({ section: 'import', label: tr('Ranger aussi les fichiers qui arrivent (par type)', 'Also sort incoming files (by type)'), default: false, scopes: ACCOUNT_PROJECT }),
+  'import.ocr': bool({ section: 'import', label: tr('Convertir les PDF numérisés (OCR)', 'Convert scanned PDFs (OCR)'), default: true, scopes: ACCOUNT_PROJECT }),
+  'import.linkTables': bool({ section: 'import', label: tr('Lier les tableaux importés', 'Link imported tables'), default: true, scopes: ACCOUNT_PROJECT }),
   // Formulaires
   'forms.signIn': choice({
     section: 'forms',
-    label: 'Connexion des répondants',
+    label: tr('Connexion des répondants', 'Respondent sign-in'),
     default: 'optional',
     scopes: ['project', 'file'],
-    options: { none: 'Aucune', optional: 'Facultative', required: 'Obligatoire' },
+    options: { none: tr('Aucune', 'None'), optional: tr('Facultative', 'Optional'), required: tr('Obligatoire', 'Required') },
   }),
   // Notifications
   'notifications.mentions': choice({
@@ -171,7 +172,7 @@ export const SETTINGS = {
     label: 'Mentions',
     default: 'instant',
     scopes: ACCOUNT_PROJECT,
-    options: { instant: 'Tout de suite', daily: 'Résumé quotidien', off: 'Jamais' },
+    options: { instant: tr('Tout de suite', 'Right away'), daily: tr('Résumé quotidien', 'Daily summary'), off: tr('Jamais', 'Never') },
   }),
 } satisfies Record<string, ChoiceSetting | BoolSetting | NumberSetting | ListSetting>;
 
