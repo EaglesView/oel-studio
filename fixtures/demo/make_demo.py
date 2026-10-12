@@ -1,7 +1,8 @@
-"""Builds the demo Bureau's files (plan docs/plans/2026-10-solo-mvp.md, S-3).
+"""Builds the demo Bureau's files (plan docs/plans/2026-10-solo-mvp.md, S-3), in French or English.
 
     python -m venv venv && venv/bin/pip install openpyxl python-pptx python-docx
-    venv/bin/python fixtures/demo/make_demo.py
+    venv/bin/python fixtures/demo/make_demo.py            # French, in fixtures/demo/
+    venv/bin/python fixtures/demo/make_demo.py --lang en  # English, in fixtures/demo/en/
 
 Needs `cargo` (the workbook is baked through oel-xlsx: openpyxl writes formulas without their
 results and charts without caches). `logo.png` is made once from `logo.svg` (the site's
@@ -16,9 +17,12 @@ favicon, same mark as `packages/emboss/src/icons/Logo.tsx`):
   workbook's chart), « Merci ! » in white on black.
 - « À propos du Bureau.docx »: the logo and a short text about the Bureau, with a shortcut table.
 
-French text, English formulas. Fictional runners. Author « OutilsEnLigne », fixed dates, so a
-run gives the same content.
+The English files (« Chronos — lap times.xlsx », « Welcome to the Bureau.pptx », « About the
+Bureau.docx ») have the same content in English: the Bureau seeds a desk in the interface
+language. Formulas are English in both. Fictional runners. Author « OutilsEnLigne », fixed
+dates, so a run gives the same content.
 """
+import argparse
 import datetime as dt
 import subprocess
 import tempfile
@@ -44,9 +48,110 @@ LOGO = HERE / "logo.png"
 AUTHOR = "OutilsEnLigne"
 WHEN = dt.datetime(2026, 10, 11, 9, 0)
 
-XLSX = HERE / "Chronos — tours de piste.xlsx"
-PPTX = HERE / "Bienvenue dans le Bureau.pptx"
-DOCX = HERE / "À propos du Bureau.docx"
+# Every word of the three files, per language (the Bureau's `src/bureau/demo.ts` names the same files, sheet and chart).
+TEXT = {
+    "fr": {
+        "dir": HERE,
+        "xlsx": "Chronos — tours de piste.xlsx",
+        "pptx": "Bienvenue dans le Bureau.pptx",
+        "docx": "À propos du Bureau.docx",
+        "results": "Résultats",
+        "laps": "Tours",
+        "laps_header": ["Coureur", "Tour", "Temps (s)", "Date"],
+        "results_header": ["Coureur", "Meilleur tour", "Moyenne", "Écart au meilleur", "Rang"],
+        "summary": "En bref",
+        "fastest": "Tour le plus rapide (s)",
+        "by": "Par",
+        "count": "Tours enregistrés",
+        "group_mean": "Moyenne du groupe (s)",
+        "chart_title": "Meilleur tour par coureur",
+        "seconds": "Secondes",
+        "deck_subtitle": "Tous vos fichiers sur un seul bureau",
+        "how": "Comment l’utiliser",
+        "tips": [
+            "Double-cliquez sur un texte pour le modifier.",
+            "Ajoutez une diapo avec « + » dans la pellicule.",
+            "Changez un temps dans le tableur : le graphique de la diapo 3 suit.",
+        ],
+        "race": "Résultats de la course",
+        "best": "Meilleur tour",
+        "mean": "Moyenne",
+        "deck_chart": "Graphique du tableur",
+        "thanks": "Merci !",
+        "thanks_name": "Merci",
+        "deck_title": "Bienvenue dans le Bureau",
+        "doc_title": "À propos du Bureau",
+        "doc_text": (
+            "Le Bureau d’OutilsEnLigne pose tous les fichiers d’un projet côte à côte, comme du papier sur une table : "
+            "documents, présentations, tableurs, images et notes. Les outils suivent ce que vous touchez.",
+            "Tout reste dans votre navigateur : vos fichiers ne quittent pas cet appareil. Pour en garder une copie, "
+            "exportez le bureau depuis le menu, « Ouvrir et importer ».",
+            "Chaque fichier se télécharge dans son format d’origine, Word, PowerPoint ou Excel ; ce que vous n’avez pas "
+            "modifié y reste tel quel.",
+        ),
+        "shortcuts_title": "Raccourcis",
+        "shortcuts_header": ("Pour", "Touches"),
+        "shortcuts": [
+            ("Ouvrir un fichier sur place", "Entrée ou double-clic"),
+            ("Plein écran, et retour", "Ctrl + Maj + Entrée"),
+            ("Revenir au bureau", "Échap"),
+            ("Nouvelle note", "N"),
+            ("Tous les raccourcis", "?"),
+        ],
+        "doc_end": "Ce document est un fichier Word ordinaire : il s’ouvre aussi dans Word ou LibreOffice.",
+    },
+    "en": {
+        "dir": HERE / "en",
+        "xlsx": "Chronos — lap times.xlsx",
+        "pptx": "Welcome to the Bureau.pptx",
+        "docx": "About the Bureau.docx",
+        "results": "Results",
+        "laps": "Laps",
+        "laps_header": ["Runner", "Lap", "Time (s)", "Date"],
+        "results_header": ["Runner", "Best lap", "Average", "Gap to the best", "Rank"],
+        "summary": "In brief",
+        "fastest": "Fastest lap (s)",
+        "by": "By",
+        "count": "Laps recorded",
+        "group_mean": "Group average (s)",
+        "chart_title": "Best lap per runner",
+        "seconds": "Seconds",
+        "deck_subtitle": "All your files on one desk",
+        "how": "How to use it",
+        "tips": [
+            "Double-click a text to edit it.",
+            "Add a slide with “+” in the filmstrip.",
+            "Change a time in the spreadsheet: the chart on slide 3 follows.",
+        ],
+        "race": "Race results",
+        "best": "Best lap",
+        "mean": "Average",
+        "deck_chart": "Spreadsheet chart",
+        "thanks": "Thank you!",
+        "thanks_name": "Thank you",
+        "deck_title": "Welcome to the Bureau",
+        "doc_title": "About the Bureau",
+        "doc_text": (
+            "The OutilsEnLigne Bureau lays every file of a project side by side, like paper on a table: "
+            "documents, presentations, spreadsheets, images and notes. The tools follow what you touch.",
+            "Everything stays in your browser: your files don’t leave this device. To keep a copy, export the "
+            "desk from the menu, “Open and import”.",
+            "Each file downloads in its original format, Word, PowerPoint or Excel; what you didn’t change stays "
+            "exactly as it was.",
+        ),
+        "shortcuts_title": "Shortcuts",
+        "shortcuts_header": ("To", "Keys"),
+        "shortcuts": [
+            ("Open a file in place", "Enter or double-click"),
+            ("Full screen, and back", "Ctrl + Shift + Enter"),
+            ("Back to the desk", "Esc"),
+            ("New note", "N"),
+            ("Every shortcut", "?"),
+        ],
+        "doc_end": "This document is an ordinary Word file: it also opens in Word or LibreOffice.",
+    },
+}
+T = TEXT["fr"]
 
 # 400 m, three laps each (seconds).
 LAPS = {
@@ -80,10 +185,10 @@ def header(ws, cells):
 def make_xlsx() -> None:
     wb = Workbook()
     res = wb.active
-    res.title = "Résultats"
-    laps = wb.create_sheet("Tours")
+    res.title = T["results"]
+    laps = wb.create_sheet(T["laps"])
 
-    laps.append(["Coureur", "Tour", "Temps (s)", "Date"])
+    laps.append(T["laps_header"])
     header(laps, laps[1])
     for runner, times in LAPS.items():
         for i, t in enumerate(times):
@@ -96,8 +201,8 @@ def make_xlsx() -> None:
     laps.freeze_panes = "A2"
 
     last = 1 + sum(len(t) for t in LAPS.values())
-    names, times = f"Tours!$A$2:$A${last}", f"Tours!$C$2:$C${last}"
-    res.append(["Coureur", "Meilleur tour", "Moyenne", "Écart au meilleur", "Rang"])
+    names, times = f"{T['laps']}!$A$2:$A${last}", f"{T['laps']}!$C$2:$C${last}"
+    res.append(T["results_header"])
     header(res, res[1])
     n = len(RUNNERS)
     for i, runner in enumerate(RUNNERS, start=2):
@@ -115,13 +220,13 @@ def make_xlsx() -> None:
         res[f"D{i}"].number_format = '+0.0;-0.0;"—"'
         res[f"E{i}"].alignment = Alignment(horizontal="center")
 
-    res["G1"] = "En bref"
+    res["G1"] = T["summary"]
     header(res, [res["G1"], res["H1"]])
     summary = [
-        ("Tour le plus rapide (s)", f"=MIN({times})", "0.0"),
-        ("Par", f"=XLOOKUP(MIN({times}),{times},{names})", None),
-        ("Tours enregistrés", f"=COUNTA({names})", "0"),
-        ("Moyenne du groupe (s)", f"=AVERAGE({times})", "0.00"),
+        (T["fastest"], f"=MIN({times})", "0.0"),
+        (T["by"], f"=XLOOKUP(MIN({times}),{times},{names})", None),
+        (T["count"], f"=COUNTA({names})", "0"),
+        (T["group_mean"], f"=AVERAGE({times})", "0.00"),
     ]
     for r, (label, formula, fmt) in enumerate(summary, start=2):
         res[f"G{r}"] = label
@@ -134,8 +239,8 @@ def make_xlsx() -> None:
     chart = BarChart()
     chart.type = "col"
     chart.grouping = "clustered"
-    chart.title = "Meilleur tour par coureur"
-    chart.y_axis.title = "Secondes"
+    chart.title = T["chart_title"]
+    chart.y_axis.title = T["seconds"]
     chart.y_axis.scaling.min = 50
     chart.y_axis.number_format = "0"
     chart.add_data(Reference(res, min_col=2, max_col=3, min_row=1, max_row=n + 1), titles_from_data=True)
@@ -150,7 +255,7 @@ def make_xlsx() -> None:
         raw = Path(tmp) / "raw.xlsx"
         wb.save(raw)
         subprocess.run(
-            ["cargo", "run", "-q", "-p", "oel-xlsx", "--example", "recalc", "--", str(raw), str(XLSX)],
+            ["cargo", "run", "-q", "-p", "oel-xlsx", "--example", "recalc", "--", str(raw), str(T["dir"] / T["xlsx"])],
             cwd=ROOT,
             check=True,
         )
@@ -184,21 +289,17 @@ def make_pptx() -> None:
     s.shapes.title.left, s.shapes.title.top, s.shapes.title.width, s.shapes.title.height = Inches(1), Inches(3.1), W - Inches(2), Inches(1.4)
     text_props(s.shapes.title.text_frame, 48, bold=True, color=INK, align=PP_ALIGN.CENTER)
     sub = s.placeholders[1]
-    sub.text = "Tous vos fichiers sur un seul bureau"
+    sub.text = T["deck_subtitle"]
     sub.left, sub.top, sub.width, sub.height = Inches(1), Inches(4.6), W - Inches(2), Inches(0.9)
     text_props(sub.text_frame, 24, color=VIOLET, align=PP_ALIGN.CENTER)
 
     # 2 · Three tips.
     s = prs.slides.add_slide(content_layout)
-    s.shapes.title.text = "Comment l’utiliser"
+    s.shapes.title.text = T["how"]
     text_props(s.shapes.title.text_frame, 40, bold=True, color=INK)
     body = s.placeholders[1]
     body.left, body.top, body.width, body.height = Inches(0.9), Inches(1.9), W - Inches(1.8), Inches(4.6)
-    tips = [
-        "Double-cliquez sur un texte pour le modifier.",
-        "Ajoutez une diapo avec « + » dans la pellicule.",
-        "Changez un temps dans le tableur : le graphique de la diapo 3 suit.",
-    ]
+    tips = T["tips"]
     tf = body.text_frame
     tf.text = tips[0]
     for t in tips[1:]:
@@ -209,88 +310,77 @@ def make_pptx() -> None:
 
     # 3 · Race results: the workbook's numbers, replaced on the desk by a linked copy of its chart.
     s = prs.slides.add_slide(title_only)
-    s.shapes.title.text = "Résultats de la course"
+    s.shapes.title.text = T["race"]
     text_props(s.shapes.title.text_frame, 40, bold=True, color=INK)
     data = CategoryChartData()
     data.categories = RUNNERS
-    data.add_series("Meilleur tour", [BEST[r] for r in RUNNERS])
-    data.add_series("Moyenne", [MEAN[r] for r in RUNNERS])
+    data.add_series(T["best"], [BEST[r] for r in RUNNERS])
+    data.add_series(T["mean"], [MEAN[r] for r in RUNNERS])
     frame = s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(1.8), W - Inches(2.4), Inches(5.0), data)
-    frame.name = "Graphique du tableur"
+    frame.name = T["deck_chart"]
     chart = frame.chart
     chart.has_legend = True
     chart.legend.position = XL_LEGEND_POSITION.BOTTOM
     chart.legend.include_in_layout = False
     chart.value_axis.minimum_scale = 50
     chart.value_axis.has_title = True
-    chart.value_axis.axis_title.text_frame.text = "Secondes"
+    chart.value_axis.axis_title.text_frame.text = T["seconds"]
 
     # 4 · Thank-you, white on black.
     s = prs.slides.add_slide(blank)
     s.background.fill.solid()
     s.background.fill.fore_color.rgb = RGBColor(0, 0, 0)
     box = s.shapes.add_textbox(Inches(1), (H - Inches(1.6)) // 2, W - Inches(2), Inches(1.6))
-    box.name = "Merci"
-    box.text_frame.text = "Merci !"
+    box.name = T["thanks_name"]
+    box.text_frame.text = T["thanks"]
     text_props(box.text_frame, 72, bold=True, color="FFFFFF", align=PP_ALIGN.CENTER)
 
     prs.core_properties.author = prs.core_properties.last_modified_by = AUTHOR
-    prs.core_properties.title = "Bienvenue dans le Bureau"
+    prs.core_properties.title = T["deck_title"]
     prs.core_properties.created = prs.core_properties.modified = WHEN
-    prs.save(PPTX)
+    prs.save(T["dir"] / T["pptx"])
 
 
 # ── Document ────────────────────────────────────────────────────────────────────────────────
 
 
-SHORTCUTS = [
-    ("Ouvrir un fichier sur place", "Entrée ou double-clic"),
-    ("Plein écran, et retour", "Ctrl + Maj + Entrée"),
-    ("Revenir au bureau", "Échap"),
-    ("Nouvelle note", "N"),
-    ("Tous les raccourcis", "?"),
-]
-
-
 def make_docx() -> None:
     doc = Document()
-    doc.add_heading("À propos du Bureau", level=0)
+    doc.add_heading(T["doc_title"], level=0)
     pic = doc.add_paragraph()
     pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
     pic.add_run().add_picture(str(LOGO), width=Cm(4))
-    for text in (
-        "Le Bureau d’OutilsEnLigne pose tous les fichiers d’un projet côte à côte, comme du papier sur une table : "
-        "documents, présentations, tableurs, images et notes. Les outils suivent ce que vous touchez.",
-        "Tout reste dans votre navigateur : vos fichiers ne quittent pas cet appareil. Pour en garder une copie, "
-        "exportez le bureau depuis le menu, « Ouvrir et importer ».",
-        "Chaque fichier se télécharge dans son format d’origine, Word, PowerPoint ou Excel ; ce que vous n’avez pas "
-        "modifié y reste tel quel.",
-    ):
+    for text in T["doc_text"]:
         p = doc.add_paragraph(text)
         p.paragraph_format.space_after = Pt(8)
-    doc.add_heading("Raccourcis", level=1)
+    doc.add_heading(T["shortcuts_title"], level=1)
     table = doc.add_table(rows=1, cols=2)
     table.style = "Light Grid Accent 1"
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.rows[0].cells[0].text, table.rows[0].cells[1].text = "Pour", "Touches"
-    for what, keys in SHORTCUTS:
+    table.rows[0].cells[0].text, table.rows[0].cells[1].text = T["shortcuts_header"]
+    for what, keys in T["shortcuts"]:
         row = table.add_row().cells
         row[0].text, row[1].text = what, keys
     # Word ends the body with a paragraph, never a table.
     doc.add_paragraph().paragraph_format.space_before = Pt(8)
-    doc.paragraphs[-1].add_run("Ce document est un fichier Word ordinaire : il s’ouvre aussi dans Word ou LibreOffice.")
+    doc.paragraphs[-1].add_run(T["doc_end"])
 
     doc.core_properties.author = doc.core_properties.last_modified_by = AUTHOR
-    doc.core_properties.title = "À propos du Bureau"
+    doc.core_properties.title = T["doc_title"]
     doc.core_properties.created = doc.core_properties.modified = WHEN
-    doc.save(DOCX)
+    doc.save(T["dir"] / T["docx"])
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--lang", choices=sorted(TEXT), default="fr")
+    T = TEXT[parser.parse_args().lang]
     if not LOGO.exists():
         raise SystemExit(f"{LOGO} manque : voir l’en-tête de ce script (magick).")
+    T["dir"].mkdir(exist_ok=True)
     make_xlsx()
     make_pptx()
     make_docx()
-    for f in (XLSX, PPTX, DOCX):
+    for name in (T["xlsx"], T["pptx"], T["docx"]):
+        f = T["dir"] / name
         print(f"{f.relative_to(ROOT)}  {f.stat().st_size:,} o")
