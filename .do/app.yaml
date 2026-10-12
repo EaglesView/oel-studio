@@ -1,0 +1,18 @@
+# DigitalOcean App Platform: the single-user site as a static site (paste into Settings → App Spec, or
+# `doctl apps create --spec .do/app.yaml`). The Node buildpack is forced: the root Cargo.toml would
+# otherwise select the Rust buildpack. scripts/build-site.sh installs Rust for the WASM engines.
+name: oel-bureau
+region: tor
+static_sites:
+  - name: web
+    github:
+      repo: EaglesView/oel-studio
+      branch: feat/images
+      deploy_on_push: true
+    environment_slug: node-js
+    build_command: bash scripts/build-site.sh
+    output_dir: apps/web/dist
+    envs:
+      - key: PUBLIC_EDITION
+        value: solo
+        scope: BUILD_TIME

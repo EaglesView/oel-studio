@@ -62,6 +62,7 @@ to it, a logo and a document).
 | `npm run typecheck` | Regenerates the Rust → TS contract types, then `tsc` per package |
 | `npm run build` | Static site in `apps/web/dist` (`PUBLIC_EDITION=equipe npm run build` for the team build) |
 | `npm run build:wasm` | Rebuilds every crate's WASM (web + Node targets) into `packages/wasm/` |
+| `bash scripts/build-site.sh` | Hosting build: installs Rust if missing, browser WASM only, then the site (DigitalOcean spec in `.do/app.yaml`) |
 
 ## Editions
 
@@ -172,5 +173,3 @@ finish. Plans with their status live in `docs/plans/`.
 - Licensed under the [Mozilla Public License 2.0](LICENSE): use the crates and packages in your own projects; changes
   to these files stay open.
 - Third-party code, fonts and icons: [`THIRD_PARTY.md`](THIRD_PARTY.md).
-- Design source: the Figma file *OutilsEnLigne.ca* (`Y3vDuuW4jfyTOjreIwDp6P`), pages « Editor — Behaviors » and
-  « Site — bureau.outilsenligne.ca ».

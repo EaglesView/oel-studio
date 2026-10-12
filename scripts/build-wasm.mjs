@@ -6,6 +6,9 @@
  *
  *   node scripts/build-wasm.mjs           build all
  *   node scripts/build-wasm.mjs --if-stale  skip crates whose outputs are newer than their sources
+ *
+ * WASM_TARGETS=web builds only the browser targets (what the static site needs; hosting builds use it,
+ * see scripts/build-site.sh). Default: web,node.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -19,7 +22,8 @@ const ifStale = process.argv.includes('--if-stale');
 const OUT_NAME = { 'oel-docx': 'oeldocx_rs', 'oel-xlsx': 'oelxlsx_rs', 'oel-pptx': 'oelpptx_rs', 'oel-img': 'oelimg' };
 /** Cargo features per crate and target dir (default: `wasm`). The image engine's GPU view is browser-only. */
 const FEATURES = { 'oel-img': { web: 'wasm,gpu', node: 'wasm' } };
-const TARGETS = [['web', 'web'], ['nodejs', 'node']];
+const WANTED = (process.env.WASM_TARGETS ?? 'web,node').split(',').map((t) => t.trim());
+const TARGETS = [['web', 'web'], ['nodejs', 'node']].filter(([, dir]) => WANTED.includes(dir));
 
 function newest(path) {
   const st = statSync(path);
