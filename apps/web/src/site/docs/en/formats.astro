@@ -8,7 +8,7 @@ import DocsLayout from '../../DocsLayout.astro';
   <p>The desk, its files, their pictures and thumbnails are saved in this browser, on this device (IndexedDB), as you work. Nothing is sent to a server: the Bureau works without an account.</p>
   <p class="note">Clearing the site’s data (or closing a private window) also clears the desk. To keep a copy: menu, “Open and import”, “Export the desk (.zip)”. “Import a desk” brings it back exactly as it was, on this device or another.</p>
   <p>The menu’s “This desk” section shows the space used; the browser may ask whether to keep the site’s data for good.</p>
-  <p>The Bureau sets a single cookie, <code>oel-lang</code>, which remembers the interface language (French or English) for a year; it is asked on the first visit and changed in the menu, “Settings”. No advertising or analytics cookies. The theme and the welcome are remembered in the browser’s local storage.</p>
+  <p>The Bureau sets a single cookie, <code>oel-lang</code>, which remembers the interface language (French or English) for a year; it is asked on the first visit and changed in the menu, “Settings”. No advertising or analytics cookies. On the official site, visits are counted with PostHog, without cookies, local storage or profiles: page views only, never what you type or your files, which don’t leave your browser. The browser’s Do Not Track setting is respected; a copy built without a PostHog key counts nothing. The theme and the welcome are remembered in the browser’s local storage.</p>
 
   <h2 id="lossless">Your formats, intact</h2>
   <p>The engines that read and write .docx, .xlsx and .pptx are written in Rust and run in your browser as WebAssembly. They are lossless:</p>

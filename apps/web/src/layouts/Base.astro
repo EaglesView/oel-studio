@@ -51,6 +51,10 @@ const { title, description = 'Un seul éditeur pour tous vos fichiers, directeme
         if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
       } catch {}
     </script>
+    <script>
+      // Visit counting, only in builds with PUBLIC_POSTHOG_KEY (src/analytics.ts).
+      import '../analytics';
+    </script>
   </head>
   <body class={app ? 'is-app' : undefined}>
     <a class="skip-link" href="#contenu">

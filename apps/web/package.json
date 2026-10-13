@@ -26,6 +26,7 @@
     "@oel/slides": "*",
     "astro": "^7.3.5",
     "html-to-image": "^1.11.13",
+    "posthog-js": "^1.438.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "yjs": "^13.6.33"
