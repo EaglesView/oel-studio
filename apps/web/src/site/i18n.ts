@@ -8,9 +8,9 @@ export type Lang = 'fr' | 'en';
 export const LANGS: Lang[] = ['fr', 'en'];
 export const HTML_LANG: Record<Lang, 'fr-CA' | 'en'> = { fr: 'fr-CA', en: 'en' };
 
-/** Public links. `repo` stays null until the repository is published; links to it are hidden until then. */
+/** Public links. Links to `repo` are hidden while it is null. */
 export const SITE = {
-  repo: null as string | null,
+  repo: 'https://github.com/EaglesView/oel-studio' as string | null,
   tools: 'https://outilsenligne.ca',
 };
 
