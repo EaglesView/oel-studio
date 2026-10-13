@@ -14,6 +14,14 @@ elif command -v rustup >/dev/null 2>&1; then
 fi
 # A system Rust without rustup (distribution packages) must already have the wasm32 standard library.
 
+# Visit counting is decided now: Vite writes PUBLIC_POSTHOG_KEY into the bundle (apps/web/src/analytics.ts).
+# Say which in the build log, without printing the key.
+if [ -n "${PUBLIC_POSTHOG_KEY:-}" ]; then
+  echo "▸ Visit counting: on (PostHog key present, host ${PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com})"
+else
+  echo "▸ Visit counting: off (no PUBLIC_POSTHOG_KEY at build time)"
+fi
+
 export WASM_TARGETS=web
 node scripts/build-wasm.mjs
 npm run build -w @oel/web
