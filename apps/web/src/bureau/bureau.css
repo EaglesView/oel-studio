@@ -174,7 +174,30 @@
   z-index: 25;
   transition: left 120ms var(--ease-paper), top 120ms var(--ease-paper);
 }
-.desk[data-panning] .context-bar { transition: none; }
+.desk:is([data-panning], [data-dragging]) .context-bar { transition: none; }
+.context-bar { display: flex; align-items: stretch; gap: 6px; }
+/* Drag grip: a raised finger pad with a dotted grip, at the end of the bar (start in left-handed mode). */
+.context-bar__grip {
+  flex: none;
+  width: 30px;
+  border: 1px solid var(--emboss-edge);
+  border-radius: 28px;
+  background-color: var(--emboss-surface);
+  background-image: radial-gradient(circle, var(--emboss-shade) 1.3px, transparent 1.8px);
+  background-size: 7px 7px;
+  background-position: center;
+  background-clip: padding-box;
+  box-shadow: var(--shadow-raised);
+  cursor: grab;
+  touch-action: none;
+}
+.context-bar__grip:hover { box-shadow: var(--shadow-raised-hover); }
+.context-bar__grip:active,
+.desk[data-dragging] .context-bar__grip { cursor: grabbing; box-shadow: var(--shadow-pressed); }
+.context-bar[data-hand='left'] .context-bar__grip { order: -1; }
+@media (pointer: coarse) {
+  .context-bar__grip { width: 44px; }
+}
 .context-bar__count {
   padding: 0 10px 0 6px;
   font: 600 12px/16px var(--font-sans);
@@ -489,7 +512,7 @@
 .paper--note {
   border: 0;
   border-radius: 3px;
-  background-color: color-mix(in srgb, var(--emboss-warning) 22%, var(--emboss-sheet));
+  background-color: var(--note-paper);
   box-shadow: var(--shadow-raised-soft);
 }
 .paper[data-state='error'] { outline: 2px solid var(--emboss-danger); outline-offset: -2px; }
@@ -579,10 +602,16 @@
   outline: none;
   cursor: text;
 }
-/* K1 · Couleur: the same paper, tinted with a kit colour. */
-.paper--note[data-color='rose'] { background-color: color-mix(in srgb, var(--emboss-danger) 18%, var(--emboss-sheet)); }
-.paper--note[data-color='vert'] { background-color: color-mix(in srgb, var(--emboss-success) 22%, var(--emboss-sheet)); }
-.paper--note[data-color='bleu'] { background-color: color-mix(in srgb, var(--emboss-fill-primary) 16%, var(--emboss-sheet)); }
+/* K1 · Couleur: the same paper, tinted with a kit hue. Shared by the note and its swatch in the picker. */
+.paper--note,
+.note-swatch { --note-hue: var(--note-yellow); --note-mix: 22%; --note-paper: color-mix(in srgb, var(--note-hue) var(--note-mix), var(--emboss-sheet)); }
+:is(.paper--note, .note-swatch)[data-color='orange'] { --note-hue: var(--note-orange); --note-mix: 20%; }
+:is(.paper--note, .note-swatch)[data-color='rose'] { --note-hue: var(--note-pink); --note-mix: 18%; }
+:is(.paper--note, .note-swatch)[data-color='violet'] { --note-hue: var(--note-violet); --note-mix: 16%; }
+:is(.paper--note, .note-swatch)[data-color='bleu'] { --note-hue: var(--note-blue); --note-mix: 18%; }
+:is(.paper--note, .note-swatch)[data-color='turquoise'] { --note-hue: var(--note-teal); --note-mix: 18%; }
+:is(.paper--note, .note-swatch)[data-color='vert'] { --note-hue: var(--note-green); --note-mix: 22%; }
+:is(.paper--note, .note-swatch)[data-color='gris'] { --note-hue: var(--note-grey); --note-mix: 14%; }
 /* K1 · 3 a stuck note: a pin above it, in the accent colour. */
 .paper-pin {
   position: absolute;
@@ -850,3 +879,49 @@
 .welcome__note { font-size: 12px; line-height: 18px; color: var(--emboss-ink-muted); }
 .welcome__switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 8px; background: var(--emboss-well); }
 .welcome__links { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+
+/* K1 · Couleur picker: one swatch per note paper, the picked one checked and named. */
+.note-swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: var(--note-paper);
+  box-shadow: var(--shadow-raised-soft), inset 0 0 0 1px color-mix(in srgb, var(--note-hue) 40%, transparent);
+  color: color-mix(in srgb, var(--note-hue) 70%, var(--emboss-text));
+}
+.note-swatch--dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--note-hue) 50%, transparent); }
+.note-colours { padding: 12px; outline: none; }
+.note-colours__grid { display: grid; grid-template-columns: repeat(4, auto); gap: 8px; }
+.note-colours__item { display: block; border-radius: 8px; cursor: pointer; outline: none; }
+.note-colours__item[data-focus-visible] .note-swatch { box-shadow: var(--shadow-raised-soft), 0 0 0 2px var(--emboss-focus); }
+.note-colours__item[data-hovered] .note-swatch { translate: 0 -1px; }
+.note-colours__name { margin: 10px 0 0; font: 500 12px/16px var(--font-sans); color: var(--emboss-ink-muted); text-align: center; }
+@media (pointer: coarse) {
+  .note-swatch:not(.note-swatch--dot) { width: 44px; height: 44px; }
+}
+
+/* Figma O2 · 3 « Sélection »: the latched mode key and the live count. */
+.bottom-bar .is-latched { background-color: var(--emboss-well); box-shadow: var(--shadow-pressed); }
+.bottom-bar__count { padding: 0 8px 0 4px; font: 600 12px/16px var(--font-sans); color: var(--emboss-ink-muted); white-space: nowrap; }
+/* Figma O4 (12 oct. 2026): icon-only bottom bar on phones; the names stay for screen readers. */
+@media (max-width: 600px) {
+  .bottom-bar .emb-tool--labelled > span:not(.emb-tool__value) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .bottom-bar .emb-tool--labelled { padding-inline: 10px; }
+  /* Figma O1: the phone bar is Menu, Note, Importer, Sélection, « + »; Trier and Étaler (not built yet) wait for
+     wider screens, so 44 px keys still fit 360 px. */
+  .bottom-bar__later { display: none; }
+}
+/* Figma O0 · 6: the bar's round ends are 44 px under a finger, like the kit's tools. */
+@media (pointer: coarse) {
+  .bottom-bar__logo,
+  .bottom-bar__new { width: 44px; height: 44px; }
+}

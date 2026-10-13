@@ -28,6 +28,7 @@ import { DeskBackup, type DeskActions } from './DeskBackup';
 import { features } from '../edition';
 import { lang, locale, messages, plural, type Lang } from '@oel/i18n';
 import { switchLang } from '../lang';
+import { setHand, useHand, type Hand } from './hand';
 import { docHref } from '../site/i18n';
 
 const t = messages(
@@ -94,6 +95,9 @@ const t = messages(
     projectOpen: (n: number) => `Projet ouvert · ${n} ${plural(n, 'fichier', 'fichiers')}`,
     newProject: 'Nouveau projet',
     theme: 'Thème',
+    grip: 'Poignée de déplacement',
+    gripRight: 'À droite',
+    gripLeft: 'À gauche (gaucher)',
     light: 'Clair',
     dark: 'Sombre',
     system: 'Comme le système',
@@ -166,6 +170,9 @@ const t = messages(
     projectOpen: (n) => `Open project · ${n} ${plural(n, 'file', 'files')}`,
     newProject: 'New project',
     theme: 'Theme',
+    grip: 'Drag grip',
+    gripRight: 'On the right',
+    gripLeft: 'On the left (left-handed)',
     light: 'Light',
     dark: 'Dark',
     system: 'Same as the system',
@@ -613,6 +620,7 @@ function ProjectsSection({ project, store, onOpenChange }: AppMenuProps) {
 function DisplayPane({ store, view, onViewChange, minimap, onMinimapChange }: AppMenuProps) {
   const [theme, setTheme] = useThemeChoice();
   const threads = useDeskState(store, (s) => s.showLinks);
+  const hand = useHand();
   return (
     <>
       <PaneTitle>{t.display}</PaneTitle>
@@ -621,6 +629,10 @@ function DisplayPane({ store, view, onViewChange, minimap, onMinimapChange }: Ap
           <Radio value="light">{t.light}</Radio>
           <Radio value="dark">{t.dark}</Radio>
           <Radio value="system">{t.system}</Radio>
+        </RadioGroup>
+        <RadioGroup label={t.grip} value={hand} onChange={(v) => setHand(v as Hand)}>
+          <Radio value="right">{t.gripRight}</Radio>
+          <Radio value="left">{t.gripLeft}</Radio>
         </RadioGroup>
         <RadioGroup label={t.projectView} value={view} onChange={(v) => onViewChange(v as 'desk' | 'list')}>
           <Radio value="desk">{t.viewDesk}</Radio>

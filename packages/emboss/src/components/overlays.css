@@ -32,6 +32,8 @@
   inset: 0;
   z-index: 100;
   display: grid;
+  /* One column no wider than the screen, so a dialog's set width gives way on a phone (max-width: 100%). */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: var(--spacing-4);
   background: var(--emboss-scrim);

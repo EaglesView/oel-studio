@@ -109,6 +109,20 @@ export function zoomTo(v: Viewport, anchor: Vec, zoom: number, limits: ZoomLimit
 }
 
 /**
+ * Two-finger pinch step: zoom by the change in finger distance around the previous midpoint, then pan by how far
+ * the midpoint moved, so the world stays under both fingers.
+ */
+export function pinchViewport(v: Viewport, from: [Vec, Vec], to: [Vec, Vec], limits: ZoomLimits = DEFAULT_ZOOM_LIMITS): Viewport {
+  const dist = (p: [Vec, Vec]) => Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y);
+  const mid = (p: [Vec, Vec]) => ({ x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 });
+  const d0 = dist(from);
+  const a = mid(from);
+  const b = mid(to);
+  const z = zoomAt(v, a, d0 > 0 ? dist(to) / d0 : 1, limits);
+  return { ...z, x: z.x - (b.x - a.x) / z.zoom, y: z.y - (b.y - a.y) / z.zoom };
+}
+
+/**
  * Wheel delta → zoom factor. Normalises line/page deltas and caps each event so
  * a mouse-wheel notch is a small step (~11 %) while trackpad pinches stay smooth.
  */

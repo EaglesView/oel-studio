@@ -12,3 +12,7 @@ packages/wasm/*/
 
 # Reference renders (node scripts/render-reference.mjs)
 fixtures/reference/
+
+# Local build settings (PUBLIC_POSTHOG_KEY…)
+.env
+.env.local

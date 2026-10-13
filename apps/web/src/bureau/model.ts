@@ -7,7 +7,7 @@ import { messages } from '@oel/i18n';
 
 const t = messages(
   {
-    colours: { jaune: 'Jaune', rose: 'Rose', vert: 'Vert', bleu: 'Bleu' },
+    colours: { jaune: 'Jaune', orange: 'Orange', rose: 'Rose', violet: 'Violet', bleu: 'Bleu', turquoise: 'Turquoise', vert: 'Vert', gris: 'Gris' },
     document: 'Document',
     slides: 'Présentation',
     spreadsheet: 'Tableur',
@@ -33,7 +33,7 @@ const t = messages(
     sheet1: 'Feuille 1',
   },
   {
-    colours: { jaune: 'Yellow', rose: 'Pink', vert: 'Green', bleu: 'Blue' },
+    colours: { jaune: 'Yellow', orange: 'Orange', rose: 'Pink', violet: 'Purple', bleu: 'Blue', turquoise: 'Teal', vert: 'Green', gris: 'Grey' },
     document: 'Document',
     slides: 'Presentation',
     spreadsheet: 'Spreadsheet',
@@ -113,7 +113,8 @@ export interface PaperData {
   flash?: { label: string; at: number };
 }
 
-export type NoteColor = 'jaune' | 'rose' | 'vert' | 'bleu';
+/** In picker order. The ids are stored in the desk; the tints are `--note-*` kit tokens (bureau.css). */
+export type NoteColor = 'jaune' | 'orange' | 'rose' | 'violet' | 'bleu' | 'turquoise' | 'vert' | 'gris';
 export const NOTE_COLORS: Record<NoteColor, string> = t.colours;
 
 export type Paper = DeskNode<PaperData> & { kind: PaperKind };

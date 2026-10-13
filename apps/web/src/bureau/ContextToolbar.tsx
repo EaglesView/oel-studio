@@ -3,10 +3,7 @@ import { useDesk, useDeskState, useSelectionScreenRect } from '@oel/desk/react';
 import {
   Button,
   DialogTrigger,
-  Menu,
-  MenuItem,
-  MenuPopover,
-  MenuTrigger,
+  Icon,
   Popover,
   TextField,
   Toolbar,
@@ -14,12 +11,14 @@ import {
   ToolButton,
   toast,
 } from '@oel/emboss';
+import { Dialog, Radio, RadioGroup } from 'react-aria-components';
 import { copyLink } from '@oel/forms';
 import { NOTE_COLORS, kindLabel, uid, type Bureau, type NoteColor, type Paper } from './model';
 import { downloadSlides, requestPresent } from './slides';
 import { activeLinks } from '../links/resolver';
 import { exportGallery, layoutGallery } from './images';
 import { features } from '../edition';
+import { useHand } from './hand';
 import { messages, plural } from '@oel/i18n';
 
 const t = messages(
@@ -84,6 +83,7 @@ const t = messages(
     convert: 'Convertir',
     unsupported: 'Format non pris en charge pour l’instant.',
     colour: 'Couleur',
+    grip: 'Glisser pour déplacer (au clavier : les flèches)',
     noteColour: 'Couleur de la note',
     unstick: 'Décoller',
     stuckTo: (title: string) => `Collée à « ${title} ». La note reste où elle est.`,
@@ -162,6 +162,7 @@ const t = messages(
     convert: 'Convert',
     unsupported: 'Format not supported yet.',
     colour: 'Colour',
+    grip: 'Drag to move (keyboard: the arrow keys)',
     noteColour: 'Note colour',
     unstick: 'Unstick',
     stuckTo: (title) => `Stuck to “${title}”. The note stays where it is.`,
@@ -221,6 +222,7 @@ export function ContextToolbar({ store, onOpen, onCreateForm, onOpenFull, notes,
   const openId = useDeskState(store, (s) => s.openId);
   const [size, setSize] = useState({ w: 0, h: 48 });
   const wrapRef = useRef<HTMLDivElement>(null);
+  const hand = useHand();
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -247,6 +249,7 @@ export function ContextToolbar({ store, onOpen, onCreateForm, onOpenFull, notes,
     <div
       ref={wrapRef}
       className="context-bar"
+      data-hand={hand}
       style={{ left, top }}
       data-desk-ui
       onKeyDown={(e) => {
@@ -286,6 +289,8 @@ export function ContextToolbar({ store, onOpen, onCreateForm, onOpenFull, notes,
           <ToolButton icon="share" label={t.share} showLabel onPress={() => toast({ title: t.shareReady(selected.length), tone: 'success' })} />
         ) : null}
       </Toolbar>
+      {/* A pad to grab: the papers already drag, but not everyone guesses it. Pointer only; keyboard moves with arrows. */}
+      <div className="context-bar__grip" data-desk-grip aria-hidden title={t.grip} />
     </div>
   );
 }
@@ -433,22 +438,10 @@ function NoteTools({ node, store, notes }: { node: Paper; store: Bureau; notes: 
   const target = node.attach ? (store.node(node.attach.to) as Paper | undefined) : undefined;
   return (
     <>
-      <MenuTrigger>
-        <ToolButton icon="palette" label={t.colour} value={NOTE_COLORS[color]} />
-        <MenuPopover placement="bottom start">
-          <Menu
-            aria-label={t.noteColour}
-            onAction={(k) => store.update(node.id, { data: { ...node.data, noteColor: k as NoteColor } }, { label: t.noteColour })}
-          >
-            {(Object.keys(NOTE_COLORS) as NoteColor[]).map((c) => (
-              <MenuItem key={c} id={c} textValue={NOTE_COLORS[c]}>
-                {c === color ? '✓ ' : ''}
-                {NOTE_COLORS[c]}
-              </MenuItem>
-            ))}
-          </Menu>
-        </MenuPopover>
-      </MenuTrigger>
+      <NoteColourPicker
+        color={color}
+        onPick={(c) => store.update(node.id, { data: { ...node.data, noteColor: c } }, { label: t.noteColour })}
+      />
       {target ? (
         <ToolButton
           icon="pin-slash"
@@ -472,6 +465,41 @@ function NoteTools({ node, store, notes }: { node: Paper; store: Bureau; notes: 
         </span>
       )}
     </>
+  );
+}
+
+/** K1 · Couleur: the note's paper colours as swatches; the picked one is checked and named under the grid. */
+function NoteColourPicker({ color, onPick }: { color: NoteColor; onPick: (c: NoteColor) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <DialogTrigger isOpen={open} onOpenChange={setOpen}>
+      <ToolButton icon="palette" label={t.colour} description={NOTE_COLORS[color]} value={<span className="note-swatch note-swatch--dot" data-color={color} />} />
+      <Popover placement="bottom start">
+        <Dialog className="note-colours" aria-label={t.noteColour}>
+          <RadioGroup
+            aria-label={t.noteColour}
+            orientation="horizontal"
+            value={color}
+            onChange={(v) => {
+              onPick(v as NoteColor);
+              setOpen(false);
+            }}
+            className="note-colours__grid"
+          >
+            {(Object.keys(NOTE_COLORS) as NoteColor[]).map((c) => (
+              <Radio key={c} value={c} aria-label={NOTE_COLORS[c]} className="note-colours__item">
+                <span className="note-swatch" data-color={c}>
+                  {c === color && <Icon name="check" size={16} />}
+                </span>
+              </Radio>
+            ))}
+          </RadioGroup>
+          <p className="note-colours__name" aria-hidden>
+            {NOTE_COLORS[color]}
+          </p>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }
 

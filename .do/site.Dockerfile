@@ -13,4 +13,8 @@ RUN npm ci --no-audit --no-fund
 # `solo` (single user) unless App Platform passes PUBLIC_EDITION as a build-time variable.
 ARG PUBLIC_EDITION=solo
 ENV PUBLIC_EDITION=${PUBLIC_EDITION}
+# Visit counting (apps/web/src/analytics.ts): off unless App Platform passes the PostHog key at build time.
+ARG PUBLIC_POSTHOG_KEY=
+ARG PUBLIC_POSTHOG_HOST=
+ENV PUBLIC_POSTHOG_KEY=${PUBLIC_POSTHOG_KEY} PUBLIC_POSTHOG_HOST=${PUBLIC_POSTHOG_HOST}
 RUN bash scripts/build-site.sh

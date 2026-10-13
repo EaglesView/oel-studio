@@ -1,7 +1,7 @@
 # Toolbars (Figma J) — implementation plan
 
 Figma: section **J · Barres d'outils**, page « Editor — Behaviors »
-(https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=173-10495). Decisions: J6 and the J3 rework,
+(node 173:10495). Decisions: J6 and the J3 rework,
 recorded in `docs/plans/2026-10-editor-ux-issues.md` § 2.
 
 ## Behaviour (from J0–J6)

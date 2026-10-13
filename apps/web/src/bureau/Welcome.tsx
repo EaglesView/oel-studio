@@ -4,6 +4,7 @@ import { lang as pageLang, type Lang } from '@oel/i18n';
 import { SITE, docHref, href } from '../site/i18n';
 import { cameFromSite, markWelcomed, saveLang } from '../lang';
 import { features } from '../edition';
+import { analyticsEnabled } from '../analytics';
 
 /**
  * The welcome on a first visit: the interface language (unless the person came from the site's
@@ -35,6 +36,7 @@ const COPY = {
     newTab: '(nouvel onglet)',
     storage: 'Témoins et stockage',
     cookie: 'Le Bureau dépose un seul témoin (cookie), « oel-lang », qui retient votre langue pendant un an. Aucun témoin publicitaire ni de mesure d’audience.',
+    visits: 'Les visites sont comptées sans témoin ni profil (PostHog) ; le contenu de votre bureau ne quitte jamais votre navigateur.',
     local: features.collab
       ? 'Vos fichiers sont gardés dans ce navigateur et synchronisés avec le serveur du projet. Le thème et cet accueil sont retenus dans le stockage local du navigateur.'
       : 'Vos fichiers restent dans ce navigateur : rien n’est envoyé à un serveur. Le thème et cet accueil sont retenus dans le stockage local du navigateur.',
@@ -60,6 +62,7 @@ const COPY = {
     newTab: '(new tab)',
     storage: 'Cookies and storage',
     cookie: 'The Bureau sets a single cookie, “oel-lang”, which remembers your language for a year. No advertising or analytics cookies.',
+    visits: 'Visits are counted without cookies or profiles (PostHog); what is on your desk never leaves your browser.',
     local: features.collab
       ? 'Your files are kept in this browser and synced with the project’s server. The theme and this welcome are remembered in the browser’s local storage.'
       : 'Your files stay in this browser: nothing is sent to a server. The theme and this welcome are remembered in the browser’s local storage.',
@@ -135,7 +138,10 @@ export function Welcome({ isOpen, onClose, resetDemo }: { isOpen: boolean; onClo
           </section>
           <section aria-labelledby="welcome-storage">
             <h3 id="welcome-storage" className="welcome__h3">{c.storage}</h3>
-            <p className="welcome__note">{c.cookie}</p>
+            <p className="welcome__note">
+              {c.cookie}
+              {analyticsEnabled && <> {c.visits}</>}
+            </p>
             <p className="welcome__note">{c.local}</p>
           </section>
         </div>

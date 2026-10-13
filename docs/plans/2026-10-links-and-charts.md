@@ -1,6 +1,6 @@
 # Linked assets (« fils de liaison ») + charts — plan
 
-Figma (UX must be drawn here before any code): https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca — page « Editor — Behaviors », new sections **G · Fils de liaison** and **H · Graphiques** (next to A–F). File key `Y3vDuuW4jfyTOjreIwDp6P`.
+Figma (UX must be drawn there before any code; the design file is private) — page « Editor — Behaviors », new sections **G · Fils de liaison** and **H · Graphiques** (next to A–F).
 
 ## Context
 
@@ -25,12 +25,12 @@ Branch `feat/pptx` has uncommitted changes: the fonts dialog (`packages/collab-c
 - Then make one commit, `fonts: dialog for missing fonts across docs and slides`, or split it per package if the diff reads better that way.
 - Push nothing.
 - Copy this plan into the repo as `docs/plans/2026-10-links-and-charts.md`.
-- Add the Figma link and the new sections G/H to `.claude/skills/oel-editor-feature/SKILL.md`, next to the existing `Y3vDuuW4…` reference.
+- Add the new sections G/H to `.claude/skills/oel-editor-feature/SKILL.md`, next to the existing Figma reference.
 
 ## Step 1 — Figma UX (before code, then we discuss)
 
-**Status 2026-10-04: drawn.** G · Fils de liaison → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=148-9523 ·
-H · Graphiques → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=156-10341.
+**Status 2026-10-04: drawn.** G · Fils de liaison → node 148:9523 ·
+H · Graphiques → node 156:10341.
 Added while drawing (to confirm in the discussion): linked single value inside text (G2b d), « Transporte : graphique et style / données seulement »,
 delete-source dialog with three outcomes (figer / rompre / supprimer les copies), updates deferred during a slideshow, 6 Iconoir icons
 (Filter, Snow Flake, Rotate 3D, Palette, Switch Rows Columns, Axes) added to the Icons frame.

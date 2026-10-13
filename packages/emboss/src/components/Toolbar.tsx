@@ -34,8 +34,8 @@ export function Toolbar({ appearance = 'ribbon', className, ...props }: ToolbarP
 }
 
 /** Debossed groove between toolbar groups. */
-export function ToolbarSeparator() {
-  return <Separator orientation="vertical" className="emb-toolbar-sep" />;
+export function ToolbarSeparator({ className }: { className?: string } = {}) {
+  return <Separator orientation="vertical" className={cx('emb-toolbar-sep', className)} />;
 }
 
 export interface ToolbarToggleProps extends Omit<ToggleButtonProps, 'children'>, ToolTipInfo {

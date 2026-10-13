@@ -1,7 +1,7 @@
 # Generalised links (Figma I) — implementation plan
 
 Figma: section **I · Liens généralisés**, page « Editor — Behaviors »
-(https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=167-10452). Decisions: I6, recorded in
+(node 167:10452). Decisions: I6, recorded in
 `docs/plans/2026-10-editor-ux-issues.md` § 1. Builds on links v1 (`docs/plans/2026-10-links-and-charts.md`, Part B).
 
 ## Where we start

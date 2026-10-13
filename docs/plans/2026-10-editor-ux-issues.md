@@ -1,7 +1,7 @@
 # Editor UX issues after links v1 — early plan
 
 Raised 2026-10-05 while testing a sheet chart linked into a deck and a document.
-Figma file: https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca, page « Editor — Behaviors »
+Figma (private design file), page « Editor — Behaviors »
 (sections G · Fils de liaison `148-9523`, H · Graphiques `156-10341`). Items marked **Figma first** need frames there
 before any code; then we discuss and turn each into a plan.
 
@@ -31,7 +31,7 @@ Still to do around these:
 
 ## 1. Generalised links — **Figma first**
 
-**Drawn 2026-10-05:** section **I · Liens généralisés** → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=167-10452
+**Drawn 2026-10-05:** section **I · Liens généralisés** → node 167:10452
 (I0 matrix of sources × targets, I1 image liée, I2 plage → tableau lié, I3 tableau → tableur, I4 valeur dans le texte,
 I5 cas particuliers, I6 decisions). Next: write the implementation plan.
 
@@ -66,7 +66,7 @@ extLst link markers (plan B4).
 
 ## 2. Toolbar overflow and redesign — **Figma first**
 
-**Drawn 2026-10-05:** section **J · Barres d'outils** → https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=173-10495
+**Drawn 2026-10-05:** section **J · Barres d'outils** → node 173:10495
 (J0 five rules, J1 groups and fold priorities, J2 three widths, J3 « Plus » and docking, J4 new Document / Tableur /
 Présentation bars, J5 keyboard and accessibility, J6 decisions). Next: plan the `@oel/emboss` Toolbar overflow.
 

@@ -1,7 +1,7 @@
 # Sticky notes that stick (Figma K) — implementation plan
 
 Figma: section **K · Notes collées**, page « Editor — Behaviors »
-(https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=192-11059). Decisions: K3, 5 Oct 2026.
+(node 192:11059). Decisions: K3, 5 Oct 2026.
 Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`.
 
 ## Behaviour (from K0–K3)

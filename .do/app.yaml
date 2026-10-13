@@ -15,3 +15,5 @@ static_sites:
       - key: PUBLIC_EDITION
         value: solo
         scope: BUILD_TIME
+      # Visit counting: add PUBLIC_POSTHOG_KEY (and PUBLIC_POSTHOG_HOST for the EU cloud) as BUILD_TIME
+      # variables in the App Platform console rather than here; without them the site counts nothing.

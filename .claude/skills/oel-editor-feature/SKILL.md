@@ -5,11 +5,10 @@ description: Add or modify a feature inside an OutilsEnLigne editor — the Docs
 
 # Editor features
 
-First locate the spec: Figma `Y3vDuuW4jfyTOjreIwDp6P`, page "Editor — Behaviors"
+First locate the spec: the Figma design specs (private), page "Editor — Behaviors"
 (E = Formulaires, F = Documents Word; sheets follow the same level/back-gesture rules;
 G = Fils de liaison (links between files), H = Graphiques (charts) — see
 `docs/plans/2026-10-links-and-charts.md`).
-Link: https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca
 Linked copies (G): editors never reach other files. They show badges through
 `linkHost()` from `@oel/links` and raise « Lier dans… » through a callback prop
 (`SheetsEditor.onLinkChart`); writes made by link resolution use `LINK_ORIGIN` and must stay
