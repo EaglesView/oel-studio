@@ -200,6 +200,11 @@ export interface DeskCanvasProps<D> {
   resizeMode?: (node: DeskNode<D>) => ResizeMode;
   /** Whether `node` may be dropped into `container` (on top of `store.canParent`). */
   canContain?: (container: DeskNode<D>, node: DeskNode<D>) => boolean;
+  /**
+   * Figma O2 « Sélection » mode: a tap (or click) adds or removes a paper, papers don't drag (the grip still does),
+   * a tap on empty desk keeps the selection and the mouse lasso adds to it.
+   */
+  multiSelect?: boolean;
   /** Wheel zoom speed (Ctrl/⌘ + wheel or pinch). Lower is gentler. Default 0.002. */
   wheelZoomSpeed?: number;
   /** Extra keys (return true when handled). Runs before the built-in map. */
@@ -226,7 +231,12 @@ type Gesture =
       wasSelected: boolean;
       hitId: string;
     }
-  | { kind: 'pan'; pointerId: number; last: Vec }
+  /** `touch`: a finger on empty desk — a tap (no move past TAP_SLOP) clears the selection instead. */
+  | { kind: 'pan'; pointerId: number; last: Vec; touch?: { start: Vec; moved: boolean } }
+  /** Two fingers: pinch-zoom around them and pan with their midpoint. */
+  | { kind: 'pinch'; pointers: [number, number]; last: [Vec, Vec] }
+  /** A finger on a paper that isn't selected: it follows after TOUCH_HOLD_MS, a quick swipe pans instead. */
+  | { kind: 'press'; pointerId: number; start: Vec; id: string; toggle?: boolean }
   | { kind: 'resize'; pointerId: number; id: string; handle: ResizeHandle; start: Vec; rect: Rect; mode: ResizeMode }
   | { kind: 'lasso'; pointerId: number; origin: Vec; base: string[]; rect: Rect };
 
@@ -234,6 +244,21 @@ const NUDGE = 10;
 const NUDGE_BIG = 50;
 const HANDLES: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const PAN_STEP = 80;
+/** Figma O4: an unselected paper follows a finger after this hold; a selected one, or the grip, at once. */
+const TOUCH_HOLD_MS = 150;
+/** Finger travel (px) that turns a tap into a swipe. */
+const TAP_SLOP = 8;
+const DOUBLE_TAP_MS = 350;
+/** Figma O2: a finger held this long opens the paper's menu, or starts a lasso on empty desk. */
+const LONG_PRESS_MS = 500;
+
+function buzz() {
+  try {
+    navigator.vibrate?.(12);
+  } catch {
+    /* not allowed here */
+  }
+}
 
 /**
  * The infinite desk. DOM-rendered so every paper is a real focusable element:
@@ -263,6 +288,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     resizeMode = () => 'none',
     canContain = () => true,
     wheelZoomSpeed = 0.002,
+    multiSelect = false,
     onKeyDown,
     children,
     className,
@@ -273,8 +299,15 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   const gesture = useRef<Gesture | null>(null);
   const keyboardMove = useRef(false);
   const spaceHeld = useRef(false);
+  /** Fingers on the desk (screen px), for pinch. */
+  const touches = useRef(new Map<number, Vec>());
+  const holdTimer = useRef<number | null>(null);
+  const longTimer = useRef<number | null>(null);
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
+  const lastTouch = useRef<number | null>(null);
   const [lasso, setLasso] = useState<Rect | null>(null);
   const [panning, setPanning] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [dropCount, setDropCount] = useState(0);
   const [message, setMessage] = useState('');
   const hintId = useId();
@@ -333,6 +366,14 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     const el = rootRef.current?.querySelector<HTMLElement>(`[data-node-id="${CSS.escape(focusedId)}"]`);
     el?.focus({ preventScroll: true });
   }, [focusedId, store]);
+
+  useEffect(
+    () => () => {
+      if (holdTimer.current != null) window.clearTimeout(holdTimer.current);
+      if (longTimer.current != null) window.clearTimeout(longTimer.current);
+    },
+    [],
+  );
 
   /* ── wheel: pan, ctrl/⌘ + wheel or pinch: zoom at cursor ───────── */
   useEffect(() => {
@@ -428,8 +469,115 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   };
 
   /* ── pointer gestures ──────────────────────────────────────────── */
+  /** A drag of the current selection; nodes stuck to something outside it rubber-band until torn off. */
+  const startDrag = (e: ReactPointerEvent<HTMLDivElement>, p: Vec, ids: string[], wasSelected: boolean, hitId: string) => {
+    store.begin(m.dragging);
+    const all = new Set(ids);
+    const stuck = ids.filter((x) => {
+      const to = store.node(x)?.attach?.to;
+      return to && !all.has(to);
+    });
+    gesture.current = {
+      kind: 'drag',
+      pointerId: e.pointerId,
+      last: p,
+      start: p,
+      ids: ids.filter((x) => !stuck.includes(x)),
+      stuck,
+      stuckApplied: { x: 0, y: 0 },
+      moved: false,
+      wasSelected,
+      hitId,
+    };
+  };
+
+  const clearHold = () => {
+    if (holdTimer.current != null) window.clearTimeout(holdTimer.current);
+    if (longTimer.current != null) window.clearTimeout(longTimer.current);
+    holdTimer.current = null;
+    longTimer.current = null;
+  };
+
+  /**
+   * Figma O2 · 1–2, a finger that stays put: on a paper (now grabbed, not yet moved) its menu opens and the drag gives
+   * way; on empty desk a lasso starts at the finger.
+   */
+  const armLongPress = (pointerId: number, at: Vec, delay = LONG_PRESS_MS) => {
+    if (longTimer.current != null) window.clearTimeout(longTimer.current);
+    longTimer.current = window.setTimeout(() => {
+      longTimer.current = null;
+      const g = gesture.current;
+      if (!g || !('pointerId' in g) || g.pointerId !== pointerId) return;
+      if (g.kind === 'drag' && !g.moved && onContextMenu) {
+        gesture.current = null;
+        store.end();
+        setDragging(false);
+        try {
+          rootRef.current?.releasePointerCapture(pointerId);
+        } catch {
+          /* not captured */
+        }
+        buzz();
+        onContextMenu(store.getState().selection, at);
+      } else if (g.kind === 'pan' && g.touch && !g.touch.moved) {
+        const base = multiSelect ? store.getState().selection : [];
+        if (!multiSelect) store.clearSelection();
+        const origin = screenToWorld(at, store.getState().viewport);
+        gesture.current = { kind: 'lasso', pointerId, origin, base, rect: { ...origin, w: 0, h: 0 } };
+        setLasso(gesture.current.rect);
+        buzz();
+      }
+    }, delay);
+  };
+
+  /** A second finger: whatever the first one started gives way to a pinch (except a move under way, Figma O3). */
+  const startPinch = (e: ReactPointerEvent<HTMLDivElement>): boolean => {
+    const g = gesture.current;
+    if (g?.kind === 'drag' && g.moved) return false;
+    clearHold();
+    if (g?.kind === 'drag' || g?.kind === 'resize') store.end();
+    if (g?.kind === 'lasso') setLasso(null);
+    const [a, b] = [...touches.current.entries()];
+    gesture.current = { kind: 'pinch', pointers: [a![0], b![0]], last: [a![1], b![1]] };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setPanning(true);
+    return true;
+  };
+
+  /** Double tap on a paper opens it (touch has no reliable dblclick). */
+  const tapped = (id: string) => {
+    const now = performance.now();
+    if (lastTap.current?.id === id && now - lastTap.current.at < DOUBLE_TAP_MS) {
+      lastTap.current = null;
+      if (onOpen && !store.node(id)?.container) onOpen(id);
+      else if (store.node(id)?.container) enterContainer(id);
+      return;
+    }
+    lastTap.current = { id, at: now };
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
+    const touch = e.pointerType === 'touch';
+    if (touch) {
+      lastTouch.current = performance.now();
+      if (e.isPrimary) touches.current.clear(); // a new touch sequence: forget fingers whose `up` never reached us
+      touches.current.set(e.pointerId, localPoint(e));
+      if (touches.current.size > 2) return;
+      if (touches.current.size === 2) {
+        if (!openId && !pickTarget && !target.closest('[data-desk-ui]') && startPinch(e)) return;
+        if (gesture.current) return; // a move keeps going; extra fingers are ignored
+      }
+    }
+    // A grip (`data-desk-grip`, e.g. on a floating toolbar) drags the selection from outside the papers.
+    if (target.closest('[data-desk-grip]') && e.button === 0 && !openId && !pickTarget) {
+      const ids = store.getState().selection;
+      if (!ids.length) return;
+      e.preventDefault();
+      startDrag(e, localPoint(e), ids, false, ids[0]!);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
     if (target.closest('[data-desk-ui]') || openId) return;
     if (e.button === 2) return; // context menu handled separately
     const p = localPoint(e);
@@ -479,33 +627,45 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
     } else if (nodeEl) {
       const id = store.actsOn(nodeEl.dataset.nodeId!);
       const wasSelected = store.getState().selection.includes(id);
+      if (multiSelect) {
+        gesture.current = { kind: 'press', pointerId: e.pointerId, start: p, id, toggle: true };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
+      if (touch && !wasSelected && !additive) {
+        gesture.current = { kind: 'press', pointerId: e.pointerId, start: p, id };
+        armLongPress(e.pointerId, p);
+        const root = e.currentTarget;
+        holdTimer.current = window.setTimeout(() => {
+          holdTimer.current = null;
+          const g = gesture.current;
+          if (g?.kind !== 'press' || g.pointerId !== e.pointerId) return;
+          store.select([id]);
+          store.focus(id);
+          startDrag(e, g.start, store.getState().selection, false, id);
+          try {
+            root.setPointerCapture(g.pointerId);
+          } catch {
+            /* the finger already lifted */
+          }
+        }, TOUCH_HOLD_MS);
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
       if (additive) store.select([id], 'toggle');
       else if (!wasSelected) store.select([id]);
       store.focus(id);
       const ids = store.getState().selection;
       if (!ids.includes(id)) return; // toggled off: no drag
-      store.begin(m.dragging);
-      const all = new Set(ids);
-      const stuck = ids.filter((x) => {
-        const to = store.node(x)?.attach?.to;
-        return to && !all.has(to);
-      });
-      gesture.current = {
-        kind: 'drag',
-        pointerId: e.pointerId,
-        last: p,
-        start: p,
-        ids: ids.filter((x) => !stuck.includes(x)),
-        stuck,
-        stuckApplied: { x: 0, y: 0 },
-        moved: false,
-        wasSelected,
-        hitId: id,
-      };
+      startDrag(e, p, ids, wasSelected, id);
+      if (touch) armLongPress(e.pointerId, p);
       return; // capture lazily once the drag starts, so click/dblclick keep their target
+    } else if (touch) {
+      gesture.current = { kind: 'pan', pointerId: e.pointerId, last: p, touch: { start: p, moved: false } };
+      armLongPress(e.pointerId, p);
     } else {
-      const base = additive ? selection : [];
-      if (!additive) store.clearSelection();
+      const base = additive || multiSelect ? selection : [];
+      if (!additive && !multiSelect) store.clearSelection();
       const origin = screenToWorld(p, viewport);
       gesture.current = { kind: 'lasso', pointerId: e.pointerId, origin, base, rect: { ...origin, w: 0, h: 0 } };
     }
@@ -520,10 +680,33 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       setPickPointer(localPoint(e));
       return;
     }
+    if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) touches.current.set(e.pointerId, localPoint(e));
     const g = gesture.current;
+    if (g?.kind === 'pinch') {
+      if (!g.pointers.includes(e.pointerId)) return;
+      const next: [Vec, Vec] = [touches.current.get(g.pointers[0]) ?? g.last[0], touches.current.get(g.pointers[1]) ?? g.last[1]];
+      store.pinch(g.last, next);
+      g.last = next;
+      return;
+    }
     if (!g || g.pointerId !== e.pointerId) return;
     const p = localPoint(e);
+    if (g.kind === 'press') {
+      if (Math.hypot(p.x - g.start.x, p.y - g.start.y) < TAP_SLOP) return;
+      // A swipe before the hold: the finger was exploring, not grabbing.
+      clearHold();
+      gesture.current = { kind: 'pan', pointerId: g.pointerId, last: p, touch: { start: g.start, moved: true } };
+      setPanning(true);
+      store.panBy(p.x - g.start.x, p.y - g.start.y);
+      return;
+    }
     if (g.kind === 'pan') {
+      if (g.touch && !g.touch.moved) {
+        if (Math.hypot(p.x - g.touch.start.x, p.y - g.touch.start.y) < TAP_SLOP) return;
+        g.touch.moved = true;
+        clearHold();
+        setPanning(true);
+      }
       store.panBy(p.x - g.last.x, p.y - g.last.y);
       g.last = p;
     } else if (g.kind === 'resize') {
@@ -533,8 +716,10 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       store.resizeTo(g.id, r, { mode: g.mode });
     } else if (g.kind === 'drag') {
       if (!g.moved) {
-        if (Math.hypot(p.x - g.start.x, p.y - g.start.y) < 3) return;
+        if (Math.hypot(p.x - g.start.x, p.y - g.start.y) < (e.pointerType === 'touch' ? TAP_SLOP : 3)) return;
+        clearHold();
         e.currentTarget.setPointerCapture(e.pointerId);
+        setDragging(true);
       }
       const z = store.getState().viewport.zoom;
       store.moveBy(g.ids, { x: (p.x - g.last.x) / z, y: (p.y - g.last.y) / z });
@@ -568,15 +753,43 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   };
 
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    touches.current.delete(e.pointerId);
     const g = gesture.current;
+    if (g?.kind === 'pinch') {
+      if (!g.pointers.includes(e.pointerId)) return;
+      // One finger left: it carries on panning.
+      const rest = g.pointers.find((id) => id !== e.pointerId)!;
+      const at = touches.current.get(rest);
+      gesture.current = at ? { kind: 'pan', pointerId: rest, last: at, touch: { start: at, moved: true } } : null;
+      if (!at) setPanning(spaceHeld.current);
+      return;
+    }
     if (!g || g.pointerId !== e.pointerId) return;
     gesture.current = null;
-    if (g.kind === 'pan') setPanning(spaceHeld.current);
+    clearHold();
+    if (g.kind === 'press') {
+      if (e.type === 'pointercancel') return;
+      if (g.toggle) {
+        store.select([g.id], 'toggle');
+        store.focus(g.id);
+        announce(m.selection(store.getState().selection.length));
+        return;
+      }
+      store.select([g.id]);
+      store.focus(g.id);
+      tapped(g.id);
+      return;
+    }
+    if (g.kind === 'pan') {
+      setPanning(spaceHeld.current);
+      if (g.touch && !g.touch.moved && e.type !== 'pointercancel' && !multiSelect) store.clearSelection();
+    }
     if (g.kind === 'resize') {
       store.end();
       announce(m.resized);
     }
     if (g.kind === 'drag') {
+      setDragging(false);
       if (g.stuck.length) store.moveBy(g.stuck, { x: -g.stuckApplied.x, y: -g.stuckApplied.y });
       if (g.moved && g.ids.length) dropInContainers(g.ids, screenToWorld(localPoint(e), store.getState().viewport));
       store.end();
@@ -584,7 +797,10 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
         announce(m.moved(g.ids.length));
         onMoveEnd?.(g.ids, { altKey: e.altKey });
       }
-      else if (g.wasSelected && !(e.shiftKey || e.metaKey || e.ctrlKey)) store.select([g.hitId]);
+      else if (g.wasSelected && !(e.shiftKey || e.metaKey || e.ctrlKey)) {
+        store.select([g.hitId]);
+        if (e.pointerType === 'touch') tapped(g.hitId);
+      }
     }
     if (g.kind === 'lasso') {
       setLasso(null);
@@ -625,6 +841,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
   };
 
   const onDoubleClick = (e: ReactMouseEvent) => {
+    if (lastTouch.current && performance.now() - lastTouch.current < 600) return; // touch: `tapped` opened it
     if (pickTarget || (e.target as HTMLElement).closest('[data-desk-ui]')) return;
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]');
     const raw = nodeEl?.dataset.nodeId;
@@ -641,6 +858,10 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
       return;
     }
     if (!onContextMenu || (e.target as HTMLElement).closest('[data-desk-ui]')) return;
+    if (lastTouch.current && performance.now() - lastTouch.current < 1500) {
+      e.preventDefault(); // a finger: the long-press timer (armLongPress) owns the menu
+      return;
+    }
     const nodeEl = (e.target as HTMLElement).closest<HTMLElement>('[data-node-id]');
     e.preventDefault();
     if (nodeEl) {
@@ -783,6 +1004,7 @@ export function DeskCanvas<D>(props: DeskCanvasProps<D>) {
         className={['desk', className].filter(Boolean).join(' ')}
         data-lod={lod}
         data-panning={panning || undefined}
+        data-dragging={dragging || undefined}
         data-open={openId ? '' : undefined}
         data-drop-active={dropCount > 0 || undefined}
         data-picking={pickTarget ? '' : undefined}

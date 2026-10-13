@@ -60,6 +60,17 @@
   --brand-violet: #7859c5;
   --brand-gold: #e8b931;
   --brand-blue: #51bbfe;
+
+  /* Sticky-note hues (K1 · Couleur). One value for both themes: a note mixes its hue
+     into --emboss-sheet, so it darkens with the sheet in the dark theme. */
+  --note-yellow: #f0ad05;
+  --note-orange: #f2762e;
+  --note-pink: #e94957;
+  --note-violet: #7759c5;
+  --note-blue: #2f8fe8;
+  --note-teal: #14a8a0;
+  --note-green: #14ad5c;
+  --note-grey: #8a8694;
 }
 
 /* ── emboss/* · Dark ──────────────────────────────────────────────── */

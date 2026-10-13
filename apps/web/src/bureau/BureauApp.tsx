@@ -272,6 +272,15 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
   );
   /** The bottom bar's « + » menu (M1), opened by Alt + N too. */
   const [newMenu, setNewMenu] = useState(false);
+  /** Figma O2 · 3 « Sélection »: taps add or remove papers; the bottom bar holds the actions. */
+  const [selecting, setSelecting] = useState(false);
+  const selectedCount = useDeskState(store, (s) => s.selection.length);
+  useEffect(() => {
+    if (!selecting) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSelecting(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selecting]);
   const [help, setHelp] = useState(false);
   const sortByType = useSetting('import.sortByType');
   const ocr = useSetting('import.ocr');
@@ -527,6 +536,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
             }}
             onOpen={open}
             onDelete={remove}
+            multiSelect={selecting}
             onContextMenu={(ids, at) => setMenu({ ids, at })}
             pickTarget={pickTarget}
             onMoveEnd={(ids, { altKey }) => {
@@ -587,7 +597,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           >
             <AnnounceBridge target={announceRef} />
             {features.collab && <PresenceCursors store={store} />}
-            <ContextToolbar
+            {!selecting && <ContextToolbar
               store={store}
               onOpen={open}
               onCreateForm={(sheetId) => setNewForm({ sheetId })}
@@ -595,7 +605,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
               notes={notes}
               onRemove={remove}
               toolbarRef={toolbarRef}
-            />
+            />}
             {menu && (
               <ContextMenu
                 at={menu.at}
@@ -636,6 +646,13 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
           menuOpen={appMenu.open}
           onMenu={(origin) => openMenu('home', origin)}
           lateLinks={lateLinks}
+          selecting={view === 'desk' && !openId ? { on: selecting, count: selectedCount } : null}
+          onSelectingChange={setSelecting}
+          onArrange={() => store.distribute(store.getState().selection)}
+          onRemoveSelected={() => {
+            remove(store.getState().selection);
+            setSelecting(false);
+          }}
         />
         {view === 'desk' && (
           <div className="bureau__corner">

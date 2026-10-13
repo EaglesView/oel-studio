@@ -11,6 +11,7 @@ import {
   nearestInDirection,
   overlapArea,
   readingOrder,
+  pinchViewport,
 } from './geometry';
 import type { DeskLink, DeskNode, DeskState, HistoryEntry, Rect, ResizeMode, Vec, Viewport, ZoomLimits } from './types';
 import { messages } from '@oel/i18n';
@@ -605,6 +606,11 @@ export class DeskStore<D = unknown> {
   zoomBy(factor: number, anchor?: Vec) {
     const a = anchor ?? { x: this.state.screen.w / 2, y: this.state.screen.h / 2 };
     this.set({ viewport: zoomAt(this.state.viewport, a, factor, this.zoomLimits) });
+  }
+
+  /** One step of a two-finger pinch (screen px): zoom around the fingers and follow their midpoint. */
+  pinch(from: [Vec, Vec], to: [Vec, Vec]) {
+    this.set({ viewport: pinchViewport(this.state.viewport, from, to, this.zoomLimits) });
   }
 
   /** Back to 100 %, keeping the centre of the screen in place. */

@@ -54,6 +54,16 @@ const t = messages(
     noteDesc: 'Pense-bête posé au centre de la vue.',
     import: 'Importer',
     importDesc: 'PDF, Word, PowerPoint, Excel, images · 100 Mo max.',
+    select: 'Sélection',
+    selectDesc: 'Chaque toucher ou clic ajoute ou retire un fichier, sans le déplacer.',
+    selectingBar: 'Sélection en cours',
+    selected: (n: number) => `${n} ${plural(n, 'fichier', 'fichiers')}`,
+    arrangeSelected: 'Ranger en ligne',
+    arrangeWhy: 'Choisissez au moins deux fichiers.',
+    deleteSelected: 'Supprimer',
+    deleteWhy: 'Choisissez au moins un fichier.',
+    doneSelecting: 'OK',
+    doneSelectingDesc: 'Quitte le mode Sélection ; les fichiers restent sélectionnés.',
     sort: 'Ranger',
     sortDesc: 'Poser les fichiers en rangées : par type, date, nom, personne ou fils.',
     spread: 'Étaler',
@@ -98,6 +108,16 @@ const t = messages(
     noteDesc: 'A sticky note in the middle of the view.',
     import: 'Import',
     importDesc: 'PDF, Word, PowerPoint, Excel, images · 100 MB max.',
+    select: 'Select',
+    selectDesc: 'Each tap or click adds or removes a file, without moving it.',
+    selectingBar: 'Selecting',
+    selected: (n) => `${n} ${plural(n, 'file', 'files')}`,
+    arrangeSelected: 'Arrange in a row',
+    arrangeWhy: 'Pick at least two files.',
+    deleteSelected: 'Delete',
+    deleteWhy: 'Pick at least one file.',
+    doneSelecting: 'Done',
+    doneSelectingDesc: 'Leaves Select mode; the files stay selected.',
     sort: 'Sort',
     sortDesc: 'Lay the files out in rows: by type, date, name, person or thread.',
     spread: 'Spread out',
@@ -271,6 +291,10 @@ export function BottomBar({
   menuOpen,
   onMenu,
   lateLinks,
+  selecting,
+  onSelectingChange,
+  onArrange,
+  onRemoveSelected,
 }: {
   onCreate: (kind: PaperKind) => void;
   onImport: (files: File[]) => void;
@@ -281,8 +305,35 @@ export function BottomBar({
   /** Open the full-screen menu, growing from the logo's centre. */
   onMenu: (origin: { x: number; y: number }) => void;
   lateLinks: number;
+  /** Figma O2 · 3: the « Sélection » mode on the desk; null where it doesn't apply (list view, an open file). */
+  selecting: { on: boolean; count: number } | null;
+  onSelectingChange: (on: boolean) => void;
+  onArrange: () => void;
+  onRemoveSelected: () => void;
 }) {
   const late = lateLinks > 0 ? t.late(lateLinks) : null;
+  if (selecting?.on) {
+    const n = selecting.count;
+    return (
+      <div className="bottom-bar" data-desk-ui>
+        <Toolbar appearance="pill" aria-label={t.selectingBar}>
+          <ToolButton icon="checklist" label={t.select} showLabel description={t.doneSelectingDesc} className="is-latched" onPress={() => onSelectingChange(false)} />
+          <span className="bottom-bar__count" role="status">
+            {t.selected(n)}
+          </span>
+          <ToolbarSeparator />
+          <ToolButton icon="grid" label={t.arrangeSelected} unavailableReason={n < 2 ? t.arrangeWhy : undefined} onPress={onArrange} />
+          <ToolButton icon="trash" label={t.deleteSelected} shortcut={['Suppr']} unavailableReason={n < 1 ? t.deleteWhy : undefined} onPress={onRemoveSelected} />
+          <ToolbarSeparator />
+          <WithTooltip label={t.doneSelecting} description={t.doneSelectingDesc}>
+            <Button variant="primary" size="sm" leadingIcon="check" onPress={() => onSelectingChange(false)}>
+              {t.doneSelecting}
+            </Button>
+          </WithTooltip>
+        </Toolbar>
+      </div>
+    );
+  }
   return (
     <div className="bottom-bar" data-desk-ui>
       <Toolbar appearance="pill" aria-label={t.bureau}>
@@ -306,6 +357,7 @@ export function BottomBar({
         <FileTrigger allowsMultiple acceptedFileTypes={ACCEPTED_EXTENSIONS} onSelect={(list) => list && onImport([...list])}>
           <ToolButton icon="upload" label={t.import} showLabel shortcut={['Ctrl', 'O']} description={t.importDesc} />
         </FileTrigger>
+        {selecting && <ToolButton icon="checklist" label={t.select} showLabel description={t.selectDesc} onPress={() => onSelectingChange(true)} />}
         <ToolbarSeparator />
         <ToolButton icon="sort" label={t.sort} showLabel description={t.sortDesc} unavailableReason={SOON} />
         <ToolButton icon="grid" label={t.spread} showLabel shortcut={['E']} description={t.spreadDesc} unavailableReason={SOON} />

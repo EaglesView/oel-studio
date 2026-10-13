@@ -4,6 +4,7 @@ import {
   fitRect,
   lodForZoom,
   nearestInDirection,
+  pinchViewport,
   resizeRect,
   readingOrder,
   wheelZoomFactor,
@@ -19,6 +20,27 @@ const node = (id: string, x: number, y: number, kind = 'doc'): DeskNode => ({
 });
 
 describe('geometry', () => {
+  it('pinch keeps the world under the fingers', () => {
+    const v = { x: 50, y: 20, zoom: 1 };
+    const from: [{ x: number; y: number }, { x: number; y: number }] = [{ x: 100, y: 100 }, { x: 200, y: 100 }];
+    const to: [{ x: number; y: number }, { x: number; y: number }] = [{ x: 60, y: 120 }, { x: 260, y: 120 }];
+    const next = pinchViewport(v, from, to);
+    expect(next.zoom).toBeCloseTo(2);
+    // The world point under the old midpoint is now under the new midpoint.
+    const under = screenToWorld({ x: 150, y: 100 }, v);
+    const now = worldToScreen(under, next);
+    expect(now.x).toBeCloseTo(160);
+    expect(now.y).toBeCloseTo(120);
+  });
+
+  it('pinch respects the zoom limits and pans with two fingers', () => {
+    const v = { x: 0, y: 0, zoom: 1 };
+    const out = pinchViewport(v, [{ x: 0, y: 0 }, { x: 400, y: 0 }], [{ x: 0, y: 0 }, { x: 1, y: 0 }], { min: 0.25, max: 4 });
+    expect(out.zoom).toBe(0.25);
+    const pan = pinchViewport(v, [{ x: 0, y: 0 }, { x: 100, y: 0 }], [{ x: 30, y: 40 }, { x: 130, y: 40 }]);
+    expect(pan).toEqual({ zoom: 1, x: -30, y: -40 });
+  });
+
   it('round-trips world and screen coordinates', () => {
     const v = { x: 120, y: -40, zoom: 0.5 };
     const p = { x: 300, y: 200 };
