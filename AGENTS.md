@@ -63,7 +63,7 @@ about file types.
 - **UI.** Components and tokens from `@oel/emboss` (`--emboss-*`), never raw colours in components; new icons from
   Iconoir (`iconoir-react`), never hand-drawn. Tools that can't act stay visible with `unavailableReason`; nothing may
   pretend to work (no simulated progress, no fake results).
-- **Behaviour** follows the Figma file `Y3vDuuW4jfyTOjreIwDp6P`, page « Editor — Behaviors ». If code must differ
+- **Behaviour** follows the Figma design specs (a private file), page « Editor — Behaviors ». If code must differ
   from the spec, say so.
 - **Platform seams.** Anything a desktop app would replace (file pickers, downloads, IndexedDB, worker creation,
   collab URL) goes through one small function, not inline in an editor.

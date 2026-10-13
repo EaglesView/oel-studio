@@ -5,7 +5,7 @@ description: Change how OutilsEnLigne reads, draws, edits or writes charts — t
 
 # Charts
 
-Spec: Figma `Y3vDuuW4jfyTOjreIwDp6P`, page « Editor — Behaviors », section **H · Graphiques**
+Spec: the Figma design specs (private), page « Editor — Behaviors », section **H · Graphiques**
 (node 156:10341; H0 route, H1 gallery, H2 edit, H3 data, H4 3-D, H5 data in slides/docs,
 H6 catalogue, H7 ideas). Links between files are section **G** (node 148:9523). Plan:
 `docs/plans/2026-10-links-and-charts.md`.

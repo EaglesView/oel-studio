@@ -1,7 +1,7 @@
 # Bottom bar and full-screen menu (Figma M) — implementation plan
 
 Figma: section **M · Barre du bas et menu**, page « Editor — Behaviors »
-(https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=196-11354). Decisions: M4, 5 Oct 2026.
+(node 196:11354). Decisions: M4, 5 Oct 2026.
 Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`.
 
 ## Behaviour (from M0–M4)

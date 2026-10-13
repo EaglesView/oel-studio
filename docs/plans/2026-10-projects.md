@@ -1,7 +1,7 @@
 # Projects (Figma N) — implementation plan
 
 Figma: section **N · Projets**, page « Editor — Behaviors »
-(https://www.figma.com/design/Y3vDuuW4jfyTOjreIwDp6P/OutilsEnLigne.ca?node-id=197-11538). Decisions: N4, 5 Oct 2026.
+(node 197:11538). Decisions: N4, 5 Oct 2026.
 Overview and order of work across K–N: `docs/plans/2026-10-k-to-n-overview.md`. Server parts depend on restructure
 Phase 5 (`domains/accounts`, `storage/Store`).
 
