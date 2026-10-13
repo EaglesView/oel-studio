@@ -1,0 +1,23 @@
+/* Figma O0 · 6 « 44 px sous le doigt »: when the main pointer is a finger, nothing you can press is smaller than
+   44 px. Only sizes change here; a mouse on the same device keeps the dense layout (hover: hover). */
+
+@media (pointer: coarse) {
+  .emb-tool { min-width: 44px; height: 44px; }
+  .emb-adaptive__more { height: 44px; padding: 0 14px; }
+  .emb-button--sm,
+  .emb-button--md { min-height: 44px; }
+  .emb-stepper-key { width: 44px; height: 44px; }
+  .emb-select-trigger { min-height: 44px; }
+  .emb-menu-item { min-height: 44px; }
+  .emb-check,
+  .emb-radio,
+  .emb-switch { min-height: 44px; }
+  .emb-slider__track,
+  .emb-slider--sm .emb-slider__track { height: 44px; }
+  .emb-slider__knob,
+  .emb-slider--sm .emb-slider__knob { width: 28px; height: 28px; border-radius: 14px; }
+  .emb-tab { min-height: 44px; }
+  .emb-nav-item { height: 44px; }
+  .emb-page-key { min-width: 44px; height: 44px; }
+  .emb-rail-item { min-height: 44px; }
+}

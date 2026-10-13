@@ -916,4 +916,12 @@
     white-space: nowrap;
   }
   .bottom-bar .emb-tool--labelled { padding-inline: 10px; }
+  /* Figma O1: the phone bar is Menu, Note, Importer, Sélection, « + »; Trier and Étaler (not built yet) wait for
+     wider screens, so 44 px keys still fit 360 px. */
+  .bottom-bar__later { display: none; }
+}
+/* Figma O0 · 6: the bar's round ends are 44 px under a finger, like the kit's tools. */
+@media (pointer: coarse) {
+  .bottom-bar__logo,
+  .bottom-bar__new { width: 44px; height: 44px; }
 }

@@ -358,9 +358,9 @@ export function BottomBar({
           <ToolButton icon="upload" label={t.import} showLabel shortcut={['Ctrl', 'O']} description={t.importDesc} />
         </FileTrigger>
         {selecting && <ToolButton icon="checklist" label={t.select} showLabel description={t.selectDesc} onPress={() => onSelectingChange(true)} />}
-        <ToolbarSeparator />
-        <ToolButton icon="sort" label={t.sort} showLabel description={t.sortDesc} unavailableReason={SOON} />
-        <ToolButton icon="grid" label={t.spread} showLabel shortcut={['E']} description={t.spreadDesc} unavailableReason={SOON} />
+        <ToolbarSeparator className="bottom-bar__later" />
+        <ToolButton icon="sort" label={t.sort} showLabel description={t.sortDesc} unavailableReason={SOON} className="bottom-bar__later" />
+        <ToolButton icon="grid" label={t.spread} showLabel shortcut={['E']} description={t.spreadDesc} unavailableReason={SOON} className="bottom-bar__later" />
         <ToolbarSeparator />
         <MenuTrigger isOpen={newMenuOpen} onOpenChange={onNewMenuOpenChange}>
           <WithTooltip label={t.new} shortcut={['Alt', 'N']} description={t.newDesc(features.forms)}>

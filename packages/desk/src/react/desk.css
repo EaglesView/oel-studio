@@ -168,6 +168,13 @@
 .desk__handle--ne, .desk__handle--sw { cursor: nesw-resize; }
 .desk__handle--n, .desk__handle--s { cursor: ns-resize; }
 .desk__handle--e, .desk__handle--w { cursor: ew-resize; }
+/* Figma O3 « Redimensionner »: under a finger the eight handles become four corner tabs. The tab shows 24 px; its
+   transparent ring takes the hit area to 44 px. */
+@media (pointer: coarse) {
+  .desk__handle--n, .desk__handle--e, .desk__handle--s, .desk__handle--w { display: none; }
+  .desk__handle { width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; }
+  .desk__handle::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; }
+}
 .desk__inside {
   position: absolute;
   border: 2px dashed var(--emboss-fill-primary, #7759c5);
