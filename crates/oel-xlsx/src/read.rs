@@ -81,7 +81,8 @@ fn read_cells(ctx: &SheetCtx, sheet_data: &XElement, sheet: &mut Sheet) {
     let mut shared: HashMap<String, (u32, u32, String)> = HashMap::new();
     let mut next_row: u32 = 0;
     for row in sheet_data.children_local("row") {
-        let r = row.attr("r").and_then(|v| v.parse::<u32>().ok()).map(|v| v - 1).unwrap_or(next_row);
+        // 1-based in the file; a missing, zero or out-of-sheet number means « the next row ».
+        let r = row.attr("r").and_then(|v| v.parse::<u32>().ok()).and_then(|v| v.checked_sub(1)).filter(|r| *r < crate::refs::MAX_ROWS).unwrap_or(next_row).min(crate::refs::MAX_ROWS - 1);
         next_row = r + 1;
         let height = attr_f64(row, "ht");
         let custom = attr_bool(row, "customHeight");

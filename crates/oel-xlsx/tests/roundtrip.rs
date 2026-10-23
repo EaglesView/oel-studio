@@ -309,3 +309,15 @@ fn retouched_pictures_round_trip() {
     let plain = export_xlsx(&import_xlsx(&src).unwrap(), Some(&src)).unwrap();
     assert!(!Package::read(&plain).unwrap().has(oel_opc::retouch::MANIFEST));
 }
+
+#[test]
+fn row_numbers_outside_the_sheet_are_not_trusted() {
+    // `r` is 1-based: 0 and numbers past Excel's last row come from broken or crafted files.
+    let mut pkg = Package::read(&fixture("rich.xlsx")).unwrap();
+    let xml = pkg.get_str("xl/worksheets/sheet1.xml").unwrap().replacen(r#"<row r="1">"#, r#"<row r="0">"#, 1).replacen(r#"<row r="2">"#, r#"<row r="4294967295">"#, 1);
+    pkg.set("xl/worksheets/sheet1.xml", xml.into_bytes());
+    let wb = import_xlsx(&pkg.write().unwrap()).unwrap();
+    let max = oelxlsx::refs::MAX_ROWS;
+    assert!(wb.sheets[0].rows.iter().all(|r| r.r < max));
+    assert!(wb.sheets[0].cells.iter().all(|c| c.r < max));
+}
