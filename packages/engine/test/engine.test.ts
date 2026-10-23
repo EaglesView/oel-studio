@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EngineRegistry, detectKind, previewEngine } from '../src';
+import { deflateRawSync } from 'node:zlib';
 
 const enc = new TextEncoder();
 
@@ -164,5 +165,78 @@ describe('zip writer', () => {
     expect([...dir.keys()]).toEqual(['été.txt', 'b/c.txt']);
     expect(await readZipText(zip, dir.get('été.txt')!)).toBe('bonjour');
     expect(await readZipText(zip, dir.get('b/c.txt')!)).toBe('deux');
+  });
+});
+
+/** One deflated entry (the writer above only stores). */
+function deflatedZip(name: string, raw: Uint8Array): Uint8Array {
+  const data = deflateRawSync(raw);
+  const n = new TextEncoder().encode(name);
+  const local = new DataView(new ArrayBuffer(30));
+  local.setUint32(0, 0x04034b50, true);
+  local.setUint16(8, 8, true);
+  local.setUint32(18, data.length, true);
+  local.setUint32(22, raw.length, true);
+  local.setUint16(26, n.length, true);
+  const dir = new DataView(new ArrayBuffer(46));
+  dir.setUint32(0, 0x02014b50, true);
+  dir.setUint16(10, 8, true);
+  dir.setUint32(20, data.length, true);
+  dir.setUint32(24, raw.length, true);
+  dir.setUint16(28, n.length, true);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, 1, true);
+  end.setUint16(10, 1, true);
+  end.setUint32(12, 46 + n.length, true);
+  end.setUint32(16, 30 + n.length + data.length, true);
+  const parts = [new Uint8Array(local.buffer), n, data, new Uint8Array(dir.buffer), n, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
+describe('zip reader on hostile archives (backlog T0-2)', () => {
+  it('stops inflating at the limit', async () => {
+    const { readZipBytes, readZipDirectory } = await import('../src/zip');
+    const zip = deflatedZip('bombe.xml', new Uint8Array(8 << 20));
+    expect(zip.length).toBeLessThan(64 << 10);
+    const entry = readZipDirectory(zip).get('bombe.xml')!;
+    await expect(readZipBytes(zip, entry, 1 << 20)).rejects.toThrow(/dépasse|larger than/);
+    expect((await readZipBytes(zip, entry, 8 << 20)).length).toBe(8 << 20);
+  });
+
+  it('applies the limit to stored entries too', async () => {
+    const { readZipBytes, readZipDirectory, writeZip } = await import('../src/zip');
+    const zip = writeZip([{ name: 'a.bin', data: new Uint8Array(2048) }]);
+    await expect(readZipBytes(zip, readZipDirectory(zip).get('a.bin')!, 1024)).rejects.toThrow(/dépasse|larger than/);
+  });
+
+  it('refuses offsets outside the archive and ZIP64 markers', async () => {
+    const { readZipBytes, readZipDirectory, writeZip } = await import('../src/zip');
+    const zip = writeZip([{ name: 'a.txt', data: new TextEncoder().encode('bonjour') }]);
+    const eocd = zip.length - 22;
+    const at = (bytes: Uint8Array) => new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    const farDir = zip.slice();
+    at(farDir).setUint32(eocd + 16, zip.length + 100, true);
+    expect(() => readZipDirectory(farDir)).toThrow(/tronquée|Truncated/);
+
+    const longName = zip.slice();
+    const central = at(zip).getUint32(eocd + 16, true);
+    at(longName).setUint16(central + 28, 0xfff0, true);
+    expect(() => readZipDirectory(longName)).toThrow(/tronquée|Truncated/);
+
+    const zip64 = zip.slice();
+    at(zip64).setUint16(eocd + 10, 0xffff, true);
+    expect(() => readZipDirectory(zip64)).toThrow(/ZIP64/);
+
+    const entry = readZipDirectory(zip).get('a.txt')!;
+    await expect(readZipBytes(zip, { ...entry, offset: zip.length - 10 })).rejects.toThrow(/tronquée|Truncated/);
+    await expect(readZipBytes(zip, { ...entry, compressedSize: zip.length })).rejects.toThrow(/tronquée|Truncated/);
   });
 });

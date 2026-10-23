@@ -2,12 +2,42 @@
  * Minimal ZIP reader (central directory + stored/deflate entries) built on the
  * platform DecompressionStream. Enough to peek into OOXML/ODF packages for a
  * preview; real parsing belongs to the WASM engines.
+ *
+ * Archives come from outside (files people drop, desk backups), so every offset is checked
+ * against the bytes before it is read, and inflating stops at `maxBytes`.
  */
+import { messages } from '@oel/i18n';
+
+const t = messages(
+  {
+    invalid: 'Archive ZIP invalide.',
+    truncated: 'Archive ZIP tronquée ou endommagée.',
+    zip64: 'Archive ZIP64 non prise en charge.',
+    method: (m: number) => `Compression ZIP ${m} non prise en charge.`,
+    tooBig: (name: string, mb: number) => `« ${name} » dépasse ${mb} Mo une fois décompressé.`,
+  },
+  {
+    invalid: 'Invalid ZIP archive.',
+    truncated: 'Truncated or damaged ZIP archive.',
+    zip64: 'ZIP64 archives are not supported.',
+    method: (m) => `ZIP compression ${m} is not supported.`,
+    tooBig: (name, mb) => `“${name}” is larger than ${mb} MB once decompressed.`,
+  },
+);
+
 export interface ZipEntry {
   name: string;
   method: number;
   compressedSize: number;
   offset: number;
+}
+
+/** Most bytes one entry may inflate to by default (deflate expands up to ~1 000:1). */
+export const MAX_ZIP_ENTRY_BYTES = 1 << 30;
+
+/** Throws unless `[start, start + length)` lies inside `bytes`. */
+function within(bytes: Uint8Array, start: number, length: number) {
+  if (start < 0 || length < 0 || start + length > bytes.length) throw new Error(t.truncated);
 }
 
 export function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
@@ -20,19 +50,24 @@ export function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
       break;
     }
   }
-  if (eocd < 0) throw new Error('Archive ZIP invalide');
+  if (eocd < 0) throw new Error(t.invalid);
   const count = view.getUint16(eocd + 10, true);
   let p = view.getUint32(eocd + 16, true);
+  // ZIP64 marks its real values elsewhere with all-ones placeholders.
+  if (count === 0xffff || p === 0xffffffff) throw new Error(t.zip64);
   const entries = new Map<string, ZipEntry>();
   const dec = new TextDecoder();
   for (let i = 0; i < count; i++) {
-    if (view.getUint32(p, true) !== 0x02014b50) break;
+    within(bytes, p, 46);
+    if (view.getUint32(p, true) !== 0x02014b50) throw new Error(t.truncated);
     const method = view.getUint16(p + 10, true);
     const compressedSize = view.getUint32(p + 20, true);
     const nameLen = view.getUint16(p + 28, true);
     const extraLen = view.getUint16(p + 30, true);
     const commentLen = view.getUint16(p + 32, true);
     const offset = view.getUint32(p + 42, true);
+    if (compressedSize === 0xffffffff || offset === 0xffffffff) throw new Error(t.zip64);
+    within(bytes, p + 46, nameLen + extraLen + commentLen);
     const name = dec.decode(bytes.subarray(p + 46, p + 46 + nameLen));
     entries.set(name, { name, method, compressedSize, offset });
     p += 46 + nameLen + extraLen + commentLen;
@@ -40,20 +75,45 @@ export function readZipDirectory(bytes: Uint8Array): Map<string, ZipEntry> {
   return entries;
 }
 
-export async function readZipBytes(bytes: Uint8Array, entry: ZipEntry): Promise<Uint8Array> {
+export async function readZipBytes(bytes: Uint8Array, entry: ZipEntry, maxBytes = MAX_ZIP_ENTRY_BYTES): Promise<Uint8Array> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  within(bytes, entry.offset, 30);
+  if (view.getUint32(entry.offset, true) !== 0x04034b50) throw new Error(t.truncated);
   const nameLen = view.getUint16(entry.offset + 26, true);
   const extraLen = view.getUint16(entry.offset + 28, true);
   const start = entry.offset + 30 + nameLen + extraLen;
+  within(bytes, start, entry.compressedSize);
   const data = bytes.subarray(start, start + entry.compressedSize);
-  if (entry.method === 0) return data;
-  if (entry.method !== 8) throw new Error(`Compression ZIP ${entry.method} non prise en charge`);
-  const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const tooBig = () => new Error(t.tooBig(entry.name, Math.round(maxBytes / 2 ** 20)));
+  if (entry.method === 0) {
+    if (data.length > maxBytes) throw tooBig();
+    return data;
+  }
+  if (entry.method !== 8) throw new Error(t.method(entry.method));
+  const reader = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw tooBig();
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
 }
 
-export async function readZipText(bytes: Uint8Array, entry: ZipEntry): Promise<string> {
-  return new TextDecoder().decode(await readZipBytes(bytes, entry));
+export async function readZipText(bytes: Uint8Array, entry: ZipEntry, maxBytes?: number): Promise<string> {
+  return new TextDecoder().decode(await readZipBytes(bytes, entry, maxBytes));
 }
 
 const CRC_TABLE = (() => {
