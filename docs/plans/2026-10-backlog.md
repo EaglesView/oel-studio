@@ -42,7 +42,16 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
     backups (`packages/engine/src/zip.ts`) needs the same output cap; it should also check offsets and lengths up
     front (today a bad offset throws a `RangeError` that `readBackup` turns into « not a zip », which is acceptable).
   - **Done when** a test archive declaring 4 GB and a 1 000:1 bomb both fail with a message, in Rust and in vitest.
-- [ ] **T0-3 · A panic can leave the engine unusable until reload** (to verify first) — S
+- [x] **T0-3 · A panic can leave the engine unusable until reload** (to verify first) — S
+  - **Verified and done 2026-10-23.** With the real `oeldocx` WASM build in Node, a trap leaks part of the shadow
+    stack: after **68** traps the next good import fails (`memory access out of bounds`). The trap found came from
+    `oel-chart` (point caches sized from the file's `ptCount` / `idx`: 103 GB natively, a trap in WASM), fixed with
+    `MAX_POINTS`. `EngineHost` now replaces its worker after a `WebAssembly.RuntimeError` and re-sends the requests
+    the old worker held. Tests: `point_caches_are_bounded` (oel-chart), `packages/engine/test/host.test.ts`.
+  - [ ] Follow-up: the sheets calc worker (`packages/sheets/src/calc`) and the image worker (`packages/img`) hold
+    state in their instance (the workbook, GPU objects), so they need a restart that reloads it. Same leak, same fix.
+  - [ ] Follow-up: the collab server shares one Node instance for all exports: a trap there counts for everyone
+    (T2-7).
   - After a Rust panic, a wasm-bindgen instance is not guaranteed to work again, and `EngineHost`
     (`packages/engine/src/host.ts`) keeps the same worker. The collab server loads the Node codecs in-process, so
     there the same applies to every user of the server.
@@ -58,13 +67,14 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
   - `cargo fuzz` targets for `XDocument::parse`, `parse_fragment`, `Package::read`, and each codec's import (docx,
     xlsx, pptx, chart), seeded with `fixtures/`. A short run in CI on each push, a longer one weekly.
   - **Done when** an hour per target finds nothing new, and each crash found has a regression test.
-- [x] **T0-6 · CI** (restructure Phase 6, solo-mvp R7) — M
-  - **Done 2026-10-23**: `.github/workflows/ci.yml`, jobs `rust` (`-D warnings` native and wasm32, `cargo test` with
-    LibreOffice) and `web` (`build:wasm`, generated types current, `npm run typecheck`, vitest, `solo` and `equipe`
-    builds). Every step checked from a clean clone first. Left out: `cargo fmt --check` and `clippy -D warnings`
-    (neither installed here to try; the code isn't rustfmt-formatted, so `fmt` means reformatting everything first —
-    a decision for the user); the weekly fuzz run (with T0-5). To block merges on red, mark both jobs as required
-    checks in the repository's branch protection.
+  - So far (2026-10-23): no `cargo fuzz` here (system Rust, no nightly), so a stable mutation fuzzer in a scratch
+    crate: hostile numbers in attributes and text, removed or duplicated elements, on every fixture's XML parts,
+    through each codec's import. It found the `oel-chart` cache allocation (T0-3); after that fix, 8 400 mutated
+    files (28 fixtures × 300) gave no panic. Worth turning into a committed `examples/` or test harness.
+  - Same class, not yet fixed: `oel-docx` export sizes a table grid from `colspan` (`write.rs`, `vec![None; ncols]`),
+    which comes from a file's `gridSpan` on import or from any editor of a shared document: clamp to Word's 63
+    columns.
+- [ ] **T0-6 · CI** (restructure Phase 6, solo-mvp R7) — M
   - GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace`, `npm run build:wasm`,
     `npm run typecheck`, `npm test`, `npm run build` and `PUBLIC_EDITION=equipe npm run build`. Cache `target/`.
   - LibreOffice round-trip job (open every export headless) in a separate job.
@@ -242,3 +252,5 @@ versions (T2-3), the verification debt (Tier 1), and `feat/backend` drifting fro
 - 2026-10-23: T0-2 done (`oel-opc: bound what a package may inflate to`, `engine: check offsets…`). Typecheck
   fixed on the way. All packages and `tsc -p apps/web` pass; `npm test` green (vitest 41 files, 250 tests).
   Next: T0-3 (engine state after a panic), T0-4 (silent storage failures).
+- 2026-10-23: PR #9 (T0-1, T0-2, backlog) merged into `main`. T0-3 done (`oel-chart: bound point caches…`,
+  `engine: replace the worker after a WASM trap`); vitest 42 files, 254 tests. Next: T0-4.

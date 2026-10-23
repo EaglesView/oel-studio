@@ -195,3 +195,50 @@ fn automatic_colours_are_written_out() {
     assert!(xml.contains(r#"<c:spPr><a:solidFill><a:srgbClr val="4472C4"/></a:solidFill></c:spPr><c:invertIfNegative"#), "{xml}");
     assert_eq!(xml.matches("<c:dPt>").count(), 2);
 }
+
+/// Every cached series of a spec, values and labels.
+fn caches(spec: &ChartSpec) -> Vec<&DataRef> {
+    spec.groups.iter().flat_map(|g| &g.series).flat_map(|s| [s.cat.as_ref(), s.val.as_ref()]).flatten().collect()
+}
+
+/// Counts and indexes in point caches come from the file: a crafted `idx` used to ask for 100 GB (backlog T0-3).
+#[test]
+fn point_caches_are_bounded() {
+    let hostile = ["4294967296", "4294967295", "400000000", "18446744073709551616"];
+    for idx in hostile {
+        let classic = format!(
+            r#"<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart><c:plotArea><c:barChart><c:barDir val="col"/><c:ser><c:idx val="0"/><c:order val="0"/>
+<c:cat><c:multiLvlStrRef><c:f>A</c:f><c:multiLvlStrCache><c:ptCount val="4000000000"/><c:lvl><c:pt idx="0"><c:v>x</c:v></c:pt><c:pt idx="{idx}"><c:v>y</c:v></c:pt></c:lvl></c:multiLvlStrCache></c:multiLvlStrRef></c:cat>
+<c:val><c:numRef><c:f>B</c:f><c:numCache><c:ptCount val="4000000000"/><c:pt idx="1"><c:v>2</c:v></c:pt><c:pt idx="{idx}"><c:v>3</c:v></c:pt></c:numCache></c:numRef></c:val>
+</c:ser><c:ser><c:idx val="1"/><c:order val="1"/><c:cat><c:strRef><c:f>C</c:f><c:strCache><c:ptCount val="{idx}"/><c:pt idx="{idx}"><c:v>z</c:v></c:pt></c:strCache></c:strRef></c:cat></c:ser>
+<c:axId val="1"/><c:axId val="2"/></c:barChart></c:plotArea></c:chart></c:chartSpace>"#
+        );
+        let ex = format!(
+            r#"<cx:chartSpace xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex"><cx:chartData><cx:data id="0">
+<cx:strDim type="cat"><cx:f>A</cx:f><cx:lvl ptCount="{idx}"><cx:pt idx="0">a</cx:pt><cx:pt idx="{idx}">b</cx:pt></cx:lvl></cx:strDim>
+<cx:numDim type="val"><cx:f>B</cx:f><cx:lvl ptCount="4000000000"><cx:pt idx="2">5</cx:pt><cx:pt idx="{idx}">6</cx:pt></cx:lvl></cx:numDim>
+</cx:data></cx:chartData><cx:chart><cx:plotArea><cx:plotAreaRegion><cx:series layoutId="clusteredColumn"><cx:dataId val="0"/></cx:series></cx:plotAreaRegion></cx:plotArea></cx:chart></cx:chartSpace>"#
+        );
+        let pkg = Package { parts: vec![("c.xml".into(), classic.into_bytes()), ("x.xml".into(), ex.into_bytes())] };
+        for part in ["c.xml", "x.xml"] {
+            let spec = read_chart(&pkg, part, &theme()).expect(part);
+            let refs = caches(&spec);
+            assert!(!refs.is_empty(), "{part}: no caches read");
+            for r in refs {
+                assert!(r.count <= MAX_POINTS, "{part} idx={idx}: count {}", r.count);
+                for len in [r.num.len(), r.str.len()].into_iter().chain(r.levels.iter().map(Vec::len)) {
+                    assert!(len <= MAX_POINTS as usize, "{part} idx={idx}: {len} slots");
+                }
+            }
+        }
+    }
+    // Sane points around the hostile ones are still read where they belong.
+    let pkg = Package {
+        parts: vec![(
+            "c.xml".into(),
+            br#"<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart><c:plotArea><c:barChart><c:ser><c:idx val="0"/><c:order val="0"/><c:val><c:numRef><c:numCache><c:ptCount val="3"/><c:pt idx="2"><c:v>7</c:v></c:pt><c:pt idx="4294967296"><c:v>9</c:v></c:pt></c:numCache></c:numRef></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>"#.to_vec(),
+        )],
+    };
+    let spec = read_chart(&pkg, "c.xml", &theme()).unwrap();
+    assert_eq!(caches(&spec)[0].num, vec![None, None, Some(7.0)]);
+}
