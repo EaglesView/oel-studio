@@ -146,6 +146,29 @@ fn round_trip(name: &str) {
     assert_opens_in_libreoffice(&bytes, &format!("rt-{}", name.trim_end_matches(".docx")));
 }
 
+/// Markup after the root element (a comment, a processing instruction) is kept, in the main
+/// document and in the header parts the writer rebuilds.
+#[test]
+fn markup_after_the_root_survives() {
+    let tail = "\n<!-- oel: after the root --><?oel-pi keep?>\n";
+    let mut pkg = Package::read(&fixture("sections-headers.docx")).unwrap();
+    for part in ["word/document.xml", "word/header1.xml"] {
+        let mut xml = pkg.get_str(part).unwrap();
+        xml.push_str(tail);
+        pkg.set(part, xml.into_bytes());
+    }
+    let original = pkg.write().unwrap();
+    let a = import_docx(&original).unwrap();
+    let mut j = a.json.clone();
+    j["doc"]["content"].as_array_mut().unwrap().push(json!({ "type": "paragraph", "attrs": {}, "content": [{ "type": "text", "text": "Ajout" }] }));
+    let bytes = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let out = Package::read(&bytes).unwrap();
+    for part in ["word/document.xml", "word/header1.xml"] {
+        assert!(out.get_str(part).unwrap().ends_with(tail), "{part} lost what followed its root");
+    }
+    assert!(all_text(&import_docx(&bytes).unwrap().json["doc"]).contains("Ajout"));
+}
+
 #[test]
 fn round_trip_test_document() {
     round_trip("tesxte.docx");

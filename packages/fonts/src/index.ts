@@ -1,5 +1,5 @@
-import { tr } from '@oel/i18n';
 /// <reference path="./fontsource.d.ts" />
+import { tr } from '@oel/i18n';
 /**
  * Fonts of opened files, in the browser, for every editor (@oel/docs,
  * @oel/slides…): faces embedded in the file are registered as `FontFace`s;

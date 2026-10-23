@@ -116,7 +116,7 @@ impl Sst {
     fn to_doc(&self) -> XDocument {
         let mut root = XElement::new("sst").with_attr("xmlns", NS_MAIN).with_attr("count", self.count.to_string()).with_attr("uniqueCount", self.items.len().to_string());
         root.children = self.items.iter().cloned().map(XNode::Element).collect();
-        XDocument { prolog: "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n".into(), root }
+        XDocument::new(root)
     }
 }
 

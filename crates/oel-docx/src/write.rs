@@ -191,6 +191,7 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
         }
     }
     let _ = write!(out, "</{}>", doc.root.name);
+    out.push_str(&doc.epilogue);
     w.pkg.set(&main, out.into_bytes());
     if background.is_some() {
         w.ensure_display_background();
@@ -207,6 +208,14 @@ pub fn export(input: ExportInput) -> Result<Vec<u8>, String> {
 
 fn note_ids(v: &Value) -> HashSet<String> {
     v.as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default()
+}
+
+/// A rewritten part: `root`'s start tag around `body`, between the original part's prolog and
+/// epilogue when there was one (comments and processing instructions outside the root survive).
+fn part_xml(original: Option<&XDocument>, root: &XElement, body: &str) -> String {
+    let prolog = original.map(|d| d.prolog.as_str()).filter(|p| !p.trim().is_empty()).unwrap_or("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
+    let epilogue = original.map(|d| d.epilogue.as_str()).unwrap_or("");
+    format!("{prolog}{}{body}</{}>{epilogue}", root.open_tag(), root.name)
 }
 
 /// Make sure the prefixes our generated XML uses are declared on the root.
@@ -874,14 +883,10 @@ impl Writer<'_> {
         let prev = std::mem::replace(&mut self.part, part.to_string());
         let body = self.story_blocks(&doc["content"])?;
         self.part = prev;
-        let root = match self.pkg.get_xml(part) {
-            Some(d) => d.root,
-            None => new_root(root_name, self.pkg.get_xml(main).map(|d| d.root)),
-        };
-        let mut root = root;
+        let original = self.pkg.get_xml(part);
+        let mut root = original.as_ref().map(|d| d.root.clone()).unwrap_or_else(|| new_root(root_name, self.pkg.get_xml(main).map(|d| d.root)));
         ensure_namespaces(&mut root);
-        let xml = format!("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n{}{}</{}>", root.open_tag(), body, root.name);
-        self.pkg.set(part, xml.into_bytes());
+        self.pkg.set(part, part_xml(original.as_ref(), &root, &body).into_bytes());
         Ok(())
     }
 
@@ -952,8 +957,7 @@ impl Writer<'_> {
             self.prefix = None;
         }
         self.part = prev;
-        let xml = format!("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n{}{}</{}>", root.open_tag(), body, root.name);
-        self.pkg.set(&part, xml.into_bytes());
+        self.pkg.set(&part, part_xml(original.as_ref(), &root, &body).into_bytes());
         self.pkg.ensure_override(&part, ct);
         self.pkg.add_rel(main, rel_type, &relative_target(main, &part), false);
         Ok(())

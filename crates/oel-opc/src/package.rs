@@ -27,17 +27,40 @@ pub struct Rel {
     pub external: bool,
 }
 
+/// Most parts a package may hold. Office files have tens to a few thousand (a deck with many pictures).
+pub const MAX_PARTS: usize = 20_000;
+/// Most bytes all parts together may inflate to. Deflate expands up to ~1 000:1, so a small crafted
+/// archive could otherwise ask for gigabytes; 1 GiB is beyond what the browser engines can edit anyway.
+pub const MAX_INFLATED_BYTES: u64 = 1 << 30;
+/// Largest buffer reserved up front from a part's *declared* size, which the archive may lie about;
+/// bigger parts grow as they are read.
+const MAX_RESERVE: u64 = 16 << 20;
+
 impl Package {
     pub fn read(bytes: &[u8]) -> Result<Self, String> {
+        Self::read_limited(bytes, MAX_PARTS, MAX_INFLATED_BYTES)
+    }
+
+    fn read_limited(bytes: &[u8], max_parts: usize, max_inflated: u64) -> Result<Self, String> {
         let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("not an OOXML package (zip): {e}"))?;
+        if zip.len() > max_parts {
+            return Err(format!("package has {} entries, more than the {max_parts} accepted", zip.len()));
+        }
         let mut parts = Vec::with_capacity(zip.len());
+        let mut left = max_inflated;
         for i in 0..zip.len() {
             let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
             if f.is_dir() {
                 continue;
             }
-            let mut buf = Vec::with_capacity(f.size() as usize);
-            f.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+            let mut buf = Vec::with_capacity(f.size().min(left).min(MAX_RESERVE) as usize);
+            // One byte past the budget tells an oversized package from one that fills it exactly.
+            let n = (&mut f).take(left + 1).read_to_end(&mut buf).map_err(|e| e.to_string())? as u64;
+            if n > left {
+                return Err(format!("package inflates to more than {} MB", max_inflated >> 20));
+            }
+            left -= n;
+            buf.shrink_to_fit();
             parts.push((f.name().trim_start_matches('/').to_string(), buf));
         }
         Ok(Package { parts })
@@ -120,9 +143,8 @@ impl Package {
     /// Add a relationship to a part and return its id (reuses an identical one).
     pub fn add_rel(&mut self, part: &str, rel_type: &str, target: &str, external: bool) -> String {
         let path = rels_path(part);
-        let mut doc = self.get_xml(&path).unwrap_or_else(|| XDocument {
-            prolog: String::new(),
-            root: XElement::new("Relationships").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships"),
+        let mut doc = self.get_xml(&path).unwrap_or_else(|| {
+            XDocument::new(XElement::new("Relationships").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships"))
         });
         for e in doc.root.elements() {
             if e.attr("Type") == Some(rel_type) && e.attr("Target") == Some(target) {
@@ -148,9 +170,8 @@ impl Package {
     }
 
     pub fn content_types(&self) -> XDocument {
-        self.get_xml("[Content_Types].xml").unwrap_or_else(|| XDocument {
-            prolog: String::new(),
-            root: XElement::new("Types").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types"),
+        self.get_xml("[Content_Types].xml").unwrap_or_else(|| {
+            XDocument::new(XElement::new("Types").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types"))
         })
     }
 
@@ -247,5 +268,44 @@ mod tests {
         assert_eq!(resolve_target("word/document.xml", "../customXml/item1.xml"), "customXml/item1.xml");
         assert_eq!(resolve_target("", "word/document.xml"), "word/document.xml");
         assert_eq!(relative_target("word/document.xml", "word/media/a.png"), "media/a.png");
+    }
+
+    fn zip_of(parts: &[(&str, Vec<u8>)]) -> Vec<u8> {
+        Package { parts: parts.iter().map(|(n, b)| (n.to_string(), b.clone())).collect() }.write().unwrap()
+    }
+
+    #[test]
+    fn inflated_size_is_bounded() {
+        // 4 MiB of zeros deflate to a few kilobytes: a small decompression bomb.
+        let bomb = zip_of(&[("a.xml", vec![0; 2 << 20]), ("b.xml", vec![0; 2 << 20])]);
+        assert!(bomb.len() < 64 << 10);
+        assert!(Package::read_limited(&bomb, MAX_PARTS, 4 << 20).is_ok(), "exactly the budget is accepted");
+        let err = Package::read_limited(&bomb, MAX_PARTS, (4 << 20) - 1).unwrap_err();
+        assert!(err.contains("inflates"), "{err}");
+        // The budget is shared by all parts, not per part.
+        assert!(Package::read_limited(&bomb, MAX_PARTS, 3 << 20).is_err());
+    }
+
+    #[test]
+    fn part_count_is_bounded() {
+        let parts: Vec<(&str, Vec<u8>)> = ["a", "b", "c"].iter().map(|n| (*n, vec![1])).collect();
+        let bytes = zip_of(&parts);
+        assert!(Package::read_limited(&bytes, 3, MAX_INFLATED_BYTES).is_ok());
+        assert!(Package::read_limited(&bytes, 2, MAX_INFLATED_BYTES).unwrap_err().contains("entries"));
+    }
+
+    /// A header claiming 4 GB must not reserve 4 GB (in WASM that aborts the engine).
+    #[test]
+    fn declared_sizes_are_not_trusted() {
+        let mut bytes = zip_of(&[("a.xml", b"<a/>".to_vec())]);
+        let huge = 0xFFFF_FFF0u32.to_le_bytes();
+        for (sig, at) in [([0x50, 0x4b, 0x03, 0x04], 22), ([0x50, 0x4b, 0x01, 0x02], 24)] {
+            let p = bytes.windows(4).position(|w| w == sig).unwrap();
+            bytes[p + at..p + at + 4].copy_from_slice(&huge);
+        }
+        // The zip crate reads the part anyway (it stops at the end of the deflate stream).
+        let pkg = Package::read(&bytes).unwrap();
+        assert_eq!(pkg.get("a.xml"), Some(&b"<a/>"[..]));
+        assert!(pkg.parts[0].1.capacity() < 1 << 20);
     }
 }
