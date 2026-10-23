@@ -321,3 +321,23 @@ fn row_numbers_outside_the_sheet_are_not_trusted() {
     assert!(wb.sheets[0].rows.iter().all(|r| r.r < max));
     assert!(wb.sheets[0].cells.iter().all(|c| c.r < max));
 }
+
+#[test]
+fn a_new_sheet_gets_a_free_id_when_the_highest_is_taken() {
+    // Found by oel-fuzz: the next sheetId was the highest + 1, which overflows at 4294967295.
+    let mut pkg = Package::read(&fixture("rich.xlsx")).unwrap();
+    let xml = pkg.get_str("xl/workbook.xml").unwrap().replacen(r#"sheetId="2""#, r#"sheetId="4294967295""#, 1);
+    pkg.set("xl/workbook.xml", xml.into_bytes());
+    let bytes = pkg.write().unwrap();
+    let mut wb = import_xlsx(&bytes).unwrap();
+    for n in 0..2 {
+        wb.sheets.push(oelxlsx::model::Sheet { id: format!("new-{n}"), name: format!("Nouvelle {n}"), zoom: 100, show_grid: true, default_col_width: 8.43, default_row_height: 15.0, ..Default::default() });
+    }
+    let out = export_xlsx(&wb, Some(&bytes)).unwrap();
+    let workbook = Package::read(&out).unwrap().get_str("xl/workbook.xml").unwrap();
+    let mut ids: Vec<&str> = workbook.split(r#"sheetId=""#).skip(1).map(|s| &s[..s.find('"').unwrap()]).collect();
+    assert_eq!(ids.len(), 5);
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), 5, "sheet ids are unique: {workbook}");
+}

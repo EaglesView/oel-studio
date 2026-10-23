@@ -330,3 +330,40 @@ fn retouched_pictures_round_trip() {
     let plain = export_pptx(&imp.deck, Some(&bytes), HashMap::new()).unwrap();
     assert!(!Package::read(&plain).unwrap().has(oel_opc::retouch::MANIFEST));
 }
+
+#[test]
+fn new_slides_and_shapes_get_free_ids_at_the_top_of_the_range() {
+    // A slide id at the top of its range (2^31 - 1) and a shape id at u32::MAX: the next id used to be the highest + 1.
+    let mut pkg = Package::read(&fixture(3)).unwrap();
+    let pres = pkg.get_str("ppt/presentation.xml").unwrap().replacen(r#"<p:sldId id="257""#, r#"<p:sldId id="2147483647""#, 1);
+    pkg.set("ppt/presentation.xml", pres.into_bytes());
+    let slide = pkg.get_str("ppt/slides/slide1.xml").unwrap().replacen(r#"<p:cNvPr id="20""#, r#"<p:cNvPr id="4294967295""#, 1);
+    pkg.set("ppt/slides/slide1.xml", slide.into_bytes());
+    let bytes = pkg.write().unwrap();
+    let mut deck = import_pptx(&bytes).unwrap().deck;
+    let mut text_box = Element { id: "n1".into(), kind: ElementKind::Shape, x: 914_400, y: 914_400, cx: 3_000_000, cy: 600_000, ..Default::default() };
+    text_box.text = Some(TextBody { body: oelpptx::text::default_body(), levels: vec![oelpptx::text::default_level()], paras: vec![Para { runs: vec![Run { kind: "text".into(), text: "Ajout".into(), ..Default::default() }], ..Default::default() }], prompt: None });
+    deck.slides[0].elements.push(text_box);
+    let mut dup = deck.slides[0].clone();
+    dup.id = "copie".into();
+    deck.slides.push(dup);
+
+    let out = export_pptx(&deck, Some(&bytes), HashMap::new()).unwrap();
+    let again = import_pptx(&out).unwrap().deck;
+    assert_eq!(again.slides.len(), deck.slides.len());
+    assert!(again.slides[0].elements.iter().any(|e| texts(e) == ["Ajout"]));
+    let out_pkg = Package::read(&out).unwrap();
+    let pres = out_pkg.get_str("ppt/presentation.xml").unwrap();
+    let mut ids: Vec<u64> = pres.split(r#"<p:sldId id=""#).skip(1).map(|s| s[..s.find('"').unwrap()].parse().unwrap()).collect();
+    assert!(ids.iter().all(|i| (256..=2_147_483_647).contains(i)));
+    let n = ids.len();
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), n, "slide ids are unique");
+    let slide1 = out_pkg.get_str("ppt/slides/slide1.xml").unwrap();
+    let mut shape_ids: Vec<&str> = slide1.split(r#"<p:cNvPr id=""#).skip(1).map(|s| &s[..s.find('"').unwrap()]).collect();
+    let n = shape_ids.len();
+    shape_ids.sort();
+    shape_ids.dedup();
+    assert_eq!(shape_ids.len(), n, "shape ids are unique");
+}

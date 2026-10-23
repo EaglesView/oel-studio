@@ -11,6 +11,7 @@
 use crate::model::*;
 use crate::read::{self, Part, REL_LAYOUT, REL_NOTES_MASTER, REL_NOTES_SLIDE, REL_SLIDE, c_nv_pr, tree_items};
 use crate::template;
+use oel_opc::ids::FreeIds;
 use crate::theme::{is_fill, num};
 use oel_opc::color::Rgba;
 use oel_opc::package::{Package, REL_IMAGE, Rel, mime_for_ext, rels_path, resolve_target};
@@ -161,8 +162,9 @@ impl<'o> Writer<'o> {
             })
             .collect();
         let original_order: Vec<String> = sld_ids.iter().map(|(p, _)| p.clone()).collect();
-        let mut next_id = sld_ids.iter().map(|(_, i)| *i).max().unwrap_or(255).max(255) + 1;
-        let mut next_part = self.pkg.parts.iter().filter_map(|(n, _)| n.strip_prefix("ppt/slides/slide").and_then(|r| r.strip_suffix(".xml")).and_then(|n| n.parse::<u32>().ok())).max().unwrap_or(0) + 1;
+        // p:sldId ids run from 256 to 2^31 - 1.
+        let mut slide_ids = FreeIds::new(sld_ids.iter().map(|(_, i)| *i), 256, 2_147_483_647);
+        let mut slide_parts = FreeIds::new(self.part_numbers("ppt/slides/slide"), 1, u32::MAX);
 
         let mut used: HashSet<String> = HashSet::new();
         let mut order: Vec<(String, u32)> = Vec::new();
@@ -171,19 +173,14 @@ impl<'o> Writer<'o> {
             let part = match &in_place {
                 Some(p) => p.clone(),
                 None => {
-                    let p = format!("ppt/slides/slide{next_part}.xml");
-                    next_part += 1;
-                    p
+                    format!("ppt/slides/slide{}.xml", slide_parts.take())
                 }
             };
             used.insert(part.clone());
             self.write_slide(&part, s, in_place.is_some())?;
             let id = match sld_ids.iter().find(|(p, _)| p == &part) {
                 Some((_, id)) => *id,
-                None => {
-                    next_id += 1;
-                    next_id - 1
-                }
+                None => slide_ids.take(),
             };
             order.push((part, id));
         }
@@ -203,6 +200,11 @@ impl<'o> Writer<'o> {
             self.update_app_counts(order.len());
         }
         Ok(())
+    }
+
+    /// The numbers of the parts named `<prefix>N.xml` (`ppt/slides/slide` → 1, 2, 7…).
+    fn part_numbers(&self, prefix: &str) -> Vec<u32> {
+        self.pkg.parts.iter().filter_map(|(n, _)| n.strip_prefix(prefix)?.strip_suffix(".xml")?.parse::<u32>().ok()).collect()
     }
 
     fn remove_part(&mut self, part: &str) {
@@ -354,7 +356,12 @@ impl<'o> Writer<'o> {
         let head: Vec<XNode> = tree.children.iter().filter(|c| matches!(c, XNode::Element(e) if matches!(e.local(), "nvGrpSpPr" | "grpSpPr"))).cloned().collect();
         let tail: Vec<XNode> = tree.children.iter().filter(|c| matches!(c, XNode::Element(e) if e.local() == "extLst")).cloned().collect();
         let srcs: Vec<SrcRef> = s.elements.iter().filter_map(|e| e.src.clone()).collect();
-        let mut next_id = srcs.iter().filter_map(|src| self.src_xml(src)).filter_map(|x| max_id(&x)).fold(1.0_f64, f64::max) as u32 + 1;
+        let mut used = Vec::new();
+        for x in srcs.iter().filter_map(|src| self.src_xml(src)) {
+            shape_ids(&x, &mut used);
+        }
+        // Id 1 is the slide's own group.
+        let mut new_shape_ids = FreeIds::new(used, 2, u32::MAX);
         let mut items = Vec::new();
         for el in &s.elements {
             let x = match el.src.as_ref().and_then(|src| self.src_xml(src).map(|x| (src.clone(), x))) {
@@ -368,8 +375,7 @@ impl<'o> Writer<'o> {
                     Some(x)
                 }
                 None => {
-                    let id = next_id;
-                    next_id += 1;
+                    let id = new_shape_ids.take();
                     self.generate(part, el, id)
                 }
             };
@@ -673,7 +679,7 @@ impl<'o> Writer<'o> {
         let Some(master) = Part::load(&self.pkg, &self.pres_path).and_then(|p| p.related(REL_NOTES_MASTER)) else {
             return Ok(());
         };
-        let n = self.pkg.parts.iter().filter_map(|(n, _)| n.strip_prefix("ppt/notesSlides/notesSlide").and_then(|r| r.strip_suffix(".xml")).and_then(|n| n.parse::<u32>().ok())).max().unwrap_or(0) + 1;
+        let n = FreeIds::new(self.part_numbers("ppt/notesSlides/notesSlide"), 1, u32::MAX).take();
         let part = format!("ppt/notesSlides/notesSlide{n}.xml");
         let body: String = paras.iter().map(|p| p.to_xml()).collect();
         let xml = format!(
@@ -690,9 +696,14 @@ impl<'o> Writer<'o> {
 }
 
 /// Largest `cNvPr` id in an element (groups included).
-fn max_id(x: &XElement) -> Option<f64> {
-    let own = c_nv_pr(x).and_then(|c| num(c, "id"));
-    x.elements().filter_map(max_id).chain(own).reduce(f64::max)
+/// Every shape id (`cNvPr/@id`) in `x` and below.
+fn shape_ids(x: &XElement, out: &mut Vec<u32>) {
+    if let Some(id) = c_nv_pr(x).and_then(|c| num(c, "id")) {
+        out.push(id as u32);
+    }
+    for e in x.elements() {
+        shape_ids(e, out);
+    }
 }
 
 /// The first element named `name` (any prefix) in `x`, `x` included.

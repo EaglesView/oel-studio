@@ -11,6 +11,7 @@ use crate::model::*;
 use crate::read::{REL_CALC_CHAIN, REL_SHARED_STRINGS, REL_STYLES, REL_WORKSHEET, rel_id_attr, workbook_part, workbook_rel_target};
 use crate::refs::{a1, add_future_prefixes, parse_range};
 use crate::styles::{append_styles, color_el, fmt_num};
+use oel_opc::ids::FreeIds;
 use oel_opc::package::{Package, REL_HYPERLINK, rels_path, relative_target, resolve_target};
 use oel_opc::xml::{XDocument, XElement, XNode};
 use std::collections::HashMap;
@@ -603,7 +604,7 @@ pub fn export_xlsx_with_media(wb: &Workbook, original: Option<&[u8]>, media: Has
     let rels = pkg.rels(&wb_part);
     let old_sheets: Vec<XElement> = wdoc.root.child_local("sheets").map(|s| s.elements().cloned().collect()).unwrap_or_default();
     let part_of = |e: &XElement| rel_id_attr(e).and_then(|id| rels.iter().find(|r| r.id == id)).map(|r| (r.id.clone(), resolve_target(&wb_part, &r.target), r.rel_type.clone()));
-    let mut next_sheet_id = old_sheets.iter().filter_map(|e| e.attr("sheetId")?.parse::<u32>().ok()).max().unwrap_or(0) + 1;
+    let mut sheet_ids = FreeIds::new(old_sheets.iter().filter_map(|e| e.attr("sheetId")?.parse::<u32>().ok()), 1, u32::MAX);
     let mut sst = Sst::default();
     let mut new_elems: Vec<XElement> = Vec::new();
     let mut kept_parts: Vec<String> = Vec::new();
@@ -617,8 +618,7 @@ pub fn export_xlsx_with_media(wb: &Workbook, original: Option<&[u8]>, media: Has
                 pkg.set(&part, crate::template::WORKSHEET.as_bytes().to_vec());
                 pkg.ensure_override(&part, CT_WORKSHEET);
                 let id = pkg.add_rel(&wb_part, REL_WORKSHEET, &relative_target(&wb_part, &part), false);
-                let el = XElement::new("sheet").with_attr("name", "").with_attr("sheetId", next_sheet_id.to_string()).with_attr("r:id", id);
-                next_sheet_id += 1;
+                let el = XElement::new("sheet").with_attr("name", "").with_attr("sheetId", sheet_ids.take().to_string()).with_attr("r:id", id);
                 (el, part)
             }
         };
