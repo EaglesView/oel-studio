@@ -31,7 +31,11 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
   - Fix: `starts_with` through `self.s.get(self.i..)`; an error for an unterminated value and a bad close; a depth
     limit (e.g. 1 024) or an explicit stack. Same review for `parse_fragment` and `unescape`.
   - **Done when** a test per case in `crates/oel-opc` returns `Err`, and every fixture still round-trips byte for byte.
-- [ ] **T0-2 · Unbounded decompression** (from reading the code; no bomb built yet) — S
+- [x] **T0-2 · Unbounded decompression** (from reading the code; no bomb built yet) — S
+  - **Done 2026-10-23**: `oel-opc` `MAX_PARTS` = 20 000, `MAX_INFLATED_BYTES` = 1 GiB for the whole package (read
+    through `take`, so lying headers don't matter), reservations capped at 16 MiB. TS reader: offsets checked,
+    ZIP64 refused, `maxBytes` per entry (`MAX_ZIP_ENTRY_BYTES`, 1 GiB). Tests: `package::tests::*` (bomb, part
+    count, a 4 GB declared size), vitest « zip reader on hostile archives ».
   - `crates/oel-opc/src/package.rs:39` reserves `Vec::with_capacity(f.size())` from the archive's *declared* size
     and inflates every part eagerly with `read_to_end`: a crafted file can ask for gigabytes.
   - Add limits: entry count, per-part and total inflated bytes, and a capped reservation. The TS reader used for desk
@@ -58,6 +62,9 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
   - GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace`, `npm run build:wasm`,
     `npm run typecheck`, `npm test`, `npm run build` and `PUBLIC_EDITION=equipe npm run build`. Cache `target/`.
   - LibreOffice round-trip job (open every export headless) in a separate job.
+  - Why it matters, seen 2026-10-23: `npm run typecheck` had been red since 12 Oct (`packages/fonts`, fixed in
+    `fonts: put the fontsource reference back…`), and its `&&` chain left every later package unchecked. The script's
+    last step, `astro check`, still fails under TS 7: CI should run `npx tsc -p apps/web --noEmit` instead.
 - [ ] **T0-7 · Reproducible builds** (audit #6) — S, *good first issue*
   - `rust-toolchain.toml` with an exact version and the `wasm32-unknown-unknown` target; `.do/site.Dockerfile` and
     `scripts/build-site.sh` install that version instead of `stable`. `.nvmrc` for Node 24. Pin the Docker base by
@@ -226,3 +233,6 @@ versions (T2-3), the verification debt (Tier 1), and `feat/backend` drifting fro
 - 2026-10-23: backlog written. `npm run build:wasm && npm test` green on `updates` (every crate; vitest 41 files,
   247 tests).
 - 2026-10-23: T0-1 done (commits `oel-opc: refuse malformed XML…`, `oel-opc: keep markup that follows…`).
+- 2026-10-23: T0-2 done (`oel-opc: bound what a package may inflate to`, `engine: check offsets…`). Typecheck
+  fixed on the way. All packages and `tsc -p apps/web` pass; `npm test` green (vitest 41 files, 250 tests).
+  Next: T0-3 (engine state after a panic), T0-4 (silent storage failures).
