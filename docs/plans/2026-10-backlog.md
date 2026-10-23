@@ -57,7 +57,19 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
     there the same applies to every user of the server.
   - Check: import the T0-1 file, then a good file, in one tab. If the second fails, recreate the worker after any
     engine error (and isolate server exports, see T2-7).
-- [ ] **T0-4 · Storage failures are silent in `solo`** — S
+- [x] **T0-4 · Storage failures are silent in `solo`** — S
+  - **Done 2026-10-23**: `localFiles` writes now resolve when the transaction commits (a full disk aborts it *after*
+    the request succeeded, so the old code never even saw the error), and every refused write, its own or
+    y-indexeddb's (`persistDoc` watches each database's `abort`), goes to `onStorageFailure`. The Bureau shows a
+    toast that stays (`toast(…, null)`) with « Exporter le bureau », and « Ce bureau » keeps a note. So that
+    export is worth something: a refused file stays in memory for the tab, open sessions' live Y.Docs are exported
+    instead of the device's stale copy, and a session whose database can't even be created goes on in memory
+    (it used to hang: the demo spreadsheet stuck at « importation »). Checked in Firefox with
+    `dom.quotaManager.temporaryStorage.fixedLimit` = 700 KB, fr and en: one warning, the export downloads all
+    three demo documents and ten files, and `readBackup` reads it back. Chrome's `Storage.overrideQuotaForOrigin`
+    had no effect in headless Chrome 153 here, so it isn't the way to test this. Left: a private window that
+    refuses IndexedDB outright isn't tried in a real browser (the reason is `unavailable`, covered by vitest
+    only); y-indexeddb's own rejected promises still reach the console as unhandled.
   - `localFiles.put` (`packages/collab-client/src/local.ts:37`) swallows every error with « the server copy is the
     fallback », but `solo` has no server. A full disk or a private window loses an original package without a word,
     and an export without its original can no longer copy untouched parts.
@@ -254,3 +266,5 @@ versions (T2-3), the verification debt (Tier 1), and `feat/backend` drifting fro
   Next: T0-3 (engine state after a panic), T0-4 (silent storage failures).
 - 2026-10-23: PR #9 (T0-1, T0-2, backlog) merged into `main`. T0-3 done (`oel-chart: bound point caches…`,
   `engine: replace the worker after a WASM trap`); vitest 42 files, 254 tests. Next: T0-4.
+- 2026-10-23: PR #10 (T0-3) and #11 (CI) merged; CI green on `main`. T0-4 done (`collab-client: report the writes
+  this device refuses`, `bureau: warn when the desk can't be saved`); vitest 44 files, 261 tests.
