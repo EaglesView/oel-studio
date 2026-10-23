@@ -866,6 +866,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "oel-fuzz"
+version = "0.1.0"
+dependencies = [
+ "oel-docx",
+ "oel-opc",
+ "oel-pptx",
+ "oel-xlsx",
+]
+
+[[package]]
 name = "oel-img"
 version = "0.1.0"
 dependencies = [

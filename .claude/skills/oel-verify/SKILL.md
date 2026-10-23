@@ -17,6 +17,7 @@ cargo test -p oel-img --features gpu   # GPU vs CPU parity (lavapipe if installe
 # WebGL2-like path: WGPU_BACKEND=gl cargo test -p oel-img --features gpu --test gpu_parity -- --test-threads=1
 #   (NVIDIA: prefix __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json)
 npm run build:wasm               # web + node targets into packages/wasm/
+cargo run -p oel-fuzz --profile fuzz -- --seconds 300   # after a reader/writer change: damaged fixtures must give errors, never panics
 ```
 A stale `packages/wasm/` is the most common cause of "works in Rust, broken in the app"
 (`npm run dev|test|build` rebuild stale crates automatically).

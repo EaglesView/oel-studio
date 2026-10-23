@@ -1,0 +1,50 @@
+# An hour of damaged files through every codec (crates/oel-fuzz), once a week and on demand. The short fixed pass
+# runs with `cargo test` in ci.yml; this one searches. A panic fails the run and the damaged files that caused it are
+# kept as an artifact: replay one with `cargo run -p oel-fuzz --profile fuzz -- --replay <file>`, fix it, and add a
+# regression test next to the codec's others.
+name: Fuzz
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: How long to search, in seconds
+        default: '3600'
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fuzz:
+    name: Damaged files through every codec
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      # The runner's rustup installs the version in rust-toolchain.toml.
+      - name: Install Rust
+        run: rustup toolchain install && rustc --version
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --profile fuzz -p oel-fuzz
+      - name: Search
+        # A new seed each run, printed so a run can be repeated.
+        env:
+          SECONDS_TO_RUN: ${{ inputs.seconds || '3600' }}
+        run: |
+          seed=$(( (GITHUB_RUN_ID % 1000000007) + 1 ))
+          echo "seed $seed"
+          target/fuzz/oel-fuzz --seconds "$SECONDS_TO_RUN" --seed "$seed" --out target/oel-fuzz
+      # Panics are saved by location; a run killed outright (an allocation too big to make) leaves last.<ext>.
+      - name: Keep the damaged files that crashed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oel-fuzz-crashes
+          path: target/oel-fuzz/
+          if-no-files-found: ignore

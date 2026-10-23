@@ -11,3 +11,11 @@ license = "MPL-2.0"
 [profile.release]
 opt-level = "s"
 lto = true
+
+# `cargo run -p oel-fuzz --profile fuzz`: fast, but an overflow panics instead of wrapping as it would in WASM.
+[profile.fuzz]
+inherits = "release"
+opt-level = 3
+lto = false
+overflow-checks = true
+debug-assertions = true

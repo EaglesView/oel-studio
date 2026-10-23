@@ -1,0 +1,17 @@
+[package]
+name = "oel-fuzz"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Damaged-file harness for the import boundary: mutates the fixtures and runs each codec's import and export"
+publish = false
+
+[lib]
+name = "oelfuzz"
+
+[dependencies]
+oel-opc = { path = "../oel-opc" }
+oel-docx = { path = "../oel-docx" }
+oel-xlsx = { path = "../oel-xlsx" }
+oel-pptx = { path = "../oel-pptx" }

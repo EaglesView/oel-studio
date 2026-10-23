@@ -23,7 +23,8 @@ npm run build          # static site; PUBLIC_EDITION=equipe npm run build for th
 npm run build:wasm     # rebuild every crate's WASM into packages/wasm/ (git-ignored)
 bash scripts/build-site.sh   # hosting build (DigitalOcean: .do/site.Dockerfile + .do/app.yaml): Rust if missing, WASM_TARGETS=web, site
 npx tsc -p apps/web --noEmit   # the app alone (typecheck's last step; `astro check` cannot run under TypeScript 7)
-cargo test -p <crate>  # one crate; crates are oel-opc, oel-docx, oel-xlsx, oel-pptx, oel-chart, oel-img
+cargo test -p <crate>  # one crate; crates are oel-opc, oel-docx, oel-xlsx, oel-pptx, oel-chart, oel-img (+ oel-fuzz)
+cargo run -p oel-fuzz --profile fuzz -- --seconds 600   # damaged fixtures through every codec; --replay <file> to reproduce
 ```
 
 A stale `packages/wasm/` is the usual cause of "works in Rust, broken in the app": run `npm run build:wasm` after a
@@ -78,7 +79,7 @@ workaround.
 
 CI (`.github/workflows/ci.yml`) runs on every pull request and push to `main`: Rust without warnings (native and
 WASM bindings), `cargo test` with LibreOffice installed, generated types up to date, `npm run typecheck`, vitest, and
-both editions' builds. It doesn't replace the browser checks. Not enforced yet: `cargo fmt` and `clippy` (the code
+both editions' builds. It doesn't replace the browser checks. `fuzz.yml` runs `oel-fuzz` for an hour every week. Not enforced yet: `cargo fmt` and `clippy` (the code
 predates them).
 
 ## Git
