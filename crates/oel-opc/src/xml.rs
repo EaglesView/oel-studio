@@ -41,7 +41,7 @@ pub struct XDocument {
 impl XDocument {
     pub fn parse(src: &str) -> Result<Self, XmlError> {
         let src = src.strip_prefix('\u{feff}').unwrap_or(src);
-        let mut p = Parser { s: src.as_bytes(), src, i: 0 };
+        let mut p = Parser { s: src.as_bytes(), src, i: 0, depth: 0 };
         let mut prolog = String::new();
         loop {
             p.skip_ws_into(&mut prolog);
@@ -72,20 +72,26 @@ impl XDocument {
 /// Parse a fragment that holds one or more sibling elements (raw attrs we stored).
 pub fn parse_fragment(src: &str) -> Result<Vec<XNode>, XmlError> {
     let wrapped = format!("<oel-frag>{src}</oel-frag>");
-    let mut p = Parser { s: wrapped.as_bytes(), src: &wrapped, i: 0 };
+    let mut p = Parser { s: wrapped.as_bytes(), src: &wrapped, i: 0, depth: 0 };
     let root = p.element()?;
     Ok(root.children)
 }
+
+/// Deepest element nesting accepted. Real parts stay far below it (19 levels in the deepest
+/// fixture; a table in a Word cell adds about four); the limit keeps the recursive parser, and
+/// the recursive walks over the tree after it, inside a 1 MB stack (WASM's default).
+pub const MAX_DEPTH: usize = 256;
 
 struct Parser<'a> {
     s: &'a [u8],
     src: &'a str,
     i: usize,
+    depth: usize,
 }
 
 impl<'a> Parser<'a> {
     fn starts_with(&self, pat: &str) -> bool {
-        self.s[self.i..].starts_with(pat.as_bytes())
+        self.s.get(self.i..).is_some_and(|rest| rest.starts_with(pat.as_bytes()))
     }
 
     fn err<T>(&self, msg: &str) -> Result<T, XmlError> {
@@ -142,6 +148,16 @@ impl<'a> Parser<'a> {
     }
 
     fn element(&mut self) -> Result<XElement, XmlError> {
+        if self.depth >= MAX_DEPTH {
+            return self.err(&format!("elements nested deeper than {MAX_DEPTH}"));
+        }
+        self.depth += 1;
+        let el = self.element_inner();
+        self.depth -= 1;
+        el
+    }
+
+    fn element_inner(&mut self) -> Result<XElement, XmlError> {
         if !self.starts_with("<") {
             return self.err("expected '<'");
         }
@@ -174,6 +190,9 @@ impl<'a> Parser<'a> {
             while self.i < self.s.len() && Some(self.s[self.i]) != q {
                 self.i += 1;
             }
+            if self.i >= self.s.len() {
+                return self.err("unterminated attribute value");
+            }
             let val = unescape(&self.src[start..self.i]);
             self.i += 1;
             el.attrs.push((key, val));
@@ -190,7 +209,10 @@ impl<'a> Parser<'a> {
                     return self.err(&format!("mismatched </{close}> for <{}>", el.name));
                 }
                 self.skip_ws();
-                self.i += 1; // '>'
+                if !self.starts_with(">") {
+                    return self.err(&format!("expected '>' to close </{close}>"));
+                }
+                self.i += 1;
                 return Ok(el);
             }
             if self.starts_with("<!--") || self.starts_with("<?") || self.starts_with("<![CDATA[") {
@@ -527,5 +549,44 @@ mod tests {
         let nodes = parse_fragment("<w:b/><w:sz w:val=\"24\"/>").unwrap();
         assert_eq!(nodes.len(), 2);
         assert_eq!(nodes_to_xml(&nodes), "<w:b/><w:sz w:val=\"24\"/>");
+    }
+
+    /// Malformed parts are refused with an error, never a panic or a stack overflow.
+    #[test]
+    fn malformed_input_is_an_error() {
+        for src in [
+            "",
+            "<",
+            "<a",
+            "<a b",
+            "<a b=",
+            "<a b=\"x",
+            "<a b='x",
+            "<r><a b=\"x",
+            "<a>",
+            "<a>text",
+            "<a></a",
+            "<a></a x>",
+            "<a></b>",
+            "<a><!-- open",
+            "<a><![CDATA[ open",
+            "<?xml version=\"1.0\"",
+        ] {
+            assert!(XDocument::parse(src).is_err(), "accepted {src:?}");
+        }
+        assert!(parse_fragment("<w:b w:val=\"1").is_err());
+        assert!(parse_fragment("<w:b>").is_err());
+    }
+
+    #[test]
+    fn nesting_is_bounded() {
+        let nested = |n: usize| format!("{}{}", "<a>".repeat(n), "</a>".repeat(n));
+        assert!(XDocument::parse(&nested(MAX_DEPTH)).is_ok());
+        assert!(XDocument::parse(&nested(MAX_DEPTH + 1)).is_err());
+        // Far deeper than the limit: refused before the stack runs out.
+        assert!(XDocument::parse(&"<a>".repeat(200_000)).is_err());
+        // The fragment wrapper counts as one level.
+        assert!(parse_fragment(&nested(MAX_DEPTH)).is_err());
+        assert!(parse_fragment(&nested(MAX_DEPTH - 1)).is_ok());
     }
 }
