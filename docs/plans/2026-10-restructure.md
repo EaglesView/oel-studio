@@ -48,6 +48,9 @@ Nothing below is safe while `oel_opc_rs` and `oelxlsx_rs` are outside git and
 
 ## Phase 3 — Kind modules (~1 day)
 
+> 2026-10-23: the server part (`apps/collab/src/kinds.ts`) is done on `feat/backend` (backend plan B-0), not yet on
+> `main`. The app side has not started.
+
 The big front-end scalability win (ARCHITECTURE §5).
 
 - [ ] Define `KindModule` + `KINDS` in `apps/web/src/kinds/index.ts` (keep in the app for now; move to a package only if the tools site or desktop shell needs it).
@@ -71,6 +74,9 @@ The big front-end scalability win (ARCHITECTURE §5).
 
 ## Phase 5 — Server by domain + real forms backend (~2 days)
 
+> 2026-10-23: the domain split and the storage ports are done on `feat/backend` (B-0, B-1 with Postgres); accounts,
+> forms, uploads and anti-abuse are planned there as B-2 onwards. Track this phase in `2026-10-backend-mvp.md`.
+
 - [ ] Split `apps/collab/src/server.ts` into `domains/{documents,sharing,versions,media,exports}`; introduce `storage/Store` interface over the current SQLite `db.ts`.
 - [ ] `domains/accounts`: email magic link (dev: log the link to the console; prod mailer TODO), session cookie; owner-token claiming.
 - [ ] `domains/forms` + `HttpFormsBackend` in `@oel/forms` implementing `FormsBackend`; swap in `apps/web/src/forms/backend.ts` (local stub stays for tests). Responses append to the linked sheet's Y.Doc server-side (`SheetDoc`), so the sheet updates live.
@@ -82,7 +88,8 @@ The big front-end scalability win (ARCHITECTURE §5).
 
 ## Phase 6 — CI (~2 h, after Phase 1)
 
-- [ ] GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace`, `build:wasm`, `npm run typecheck`, `npm test`, `npm run build`. Cache `target/` and `~/.cargo`. LibreOffice round-trip tests behind a job with `libreoffice` installed (or skipped with a message when absent).
+- [x] Done 2026-10-23 (`.github/workflows/ci.yml`, backlog T0-6), except `cargo fmt --check` and `clippy`, which wait
+  for a one-time reformat. Was: GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace`, `build:wasm`, `npm run typecheck`, `npm test`, `npm run build`. Cache `target/` and `~/.cargo`. LibreOffice round-trip tests behind a job with `libreoffice` installed (or skipped with a message when absent).
 
 ## Phase 7 — Desktop spike (~1 day, after Phase 4)
 

@@ -150,15 +150,15 @@ cargo run -p oel-xlsx --example recalc -- in.xlsx out.xlsx   # compute formulas 
 
 ## Status
 
-Working: the desk (selection, zoom, notes, galleries, list view, saved on the device, `.zip` backup), documents,
-spreadsheets with charts, presentations with slideshow and presenter view, the image workshop, linked copies
-(charts, ranges, images) written into exports. Not yet: PDF viewing and annotation (a PDF keeps its page count only),
-editing charts inside slides and documents, animations and SmartArt (kept, not editable), a translated Bureau UI.
+Working, in French and English: the desk (selection, zoom, notes, galleries, list view, saved on the device, `.zip`
+backup), documents, spreadsheets with charts, presentations with slideshow and presenter view, the image workshop,
+linked copies (charts, ranges, images) written into exports. Not yet: PDF viewing and annotation (a PDF keeps its page
+count only), editing charts inside slides and documents, animations and SmartArt (kept, not editable).
 The full table is in [`docs/packages.md`](docs/packages.md#whats-real-and-whats-stubbed); what users see is in the
 site's documentation (`/docs`, `/en/docs`).
 
-**Next:** the team edition on a Canadian-hosted server (accounts, sharing, forms backend —
-`docs/plans/2026-10-backend-mvp.md`), a mobile layout, the PDF engine, a desktop app (Tauri).
+**Next:** the team edition on a Canadian-hosted server (accounts, sharing, forms backend — planned in
+`docs/plans/2026-10-backend-mvp.md` on the `feat/backend` branch), a mobile layout, the PDF engine, a desktop app (Tauri).
 
 ## For AI agents
 
