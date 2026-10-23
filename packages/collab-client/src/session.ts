@@ -8,11 +8,12 @@
  * @oel/sheets, `SlideSession` in @oel/slides) for seeding, media and export.
  */
 import * as Y from 'yjs';
-import { IndexeddbPersistence } from 'y-indexeddb';
+import type { IndexeddbPersistence } from 'y-indexeddb';
 import { HocuspocusProvider } from '@hocuspocus/provider';
 import { CollabApi, CollabError, decodeToken, type DocKind, type Role, type ShareLink, type VersionInfo } from './api';
 import type { Identity } from './identity';
 import { localFiles, packageKey } from './local';
+import { persistDoc } from './device';
 import { tr } from '@oel/i18n';
 
 export interface Peer {
@@ -87,6 +88,12 @@ export async function createRemoteDoc(api: CollabApi | null, original: Uint8Arra
   }
 }
 
+/** Y.Docs of the sessions open in this tab, by document id: newer than the device's copy when a write was refused. */
+const openDocs = new Map<string, Y.Doc>();
+
+/** The live Y.Doc of an open session, or null (then the device's copy is the latest). */
+export const openSessionDoc = (docId: string): Y.Doc | null => openDocs.get(docId) ?? null;
+
 export class YSession {
   readonly ydoc = new Y.Doc();
   provider: HocuspocusProvider | null = null;
@@ -113,7 +120,8 @@ export class YSession {
       error: null,
       peers: [],
     };
-    this.idb = new IndexeddbPersistence(docDbName(kind, docId), this.ydoc);
+    this.idb = persistDoc(docDbName(kind, docId), this.ydoc);
+    openDocs.set(docId, this.ydoc);
   }
 
   /** Resolve the id and token a session opens with (a new local id when none). */
@@ -242,7 +250,9 @@ export class YSession {
     await localFiles.rekey(oldId, docId);
     // Keep the offline copy under the new id, then sync to the server.
     const old = this.idb;
-    this.idb = new IndexeddbPersistence(docDbName(this.kind, docId), this.ydoc);
+    this.idb = persistDoc(docDbName(this.kind, docId), this.ydoc);
+    openDocs.delete(oldId);
+    openDocs.set(docId, this.ydoc);
     await this.idb.whenSynced;
     void old.clearData();
     this.set({ docId, token: ownerToken, role: 'owner', connection: 'connecting' });
@@ -296,6 +306,7 @@ export class YSession {
   destroy() {
     if (this.disposed) return;
     this.disposed = true;
+    if (openDocs.get(this.status.docId) === this.ydoc) openDocs.delete(this.status.docId);
     this.onDestroy();
     this.provider?.destroy();
     void this.idb.destroy();

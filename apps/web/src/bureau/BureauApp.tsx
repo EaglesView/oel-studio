@@ -38,6 +38,8 @@ import { ProjectProvider, useProject, useSetting } from '../project/ProjectConte
 import { bindImages, createGallery } from './images';
 import { bindDesk, type DeskBinding } from './persist';
 import { openDesk, scheduleReset, type OpenedDesk } from './deskStorage';
+import { exportDesk, type DeskActions } from './DeskBackup';
+import { warnOnStorageFailure } from './storageWarning';
 import { askPersistentStorage, bindThumbnails, restoreMedia } from './restore';
 import { messages, plural } from '@oel/i18n';
 import './bureau.css';
@@ -191,6 +193,14 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
       persistence.current = null;
     };
   }, [store, saved]);
+  const deskActions = useMemo<DeskActions>(
+    () => ({ projectId: project.id, title: project.name, doc: saved.device.doc, flush: () => persistence.current?.flush() }),
+    [project.id, project.name, saved],
+  );
+  // A refused write (full disk, private window) stays on screen: this device may hold the only copy.
+  const exportRef = useRef(() => void exportDesk(store, deskActions));
+  exportRef.current = () => void exportDesk(store, deskActions);
+  useEffect(() => warnOnStorageFailure(() => exportRef.current()), []);
   const [view, setView] = useState<'desk' | 'list'>('desk');
   /** K2 · the note being written on the desk (one undo step per writing session). */
   const [editingNote, setEditingNote] = useState<string | null>(null);
@@ -703,7 +713,7 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
         onViewChange={setView}
         minimap={minimap}
         onMinimapChange={setMinimap}
-        desk={{ projectId: project.id, title: project.name, doc: saved.device.doc, flush: () => persistence.current?.flush() }}
+        desk={deskActions}
         onWelcome={() => {
           setAppMenu((m) => ({ ...m, open: false }));
           setWelcome(true);
