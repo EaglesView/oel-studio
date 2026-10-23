@@ -7,7 +7,7 @@
  * `openDesk` carries them out first, before any document is opened.
  */
 import * as Y from 'yjs';
-import { deleteDeviceDoc, docDbName, localFiles, openDeviceDoc, readDeviceDoc, writeDeviceDoc, type DeviceDoc, type DocKind } from '@oel/collab-client';
+import { deleteDeviceDoc, docDbName, localFiles, openDeviceDoc, openSessionDoc, readDeviceDoc, writeDeviceDoc, type DeviceDoc, type DocKind } from '@oel/collab-client';
 import { originalKey } from '@oel/img';
 import type { Paper } from './model';
 import { deskDbName, initDesk, readDesk, takeTrash, trashOf, type DeskContent } from './persist';
@@ -91,7 +91,10 @@ export function scheduleReset(projectId: string, action: 'clear' | 'demo') {
 
 /* ── backups (format: backup.ts) ─────────────────────────────────────────────────────────── */
 
-/** The whole desk as one lossless .zip, as this device keeps it. `deskDoc` must be flushed. */
+/**
+ * The whole desk as one lossless .zip: open documents as they are in this tab, the rest as this
+ * device keeps them. `deskDoc` must be flushed.
+ */
 export async function exportBureau(papers: Paper[], deskDoc: Y.Doc, title: string): Promise<Blob> {
   const docIds = new Map<string, DocKind>();
   for (const p of papers) {
@@ -100,7 +103,9 @@ export async function exportBureau(papers: Paper[], deskDoc: Y.Doc, title: strin
   }
   const docs: BackupParts['docs'] = [];
   for (const [docId, kind] of docIds) {
-    const update = await readDeviceDoc(docDbName(kind, docId));
+    // An open document may hold changes the device refused to store.
+    const live = openSessionDoc(docId);
+    const update = live ? Y.encodeStateAsUpdate(live) : await readDeviceDoc(docDbName(kind, docId));
     if (update) docs.push({ docId, kind, update });
   }
   const keys = new Set<string>();
