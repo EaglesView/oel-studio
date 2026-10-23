@@ -76,6 +76,11 @@ Every change ends with the `oel-verify` skill: the commands above that apply, an
 touched. Report real results; if a check can't run (tooling blocked), say which and move on rather than building a
 workaround.
 
+CI (`.github/workflows/ci.yml`) runs on every pull request and push to `main`: Rust without warnings (native and
+WASM bindings), `cargo test` with LibreOffice installed, generated types up to date, `npm run typecheck`, vitest, and
+both editions' builds. It doesn't replace the browser checks. Not enforced yet: `cargo fmt` and `clippy` (the code
+predates them).
+
 ## Git
 
 - Work on a branch, never on `main`; don't push or open a pull request unless asked.

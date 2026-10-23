@@ -58,7 +58,13 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
   - `cargo fuzz` targets for `XDocument::parse`, `parse_fragment`, `Package::read`, and each codec's import (docx,
     xlsx, pptx, chart), seeded with `fixtures/`. A short run in CI on each push, a longer one weekly.
   - **Done when** an hour per target finds nothing new, and each crash found has a regression test.
-- [ ] **T0-6 · CI** (restructure Phase 6, solo-mvp R7) — M
+- [x] **T0-6 · CI** (restructure Phase 6, solo-mvp R7) — M
+  - **Done 2026-10-23**: `.github/workflows/ci.yml`, jobs `rust` (`-D warnings` native and wasm32, `cargo test` with
+    LibreOffice) and `web` (`build:wasm`, generated types current, `npm run typecheck`, vitest, `solo` and `equipe`
+    builds). Every step checked from a clean clone first. Left out: `cargo fmt --check` and `clippy -D warnings`
+    (neither installed here to try; the code isn't rustfmt-formatted, so `fmt` means reformatting everything first —
+    a decision for the user); the weekly fuzz run (with T0-5). To block merges on red, mark both jobs as required
+    checks in the repository's branch protection.
   - GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace`, `npm run build:wasm`,
     `npm run typecheck`, `npm test`, `npm run build` and `PUBLIC_EDITION=equipe npm run build`. Cache `target/`.
   - LibreOffice round-trip job (open every export headless) in a separate job.
