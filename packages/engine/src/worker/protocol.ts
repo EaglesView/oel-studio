@@ -9,4 +9,5 @@ export type FromWorker =
   | { id: number; op: 'progress'; progress: ImportProgress }
   | { id: number; op: 'result'; result: ImportResult }
   | { id: number; op: 'bytes'; bytes: Uint8Array }
-  | { id: number; op: 'error'; message: string };
+  /** `fatal`: a WASM trap (a Rust panic); the instance may be unusable, the host replaces the worker. */
+  | { id: number; op: 'error'; message: string; fatal?: boolean };

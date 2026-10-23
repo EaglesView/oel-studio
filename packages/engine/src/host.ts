@@ -2,17 +2,37 @@ import { previewEngine } from './engines/preview';
 import { EngineRegistry } from './registry';
 import type { ExportRequest, FileKind, ImportProgress, ImportResult } from './types';
 import type { FromWorker, ToWorker } from './worker/protocol';
-import { messages, tr } from '@oel/i18n';
+import { messages } from '@oel/i18n';
 
-type Pending = { resolve: (r: never) => void; reject: (e: Error) => void; onProgress?: (p: ImportProgress) => void };
+/** Each request keeps its message, so it can be sent again to a fresh worker. */
+type Pending = { msg: ToWorker; resolve: (r: never) => void; reject: (e: Error) => void; onProgress?: (p: ImportProgress) => void };
 
 /** Distributes Omit over a union, so each worker message keeps its own fields. */
 type WithoutId<T> = T extends unknown ? Omit<T, 'id'> : never;
+
+const t = messages(
+  {
+    engine: 'Erreur du moteur',
+    stopped: 'Moteur arrêté',
+    crashed: (name: string) => `Le moteur n’a pas pu lire « ${name} » : le fichier est peut-être endommagé.`,
+    crashedExport: 'Le moteur s’est arrêté pendant l’enregistrement du fichier. Réessayez ; si le problème revient, exportez le bureau.',
+  },
+  {
+    engine: 'Engine error',
+    stopped: 'Engine stopped',
+    crashed: (name) => `The engine could not read “${name}”: the file may be damaged.`,
+    crashedExport: 'The engine stopped while saving the file. Try again; if it happens again, export the desk.',
+  },
+);
 
 /**
  * Main-thread facade. Heavy work (parsing, WASM conversion) runs in a Web
  * Worker so the desk stays responsive; falls back to the main thread when
  * workers are unavailable (tests, SSR).
+ *
+ * A Rust panic traps the WASM instance and leaves it a little broken each time (in a test, the 68th trap made the
+ * next good file fail), so after a trap the worker is replaced and the requests still waiting in it go to the
+ * new one.
  */
 export class EngineHost {
   private worker: Worker | null = null;
@@ -20,12 +40,13 @@ export class EngineHost {
   private pending = new Map<number, Pending>();
   private local: EngineRegistry | null = null;
 
-  constructor(createWorker?: () => Worker, localRegistry?: () => EngineRegistry) {
+  constructor(
+    private readonly createWorker?: () => Worker,
+    localRegistry?: () => EngineRegistry,
+  ) {
     if (createWorker && typeof Worker !== 'undefined') {
       try {
-        this.worker = createWorker();
-        this.worker.onmessage = (e: MessageEvent<FromWorker>) => this.onMessage(e.data);
-        this.worker.onerror = (e) => this.failAll(new Error(e.message || tr('Erreur du moteur', 'Engine error')));
+        this.worker = this.start(createWorker);
       } catch {
         this.worker = null;
       }
@@ -33,18 +54,41 @@ export class EngineHost {
     if (!this.worker) this.local = localRegistry?.() ?? new EngineRegistry().register(previewEngine);
   }
 
-  private send<T>(msg: WithoutId<ToWorker>, transfer: Transferable[] = [], onProgress?: (p: ImportProgress) => void): Promise<T> {
+  private start(createWorker: () => Worker): Worker {
+    const worker = createWorker();
+    worker.onmessage = (e: MessageEvent<FromWorker>) => this.onMessage(e.data);
+    worker.onerror = (e) => this.failAll(new Error(e.message || t.engine));
+    return worker;
+  }
+
+  /** A fresh worker in place of one whose WASM trapped; requests it still held are sent again. */
+  private restart() {
+    this.worker?.terminate();
+    try {
+      this.worker = this.start(this.createWorker!);
+    } catch {
+      this.worker = null;
+      this.failAll(new Error(t.stopped));
+      return;
+    }
+    for (const p of this.pending.values()) this.worker.postMessage(p.msg);
+  }
+
+  private send<T>(msg: WithoutId<ToWorker>, onProgress?: (p: ImportProgress) => void): Promise<T> {
     const id = ++this.seq;
+    const full = { ...msg, id } as ToWorker;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (r: never) => void, reject, onProgress });
-      this.worker!.postMessage({ ...msg, id } as ToWorker, transfer);
+      this.pending.set(id, { msg: full, resolve: resolve as (r: never) => void, reject, onProgress });
+      if (this.worker) this.worker.postMessage(full);
+      else reject(new Error(t.stopped));
     });
   }
 
   async import(file: File, onProgress: (p: ImportProgress) => void = () => {}): Promise<ImportResult> {
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (this.local) return this.local.import({ name: file.name, type: file.type, bytes }, onProgress);
-    return this.send<ImportResult>({ op: 'import', name: file.name, type: file.type, bytes }, [bytes.buffer], onProgress);
+    // Copied, not transferred: the request may have to go to a new worker (see `restart`).
+    return this.send<ImportResult>({ op: 'import', name: file.name, type: file.type, bytes }, onProgress);
   }
 
   /** Serialise editor content back to a file (e.g. .docx through oeldocx-rs). */
@@ -69,7 +113,11 @@ export class EngineHost {
     this.pending.delete(m.id);
     if (m.op === 'result') p.resolve(m.result as never);
     else if (m.op === 'bytes') p.resolve(m.bytes as never);
-    else p.reject(new Error(m.message));
+    else if (m.fatal) {
+      // The raw message is « unreachable »: say what happened instead.
+      p.reject(new Error(p.msg.op === 'import' ? t.crashed(p.msg.name) : p.msg.op === 'export' ? t.crashedExport : t.engine));
+      this.restart();
+    } else p.reject(new Error(m.message));
   }
 
   private failAll(err: Error) {
@@ -79,6 +127,7 @@ export class EngineHost {
 
   dispose() {
     this.worker?.terminate();
-    this.failAll(new Error(tr('Moteur arrêté', 'Engine stopped')));
+    this.worker = null;
+    this.failAll(new Error(t.stopped));
   }
 }

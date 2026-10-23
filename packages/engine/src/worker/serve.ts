@@ -17,7 +17,10 @@ export function serveEngines(registry: EngineRegistry, scope: { onmessage: unkno
         scope.postMessage({ id, op: 'result', result });
       }
     } catch (err) {
-      scope.postMessage({ id, op: 'error', message: err instanceof Error ? err.message : String(err) });
+      // A trap skips the Rust side's cleanup (its stack pointer, any borrow in progress): after a few dozen the
+      // instance stops working, so the host replaces this worker instead of reusing it.
+      const fatal = typeof WebAssembly !== 'undefined' && err instanceof WebAssembly.RuntimeError;
+      scope.postMessage({ id, op: 'error', message: err instanceof Error ? err.message : String(err), fatal });
     }
   };
 }
