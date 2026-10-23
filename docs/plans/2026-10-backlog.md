@@ -76,6 +76,17 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
   - Surface `QuotaExceededError` (and failed y-indexeddb writes) as a lasting warning with « Exporter le bureau ».
   - **Done when** a vitest with a failing store shows the warning, and the S-2 browser check covers a full disk.
 - [ ] **T0-5 · Fuzzing at the import boundary** — M, needs T0-1/T0-2
+  - **Harness in, 2026-10-23**: `crates/oel-fuzz` damages every fixture (hostile numbers, missing or repeated
+    elements, cut, corrupted or repeated bytes, a broken zip) and runs each codec's import **then export**. A fixed
+    pass runs in `cargo test` (fixtures up to 1 MB, ~20 s); `cargo run -p oel-fuzz --profile fuzz -- --seconds N`
+    searches (the `fuzz` profile keeps overflow checks, so what would wrap in WASM panics); `.github/workflows/fuzz.yml`
+    searches for an hour every Monday and keeps the crashing files. Fixed on the way, with regression tests:
+    `oel-docx` table spans (`w:gridSpan`/`w:gridBefore` on import, `colspan`/`rowspan` on export: a 137 GB grid from
+    one cell), `oel-xlsx` row numbers (`r="0"` underflowed) and, found by the harness, new ids at the top of their
+    range (sheet, slide, shape and part ids were « highest + 1 »: `oel_opc::ids::FreeIds`). Searches here: 10 min
+    release (16 963 files, nothing), 30 min with overflow checks (46 882 files, the id overflow), 15 min after the
+    fix (24 914 files, nothing). Left: the first weekly hour (or a manual run), and coverage-guided `cargo fuzz`
+    (needs nightly, none here) for `XDocument::parse` and `Package::read` on raw bytes.
   - `cargo fuzz` targets for `XDocument::parse`, `parse_fragment`, `Package::read`, and each codec's import (docx,
     xlsx, pptx, chart), seeded with `fixtures/`. A short run in CI on each push, a longer one weekly.
   - **Done when** an hour per target finds nothing new, and each crash found has a regression test.
@@ -86,23 +97,39 @@ The repository has been public since 13 Oct, and the solo build is the hosted pr
   - Same class, not yet fixed: `oel-docx` export sizes a table grid from `colspan` (`write.rs`, `vec![None; ncols]`),
     which comes from a file's `gridSpan` on import or from any editor of a shared document: clamp to Word's 63
     columns.
-- [ ] **T0-6 · CI** (restructure Phase 6, solo-mvp R7) — M
+- [x] **T0-6 · CI** (restructure Phase 6, solo-mvp R7) — M
+  - **Done 2026-10-23**: `.github/workflows/ci.yml`, jobs `rust` (`-D warnings` native and wasm32, `cargo test` with
+    LibreOffice) and `web` (`build:wasm`, generated types current, `npm run typecheck`, vitest, `solo` and `equipe`
+    builds). Every step checked from a clean clone first. Left out: `cargo fmt --check` and `clippy -D warnings`
+    (the code isn't rustfmt-formatted, so `fmt` means reformatting everything first — a decision for the user). The
+    weekly fuzz run came with T0-5. To block merges on red, mark both jobs as required checks in the repository's
+    branch protection.
   - GitHub Actions: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace`, `npm run build:wasm`,
     `npm run typecheck`, `npm test`, `npm run build` and `PUBLIC_EDITION=equipe npm run build`. Cache `target/`.
   - LibreOffice round-trip job (open every export headless) in a separate job.
   - Why it matters, seen 2026-10-23: `npm run typecheck` had been red since 12 Oct (`packages/fonts`, fixed in
     `fonts: put the fontsource reference back…`), and its `&&` chain left every later package unchecked. The script's
     last step, `astro check`, still fails under TS 7: CI should run `npx tsc -p apps/web --noEmit` instead.
-- [ ] **T0-7 · Reproducible builds** (audit #6) — S, *good first issue*
+- [x] **T0-7 · Reproducible builds** (audit #6) — S, *good first issue*
+  - **Done 2026-10-23**: `rust-toolchain.toml` (1.99.1, wasm32, rustfmt, clippy) used by CI, the Dockerfile and
+    `build-site.sh` through `rustup toolchain install`; `.nvmrc` 24.22.1 read by CI; the Dockerfile starts from
+    `node:24.22.1-bookworm` by digest. The image builds with podman. Updating the digest is by hand (the Dockerfile
+    says how); Dependabot could do it if wanted.
   - `rust-toolchain.toml` with an exact version and the `wasm32-unknown-unknown` target; `.do/site.Dockerfile` and
     `scripts/build-site.sh` install that version instead of `stable`. `.nvmrc` for Node 24. Pin the Docker base by
     digest. `wasm-pack` is already pinned through the lockfile.
 - [ ] **T0-8 · Public-repo hygiene** (solo-mvp R5, never closed) — S, **user decision**
+  - **Checked 2026-10-23**: gitleaks 8.24.3 over all 205 commits: no leaks. The fixtures below are Microsoft Office
+    sample templates (`docProps/app.xml` names the template; Microsoft's fictitious people and companies) except
+    `tesxte.docx`, which reads as someone's own essay. `Document 4.docx` keeps a person's name in
+    `cp:lastModifiedBy`. Decision left to the user: keep, strip the metadata, or replace with generated files (the
+    generators in `fixtures/*/make_*.py` show how). `feat/backend` is not on GitHub yet.
   - Fixture provenance: `fixtures/pptx/Presentation {1,2,3,5}.pptx`, `fixtures/docx/Document 4.docx`, `tesxte.docx`,
     `fixtures/xlsx/complex_sheet_graph.xlsx`. Check their content and licence, or replace them with generated ones.
   - Secrets scan of the whole history (`gitleaks detect`).
   - When `feat/backend` is merged (T2-1), its plan still holds the Figma file key that commit `3278cf5` removed elsewhere.
-- [ ] **T0-9 · Documentation drift** — S, *good first issue*
+- [x] **T0-9 · Documentation drift** — S, *good first issue*
+  - **Done 2026-10-23** (`docs: bring README, packages and restructure plan up to date`).
   - README links `docs/plans/2026-10-backend-mvp.md`, which exists only on `feat/backend`.
   - README « Not yet: … a translated Bureau UI »: the Bureau has been bilingual since `feat/i18n`.
   - `docs/packages.md` table: « ranges and single values » listed as not yet, but I-4 and I-6 are done.
@@ -268,3 +295,6 @@ versions (T2-3), the verification debt (Tier 1), and `feat/backend` drifting fro
   `engine: replace the worker after a WASM trap`); vitest 42 files, 254 tests. Next: T0-4.
 - 2026-10-23: PR #10 (T0-3) and #11 (CI) merged; CI green on `main`. T0-4 done (`collab-client: report the writes
   this device refuses`, `bureau: warn when the desk can't be saved`); vitest 44 files, 261 tests.
+- 2026-10-23: T0-9, T0-7 and T0-5's harness done, T0-8 checked (branch `t0/remaining`, on top of #12). The T0-6 tick,
+  lost when `main` was merged into `ci/github-actions`, is back. Left in Tier 0: T0-8's decision on fixtures, the
+  first weekly fuzz hour, `cargo fuzz` on nightly.
