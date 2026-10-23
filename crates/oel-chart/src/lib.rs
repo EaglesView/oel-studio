@@ -12,7 +12,7 @@ pub mod read;
 pub mod write;
 
 pub use model::*;
-pub use read::{Theme, chart_part, read_chart};
+pub use read::{MAX_POINTS, Theme, chart_part, read_chart};
 pub use write::write_chart;
 
 /// Next free `chartN.xml` name in `dir` (`xl/charts`, `ppt/charts`, `word/charts`).

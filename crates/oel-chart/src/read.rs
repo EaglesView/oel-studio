@@ -243,30 +243,22 @@ impl Ctx<'_> {
                 let cache = if inner.local() == "numLit" { Some(inner) } else { inner.child_local("numCache") };
                 if let Some(c) = cache {
                     d.format = c.child_local("formatCode").map(|f| f.text_content());
-                    d.count = c.child_local("ptCount").and_then(|p| p.attr("val")).and_then(|v| v.parse().ok()).unwrap_or(0);
-                    d.num = vec![None; d.count as usize];
-                    for pt in c.children_local("pt") {
-                        let i: usize = pt.attr("idx").and_then(|v| v.parse().ok()).unwrap_or(0);
-                        let v = pt.child_local("v").and_then(|v| v.text_content().trim().parse::<f64>().ok());
-                        if i >= d.num.len() {
-                            d.num.resize(i + 1, None);
-                        }
-                        d.num[i] = v;
-                    }
+                    d.count = point_count(c.child_local("ptCount").and_then(|p| p.attr("val")));
+                    d.num = fill(d.count, c.children_local("pt").map(|pt| (pt.attr("idx"), pt.child_local("v").and_then(|v| v.text_content().trim().parse::<f64>().ok()))));
                 }
             }
             "strRef" | "strLit" => {
                 d.f = inner.child_local("f").map(|f| f.text_content());
                 let cache = if inner.local() == "strLit" { Some(inner) } else { inner.child_local("strCache") };
                 if let Some(c) = cache {
-                    d.count = c.child_local("ptCount").and_then(|p| p.attr("val")).and_then(|v| v.parse().ok()).unwrap_or(0);
+                    d.count = point_count(c.child_local("ptCount").and_then(|p| p.attr("val")));
                     d.str = pts(c, d.count);
                 }
             }
             "multiLvlStrRef" => {
                 d.f = inner.child_local("f").map(|f| f.text_content());
                 if let Some(c) = inner.child_local("multiLvlStrCache") {
-                    d.count = c.child_local("ptCount").and_then(|p| p.attr("val")).and_then(|v| v.parse().ok()).unwrap_or(0);
+                    d.count = point_count(c.child_local("ptCount").and_then(|p| p.attr("val")));
                     d.levels = c.children_local("lvl").map(|l| pts(l, d.count)).collect();
                     d.str = d.levels.first().cloned().unwrap_or_default();
                 }
@@ -513,29 +505,14 @@ impl Ctx<'_> {
                     if dim.local() == "numDim" {
                         if let Some(l) = lvls.first() {
                             r.format = l.attr("formatCode").map(String::from);
-                            r.count = l.attr("ptCount").and_then(|v| v.parse().ok()).unwrap_or(0);
-                            r.num = vec![None; r.count as usize];
-                            for pt in l.children_local("pt") {
-                                let i: usize = pt.attr("idx").and_then(|v| v.parse().ok()).unwrap_or(0);
-                                if i >= r.num.len() {
-                                    r.num.resize(i + 1, None);
-                                }
-                                r.num[i] = pt.text_content().trim().parse().ok();
-                            }
+                            r.count = point_count(l.attr("ptCount"));
+                            r.num = fill(r.count, l.children_local("pt").map(|pt| (pt.attr("idx"), pt.text_content().trim().parse().ok())));
                         }
                     } else {
                         for l in &lvls {
-                            let count = l.attr("ptCount").and_then(|v| v.parse().ok()).unwrap_or(0);
+                            let count = point_count(l.attr("ptCount"));
                             r.count = r.count.max(count);
-                            let mut v = vec![None; count as usize];
-                            for pt in l.children_local("pt") {
-                                let i: usize = pt.attr("idx").and_then(|v| v.parse().ok()).unwrap_or(0);
-                                if i >= v.len() {
-                                    v.resize(i + 1, None);
-                                }
-                                v[i] = Some(pt.text_content());
-                            }
-                            r.levels.push(v);
+                            r.levels.push(fill(count, l.children_local("pt").map(|pt| (pt.attr("idx"), Some(pt.text_content())))));
                         }
                         r.str = r.levels.first().cloned().unwrap_or_default();
                         if r.levels.len() < 2 {
@@ -681,13 +658,32 @@ fn expand(base: &[Rgba], variations: &[&XElement]) -> Vec<String> {
 }
 
 fn pts(c: &XElement, count: u32) -> Vec<Option<String>> {
+    fill(count, c.children_local("pt").map(|pt| (pt.attr("idx"), pt.child_local("v").map(|x| x.text_content()))))
+}
+
+/// Most points a cached series keeps: Excel's row count, the most one series can reference. Counts and indexes
+/// come from the file, so they are clamped before anything is allocated from them (a crafted `idx` asked for 100 GB).
+pub const MAX_POINTS: u32 = 1 << 20;
+
+/// A declared `ptCount`, at most `MAX_POINTS`.
+fn point_count(v: Option<&str>) -> u32 {
+    v.and_then(|v| v.parse::<u64>().ok()).unwrap_or(0).min(MAX_POINTS as u64) as u32
+}
+
+/// `count` slots, each point's value at its `idx`; a point at or past `MAX_POINTS` is dropped. Indexes are read as
+/// `u64` so 32-bit WASM and 64-bit builds agree on what is too big.
+fn fill<'a, T: Clone>(count: u32, points: impl Iterator<Item = (Option<&'a str>, Option<T>)>) -> Vec<Option<T>> {
     let mut v = vec![None; count as usize];
-    for pt in c.children_local("pt") {
-        let i: usize = pt.attr("idx").and_then(|v| v.parse().ok()).unwrap_or(0);
+    for (idx, value) in points {
+        let i = idx.and_then(|i| i.parse::<u64>().ok()).unwrap_or(0);
+        if i >= MAX_POINTS as u64 {
+            continue;
+        }
+        let i = i as usize;
         if i >= v.len() {
             v.resize(i + 1, None);
         }
-        v[i] = pt.child_local("v").map(|x| x.text_content());
+        v[i] = value;
     }
     v
 }
