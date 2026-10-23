@@ -169,6 +169,43 @@ fn markup_after_the_root_survives() {
     assert!(all_text(&import_docx(&bytes).unwrap().json["doc"]).contains("Ajout"));
 }
 
+fn first_cell(v: &mut Value) -> Option<&mut Value> {
+    if v["type"] == "tableCell" {
+        return Some(v);
+    }
+    v["content"].as_array_mut()?.iter_mut().find_map(first_cell)
+}
+
+#[test]
+fn table_spans_are_bounded() {
+    // Crafted spans: a cell over 2^32 - 1 grid columns, a row starting after 2^32 - 1 skipped ones.
+    let mut pkg = Package::read(&fixture("table-borders.docx")).unwrap();
+    let xml = pkg
+        .get_str("word/document.xml")
+        .unwrap()
+        .replacen("<w:tcPr>", r#"<w:tcPr><w:gridSpan w:val="4294967295"/>"#, 1)
+        .replacen("<w:tr>", r#"<w:tr><w:trPr><w:gridBefore w:val="4294967295"/></w:trPr>"#, 1);
+    pkg.set("word/document.xml", xml.into_bytes());
+    let original = pkg.write().unwrap();
+    let a = import_docx(&original).unwrap();
+    let cells = nodes(&a.json["doc"], "tableCell");
+    assert!(!cells.is_empty());
+    for c in &cells {
+        let span = c["attrs"]["colspan"].as_u64().unwrap_or(1);
+        assert!(span <= oeldocx::read::MAX_GRID_COLS as u64, "colspan {span}");
+        assert!(c["attrs"]["colwidth"].as_array().map_or(0, |w| w.len()) <= oeldocx::read::MAX_GRID_COLS);
+    }
+
+    // The same from an editor: absurd spans must not size the export's grid or loop over rows.
+    let mut j = a.json.clone();
+    let cell = first_cell(&mut j["doc"]).unwrap();
+    cell["attrs"]["colspan"] = json!(u64::MAX);
+    cell["attrs"]["rowspan"] = json!(u64::MAX);
+    let bytes = export_docx(&j, Some(&original), HashMap::new()).unwrap();
+    let back = import_docx(&bytes).unwrap();
+    assert!(nodes(&back.json["doc"], "tableCell").iter().all(|c| c["attrs"]["colspan"].as_u64().unwrap_or(1) <= oeldocx::read::MAX_GRID_COLS as u64));
+}
+
 #[test]
 fn round_trip_test_document() {
     round_trip("tesxte.docx");

@@ -166,6 +166,16 @@ fn attr_map(e: Option<&XElement>, keys: &[(&str, &str)]) -> Value {
     if m.is_empty() { Value::Null } else { Value::Object(m) }
 }
 
+/// Grid columns a table row may reach through its spans. Word stops at 63 columns and LibreOffice goes further, so
+/// real files stay well inside; a crafted `w:gridSpan` (or an editor's `colspan`) would otherwise size allocations.
+/// Past the bound, each further cell takes one column.
+pub const MAX_GRID_COLS: usize = 1024;
+
+/// `span` cut so that a row starting at `col` stays within `MAX_GRID_COLS` (at least one column).
+pub fn bounded_span(col: usize, span: usize) -> usize {
+    span.clamp(1, MAX_GRID_COLS.saturating_sub(col).max(1))
+}
+
 pub const SPACING_KEYS: &[(&str, &str)] = &[("w:before", "before"), ("w:after", "after"), ("w:line", "line"), ("w:lineRule", "lineRule")];
 pub const IND_KEYS: &[(&str, &str)] = &[("w:left", "left"), ("w:start", "left"), ("w:right", "right"), ("w:end", "right"), ("w:firstLine", "firstLine"), ("w:hanging", "hanging")];
 
@@ -260,11 +270,11 @@ fn read_table(ctx: &mut ReadCtx, t: &XElement) -> Value {
     let rows: Vec<&XElement> = t.elements().filter(|e| e.name == "w:tr").collect();
     let mut placed: Vec<Vec<Cell>> = Vec::new();
     for r in &rows {
-        let mut col = r.child("w:trPr").and_then(|p| p.child_val("w:gridBefore")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0);
+        let mut col = r.child("w:trPr").and_then(|p| p.child_val("w:gridBefore")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(0).min(MAX_GRID_COLS);
         let mut cells = Vec::new();
         for tc in r.elements().filter(|e| e.name == "w:tc") {
             let tcpr = tc.child("w:tcPr");
-            let span = tcpr.and_then(|p| p.child_val("w:gridSpan")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(1).max(1);
+            let span = bounded_span(col, tcpr.and_then(|p| p.child_val("w:gridSpan")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(1));
             let vmerge = tcpr.and_then(|p| p.child("w:vMerge")).map(|v| v.attr("w:val") == Some("restart"));
             cells.push(Cell { el: tc, col, span, vmerge });
             col += span;

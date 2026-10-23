@@ -4,7 +4,7 @@
 //! types); every other part is copied byte for byte.
 
 use super::package::*;
-use super::read::{HIGHLIGHTS, IND_KEYS, SPACING_KEYS, paragraph_attrs, run_model, section_values, story_id};
+use super::read::{HIGHLIGHTS, IND_KEYS, SPACING_KEYS, bounded_span, paragraph_attrs, run_model, section_values, story_id};
 use super::styles::Styles;
 use super::template;
 use super::xml::{XDocument, XElement, XNode, escape_attr, escape_text, parse_fragment};
@@ -751,8 +751,9 @@ impl Writer<'_> {
                 while occupied[ri].contains_key(&col) {
                     col += occupied[ri][&col].0;
                 }
-                let colspan = c["attrs"]["colspan"].as_u64().unwrap_or(1).max(1) as usize;
-                let rowspan = c["attrs"]["rowspan"].as_u64().unwrap_or(1).max(1) as usize;
+                // Spans come from a file or from any editor of a shared document: bounded like the reader's.
+                let colspan = bounded_span(col, c["attrs"]["colspan"].as_u64().unwrap_or(1).try_into().unwrap_or(usize::MAX));
+                let rowspan = usize::try_from(c["attrs"]["rowspan"].as_u64().unwrap_or(1)).unwrap_or(usize::MAX).clamp(1, rows.len() - ri);
                 for below in 1..rowspan {
                     if ri + below < rows.len() {
                         occupied[ri + below].insert(col, (colspan, c.clone()));
