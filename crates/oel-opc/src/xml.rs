@@ -31,11 +31,14 @@ impl std::fmt::Display for XmlError {
     }
 }
 
-/// A parsed part: the prolog (`<?xml …?>` and anything before the root) and the root.
+/// A parsed part: the prolog (`<?xml …?>` and anything before the root), the root, and the
+/// epilogue (whatever follows the root — comments, processing instructions, a final newline —
+/// kept verbatim like the prolog).
 #[derive(Debug, Clone)]
 pub struct XDocument {
     pub prolog: String,
     pub root: XElement,
+    pub epilogue: String,
 }
 
 impl XDocument {
@@ -54,7 +57,13 @@ impl XDocument {
             }
         }
         let root = p.element()?;
-        Ok(XDocument { prolog, root })
+        let epilogue = src[p.i..].to_string();
+        Ok(XDocument { prolog, root, epilogue })
+    }
+
+    /// A document around a new root, with the default prolog.
+    pub fn new(root: XElement) -> Self {
+        XDocument { prolog: String::new(), root, epilogue: String::new() }
     }
 
     pub fn to_string(&self) -> String {
@@ -65,6 +74,7 @@ impl XDocument {
             out.push_str(&self.prolog);
         }
         self.root.write(&mut out);
+        out.push_str(&self.epilogue);
         out
     }
 }
@@ -542,6 +552,15 @@ mod tests {
         assert!(out.contains("<!-- c -->"));
         assert!(out.contains("b=\"x &amp; y\""));
         assert_eq!(XDocument::parse(&out).unwrap().root, doc.root);
+    }
+
+    #[test]
+    fn keeps_what_follows_the_root() {
+        let src = "<?xml version=\"1.0\"?>\n<r a=\"1\"><c/></r>\n<!-- after --><?pi x?>\n";
+        let doc = XDocument::parse(src).unwrap();
+        assert_eq!(doc.epilogue, "\n<!-- after --><?pi x?>\n");
+        assert_eq!(doc.to_string(), src);
+        assert_eq!(XDocument::parse("<r/>").unwrap().epilogue, "");
     }
 
     #[test]

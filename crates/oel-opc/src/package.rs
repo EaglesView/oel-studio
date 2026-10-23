@@ -120,9 +120,8 @@ impl Package {
     /// Add a relationship to a part and return its id (reuses an identical one).
     pub fn add_rel(&mut self, part: &str, rel_type: &str, target: &str, external: bool) -> String {
         let path = rels_path(part);
-        let mut doc = self.get_xml(&path).unwrap_or_else(|| XDocument {
-            prolog: String::new(),
-            root: XElement::new("Relationships").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships"),
+        let mut doc = self.get_xml(&path).unwrap_or_else(|| {
+            XDocument::new(XElement::new("Relationships").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/relationships"))
         });
         for e in doc.root.elements() {
             if e.attr("Type") == Some(rel_type) && e.attr("Target") == Some(target) {
@@ -148,9 +147,8 @@ impl Package {
     }
 
     pub fn content_types(&self) -> XDocument {
-        self.get_xml("[Content_Types].xml").unwrap_or_else(|| XDocument {
-            prolog: String::new(),
-            root: XElement::new("Types").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types"),
+        self.get_xml("[Content_Types].xml").unwrap_or_else(|| {
+            XDocument::new(XElement::new("Types").with_attr("xmlns", "http://schemas.openxmlformats.org/package/2006/content-types"))
         })
     }
 
