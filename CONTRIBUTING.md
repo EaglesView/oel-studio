@@ -28,7 +28,8 @@ npm test
   request. Site and docs text (`apps/web/src/site/`) needs both French and English.
 - Accessibility is part of done: every pointer gesture has a keyboard path, every tool a label, nothing relies on
   colour alone.
-- Before opening the pull request: `npm test`, `npm run typecheck`, `npm run build`.
+- Before opening the pull request: `npm test`, `npm run typecheck`, `npm run build`. CI runs the same checks on
+  every pull request (`.github/workflows/ci.yml`); a red run needs fixing before review.
 
 ## Licence
 

@@ -207,8 +207,8 @@ Figma *Editor — Behaviors* · section E. A form is a paper on the desk (dock �
 
 ## Known gaps
 
-- `npm run check` (astro check) cannot run with TypeScript 7 (native, no JS API); `tsc -p`
-  typechecks the packages and `npm run build` type-strips the app.
+- `npm run check` (astro check) cannot run with TypeScript 7 (native, no JS API): `npm run typecheck`
+  runs `tsc -p apps/web` instead, which checks the app's TypeScript but not `.astro` templates.
 - Footnotes are shown together at the end of the document, not at the bottom of each page.
 - Print / PDF uses the browser's pagination and does not include headers and footers.
 - Floating (anchored) images keep their position on export but are shown inline.

@@ -25,7 +25,7 @@ A stale `packages/wasm/` is the most common cause of "works in Rust, broken in t
 
 ```bash
 npm test                         # cargo test --workspace, then vitest: desk, engine, docs (+LibreOffice if soffice exists), sheets, forms, collab
-npm run typecheck                # regenerates contract types (gen:types), then tsc per package; `astro check` cannot run under TypeScript 7 (known gap)
+npm run typecheck                # regenerates contract types (gen:types), then tsc per package and `tsc -p apps/web` (`astro check` cannot run under TypeScript 7)
 npm run build                    # static site (single-user `solo` edition); catches app-level type errors stripped by tsc runs
 PUBLIC_EDITION=equipe npm run build   # the team edition too, when a change touches collab, forms or members
 ```

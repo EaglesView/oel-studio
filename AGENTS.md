@@ -18,11 +18,11 @@ npm install
 npm run dev            # single-user site + Bureau, http://localhost:4321 (rebuilds stale WASM first)
 npm run dev:equipe     # team edition: web + collab server on :8787 (POSIX shells)
 npm test               # cargo test --workspace, then vitest
-npm run typecheck      # regenerates generated TS types, then tsc per package
+npm run typecheck      # regenerates generated TS types, then tsc per package and app
 npm run build          # static site; PUBLIC_EDITION=equipe npm run build for the team build
 npm run build:wasm     # rebuild every crate's WASM into packages/wasm/ (git-ignored)
 bash scripts/build-site.sh   # hosting build (DigitalOcean: .do/site.Dockerfile + .do/app.yaml): Rust if missing, WASM_TARGETS=web, site
-npx tsc -p apps/web --noEmit   # app typecheck: `astro check` cannot run under TypeScript 7
+npx tsc -p apps/web --noEmit   # the app alone (typecheck's last step; `astro check` cannot run under TypeScript 7)
 cargo test -p <crate>  # one crate; crates are oel-opc, oel-docx, oel-xlsx, oel-pptx, oel-chart, oel-img
 ```
 
@@ -75,6 +75,11 @@ about file types.
 Every change ends with the `oel-verify` skill: the commands above that apply, and the browser checks for the areas
 touched. Report real results; if a check can't run (tooling blocked), say which and move on rather than building a
 workaround.
+
+CI (`.github/workflows/ci.yml`) runs on every pull request and push to `main`: Rust without warnings (native and
+WASM bindings), `cargo test` with LibreOffice installed, generated types up to date, `npm run typecheck`, vitest, and
+both editions' builds. It doesn't replace the browser checks. Not enforced yet: `cargo fmt` and `clippy` (the code
+predates them).
 
 ## Git
 

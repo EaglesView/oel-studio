@@ -1,0 +1,85 @@
+# Checks every pull request and every push to main: the Rust crates, then the TypeScript packages and the site.
+# The same commands as AGENTS.md « Commands », so a green run here means the same thing as on a laptop.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  rust:
+    name: Rust · warnings, WASM bindings, tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      # The round-trip tests open every export in LibreOffice when `soffice` exists (and skip silently otherwise).
+      - name: Install LibreOffice
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress
+          soffice --version
+      - name: Build without warnings
+        run: cargo check --workspace --all-targets
+      - name: Build the WASM bindings
+        run: cargo check --target wasm32-unknown-unknown -p oel-docx -p oel-xlsx -p oel-pptx -p oel-img --features oel-docx/wasm,oel-xlsx/wasm,oel-pptx/wasm,oel-img/wasm
+      - name: Test
+        run: cargo test --workspace
+
+  web:
+    name: TypeScript · types, tests, both editions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Build the WASM engines
+        run: npm run build:wasm
+      # Contract types are generated from the Rust crates and committed: a crate change must come with them.
+      - name: Generated types are up to date
+        run: |
+          npm run gen:types
+          git add --intent-to-add packages/engine/src/generated
+          git diff --exit-code -- packages/engine/src/generated || {
+            echo "::error::packages/engine/src/generated is out of date: run \`npm run gen:types\` and commit the result."
+            exit 1
+          }
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npx vitest run
+      - name: Build the site (single-user edition)
+        run: npm run build
+      - name: Build the site (team edition)
+        run: npm run build
+        env:
+          PUBLIC_EDITION: equipe
