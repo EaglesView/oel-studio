@@ -41,11 +41,12 @@ first visit, changed in « Paramètres »); the site and the documentation are i
 
 ## Try it
 
-You need **Node 24+** and **Rust** (stable, edition 2024) with the `wasm32-unknown-unknown` target; `wasm-pack`
-comes from npm.
+You need **Node 24** (`.nvmrc`) and **Rust** through rustup, which installs the version pinned in
+`rust-toolchain.toml` with its `wasm32-unknown-unknown` target (a distribution's Rust works too if it is recent and
+has that target); `wasm-pack` comes from npm.
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup toolchain install   # the pinned Rust, from rust-toolchain.toml
 npm install
 npm run dev        # http://localhost:4321 — the site, /bureau (the editor), /docs
 ```

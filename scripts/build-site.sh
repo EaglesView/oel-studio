@@ -4,13 +4,16 @@
 # wasm32 target when missing, builds only the browser WASM targets, then the site into apps/web/dist.
 set -euo pipefail
 
+cd "$(dirname "$0")/.."
 if ! command -v cargo >/dev/null 2>&1; then
-  echo "▸ Installing Rust (minimal profile, wasm32 target)"
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable --target wasm32-unknown-unknown
+  echo "▸ Installing Rust (the version in rust-toolchain.toml, with its wasm32 target)"
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
   # shellcheck disable=SC1091
   source "$HOME/.cargo/env"
-elif command -v rustup >/dev/null 2>&1; then
-  rustup target add wasm32-unknown-unknown
+fi
+# rustup reads rust-toolchain.toml from here.
+if command -v rustup >/dev/null 2>&1; then
+  rustup toolchain install
 fi
 # A system Rust without rustup (distribution packages) must already have the wasm32 standard library.
 

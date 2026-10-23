@@ -29,9 +29,9 @@ jobs:
       RUSTFLAGS: -D warnings
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+      # The runner's rustup installs the version in rust-toolchain.toml.
+      - name: Install Rust
+        run: rustup toolchain install && rustc --version
       - uses: Swatinem/rust-cache@v2
       # The round-trip tests open every export in LibreOffice when `soffice` exists (and skip silently otherwise).
       - name: Install LibreOffice
@@ -52,13 +52,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+      # The runner's rustup installs the version in rust-toolchain.toml.
+      - name: Install Rust
+        run: rustup toolchain install && rustc --version
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
       - name: Install
         run: npm ci --no-audit --no-fund

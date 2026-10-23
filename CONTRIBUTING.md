@@ -12,7 +12,7 @@ Thank you for helping. The Bureau is young; issues and small, focused pull reque
 ## Setting up
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup toolchain install   # the Rust in rust-toolchain.toml, with its wasm32 target
 npm install
 npm run dev     # http://localhost:4321/bureau
 npm test

@@ -1,0 +1,7 @@
+# The Rust every build uses (CI, the hosting image, rustup on a laptop): bump it on purpose, in its own commit,
+# after `npm test` passes on the new version. A system Rust without rustup ignores this file.
+[toolchain]
+channel = "1.99.1"
+targets = ["wasm32-unknown-unknown"]
+components = ["rustfmt", "clippy"]
+profile = "minimal"
