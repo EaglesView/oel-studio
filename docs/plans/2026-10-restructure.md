@@ -93,6 +93,9 @@ The big front-end scalability win (ARCHITECTURE §5).
 
 ## Phase 7 — Desktop spike (~1 day, after Phase 4)
 
+> 2026-10-24: superseded by `2026-10-desktop.md` (v1 keeps the WASM engines in the webview; native engines are a
+> later, measured step). Phase 4 is taken in by its D-1.
+
 - [ ] `apps/desktop` Tauri 2: `src-tauri` depends on `crates/oel-docx`, `crates/oel-xlsx` natively; commands `engine_import`, `engine_export`, `engine_create` mirroring the worker protocol.
 - [ ] `@oel/platform/tauri`: `EngineTransport` over `invoke`, `FileAccess` over the dialog/fs plugins.
 - [ ] Load `apps/web` build output; route `/bureau` as the start page.
