@@ -5,6 +5,7 @@
  */
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
+import { reportStorageFailure, watchDatabase } from './local';
 
 export interface DeviceDoc {
   doc: Y.Doc;
@@ -14,9 +15,21 @@ export interface DeviceDoc {
   clear(): Promise<void>;
 }
 
+/** Save `doc` under `name` with y-indexeddb, reporting the writes the device refuses (`onStorageFailure`). */
+export function persistDoc(name: string, doc: Y.Doc): IndexeddbPersistence {
+  const idb = new IndexeddbPersistence(name, doc);
+  idb._db.then(watchDatabase, (e: unknown) => {
+    // No database (a full disk can't create one): y-indexeddb would never say it is synced, and
+    // the session would wait forever. Nothing is saved, so the document carries on in memory.
+    reportStorageFailure(e);
+    idb.emit('synced', [idb]);
+  });
+  return idb;
+}
+
 /** Open (or create) a Y.Doc saved under `name`; resolves once the saved state is loaded. */
 export async function openDeviceDoc(name: string, doc: Y.Doc = new Y.Doc()): Promise<DeviceDoc> {
-  const idb = new IndexeddbPersistence(name, doc);
+  const idb = persistDoc(name, doc);
   await idb.whenSynced;
   return {
     doc,

@@ -6,6 +6,8 @@ import type { Bureau, Paper } from './model';
 import { exportBureau, scheduleImport, scheduleReset } from './deskStorage';
 import { saveFile } from './images';
 import { storageUsed } from './restore';
+import { storageFailure, onStorageFailure, type StorageFailure } from '@oel/collab-client';
+import { storageNote } from './storageWarning';
 import { locale, messages } from '@oel/i18n';
 
 const t = messages(
@@ -67,6 +69,19 @@ type Confirm = { kind: 'clear' } | { kind: 'demo' } | { kind: 'import'; file: Fi
 const mb = new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 });
 const fileName = (title: string) => `${(title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || t.desk).slice(0, 80)} — ${t.desk} ${new Date().toISOString().slice(0, 10)}.zip`;
 
+const fail = (title: string) => (e: unknown) => toast({ title, description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+
+/** « Exporter le bureau »: the whole desk as one .zip, downloaded. */
+export async function exportDesk(store: Bureau, desk: DeskActions): Promise<void> {
+  try {
+    desk.flush();
+    saveFile(await exportBureau(store.nodes as Paper[], desk.doc, desk.title), fileName(desk.title));
+    toast({ title: t.exported, description: t.exportedBody, tone: 'success' });
+  } catch (e) {
+    fail(t.exportFailed)(e);
+  }
+}
+
 /**
  * « Ce bureau » (plan solo MVP, S-2): everything lives in this browser, so this is where it is
  * backed up, brought back, emptied or reset to the demo.
@@ -75,20 +90,14 @@ export function DeskBackup({ store, desk }: { store: Bureau; desk: DeskActions }
   const [used, setUsed] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [refused, setRefused] = useState<StorageFailure | null>(storageFailure);
   useEffect(() => void storageUsed().then(setUsed), []);
-  const fail = (title: string) => (e: unknown) => toast({ title, description: e instanceof Error ? e.message : String(e), tone: 'danger' });
+  useEffect(() => onStorageFailure(setRefused), []);
 
   const doExport = async () => {
     setBusy(true);
-    try {
-      desk.flush();
-      saveFile(await exportBureau(store.nodes as Paper[], desk.doc, desk.title), fileName(desk.title));
-      toast({ title: t.exported, description: t.exportedBody, tone: 'success' });
-    } catch (e) {
-      fail(t.exportFailed)(e);
-    } finally {
-      setBusy(false);
-    }
+    await exportDesk(store, desk);
+    setBusy(false);
   };
 
   const run = (c: Confirm) => {
@@ -103,6 +112,11 @@ export function DeskBackup({ store, desk }: { store: Bureau; desk: DeskActions }
     <section className="app-menu__section app-menu__section--narrow" aria-labelledby="menu-desk">
       <h3 id="menu-desk" className="app-menu__h3">{t.thisDesk}</h3>
       <p className="app-menu__note">{t.kept(used != null ? mb.format(used / 1e6) : null)}</p>
+      {refused && (
+        <p className="app-menu__note app-menu__note--warning" role="alert">
+          {storageNote(refused)}
+        </p>
+      )}
       <div className="app-menu__actions">
         <Button variant="secondary" leadingIcon="download" isDisabled={busy} onPress={doExport}>
           {t.export}

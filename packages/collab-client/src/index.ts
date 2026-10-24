@@ -1,8 +1,8 @@
 export { CollabApi, CollabError, decodeToken, shareUrl, SHARE_PATH, type DocKind, type Role, type ShareLink, type VersionInfo } from './api';
 export { loadIdentity, saveIdentity, defaultIdentity, IDENTITY_COLORS, type Identity } from './identity';
-export { localFiles, packageKey, mediaKey, type StoredFile } from './local';
+export { localFiles, packageKey, mediaKey, onStorageFailure, reportStorageFailure, storageFailure, type StorageFailure, type StoredFile } from './local';
 export { openDeviceDoc, readDeviceDoc, writeDeviceDoc, deleteDeviceDoc, deviceDocNames, type DeviceDoc } from './device';
-export { YSession, createRemoteDoc, docDbName, randomId, tokenStore, type Peer, type SessionStatus } from './session';
+export { YSession, createRemoteDoc, docDbName, openSessionDoc, randomId, tokenStore, type Peer, type SessionStatus } from './session';
 export { MediaStore, type MediaEntry } from './media';
 export { SyncStatus, Peers, useSessionStatus } from './ui/SyncStatus';
 export { IdentityDialog, ShareDialog, VersionPanel } from './ui/dialogs';

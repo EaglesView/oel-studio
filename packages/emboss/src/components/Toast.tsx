@@ -56,15 +56,15 @@ const FALLBACK_HEIGHT = 66;
 
 /**
  * App-wide toast queue. A paper slip that rises from the bottom, with a
- * tone-coloured edge and seal. Every toast auto-dismisses; timers pause while
- * the pile is hovered or focused.
+ * tone-coloured edge and seal. Toasts auto-dismiss unless asked not to; timers
+ * pause while the pile is hovered or focused.
  */
 export const toastQueue = new ToastQueue<ToastData>({ maxVisibleToasts: MAX_VISIBLE });
 
-/** Toasts with an action stay a little longer so there is time to reach it. */
-export function toast(content: ToastData, timeout = content.action ? 8000 : 5000) {
+/** Toasts with an action stay a little longer so there is time to reach it; `null` keeps one until it is closed. */
+export function toast(content: ToastData, timeout: number | null = content.action ? 8000 : 5000) {
   toastHistory.push(content);
-  return toastQueue.add(content, { timeout });
+  return toastQueue.add(content, timeout == null ? {} : { timeout });
 }
 
 /* ── History: every toast this session, so a dismissed one can be read again ── */
