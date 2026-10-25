@@ -52,6 +52,8 @@ const { title, description = 'Un seul éditeur pour tous vos fichiers, directeme
         const t = localStorage.getItem('oel-theme');
         if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
       } catch {}
+      // The desktop app draws its own 40 px title bar (src/desktop): keep the room before first paint.
+      if (window.isTauri) document.documentElement.style.setProperty('--emboss-inset-top', '40px');
     </script>
     <script>
       // Visit counting, only in builds with PUBLIC_POSTHOG_KEY (src/analytics.ts).

@@ -29,7 +29,7 @@
 /* Dialog */
 .emb-modal-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--emboss-inset-top) 0 0;
   z-index: 100;
   display: grid;
   /* One column no wider than the screen, so a dialog's set width gives way on a phone (max-width: 100%). */
@@ -45,7 +45,7 @@
 }
 .emb-modal {
   max-width: 100%;
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh - var(--emboss-inset-top) - 32px);
   transition: transform 240ms var(--ease-paper);
 }
 .emb-modal-overlay[data-entering] .emb-modal { transform: translateY(8px); }

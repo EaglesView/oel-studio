@@ -2,14 +2,14 @@
 
 .bureau {
   display: flex;
-  height: 100dvh;
+  height: calc(100dvh - var(--emboss-inset-top));
   overflow: hidden;
 }
 /* While the saved desk opens (IndexedDB), or when it can't. */
 .bureau-loading {
   display: grid;
   place-items: center;
-  height: 100dvh;
+  height: calc(100dvh - var(--emboss-inset-top));
   margin: 0;
   color: var(--emboss-ink-muted);
   background: var(--emboss-surface);
@@ -221,7 +221,7 @@
 
 /* ── M2 · Menu plein écran ──────────────────────────────────────────── */
 
-.app-menu-overlay { position: fixed; inset: 0; z-index: 90; }
+.app-menu-overlay { position: fixed; inset: var(--emboss-inset-top) 0 0; z-index: 90; }
 .app-menu {
   position: absolute;
   inset: 0;
@@ -658,7 +658,7 @@
 
 .open-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--emboss-inset-top) 0 0;
   z-index: 60;
   background: color-mix(in srgb, var(--emboss-well) 62%, transparent);
   -webkit-backdrop-filter: blur(2px);

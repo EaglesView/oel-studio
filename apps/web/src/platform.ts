@@ -15,6 +15,7 @@ if (inDesktopApp) {
       return m.desktopPlatform;
     }),
   );
+  void import('./desktop/mount').then((m) => m.mountTitleBar());
   // Before the window closes, wait until the writes the other handlers start (the desk's) are
   // stored. Loaded on demand: the site's pages load this module too, and don't need Yjs.
   onBeforeClose(() => import('@oel/collab-client').then((m) => m.settleDeviceWrites()));

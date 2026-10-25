@@ -38,6 +38,7 @@ import { ProjectProvider, useProject, useSetting } from '../project/ProjectConte
 import { bindImages, createGallery } from './images';
 import { bindDesk, type DeskBinding } from './persist';
 import { onBeforeClose } from '@oel/platform';
+import { APP_MENU_EVENT, setOpenFile } from '../desktop/shell';
 import { openDesk, scheduleReset, type OpenedDesk } from './deskStorage';
 import { exportDesk, type DeskActions } from './DeskBackup';
 import { warnOnStorageFailure } from './storageWarning';
@@ -312,6 +313,12 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     origin: null,
   });
   const openMenu = (pane: MenuPane, origin: { x: number; y: number } | null) => setAppMenu({ open: true, pane, origin });
+  // The desktop app's title bar: its logo opens this menu, and it names the open file.
+  useEffect(() => {
+    const onMenu = (e: Event) => setAppMenu((m) => (m.open ? { ...m, open: false } : { open: true, pane: 'home', origin: (e as CustomEvent<{ x: number; y: number }>).detail }));
+    window.addEventListener(APP_MENU_EVENT, onMenu);
+    return () => window.removeEventListener(APP_MENU_EVENT, onMenu);
+  }, []);
   const [minimap, setMinimap] = useState(true);
   const [menu, setMenu] = useState<{ ids: string[]; at: { x: number; y: number } } | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -360,6 +367,11 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     if (openId && hint) closeHint();
   }, [openId, hint, closeHint]);
   const openPaper = useDeskState(store, (s) => (s.openId ? (s.nodes[s.openId] as PaperNode | undefined) : undefined));
+  const openName = openPaper ? (openPaper.data.fileName ?? openPaper.title) : null;
+  useEffect(() => {
+    setOpenFile(openName);
+    return () => setOpenFile(null);
+  }, [openName]);
 
   // A new desk gets the demo: its files imported for real, then linked (demo.ts).
   useEffect(() => {

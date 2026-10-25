@@ -4,7 +4,8 @@
 // No console window next to the app on Windows release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_window_state::StateFlags;
 
 fn main() {
     tauri::Builder::default()
@@ -20,7 +21,34 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Size, position and maximised state come back; decorations never do (the window has its own).
+        .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::all() - StateFlags::DECORATIONS).build())
+        .setup(|app| {
+            main_window(app)?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("the desktop app could not start");
+}
+
+/// The Bureau's window. Its title bar is the web page's own (`apps/web/src/desktop`, Figma « Editor —
+/// Behaviors », section P): on macOS the native traffic lights sit inside it; on Windows and Linux
+/// the window has no system frame and the page draws the window buttons.
+fn main_window(app: &tauri::App) -> tauri::Result<()> {
+    let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/bureau/".into()))
+        .title("Bureau")
+        .inner_size(1440.0, 900.0)
+        .min_inner_size(720.0, 480.0)
+        // HTML drops from the file manager, as in the browser (D-0); native drops come with their paths later.
+        .disable_drag_drop_handler();
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        // Centred in the page's 40 px bar.
+        .traffic_light_position(tauri::LogicalPosition::new(16.0, 20.0));
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(false);
+    builder.build()?;
+    Ok(())
 }

@@ -17,6 +17,7 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
+  padding-top: var(--emboss-inset-top);
   background-color: var(--emboss-surface);
   background-image: var(--emboss-noise);
 }

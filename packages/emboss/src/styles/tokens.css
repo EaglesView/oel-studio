@@ -54,6 +54,10 @@
 
   --title: #000000;
 
+  /* Height an app keeps above the page for its own title bar (the desktop app sets it). Full-height
+     layouts and fixed overlays start below it. */
+  --emboss-inset-top: 0px;
+
   /* Brand accents used by the logo and presence colours */
   --brand-red: #e84855;
   --brand-green: #14ae5c;

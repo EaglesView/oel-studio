@@ -21,7 +21,7 @@
   display: grid;
   justify-items: center;
   gap: var(--spacing-4);
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--emboss-inset-top));
   padding: var(--spacing-10) var(--spacing-4) var(--spacing-6);
   background: var(--emboss-surface);
   color: var(--emboss-text);
@@ -295,7 +295,7 @@
 .fb-device--mobile .form-nav__saved { display: none; }
 .fb-device--mobile .form-page { padding-inline: 0; }
 
-.fb-preview-overlay { position: fixed; inset: 0; z-index: 200; display: grid; background: var(--emboss-scrim); backdrop-filter: blur(4px); }
+.fb-preview-overlay { position: fixed; inset: var(--emboss-inset-top) 0 0; z-index: 200; display: grid; background: var(--emboss-scrim); backdrop-filter: blur(4px); }
 .fb-preview-modal { display: grid; min-height: 0; padding: var(--spacing-4); }
 .fb-preview { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--spacing-3); min-height: 0; outline: none; }
 .fb-preview__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-3); padding: 6px 6px 6px 18px; border-radius: var(--radius-full); background: var(--emboss-surface); box-shadow: var(--shadow-raised-soft); }

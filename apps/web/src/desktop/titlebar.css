@@ -1,0 +1,96 @@
+/* Desktop app title bar · Figma « Editor — Behaviors », P (Desktop/Title bar, Desktop/Window button). Kit tokens only. */
+
+.titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  height: var(--emboss-inset-top);
+  padding: 0 4px 0 12px;
+  background: var(--emboss-surface);
+  border-bottom: 1px solid var(--emboss-well);
+  font: 400 13px/16px var(--font-sans);
+  color: var(--emboss-ink-muted);
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* macOS: the traffic lights take the left; the title is centred on the window. */
+.titlebar[data-os='mac'] { justify-content: center; padding: 0 80px; }
+
+.titlebar__logo {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: none;
+  cursor: default;
+}
+.titlebar__logo:hover { background: var(--emboss-well); }
+.titlebar__logo:focus-visible { outline: 2px solid var(--emboss-focus); outline-offset: 1px; }
+
+/* Text never takes the pointer, so the whole bar outside the buttons drags the window. */
+.titlebar__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.titlebar[data-os='mac'] .titlebar__title { flex: none; max-width: 100%; }
+.titlebar:not([data-os='mac']) .titlebar__title { flex: 1; }
+.titlebar__chevron { flex: none; }
+.titlebar__file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--emboss-text);
+}
+.titlebar:not([data-focused]) .titlebar__file,
+.titlebar:not([data-focused]) .titlebar__app { color: var(--emboss-ink-disabled); }
+.titlebar:not([data-focused]) .titlebar__logo { opacity: 0.5; }
+
+.titlebar__buttons { display: flex; gap: 2px; margin-left: auto; }
+
+/* Desktop/Window button: flat at rest, raised on hover, pressed in; Close turns red. */
+.window-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--emboss-text);
+  cursor: default;
+  transition:
+    background-color var(--dur-hover) var(--ease-paper),
+    box-shadow var(--dur-hover) var(--ease-paper);
+}
+.window-button:hover { background: var(--emboss-surface); box-shadow: var(--shadow-raised-soft); }
+.window-button:active { background: var(--emboss-well); box-shadow: var(--shadow-pressed); }
+.window-button--close:hover { background: var(--emboss-fill-destructive); box-shadow: var(--shadow-ink-raised); color: var(--emboss-on-fill); }
+.window-button--close:active { background: var(--emboss-fill-destructive-pressed); box-shadow: var(--shadow-ink-pressed); color: var(--emboss-on-fill); }
+.window-button:focus-visible { outline: 2px solid var(--emboss-focus); outline-offset: -2px; }
+.titlebar:not([data-focused]) .window-button:not(:hover) { color: var(--emboss-ink-disabled); }
+
+/* Linux: resize from the window's edges (no system frame). Above the page, below the bar's buttons. */
+.window-edge { position: fixed; z-index: 960; }
+.window-edge--n, .window-edge--s { left: 8px; right: 8px; height: 4px; cursor: ns-resize; }
+.window-edge--e, .window-edge--w { top: 8px; bottom: 8px; width: 4px; cursor: ew-resize; }
+.window-edge--n { top: 0; }
+.window-edge--s { bottom: 0; }
+.window-edge--e { right: 0; }
+.window-edge--w { left: 0; }
+.window-edge--ne, .window-edge--nw, .window-edge--se, .window-edge--sw { width: 8px; height: 8px; }
+.window-edge--ne { top: 0; right: 0; cursor: nesw-resize; }
+.window-edge--sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.window-edge--nw { top: 0; left: 0; cursor: nwse-resize; }
+.window-edge--se { bottom: 0; right: 0; cursor: nwse-resize; }

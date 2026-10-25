@@ -1,6 +1,6 @@
 .skip-link {
   position: fixed;
-  top: 8px;
+  top: calc(var(--emboss-inset-top) + 8px);
   left: 8px;
   z-index: 1000;
   padding: 8px 14px;
@@ -9,7 +9,7 @@
   color: var(--emboss-on-fill);
   font: 600 14px/20px var(--font-sans);
   text-decoration: none;
-  transform: translateY(-150%);
+  transform: translateY(calc(-150% - var(--emboss-inset-top)));
   transition: transform 160ms var(--ease-paper);
 }
 .skip-link:focus { transform: none; outline: 2px solid var(--emboss-focus); outline-offset: 3px; }
@@ -31,7 +31,7 @@ body.is-app { overflow: hidden; height: 100dvh; }
 .page p.lead { max-width: 720px; margin: 0 0 32px; font: 300 18px/28px var(--font-sans); color: var(--emboss-ink-muted); }
 .page a { color: var(--emboss-ink); }
 /* Standalone form pages (/f, /connexion) */
-.form-standalone { min-height: 100dvh; background: var(--emboss-surface); }
+.form-standalone { min-height: calc(100dvh - var(--emboss-inset-top)); background: var(--emboss-surface); }
 .form-standalone--center { display: grid; place-content: center; justify-items: center; gap: var(--spacing-3); padding: var(--spacing-8) var(--spacing-4); text-align: center; color: var(--emboss-text); }
 .form-standalone--center h1 { margin: 0; font: 600 24px/32px var(--font-sans); color: var(--title); }
 .form-standalone--center p { max-width: 460px; margin: 0; }

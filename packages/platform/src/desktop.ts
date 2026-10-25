@@ -82,3 +82,6 @@ export function startDesktopShell() {
     return null;
   };
 }
+
+/** The app's window, for its title bar (apps/web/src/desktop). */
+export { getCurrentWindow as desktopWindow } from '@tauri-apps/api/window';
