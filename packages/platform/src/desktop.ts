@@ -2,12 +2,13 @@
  * The desktop app's platform (apps/desktop, Tauri 2). Loaded only inside the app (the app checks
  * `isTauri()` and imports this module dynamically), so the web build never runs the Tauri API.
  */
+import { Menu, MenuItem, PredefinedMenuItem, Submenu } from '@tauri-apps/api/menu';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { save } from '@tauri-apps/plugin-dialog';
 import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { tr } from '@oel/i18n';
+import { lang, tr } from '@oel/i18n';
 import { runBeforeClose, type Platform } from './index';
 
 /** The extension of `name`, without the dot, for the save dialog's filter. */
@@ -111,6 +112,68 @@ function bridgeFileDrops() {
   });
 }
 
+/**
+ * macOS: the app menu, in the page's language (rebuilt on each page load, so a language change
+ * shows at once). Édition is required there: without it, ⌘C / ⌘V don't reach the page. Quitting and
+ * closing go through the window's close, so they wait for pending saves too. Windows and Linux have
+ * no menu bar: the title bar's logo opens the Bureau menu, and the page handles its shortcuts.
+ * Ouvrir, Enregistrer and Exporter join Fichier with files on disk (D-3).
+ */
+async function installMacMenu() {
+  const close = () => void getCurrentWindow().close();
+  const item = (text: string, action: () => void, accelerator?: string) => MenuItem.new({ text, action, accelerator });
+  const pre = (it: 'Separator' | 'Copy' | 'Cut' | 'Paste' | 'SelectAll' | 'Undo' | 'Redo' | 'Minimize' | 'Maximize' | 'Fullscreen' | 'Hide' | 'HideOthers' | 'ShowAll' | 'Services' | 'BringAllToFront', text?: string) =>
+    PredefinedMenuItem.new({ item: it, text });
+  const docs = lang() === 'en' ? '/en/docs' : '/docs';
+  const menu = await Menu.new({
+    items: [
+      await Submenu.new({
+        text: 'Bureau',
+        items: [
+          await PredefinedMenuItem.new({ item: { About: null }, text: tr('À propos du Bureau', 'About Bureau') }),
+          await pre('Separator'),
+          await pre('Services', tr('Services', 'Services')),
+          await pre('Separator'),
+          await pre('Hide', tr('Masquer le Bureau', 'Hide Bureau')),
+          await pre('HideOthers', tr('Masquer les autres', 'Hide Others')),
+          await pre('ShowAll', tr('Tout afficher', 'Show All')),
+          await pre('Separator'),
+          await item(tr('Quitter le Bureau', 'Quit Bureau'), close, 'Cmd+Q'),
+        ],
+      }),
+      await Submenu.new({
+        text: tr('Fichier', 'File'),
+        items: [await item(tr('Fermer la fenêtre', 'Close Window'), close, 'Cmd+W')],
+      }),
+      await Submenu.new({
+        text: tr('Édition', 'Edit'),
+        items: [
+          await pre('Undo', tr('Annuler', 'Undo')),
+          await pre('Redo', tr('Rétablir', 'Redo')),
+          await pre('Separator'),
+          await pre('Cut', tr('Couper', 'Cut')),
+          await pre('Copy', tr('Copier', 'Copy')),
+          await pre('Paste', tr('Coller', 'Paste')),
+          await pre('SelectAll', tr('Tout sélectionner', 'Select All')),
+        ],
+      }),
+      await Submenu.new({
+        text: tr('Affichage', 'View'),
+        items: [await pre('Fullscreen', tr('Plein écran', 'Enter Full Screen'))],
+      }),
+      await Submenu.new({
+        text: tr('Fenêtre', 'Window'),
+        items: [await pre('Minimize', tr('Réduire', 'Minimize')), await pre('Maximize', tr('Zoom', 'Zoom')), await pre('Separator'), await pre('BringAllToFront', tr('Tout ramener au premier plan', 'Bring All to Front'))],
+      }),
+      await Submenu.new({
+        text: tr('Aide', 'Help'),
+        items: [await item(tr('Documentation du Bureau', 'Bureau documentation'), () => location.assign(docs))],
+      }),
+    ],
+  });
+  await menu.setAsAppMenu();
+}
+
 let started = false;
 
 /**
@@ -121,6 +184,7 @@ export function startDesktopShell() {
   if (started) return;
   started = true;
   if (!/Windows/.test(navigator.userAgent)) bridgeFileDrops();
+  if (/Macintosh|Mac OS X/.test(navigator.userAgent)) installMacMenu().catch((e: unknown) => console.error('App menu', e));
   // Closing waits for what is pending to be written (the desk saves 400 ms after a change, and a
   // native close fires no `pagehide`). Once the handler resolves, Tauri destroys the window.
   void getCurrentWindow().onCloseRequested(async () => {

@@ -27,8 +27,18 @@ fn main() {
             main_window(app)?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("the desktop app could not start");
+        .build(tauri::generate_context!())
+        .expect("the desktop app could not start")
+        .run(|app, event| {
+            // Quitting from outside the window (the Dock on macOS, the session ending) closes the
+            // window first, so the page writes what is pending; the app exits once it is gone.
+            if let tauri::RunEvent::ExitRequested { code: None, api, .. } = event {
+                if let Some(window) = app.get_webview_window("main") {
+                    api.prevent_exit();
+                    let _ = window.close();
+                }
+            }
+        });
 }
 
 /// The Bureau's window. Its title bar is the web page's own (`apps/web/src/desktop`, Figma « Editor —
