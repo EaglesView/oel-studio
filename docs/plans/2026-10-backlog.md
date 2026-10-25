@@ -255,6 +255,8 @@ Grouped by area; each line is the « Not yet » of its plan. Sizes are rough.
 - [ ] **PDF engine**: decide pdfium (WASM) vs pdf.js + Rust edits, then view, annotate, sign, « Convertir pour
   modifier », « Un PDF de la sélection » (all unavailable-with-reason today). Needs kind modules.
 - [ ] **Desktop app** (Tauri): planned in `2026-10-desktop.md` (D-0 → D-7; takes in restructure Phases 4 and 7).
+- [ ] **Editor row in the title bar** (desktop app; editor bar revamp): when a file is open, its row (‹ Bureau, name,
+  undo, tools, Exporter) becomes the window's title bar. Figma « Editor — Behaviors », P5. After D-2.
 - [ ] **Local version history** in `solo` (R8): Y.Doc snapshots in IndexedDB, same `VersionPanel`.
 - [ ] **Publish the crates** on crates.io (R9): doc comments and a README per crate first; check names.
 - [ ] Desk-wide comments (removed from papers, planned as a canvas feature).

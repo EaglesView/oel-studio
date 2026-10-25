@@ -127,7 +127,20 @@ export interface Platform {
   OSes; it's T1-1 for the app.
 - Native menu in both languages, rebuilt when the language changes: Fichier (Ouvrir…, Enregistrer, Exporter…,
   Fermer), Édition (required on macOS), Affichage, Aide. Shortcuts follow `bureau/shortcuts.ts`. Add `Mod`
-  wherever the Bureau assumes Ctrl.
+  wherever the Bureau assumes Ctrl. Per the title bar design, Windows and Linux show no menu bar: the logo in the
+  title bar opens the Bureau menu (M2), and the native menu only provides the shortcuts.
+- **Title bar (decided 24 Oct 2026):** Figma, page « Editor — Behaviors », section « P · Application de bureau —
+  barre de titre » (components `Desktop/Title bar` and `Desktop/Window button`). The app draws its own 40 px bar
+  in kit colours on all three OSes. A native Tauri primitive comes before a drawn one:
+  - macOS: `titleBarStyle: Overlay` with the title hidden, so the native traffic lights sit inside our bar.
+  - Windows and Linux: `decorations: false`, with the Windows 10 layout (logo and title on the left; Minimize,
+    Maximize, Close on the right) drawn as embossed kit buttons. On Windows, keep Snap Layouts on Maximize (native
+    hit-test), the shadow and the system menu. On Linux, our bar always: no system-bar setting, and resizing goes
+    through `startResizeDragging`.
+
+  Empty areas use `data-tauri-drag-region`. The title shows Bureau › open file, with a dot for unsaved changes.
+  Nothing else sits on the right. The window-button glyphs mimic Windows rather than Iconoir, as decided. Merging
+  the editor row into the title bar (P5) is design only for now: see the backlog.
 - `single-instance`: opening a file while the app is already running sends it to the open window.
 - Links outside the app (GitHub, the site's home) open in the system browser through `openExternal`. `/docs` stays
   inside the app (it's bundled, so it works offline).
