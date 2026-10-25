@@ -42,7 +42,7 @@ phase that names them.
 | D2 | **v1 keeps the desk in the webview's IndexedDB**, with automatic zip backups of the desk to the app data folder (D-4). | No storage rewrite, and the browser and the app keep the same data model. The backups guard against webview storage being wiped or moved. Keeping the desk as files in a folder on disk is a separate product decision (D-7). |
 | D3 | **Desktop = `solo` edition only.** | There is no team server for the public yet. The `equipe` hooks stay and can be turned on in the app later. |
 | D4 | **A file opened from disk remembers its path.** « Enregistrer » writes it back in place; « Exporter » stays « save a copy ». Every overwrite first keeps the previous bytes in the app data folder (the last 5 per file). | This is the main thing an app gives over the browser. Keeping the old bytes is a safety net while T1-4 / T1-12 are still open. |
-| D5 | **New build-time switch `PUBLIC_PLATFORM=web\|desktop`** in `apps/web/src/platform.ts`, shaped like `edition.ts`. Packages never read it: they get the seam's implementation passed in. The desktop implementation is loaded with a dynamic `import()`, so `@tauri-apps/api` never reaches the web build. | Same rule as editions. |
+| D5 | *Changed 2026-10-24: detected at run time instead (`apps/web/src/platform.ts` checks the webview's `isTauri`), so one build serves both and no environment variable has to be set in a way that also works on Windows.* Was: **new build-time switch `PUBLIC_PLATFORM=web\|desktop`** in `apps/web/src/platform.ts`, shaped like `edition.ts`. Packages never read it: they get the seam's implementation passed in. The desktop implementation is loaded with a dynamic `import()`, so `@tauri-apps/api` never reaches the web build. | Same rule as editions. |
 | D6 | **`apps/desktop/src-tauri` stays out of the Cargo workspace in v1** (`exclude`, its own `Cargo.lock`). | Otherwise `cargo test --workspace` and CI would need WebKitGTK dev packages on every run. It joins the workspace if native engines come (D-7). |
 | D7 | **The webview origin and the app identifier are permanent from the first public build.** | IndexedDB is keyed by origin. Changing the identifier, or the Windows `useHttpsScheme` setting, silently gives people an empty desk. Tauri 1 → 2 did exactly this to other apps. |
 | D8 | **No analytics in the app.** Aide gets « Copier les informations de diagnostic » (version, OS, webview version, GPU path `webgpu/webgl2/cpu`), so feedback can include it by hand. | The welcome text promises nothing leaves the device. |
@@ -255,3 +255,11 @@ Linux results feeding later phases:
 - D-5 / D-7: on Linux the image engine runs on the CPU, because WebGL2 exists only outside workers. Options: render
   on a page canvas when the worker has no GL, or native `oel-img` (D-7). Measure on a large photo first.
 - **Gate, Linux: passed.** Windows and macOS need the CI builds on real machines.
+- D-1 in progress (2026-10-24):
+  - Language kept in localStorage as well as the cookie (`lang.ts`, `Base.astro`).
+  - `@oel/platform` with `saveFile` (web: download link; app: native save dialog + `fs` write, scoped to the path the
+    dialog returns). Every download goes through it; guard test `packages/platform/test/guard.test.ts`.
+  - Changed from the sketch above: no `prefs` (localStorage is enough for the language) and no `open` yet. File
+    pickers stay `<input type=file>` until D-3, which needs real paths; they already work in the app.
+  - The desktop save dialog is the first piece of D-2 (Rust: `dialog` and `fs` plugins, permissions
+    `dialog:allow-save` + `fs:allow-write-file` only).

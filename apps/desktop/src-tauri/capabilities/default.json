@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "What the Bureau's window may call. Kept minimal; each plugin is added with the phase that needs it.",
   "windows": ["main"],
-  "permissions": ["core:default", "window-state:default"]
+  "permissions": [
+    "core:default",
+    "window-state:default",
+    "dialog:allow-save",
+    "fs:allow-write-file"
+  ]
 }
