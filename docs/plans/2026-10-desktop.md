@@ -240,10 +240,17 @@ Skills to update as phases land: `oel-architecture` (Shells row, platform seam),
 | Image retouching | ✅ on the CPU path, with the honest « Aperçu ralenti : processeur graphique indisponible » | | |
 | Clipboard API (`read`, `write`) | present; prompts not checked | | |
 | File System Access API | absent (as expected; D-1 / D-2 use native dialogs) | | |
-| `<a download>`, file input, drag-and-drop import, IME, Mac shortcuts | to check by hand | | |
+| Exports (`<a download>` of a blob) | ❌ nothing happens (by hand, 2026-10-24). « PDF » works: it goes through the print dialog | | |
+| Dropping files from the file manager onto the desk (`dragDropEnabled: false`, HTML5 drop) | ❌ nothing happens (by hand) | | |
+| Accented letters typed in a document (dead keys) | ✅ first round (by hand) | | |
+| File input, internal HTML5 drags (sheet tab reorder, pictures in a document), Mac shortcuts | to check by hand | | |
 
 Linux results feeding later phases:
 - D-1: the language goes through `prefs` (localStorage), not the cookie. Required, not optional.
+- D-1 / D-2: every export needs the native save dialog. Confirmed broken today, not only expected.
+- D-2: file drops. HTML5 drags are also used inside the editors (sheet tabs, Tiptap), and Tauri's own drop handler
+  blocks those only on Windows. So: Tauri drop events (with real paths, which D-3 wants) on Linux and macOS, the
+  HTML drop on Windows. The window is then created in Rust per platform instead of in `tauri.conf.json`.
 - D-2 / D-4: storage size comes from the app (size of the data folder), since `navigator.storage` is missing.
 - D-5 / D-7: on Linux the image engine runs on the CPU, because WebGL2 exists only outside workers. Options: render
   on a page canvas when the worker has no GL, or native `oel-img` (D-7). Measure on a large photo first.
