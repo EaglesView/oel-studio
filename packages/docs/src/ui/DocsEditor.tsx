@@ -28,7 +28,6 @@ import { OutlinePanel, VersionPanel } from './panels';
 import { IdentityDialog, ImageDialog, LinkDialog, PageSetupDialog, ShareDialog, SpecialCharsDialog, WordCountDialog } from './dialogs';
 import { FontsDialog } from '@oel/collab-client';
 import {
-  download,
   downloadHTML,
   downloadMarkdown,
   downloadText,
@@ -43,6 +42,7 @@ import {
   safeFileName,
 } from './actions';
 import { locale, plural, tr } from '@oel/i18n';
+import { saveFile } from '@oel/platform';
 
 export type ExportInput = Awaited<ReturnType<DocSession['exportInput']>>;
 
@@ -365,7 +365,7 @@ export function DocsEditor(props: DocsEditorProps) {
         if (!r.ok) throw new Error();
         bytes = new Uint8Array(await r.arrayBuffer());
       } else throw new Error(tr('Aucun moteur d’export disponible', 'No export engine available'));
-      download(`${safeFileName(title)}.docx`, bytes as Uint8Array<ArrayBuffer>, DOCX_MIME);
+      await saveFile(bytes as Uint8Array<ArrayBuffer>, `${safeFileName(title)}.docx`, DOCX_MIME);
     } catch (e) {
       toast({ title: tr('Export impossible', 'Export failed'), description: (e as Error).message || tr('Le fichier .docx n’a pas pu être créé.', 'The .docx file could not be created.'), tone: 'danger' });
     }

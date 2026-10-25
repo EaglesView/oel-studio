@@ -23,6 +23,7 @@ import { SheetTabs } from './SheetTabs';
 import { SheetsToolbar } from './SheetsToolbar';
 import { CondFormatDialog, CsvDialog, FilterMenu, FindBar, FormatCellsDialog, LinkDialog, NamesDialog, PreservedNote, SortDialog, ValidationDialog, ValidationList, listChoices, validate } from './dialogs';
 import { messages, tr } from '@oel/i18n';
+import { saveFile } from '@oel/platform';
 
 export interface ExportRequest {
   format: 'xlsx' | 'csv' | 'tsv';
@@ -73,15 +74,6 @@ const MIME: Record<ExportRequest['format'], string> = {
 };
 
 const safeFileName = (t: string) => (t.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'classeur').slice(0, 120);
-
-function download(bytes: Uint8Array, name: string, mime: string) {
-  const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 /**
  * Object URLs for the images of the workbook's drawings. Imported images live
@@ -198,7 +190,7 @@ export function SheetsEditor(props: SheetsEditorProps) {
       if (format !== 'xlsx' && input.json.sheets.length > 1) toast({ title: tr(`Seule la feuille « ${ctl.props.name} » est enregistrée`, `Only the sheet “${ctl.props.name}” is saved`), description: tr('Le format texte ne garde qu’une feuille, sans formules ni mise en forme.', 'The text format keeps one sheet only, without formulas or formatting.'), tone: 'info' });
       const xlsx = format === 'xlsx';
       const bytes = await props.exportFile({ format, json: input.json, original: xlsx ? input.original : null, media: xlsx ? input.media : [], sheet: ctl.sheetIndex });
-      download(bytes, `${safeFileName(props.title)}.${format}`, MIME[format]);
+      await saveFile(bytes as Uint8Array<ArrayBuffer>, `${safeFileName(props.title)}.${format}`, MIME[format]);
     } catch (e) {
       toast({ title: tr('Export impossible', 'Export failed'), description: (e as Error).message, tone: 'warning' });
     }

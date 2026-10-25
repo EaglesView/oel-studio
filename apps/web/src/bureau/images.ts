@@ -12,6 +12,8 @@ import { writeZip } from '@oel/engine';
 import { ImageEngine, RecipeDoc, isEmptyRecipe, lookOf, originals, stackRecipes, unflattenRecipe, type ExportOptions, type Raster, type Recipe } from '@oel/img';
 import type { Bureau, Paper } from './model';
 import { tr } from '@oel/i18n';
+import { toast } from '@oel/emboss';
+import { saveFile as savePlatformFile } from '@oel/platform';
 import { namedWorker } from '../lang';
 export { GALLERY_PAD, createGallery, layoutGallery } from './galleries';
 
@@ -19,15 +21,9 @@ export { GALLERY_PAD, createGallery, layoutGallery } from './galleries';
 
 export const createImageWorker = () => namedWorker(ImageWorker, 'oel-img');
 
+/** Save a copy of an exported picture (download on the web, save dialog in the app); says so when it fails. */
 export function saveFile(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  savePlatformFile(blob, name).catch((e: Error) => toast({ title: tr('Export impossible', 'Export failed'), description: e.message, tone: 'danger' }));
 }
 
 /** A rendering as an object URL (desk picture of a retouched image). */
@@ -275,5 +271,5 @@ export async function exportGallery(store: Bureau, galleryId: string, o: ExportO
   }
   if (!files.length) throw new Error(tr('Aucune image de la galerie n’a de fichier à exporter.', 'No image in the gallery has a file to export.'));
   const zip = writeZip(files);
-  saveFile(new Blob([zip as Uint8Array<ArrayBuffer>], { type: 'application/zip' }), `${(g.title || tr('galerie', 'gallery')).replace(/[\\/:*?"<>|]+/g, '-')}.zip`);
+  await savePlatformFile(new Blob([zip as Uint8Array<ArrayBuffer>], { type: 'application/zip' }), `${(g.title || tr('galerie', 'gallery')).replace(/[\\/:*?"<>|]+/g, '-')}.zip`);
 }

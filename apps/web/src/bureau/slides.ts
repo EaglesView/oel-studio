@@ -1,6 +1,7 @@
 /** Bureau ↔ @oel/slides: one collaborative presentation session per slides paper. */
 import { SlideSession, slideFromLayout, type Deck, type Element, type ExportRequest } from '@oel/slides';
 import { asDeckPayload, type Preview } from '@oel/engine';
+import { saveFile } from '@oel/platform';
 import { collabApi, identity } from './docs';
 import { engineHost } from './importFiles';
 import { blankTitle, type Paper } from './model';
@@ -65,10 +66,6 @@ export async function downloadSlides(paper: Paper, onCreated: (docId: string) =>
   const s = await slideSessionFor(paper, onCreated);
   const input = await s.exportInput();
   const bytes = await exportSlides({ format: 'pptx', ...input });
-  const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(paper.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'presentation').slice(0, 120)}.pptx`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  const name = `${(paper.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'presentation').slice(0, 120)}.pptx`;
+  await saveFile(bytes as Uint8Array<ArrayBuffer>, name, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
 }

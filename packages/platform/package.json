@@ -1,0 +1,11 @@
+{
+  "name": "@oel/platform",
+  "license": "MPL-2.0",
+  "version": "0.1.0",
+  "description": "Platform seam: what the browser and the desktop app (Tauri) do differently — saving files today. The app installs the platform; packages call it.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

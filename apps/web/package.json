@@ -22,6 +22,7 @@
     "@oel/i18n": "*",
     "@oel/img": "*",
     "@oel/links": "*",
+    "@oel/platform": "*",
     "@oel/sheets": "*",
     "@oel/slides": "*",
     "astro": "^7.3.5",

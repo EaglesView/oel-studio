@@ -1,4 +1,7 @@
 import qrcode from 'qrcode-generator';
+import { toast } from '@oel/emboss';
+import { tr } from '@oel/i18n';
+import { saveFile } from '@oel/platform';
 
 /** Square QR matrix for a URL (error correction M). */
 function matrix(text: string): boolean[][] {
@@ -28,12 +31,7 @@ export async function qrPng(text: string, size = 1024): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG'))), 'image/png'));
 }
 
+/** Save a copy (a download on the web, a save dialog in the app). */
 export function download(name: string, data: Blob | string, type = 'text/plain') {
-  const blob = typeof data === 'string' ? new Blob([data], { type }) : data;
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement('a'), { href: url, download: name });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveFile(data, name, type).catch((e: Error) => toast({ title: tr('Enregistrement impossible', 'Could not save'), description: e.message, tone: 'danger' }));
 }

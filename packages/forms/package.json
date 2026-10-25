@@ -20,7 +20,8 @@
     "@oel/emboss": "*",
     "@oel/i18n": "*",
     "qrcode-generator": "^2.0.4",
-    "react-aria-components": "^1.21.1"
+    "react-aria-components": "^1.21.1",
+    "@oel/platform": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

@@ -22,6 +22,7 @@ import { Slideshow, openPresenterWindow } from './Slideshow';
 import type { Recipe } from '@oel/img';
 import { RetouchDock } from '@oel/img/ui';
 import { tr } from '@oel/i18n';
+import { saveFile } from '@oel/platform';
 
 export interface ExportRequest {
   format: 'pptx';
@@ -57,15 +58,6 @@ export interface SlidesEditorProps {
 }
 
 const safeFileName = (t: string) => (t.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'presentation').slice(0, 120);
-
-function download(bytes: Uint8Array, name: string, mime: string) {
-  const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 /** Apply a new plain text to a Y.Text with the smallest change (keeps concurrent edits elsewhere). */
 function setYText(t: Y.Text, next: string) {
@@ -174,7 +166,7 @@ export function SlidesEditor(props: SlidesEditorProps) {
     try {
       const input = await session.exportInput();
       const bytes = await props.exportFile({ format: 'pptx', ...input });
-      download(bytes, `${safeFileName(props.title)}.pptx`, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+      await saveFile(bytes as Uint8Array<ArrayBuffer>, `${safeFileName(props.title)}.pptx`, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     } catch (e) {
       toast({ title: tr('Exportation impossible', 'Export failed'), description: (e as Error).message, tone: 'danger' });
     }

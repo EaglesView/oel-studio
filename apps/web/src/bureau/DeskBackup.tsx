@@ -4,7 +4,7 @@ import type * as Y from 'yjs';
 import { Button, DialogOverlay, SheetDialog, toast } from '@oel/emboss';
 import type { Bureau, Paper } from './model';
 import { exportBureau, scheduleImport, scheduleReset } from './deskStorage';
-import { saveFile } from './images';
+import { saveFile } from '@oel/platform';
 import { storageUsed } from './restore';
 import { storageFailure, onStorageFailure, type StorageFailure } from '@oel/collab-client';
 import { storageNote } from './storageWarning';
@@ -75,8 +75,9 @@ const fail = (title: string) => (e: unknown) => toast({ title, description: e in
 export async function exportDesk(store: Bureau, desk: DeskActions): Promise<void> {
   try {
     desk.flush();
-    saveFile(await exportBureau(store.nodes as Paper[], desk.doc, desk.title), fileName(desk.title));
-    toast({ title: t.exported, description: t.exportedBody, tone: 'success' });
+    if (await saveFile(await exportBureau(store.nodes as Paper[], desk.doc, desk.title), fileName(desk.title))) {
+      toast({ title: t.exported, description: t.exportedBody, tone: 'success' });
+    }
   } catch (e) {
     fail(t.exportFailed)(e);
   }

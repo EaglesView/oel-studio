@@ -12,6 +12,8 @@ import { prosemirrorJSONToYXmlFragment } from '@tiptap/y-tiptap';
 import { EMU_PER_PX, type HeaderFooterKind, type PMDoc, type PMNode, type Section, type StorySide } from '../model/types';
 import { sanitizeStylesheet } from '../model/format';
 import { tr } from '@oel/i18n';
+import { toast } from '@oel/emboss';
+import { saveFile } from '@oel/platform';
 
 const staticExtensions = docsExtensions({ bare: true });
 
@@ -271,15 +273,9 @@ export function insertOrUpdateToc(editor: Editor, pageOf: (pos: number) => numbe
 // Downloads
 // ---------------------------------------------------------------------------
 
+/** Save a copy (a download on the web, a save dialog in the app); says so when it fails. */
 export function download(name: string, data: BlobPart, type: string) {
-  const url = URL.createObjectURL(new Blob([data], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  saveFile(data, name, type).catch((e: Error) => toast({ title: tr('Export impossible', 'Export failed'), description: e.message, tone: 'danger' }));
 }
 
 export const safeFileName = (title: string) => (title.trim() || 'document').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 120);

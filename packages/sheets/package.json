@@ -27,7 +27,8 @@
     "@oel/charts": "*",
     "@oel/i18n": "*",
     "@oel/links": "*",
-    "@oel/img": "*"
+    "@oel/img": "*",
+    "@oel/platform": "*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
