@@ -4,6 +4,7 @@
  */
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { tr } from '@oel/i18n';
 import type { Platform } from './index';
 
@@ -26,3 +27,48 @@ export const desktopPlatform: Platform = {
     }
   },
 };
+
+/** A link that leaves the app (another site, an email), or null for the app's own pages. */
+function outside(href: string): URL | null {
+  let url: URL;
+  try {
+    url = new URL(href, location.href);
+  } catch {
+    return null;
+  }
+  if (!/^(https?|mailto):$/.test(url.protocol) || url.origin === location.origin) return null;
+  return url;
+}
+
+let started = false;
+
+/**
+ * What the app's window does that a browser tab doesn't (plan 2026-10-desktop, D-2). Called when
+ * the platform is installed; later calls do nothing.
+ */
+export function startDesktopShell() {
+  if (started) return;
+  started = true;
+  // Other sites open in the system browser. The app's own pages (the docs are bundled) stay in
+  // its single window, including those linked with target=_blank.
+  window.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || !(e.target instanceof Element)) return;
+    const a = e.target.closest('a[href]');
+    if (!(a instanceof HTMLAnchorElement)) return;
+    const url = outside(a.href);
+    if (url) {
+      e.preventDefault();
+      void openUrl(url.href);
+    } else if (a.target === '_blank') {
+      e.preventDefault();
+      location.assign(a.href);
+    }
+  });
+  const open = window.open.bind(window);
+  window.open = (url, target, features) => {
+    const out = url ? outside(String(url)) : null;
+    if (!out) return open(url, target, features);
+    void openUrl(out.href);
+    return null;
+  };
+}

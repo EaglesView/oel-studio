@@ -69,6 +69,8 @@ try {
       r.userAgent = navigator.userAgent;
       r.lang = document.documentElement.lang;
       r.secureContext = window.isSecureContext;
+      await safe('csp', async () => (await fetch(location.href)).headers.get('content-security-policy'));
+      await safe('evalBlocked', () => { try { return (0, eval)('false'); } catch { return true; } });
       await safe('papers', () => [...document.querySelectorAll('.paper-tab')].map((t) => t.dataset.kind));
       await safe('paperStates', () => [...document.querySelectorAll('[data-state]')].map((p) => p.dataset.state));
       await safe('wasm', async () => {
