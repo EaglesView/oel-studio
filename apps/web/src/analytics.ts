@@ -7,9 +7,12 @@
  * person profiles, and only page views and page leaves: no autocapture, no session recording, no
  * heatmaps, so nothing typed or shown on the desk leaves the browser. Do Not Track is respected.
  *
- * Platform seam: the desktop app replaces this module (no analytics there).
+ * Never in the desktop app (plan 2026-10-desktop, D8): nothing leaves the device there, and the welcome
+ * dialog says nothing about counting visits.
  */
-const key = import.meta.env.PUBLIC_POSTHOG_KEY;
+import { inDesktopApp } from './platform';
+
+const key = inDesktopApp ? undefined : import.meta.env.PUBLIC_POSTHOG_KEY;
 const host = import.meta.env.PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
 
 /** Whether this build counts visits (the welcome dialog says so only then). */
