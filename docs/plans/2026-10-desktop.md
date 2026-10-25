@@ -276,3 +276,29 @@ Linux results feeding later phases:
     pickers stay `<input type=file>` until D-3, which needs real paths; they already work in the app.
   - The desktop save dialog is the first piece of D-2 (Rust: `dialog` and `fs` plugins, permissions
     `dialog:allow-save` + `fs:allow-write-file` only).
+- D-2 done in code (2026-10-25), checked on Linux; Windows and macOS wait for the CI builds:
+  - No analytics in the app (D8): `analytics.ts` stays off when `inDesktopApp`.
+  - CSP set (`tauri.conf.json`): `script-src 'self' 'wasm-unsafe-eval'` plus Tauri's hashes of the inline scripts,
+    no `eval`, `connect-src` the app and its IPC only. `style-src` keeps `'unsafe-inline'` (editors inject style
+    tags), so Tauri doesn't add style hashes. The probe reports the policy received and that `eval` is refused;
+    the desk, WASM and workers load under it.
+  - Capabilities: window controls for the title bar, `dialog:allow-save`, `fs:allow-write-file` and
+    `fs:allow-read-file` (scoped at run time to dialog paths and dropped paths), opener for web and mail links.
+    No shell.
+  - Outside links open in the system browser (`opener`); the app's own pages, docs included, stay in its window,
+    also with `target=_blank`. Changed from the plan: the site's home stays in the app too (it is bundled, and the
+    public domain isn't fixed yet).
+  - Closing waits for pending saves: `onBeforeClose` (`@oel/platform`) + `settleDeviceWrites`
+    (`@oel/collab-client`), up to 4 s. Checked on Linux: a pan 30 ms before Close is there after a restart.
+    The macOS menu's Quit and Close, and exits from outside the window (Dock, session end), go the same way.
+  - Title bar per section P. The window is created in Rust per OS (`main.rs`); `--emboss-inset-top` keeps the
+    bar's room on every page. Not done: Snap Layouts on Windows' Maximize (needs a native hit-test, for example
+    `tauri-plugin-decorum`), the unsaved dot (D-3). The traffic lights' position is unchecked on a Mac.
+  - `single-instance`: a second launch brings the window to the front (the files it was asked to open: D-3).
+  - Drops: native on Linux and macOS (paths kept for D-3), handed to the page as HTML drag events; HTML drops on
+    Windows. Checked with emitted events only; a real drag from the file manager still needs a hand check.
+  - macOS app menu in both languages (Bureau, Fichier, Édition, Affichage, Fenêtre, Aide). Changed from the plan:
+    no hidden menu on Windows and Linux; the page already handles the shortcuts. The `Mod` audit of the Bureau's
+    Ctrl-only shortcuts moves to D-5 (it needs a Mac to check).
+  - Seen while checking, not from D-2: zoomed out, an image paper restored from storage shows its placeholder
+    until the desk is zoomed in (the thumbnail snapshot doesn't catch up). Not checked in the browser yet.
