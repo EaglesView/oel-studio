@@ -38,9 +38,13 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/bureau/".into()))
         .title("Bureau")
         .inner_size(1440.0, 900.0)
-        .min_inner_size(720.0, 480.0)
-        // HTML drops from the file manager, as in the browser (D-0); native drops come with their paths later.
-        .disable_drag_drop_handler();
+        .min_inner_size(720.0, 480.0);
+    // Files dropped from the file manager: on Windows, as HTML drops (the native handler would also
+    // block drags inside the page, such as reordering sheet tabs); elsewhere natively, with their
+    // paths, and `@oel/platform/desktop` hands them to the page. The fs plugin lets the page read
+    // exactly the dropped paths.
+    #[cfg(windows)]
+    let builder = builder.disable_drag_drop_handler();
     #[cfg(target_os = "macos")]
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)

@@ -15,6 +15,7 @@
     "window-state:default",
     "dialog:allow-save",
     "fs:allow-write-file",
+    "fs:allow-read-file",
     "opener:allow-open-url",
     "opener:allow-default-urls"
   ]

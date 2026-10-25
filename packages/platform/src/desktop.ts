@@ -2,9 +2,10 @@
  * The desktop app's platform (apps/desktop, Tauri 2). Loaded only inside the app (the app checks
  * `isTauri()` and imports this module dynamically), so the web build never runs the Tauri API.
  */
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { save } from '@tauri-apps/plugin-dialog';
-import { writeFile } from '@tauri-apps/plugin-fs';
+import { readFile, writeFile } from '@tauri-apps/plugin-fs';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { tr } from '@oel/i18n';
 import { runBeforeClose, type Platform } from './index';
@@ -44,6 +45,72 @@ function outside(href: string): URL | null {
   return url;
 }
 
+/** Types for the files people usually drop (the engines detect kinds by name and content; this keeps a sensible MIME type on the File). */
+const MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  pdf: 'application/pdf',
+  csv: 'text/csv',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
+const baseName = (path: string) => path.split(/[\\/]/).pop() || path;
+
+/**
+ * Linux and macOS: the window takes file drops natively (they carry the files' paths, which D-3
+ * needs). They reach the page as the HTML drag events it already handles (the desk, the editors),
+ * with the files read from disk. Windows keeps HTML drops (`main.rs`): its native handler would also
+ * swallow drags inside the page.
+ */
+function bridgeFileDrops() {
+  let names: string[] = [];
+  let target: Element | null = null;
+  const fire = (type: 'dragover' | 'dragleave' | 'drop', x: number, y: number, files: File[]) => {
+    const dt = new DataTransfer();
+    for (const f of files) dt.items.add(f);
+    const at = document.elementFromPoint(x, y) ?? document.body;
+    if (target && target !== at) target.dispatchEvent(new DragEvent('dragleave', { bubbles: true, relatedTarget: at, dataTransfer: dt }));
+    target = at;
+    at.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer: dt }));
+  };
+  // While hovering, the files aren't read yet: empty stand-ins give the page their count and names.
+  const placeholders = () => names.map((n) => new File([], baseName(n)));
+  void getCurrentWebview().onDragDropEvent(async ({ payload: e }) => {
+    if (e.type === 'leave') {
+      target?.dispatchEvent(new DragEvent('dragleave', { bubbles: true, relatedTarget: null }));
+      target = null;
+      return;
+    }
+    const x = e.position.x / devicePixelRatio;
+    const y = e.position.y / devicePixelRatio;
+    if (e.type === 'enter') names = e.paths;
+    if (e.type !== 'drop') return fire('dragover', x, y, placeholders());
+    const files: File[] = [];
+    for (const path of e.paths) {
+      const name = baseName(path);
+      try {
+        const bytes = await readFile(path);
+        files.push(new File([bytes], name, { type: MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? '' }));
+      } catch (err) {
+        // A folder, or a file that can't be read: the others still arrive.
+        console.error(`Dropped “${name}” could not be read`, err);
+      }
+    }
+    names = [];
+    if (files.length) fire('drop', x, y, files);
+    else fire('dragleave', x, y, []);
+    target = null;
+  });
+}
+
 let started = false;
 
 /**
@@ -53,6 +120,7 @@ let started = false;
 export function startDesktopShell() {
   if (started) return;
   started = true;
+  if (!/Windows/.test(navigator.userAgent)) bridgeFileDrops();
   // Closing waits for what is pending to be written (the desk saves 400 ms after a change, and a
   // native close fires no `pagehide`). Once the handler resolves, Tauri destroys the window.
   void getCurrentWindow().onCloseRequested(async () => {
