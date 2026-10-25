@@ -28,14 +28,16 @@ const { title, description = 'Un seul éditeur pour tous vos fichiers, directeme
     {!lang && (
       <script is:inline>
         // The Bureau's language before any module runs (src/lang.ts): `?lang=` from the site's
-        // « Ouvrir le Bureau » wins and is remembered, then the `oel-lang` cookie, then French.
+        // « Ouvrir le Bureau » wins and is remembered, then the `oel-lang` cookie, then localStorage
+        // (the desktop app's webview keeps no cookies), then French.
         try {
           const url = new URL(location.href);
           const asked = url.searchParams.get('lang');
-          let l = (document.cookie.match(/(?:^|;\s*)oel-lang=(fr|en)\b/) || [])[1];
+          let l = (document.cookie.match(/(?:^|;\s*)oel-lang=(fr|en)\b/) || [])[1] || localStorage.getItem('oel-lang');
           if (asked === 'fr' || asked === 'en') {
             l = asked;
             document.cookie = 'oel-lang=' + asked + '; Max-Age=31536000; Path=/; SameSite=Lax';
+            localStorage.setItem('oel-lang', asked);
             document.documentElement.dataset.langFrom = 'site';
             url.searchParams.delete('lang');
             history.replaceState(history.state, '', url);

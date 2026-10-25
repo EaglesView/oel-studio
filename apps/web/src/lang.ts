@@ -6,7 +6,8 @@
  * The site's « Ouvrir le Bureau » links carry `?lang=fr|en`: the Bureau then opens in the
  * language of the page the person came from, without asking (`cameFromSite`).
  *
- * This is the platform seam for the choice: a desktop app would keep it in its own settings.
+ * The choice is also kept in localStorage under the same name: the desktop app's webview
+ * (`tauri://localhost` on macOS and Linux) doesn't keep cookies (plan 2026-10-desktop, D-0).
  */
 import { lang, toLang, workerOptions, type Lang } from '@oel/i18n';
 
@@ -15,15 +16,26 @@ export const LANG_COOKIE = 'oel-lang';
 const MAX_AGE = 60 * 60 * 24 * 365;
 const WELCOMED = 'oel-welcomed';
 
-/** The language saved in the cookie, or null when the person never chose one. */
+/** The language saved in the cookie (else localStorage), or null when the person never chose one. */
 export function savedLang(): Lang | null {
   const m = document.cookie.match(/(?:^|;\s*)oel-lang=(fr|en)\b/);
-  return m ? toLang(m[1]) : null;
+  if (m) return toLang(m[1]);
+  try {
+    const stored = localStorage.getItem(LANG_COOKIE);
+    return stored === 'fr' || stored === 'en' ? stored : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Remember a language for the next visits (does not change this page). */
 export function saveLang(value: Lang) {
   document.cookie = `${LANG_COOKIE}=${value}; Max-Age=${MAX_AGE}; Path=/; SameSite=Lax`;
+  try {
+    localStorage.setItem(LANG_COOKIE, value);
+  } catch {
+    /* private mode: the cookie alone remembers it */
+  }
 }
 
 /** Remember `value` and reload into it (the desk is saved on `pagehide`). Nothing happens if it is already the page's. */
