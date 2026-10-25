@@ -48,7 +48,7 @@ phase that names them.
 | D8 | **No analytics in the app.** Aide gets « Copier les informations de diagnostic » (version, OS, webview version, GPU path `webgpu/webgl2/cpu`), so feedback can include it by hand. | The welcome text promises nothing leaves the device. |
 | U1 | **user** — Code signing: Apple Developer ID (US$99/yr, needed for notarisation) and Windows signing (Azure Trusted Signing, about US$10/month, or an OV certificate). | Unsigned builds work but show scary warnings: macOS says the app is « damaged » or from an « unidentified developer », and Windows shows SmartScreen. Recommendation: the closed beta for the 10 users may ship unsigned with written instructions. A public release must be signed. |
 | U2 | **user** — Where builds are published: GitHub Releases (needs the public repo, T0-8) or our own host. | The updater and the site's download page point there. Recommendation: GitHub Releases, plus a download page on the site. |
-| U3 | **user** — App name and identifier, permanent per D7. Proposal: « Bureau — OutilsEnLigne », `ca.outilsenligne.bureau`. | |
+| U3 | **Decided 2026-10-24:** identifier `ca.outilsenligne.bureau` (permanent, D7). Window and product name « Bureau » for now. | |
 | U4 | **user** — Oldest OS versions supported. Proposal: Windows 10 22H2+, macOS 13+, Linux with WebKitGTK 4.1 (Ubuntu 22.04+, Fedora 38+, Debian 12+). | macOS 13 is the oldest that receives a Safari 17+ WebKit (OffscreenCanvas + WebGL2 in workers). D-0 confirms. |
 | U5 | **user** — Should the app register as an « Ouvrir avec » handler only (proposed), or ask to become the default app for .docx / .xlsx / .pptx? | |
 | U6 | **user + design** — Figma frames for the desktop behaviours: Enregistrer vs Exporter, unsaved marker on a paper, « Le fichier a changé sur le disque », update prompt, native menu. | AGENTS.md: behaviour follows the spec. Until the frames exist, D-3 follows this plan and says where it guessed. |
@@ -219,4 +219,32 @@ Skills to update as phases land: `oel-architecture` (Shells row, platform seam),
 
 ## Status
 
-- 2026-10-24: plan written. Nothing started. Waiting on U1–U6 (U3 and U4 before D-0 ships anything to users).
+- 2026-10-24: plan written. U3 decided (`ca.outilsenligne.bureau`). CSP stays off in D-0 and is set in D-2.
+- D-0 in progress (branch `desktop/d0`): `apps/desktop` (Tauri 2.12.4, own Cargo workspace), `scripts/probe.mjs`
+  (WebDriver probe through `tauri-driver`), `.github/workflows/desktop.yml` (unsigned test builds, by hand; not run
+  yet). Release build on Fedora 44: `.deb` / `.rpm` 8.7 MB, AppImage 115 MB (carries WebKitGTK), about 2 min.
+
+### D-0 matrix
+
+| Check | Linux · WebKitGTK 2.54.1 (Fedora 44, Wayland) | Windows · WebView2 | macOS · WKWebView |
+|---|---|---|---|
+| Demo desk seeded: 4 files imported by the WASM engines, thumbnails, chart, both live links | ✅ | | |
+| WASM served (`application/wasm`, `compileStreaming` works) | ✅ | | |
+| Routes `/bureau`, `/bureau/`, `/docs/bureau`, `/en/docs` (directory `index.html` resolved) | ✅ | | |
+| Origin, secure context | `tauri://localhost`, secure | | |
+| IndexedDB and localStorage survive a restart (same desk, no reseed) | ✅ (`~/.local/share/ca.outilsenligne.bureau`) | | |
+| `oel-lang` cookie | ❌ not kept, not even read back in the same page: choosing English would not stick | | |
+| `navigator.storage` (estimate, persist) | ❌ absent. Calls are already guarded (`restore.ts`), so « Ce bureau » shows no size and nothing breaks | | |
+| WebGPU | ❌ absent (main thread and workers) | | |
+| WebGL2: page canvas / OffscreenCanvas on the page / OffscreenCanvas in a worker | ✅ / ✅ / ❌ | | |
+| Image retouching | ✅ on the CPU path, with the honest « Aperçu ralenti : processeur graphique indisponible » | | |
+| Clipboard API (`read`, `write`) | present; prompts not checked | | |
+| File System Access API | absent (as expected; D-1 / D-2 use native dialogs) | | |
+| `<a download>`, file input, drag-and-drop import, IME, Mac shortcuts | to check by hand | | |
+
+Linux results feeding later phases:
+- D-1: the language goes through `prefs` (localStorage), not the cookie. Required, not optional.
+- D-2 / D-4: storage size comes from the app (size of the data folder), since `navigator.storage` is missing.
+- D-5 / D-7: on Linux the image engine runs on the CPU, because WebGL2 exists only outside workers. Options: render
+  on a page canvas when the worker has no GL, or native `oel-img` (D-7). Measure on a large photo first.
+- **Gate, Linux: passed.** Windows and macOS need the CI builds on real machines.

@@ -1,0 +1,77 @@
+# Unsigned test builds of the desktop app (apps/desktop, Tauri 2) for the three platforms, started by hand.
+# Plan 2026-10-desktop, D-0: the macOS and Windows builds are for trying the webviews on real machines. Signed
+# releases, updates and tags come with D-6.
+name: Desktop builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # The app only needs the browser WASM builds.
+  WASM_TARGETS: web
+
+jobs:
+  build:
+    name: Desktop · ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest supported Ubuntu, so the binary runs on older glibc too.
+          - name: Linux x64
+            os: ubuntu-22.04
+            args: ''
+          - name: Windows x64
+            os: windows-latest
+            args: ''
+          - name: macOS universal
+            os: macos-latest
+            args: --target universal-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      # The runner's rustup installs the version in rust-toolchain.toml.
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install
+          if [ "${{ runner.os }}" = macOS ]; then rustup target add aarch64-apple-darwin x86_64-apple-darwin; fi
+          rustc --version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            apps/desktop/src-tauri
+      - name: Install WebKitGTK
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev libgtk-3-dev librsvg2-dev patchelf
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      # Builds the WASM engines and the site (beforeBuildCommand), then the app and its installers.
+      - name: Build the app
+        run: npm run build -w @oel/desktop -- ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bureau-${{ runner.os }}
+          path: |
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.deb
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.rpm
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.dmg
+          if-no-files-found: error
+          retention-days: 14

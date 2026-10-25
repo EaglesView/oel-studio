@@ -1,0 +1,25 @@
+[package]
+name = "oel-desktop"
+version = "0.1.0"
+description = "Bureau · OutilsEnLigne, the desktop app (Tauri 2 shell over apps/web's static build)"
+authors = ["OutilsEnLigne.ca"]
+license = "MPL-2.0"
+edition = "2024"
+publish = false
+
+# Its own workspace: the repository's `cargo test --workspace` and CI then don't need the WebKitGTK
+# development packages (plan 2026-10-desktop, D6). It joins the main workspace if native engines come.
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-window-state = "2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

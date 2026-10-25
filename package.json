@@ -24,6 +24,8 @@
     "test": "cargo test --workspace && vitest run",
     "dev:web": "npm run dev -w @oel/web",
     "dev:collab": "npm run dev -w @oel/collab",
+    "dev:desktop": "npm run dev -w @oel/desktop",
+    "build:desktop": "npm run build -w @oel/desktop",
     "build:wasm": "node scripts/build-wasm.mjs",
     "gen:types": "node scripts/gen-types.mjs"
   },
