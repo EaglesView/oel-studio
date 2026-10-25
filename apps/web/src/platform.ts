@@ -4,7 +4,7 @@
  * the app. Imported for its effect by `LocaleRoot`, so it runs before any island renders.
  * Plan `docs/plans/2026-10-desktop.md`, D-1 and D-2.
  */
-import { installPlatform } from '@oel/platform';
+import { installPlatform, onBeforeClose } from '@oel/platform';
 
 export const inDesktopApp = Boolean((globalThis as { isTauri?: boolean }).isTauri);
 
@@ -15,4 +15,7 @@ if (inDesktopApp) {
       return m.desktopPlatform;
     }),
   );
+  // Before the window closes, wait until the writes the other handlers start (the desk's) are
+  // stored. Loaded on demand: the site's pages load this module too, and don't need Yjs.
+  onBeforeClose(() => import('@oel/collab-client').then((m) => m.settleDeviceWrites()));
 }

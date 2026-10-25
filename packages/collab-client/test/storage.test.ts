@@ -1,6 +1,6 @@
 /** A device that refuses writes (backlog T0-4): the failure is reported, never swallowed. */
 import { afterAll, describe, expect, it } from 'vitest';
-import { localFiles, onStorageFailure, reportStorageFailure, storageFailure, watchDatabase, type StorageFailure } from '../src/local';
+import { localFiles, onStorageFailure, reportStorageFailure, settleLocalFiles, storageFailure, watchDatabase, type StorageFailure } from '../src/local';
 
 /**
  * Just enough IndexedDB for `localFiles`: reads succeed, and every write succeeds as a request
@@ -85,5 +85,14 @@ describe('writes this device refuses', () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(seen).toEqual(['full']);
     stop();
+  });
+});
+
+describe('before the desktop app closes', () => {
+  it('waits for the file writes already started, refused ones included', async () => {
+    let done = false;
+    void localFiles.put('doc|media|b.png', { mime: 'image/png', bytes: new Uint8Array([7]) }).then(() => (done = true));
+    await settleLocalFiles();
+    expect(done).toBe(true);
   });
 });

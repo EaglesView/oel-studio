@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { installPlatform, platform, saveFile, webPlatform, type Platform } from '../src/index';
+import { installPlatform, onBeforeClose, platform, runBeforeClose, saveFile, webPlatform, type Platform } from '../src/index';
 
 describe('@oel/platform', () => {
   afterEach(() => installPlatform(webPlatform));
@@ -21,5 +21,31 @@ describe('@oel/platform', () => {
   it('falls back to the web platform when the installed one fails to load', async () => {
     installPlatform(Promise.reject(new Error('no Tauri')));
     expect((await platform()).kind).toBe('web');
+  });
+
+  it('runs the before-close handlers together and waits for all of them, failures included', async () => {
+    const order: string[] = [];
+    const offs = [
+      onBeforeClose(() => void order.push('flush')),
+      onBeforeClose(async () => {
+        await new Promise((r) => setTimeout(r, 5));
+        order.push('stored');
+      }),
+      onBeforeClose(() => {
+        throw new Error('broken handler');
+      }),
+    ];
+    const err = console.error;
+    console.error = () => {};
+    try {
+      await runBeforeClose();
+    } finally {
+      console.error = err;
+    }
+    expect(order).toEqual(['flush', 'stored']);
+    offs.forEach((off) => off());
+    order.length = 0;
+    await runBeforeClose();
+    expect(order).toEqual([]);
   });
 });

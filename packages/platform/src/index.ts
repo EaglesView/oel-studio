@@ -3,8 +3,8 @@
  * differently. Packages call these functions; only the app chooses the platform, once, before any
  * island renders (`installPlatform`). Until then — and in tests — the web platform answers.
  *
- * Plan `docs/plans/2026-10-desktop.md`, D-1. Today: saving a copy of a file. Pickers and real
- * paths come with D-3.
+ * Plan `docs/plans/2026-10-desktop.md`, D-1 and D-2. Today: saving a copy of a file, and work to
+ * finish before the window closes. Pickers and real paths come with D-3.
  */
 
 export interface Platform {
@@ -52,4 +52,32 @@ export function platform(): Promise<Platform> {
 export async function saveFile(data: Blob | BlobPart, name: string, type = 'application/octet-stream'): Promise<boolean> {
   const blob = data instanceof Blob ? data : new Blob([data], { type });
   return (await current).saveFile(blob, name);
+}
+
+/* ── closing ───────────────────────────────────────────────────────────────────────────────── */
+
+const beforeClose = new Set<() => unknown>();
+
+/**
+ * Work to finish before the desktop app's window closes (write what is pending). The page also
+ * keeps its `pagehide` handlers: the browser fires those, a native close may not.
+ */
+export function onBeforeClose(fn: () => unknown): () => void {
+  beforeClose.add(fn);
+  return () => void beforeClose.delete(fn);
+}
+
+/**
+ * Run every `onBeforeClose` handler. They all start in the same tick, so a handler that waits for
+ * storage (`settleDeviceWrites`) also waits for the writes the others start. Never rejects.
+ */
+export async function runBeforeClose(): Promise<void> {
+  const running = [...beforeClose].map((fn) => {
+    try {
+      return Promise.resolve(fn());
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  });
+  for (const r of await Promise.allSettled(running)) if (r.status === 'rejected') console.error('Before close', r.reason);
 }

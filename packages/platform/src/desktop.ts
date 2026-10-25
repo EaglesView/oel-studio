@@ -2,11 +2,12 @@
  * The desktop app's platform (apps/desktop, Tauri 2). Loaded only inside the app (the app checks
  * `isTauri()` and imports this module dynamically), so the web build never runs the Tauri API.
  */
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { tr } from '@oel/i18n';
-import type { Platform } from './index';
+import { runBeforeClose, type Platform } from './index';
 
 /** The extension of `name`, without the dot, for the save dialog's filter. */
 const extensionOf = (name: string) => /\.([A-Za-z0-9]{1,8})$/.exec(name)?.[1];
@@ -27,6 +28,9 @@ export const desktopPlatform: Platform = {
     }
   },
 };
+
+/** How long a close waits for pending writes before the window goes anyway. */
+const CLOSE_WAIT_MS = 4000;
 
 /** A link that leaves the app (another site, an email), or null for the app's own pages. */
 function outside(href: string): URL | null {
@@ -49,6 +53,12 @@ let started = false;
 export function startDesktopShell() {
   if (started) return;
   started = true;
+  // Closing waits for what is pending to be written (the desk saves 400 ms after a change, and a
+  // native close fires no `pagehide`). Once the handler resolves, Tauri destroys the window.
+  void getCurrentWindow().onCloseRequested(async () => {
+    await Promise.race([runBeforeClose(), new Promise((resolve) => setTimeout(resolve, CLOSE_WAIT_MS))]);
+  });
+
   // Other sites open in the system browser. The app's own pages (the docs are bundled) stay in
   // its single window, including those linked with target=_blank.
   window.addEventListener('click', (e) => {

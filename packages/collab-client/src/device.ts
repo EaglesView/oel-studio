@@ -5,7 +5,7 @@
  */
 import * as Y from 'yjs';
 import { IndexeddbPersistence } from 'y-indexeddb';
-import { reportStorageFailure, watchDatabase } from './local';
+import { reportStorageFailure, settleLocalFiles, watchDatabase } from './local';
 
 export interface DeviceDoc {
   doc: Y.Doc;
@@ -15,9 +15,13 @@ export interface DeviceDoc {
   clear(): Promise<void>;
 }
 
+/** Every copy being saved, for `settleDeviceWrites`. */
+const saving = new Set<IndexeddbPersistence>();
+
 /** Save `doc` under `name` with y-indexeddb, reporting the writes the device refuses (`onStorageFailure`). */
 export function persistDoc(name: string, doc: Y.Doc): IndexeddbPersistence {
   const idb = new IndexeddbPersistence(name, doc);
+  saving.add(idb);
   idb._db.then(watchDatabase, (e: unknown) => {
     // No database (a full disk can't create one): y-indexeddb would never say it is synced, and
     // the session would wait forever. Nothing is saved, so the document carries on in memory.
@@ -25,6 +29,33 @@ export function persistDoc(name: string, doc: Y.Doc): IndexeddbPersistence {
     idb.emit('synced', [idb]);
   });
   return idb;
+}
+
+/**
+ * Resolves once every write already started on this device has committed: the Y.Doc updates
+ * y-indexeddb stores (including those made in the same tick as this call) and the files of
+ * `localFiles`. Used before the desktop app's window closes.
+ */
+export async function settleDeviceWrites(): Promise<void> {
+  // Let writes started in this tick create their transactions first.
+  await Promise.resolve();
+  const barriers = [...saving].map(async (idb) => {
+    if ((idb as unknown as { _destroyed: boolean })._destroyed) return void saving.delete(idb);
+    const db = await idb._db.catch(() => null);
+    if (!db) return;
+    // Read-write transactions on the same store run in the order they were created, so this one
+    // completes after every update y-indexeddb queued before it.
+    await new Promise<void>((resolve) => {
+      try {
+        const t = db.transaction(['updates'], 'readwrite');
+        t.oncomplete = t.onabort = t.onerror = () => resolve();
+      } catch {
+        // Closed meanwhile: its writes are done.
+        resolve();
+      }
+    });
+  });
+  await Promise.all([...barriers, settleLocalFiles()]);
 }
 
 /** Open (or create) a Y.Doc saved under `name`; resolves once the saved state is loaded. */

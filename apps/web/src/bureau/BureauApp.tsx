@@ -37,6 +37,7 @@ import { ensureFormThread, sheetRefs, useFormSync, writeHeaders } from './forms'
 import { ProjectProvider, useProject, useSetting } from '../project/ProjectContext';
 import { bindImages, createGallery } from './images';
 import { bindDesk, type DeskBinding } from './persist';
+import { onBeforeClose } from '@oel/platform';
 import { openDesk, scheduleReset, type OpenedDesk } from './deskStorage';
 import { exportDesk, type DeskActions } from './DeskBackup';
 import { warnOnStorageFailure } from './storageWarning';
@@ -185,7 +186,9 @@ function BureauDesk({ saved }: { saved: OpenedDesk }) {
     const onHide = () => binding.flush();
     window.addEventListener('pagehide', onHide);
     document.addEventListener('visibilitychange', onHide);
+    const offClose = onBeforeClose(onHide);
     return () => {
+      offClose();
       window.removeEventListener('pagehide', onHide);
       document.removeEventListener('visibilitychange', onHide);
       unthumb();

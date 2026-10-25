@@ -23,8 +23,26 @@ function open(): Promise<IDBDatabase> {
   return dbp;
 }
 
+/** Writes not yet committed, for `settleLocalFiles`. */
+const writing = new Set<Promise<unknown>>();
+
+/** Resolves once the writes started so far have committed or failed. */
+export async function settleLocalFiles(): Promise<void> {
+  await Promise.allSettled([...writing]);
+}
+
 /** Runs one request; a write resolves once its transaction commits (a full disk aborts it after the request succeeded). */
-async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const p = run(mode, fn);
+  if (mode !== 'readonly') {
+    writing.add(p);
+    const done = () => void writing.delete(p);
+    p.then(done, done);
+  }
+  return p;
+}
+
+async function run<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const db = await open();
   return new Promise((resolve, reject) => {
     const t = db.transaction(STORE, mode);
